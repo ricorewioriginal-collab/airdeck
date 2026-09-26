@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: ['**']
+    branches: ['AirDeck-Radio-Automation-&-Broadcast']
     paths-ignore:
       - 'docs/screenshots/**'
   pull_request:
@@ -10,6 +10,17 @@ on:
 
 permissions:
   contents: read
+
+# Pro Branch darf nur der neueste Build Ressourcen verbrauchen. Bei mehreren schnellen Commits
+# werden aeltere queued/running Runs automatisch abgebrochen statt parallel weiterzubauen.
+concurrency:
+  group: airdeck-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# docker/build-push-action legt sonst pro Build ein zusaetzliches .dockerbuild-Record-Artefakt an.
+# Fuer AirDeck reichen Logs und normale Build-Artefakte; das spart Actions-Speicher.
+env:
+  DOCKER_BUILD_RECORD_UPLOAD: false
 
 jobs:
   test:
@@ -206,12 +217,12 @@ jobs:
         with:
           name: AirDeck-Windows-Installer
           path: dist/AirDeck-Setup-*.exe
-          retention-days: 30
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: AirDeck-Windows
           path: dist/AirDeck
-          retention-days: 30
+          retention-days: 7
 
   docker:
     needs: test
@@ -454,7 +465,7 @@ jobs:
         with:
           name: AirDeck-Linux-Deb
           path: dist/airdeck_*.deb
-          retention-days: 30
+          retention-days: 7
 
   android:
     needs: test
@@ -495,7 +506,7 @@ jobs:
         with:
           name: AirDeck-Android
           path: apps/android/out/AirDeck-Android.apk
-          retention-days: 30
+          retention-days: 7
 
   # Download-Bereich: Nach jedem Push auf den Hauptbranch liegen Installer, portable Version und APK
   # unter „Releases → AirDeck (aktueller Stand)“, ohne GitHub-Login-Umweg über Artefakte.
