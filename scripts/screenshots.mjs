@@ -19,7 +19,7 @@ async function view(name, file) {
   await page.locator(`[data-view="${name}"]`).first().click();
   await page.waitForSelector(`#view-${name}:not([hidden])`);
   await page.waitForTimeout(500);
-  await page.screenshot({ path: new URL(file, out).pathname, fullPage: true });
+  await page.screenshot({ path: new URL(file, out).pathname, fullPage: false });
 }
 async function panel(win, file) {
   await page.locator('[data-view="studio"]').first().click();
@@ -30,7 +30,7 @@ async function panel(win, file) {
   await target.screenshot({ path: new URL(file, out).pathname });
 }
 
-await page.screenshot({ path: new URL('view-dashboard.png', out).pathname, fullPage: true });
+await page.screenshot({ path: new URL('view-dashboard.png', out).pathname, fullPage: false });
 for (const [name, file] of [
   ['studio','view-studio.png'],
   ['planning','view-planning.png'],

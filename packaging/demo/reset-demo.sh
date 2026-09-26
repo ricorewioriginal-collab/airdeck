@@ -62,6 +62,17 @@ curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\
 curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$station_id\",\"label\":\"AirDeck-FM ID\"}" "$api/cardwall/cart2" > /dev/null
 curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$track_a\",\"label\":\"Demo Track A\"}" "$api/cardwall/cart3" > /dev/null
 
+# Playlist, Queue und Tages-Sendeplan fuer die Referenz-Oberflaeche mit echten Demo-Daten fuellen.
+playlist_json=$(curl -fs -X POST -H "$auth" -H "Content-Type: application/json" \
+  -d "{\"name\":\"AirDeck Demo Rotation\",\"color\":\"#22a6ff\",\"items\":[\"$track_a\",\"$track_b\",\"$track_c\",\"$station_id\",\"$jingle\"]}" "$api/playlists")
+playlist_id=$(printf '%s' "$playlist_json" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+if [ -n "$playlist_id" ]; then
+  curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"label\":\"Morning Show\",\"days\":[],\"from\":\"06:00\",\"to\":\"10:00\",\"playlistId\":\"$playlist_id\",\"shuffle\":false}" "$api/plans" > /dev/null
+  curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"label\":\"Music Mix\",\"days\":[],\"from\":\"10:00\",\"to\":\"14:00\",\"playlistId\":\"$playlist_id\",\"shuffle\":true}" "$api/plans" > /dev/null
+  curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"label\":\"Afternoon Drive\",\"days\":[],\"from\":\"14:00\",\"to\":\"18:00\",\"playlistId\":\"$playlist_id\",\"shuffle\":false}" "$api/plans" > /dev/null
+  curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"label\":\"Evening Session\",\"days\":[],\"from\":\"18:00\",\"to\":\"23:59\",\"playlistId\":\"$playlist_id\",\"shuffle\":true}" "$api/plans" > /dev/null
+fi
+
 # Automation direkt startbereit machen. Wenn der Start wider Erwarten fehlschlaegt, bleibt die Demo
 # trotzdem erreichbar; der Fehler steht dann im Containerlog statt den gesamten Reset abzubrechen.
 curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" \
@@ -69,6 +80,12 @@ curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" \
   "$api/playout" > /dev/null || true
 curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d '{"autostart":true}' \
   "$api/playout/start" > /dev/null || true
+
+# Nach dem Engine-Start mehrere Eintraege sichtbar in der Queue halten. So bleibt die Demo
+# bedienbar und der Browser-Test kann echtes Queue-Reordering pruefen.
+for mid in "$track_b" "$track_c" "$station_id" "$track_a" "$jingle"; do
+  curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$mid\"}" "$api/queue" > /dev/null
+done
 
 # Fester Demo-Zugang statt eines sich staendig aendernden Tokens: wer ueber GitHub/README zur Demo
 # kommt, hat keinen Token und keinen SSH-Zugriff auf den Server, um sich einen zu holen. Benutzer/

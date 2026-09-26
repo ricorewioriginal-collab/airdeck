@@ -310,11 +310,18 @@ jobs:
           TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs airdeck-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
           test -n "$TOKEN"
           echo "AIRDECK_SCREENSHOT_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+      - name: Browser-Funktionen gegen echte Demo pruefen
+        env:
+          AIRDECK_SCREENSHOT_URL: http://127.0.0.1:8751
+        run: node scripts/browser-smoke.mjs
       - name: README-Screenshots neu erzeugen
         env:
           AIRDECK_SCREENSHOT_URL: http://127.0.0.1:8751
         run: |
           node scripts/screenshots.mjs
+          # README-Bilder sind Dokumentation, kein verlustfreies Screenshot-Archiv: Metadaten entfernen
+          # und PNG-Kompression maximieren, damit der Git-Verlauf nicht durch UI-Bilder aufblaeht.
+          mogrify -strip -define png:compression-level=9 -define png:compression-filter=5 docs/screenshots/*.png
           convert \
             docs/screenshots/view-dashboard.png \
             docs/screenshots/view-studio.png \
@@ -325,7 +332,14 @@ jobs:
             docs/screenshots/view-listeners.png \
             docs/screenshots/view-users.png \
             -resize '820x540>' -gravity center -background '#020817' -extent 820x540 \
-            -delay 140 -loop 0 docs/screenshots/slideshow.gif
+            -delay 140 -loop 0 -layers Optimize docs/screenshots/slideshow.gif
+          # Harte Repo-Schranke: Ein einzelnes Doku-Bild/GIF soll niemals unbemerkt riesig werden.
+          if find docs/screenshots -type f -size +5M | grep -q .; then
+            echo "Screenshot groesser als 5 MiB - vor Git-Commit weiter optimieren:"
+            find docs/screenshots -type f -size +5M -print
+            exit 1
+          fi
+          du -h docs/screenshots/* | sort -h
       - name: Screenshots nur bei Aenderungen committen
         run: |
           git config user.name "AirDeck CI"

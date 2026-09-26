@@ -19,7 +19,7 @@
       <span>AIRDECK</span>
     </div>
     <nav class="nav" id="view-tabs" aria-label="Bereiche">
-      <details class="nav-section" open>
+      <details class="nav-section" data-nav-section="studio" open>
         <summary><span>Studio</span></summary>
         <div class="nav-items">
           <button data-view="overview" aria-pressed="true"><i data-icon="dashboard"></i><span>Dashboard</span><kbd>1</kbd></button>
@@ -30,26 +30,34 @@
         </div>
       </details>
 
-      <details class="nav-section" open>
+      <details class="nav-section" data-nav-section="planning" open>
         <summary><span>Planung</span></summary>
         <div class="nav-items">
           <button data-view="planning" aria-pressed="false"><i data-icon="calendar"></i><span>Sendeplan &amp; Events</span><kbd>2</kbd></button>
-          <button data-view="ai" aria-pressed="false"><i data-icon="bolt"></i><span>Automation &amp; KI</span><kbd>5</kbd></button>
         </div>
       </details>
 
-      <details class="nav-section">
+      <details class="nav-section" data-nav-section="media">
         <summary><span>Medien</span></summary>
         <div class="nav-items">
           <button data-view="mediathek" aria-pressed="false"><i data-icon="music"></i><span>Musikarchiv</span><kbd>7</kbd></button>
           <button data-view="playlists" aria-pressed="false"><i data-icon="list"></i><span>Playlists</span><kbd>8</kbd></button>
-          <button data-view="recorder" aria-pressed="false"><i data-icon="record"></i><span>Recorder</span><kbd>3</kbd></button>
+          <button id="btn-storage"><i data-icon="cloud"></i><span>Uploads / Cloud</span></button>
         </div>
       </details>
 
-      <details class="nav-section">
-        <summary><span>Verbindungen</span></summary>
+      <details class="nav-section" data-nav-section="analysis">
+        <summary><span>Analyse</span></summary>
         <div class="nav-items">
+          <button data-view="listeners" aria-pressed="false"><i data-icon="bell"></i><span>Hörer &amp; Statistik</span><b class="nav-badge" id="listener-badge" hidden>0</b></button>
+        </div>
+      </details>
+
+      <details class="nav-section" data-nav-section="tools">
+        <summary><span>Tools</span></summary>
+        <div class="nav-items">
+          <button data-view="ai" aria-pressed="false"><i data-icon="bolt"></i><span>KI Tools &amp; Automation</span><kbd>5</kbd></button>
+          <button data-view="recorder" aria-pressed="false"><i data-icon="record"></i><span>Recorder</span><kbd>3</kbd></button>
           <button data-view="bridges" aria-pressed="false"><i data-icon="stream"></i><span>Streams &amp; Anbindungen</span></button>
           <button data-view="lautfm" aria-pressed="false" id="nav-lautfm" hidden><i data-icon="lautfm"></i><span>laut.fm</span><kbd>4</kbd></button>
           <a class="nav-link" id="nav-status" href="status.html" target="_blank" rel="noopener"><i data-icon="signal"></i><span>Stream-Status</span></a>
@@ -59,20 +67,12 @@
         </div>
       </details>
 
-      <details class="nav-section">
-        <summary><span>Analyse</span></summary>
-        <div class="nav-items">
-          <button data-view="listeners" aria-pressed="false"><i data-icon="bell"></i><span>Hörer &amp; Statistik</span><b class="nav-badge" id="listener-badge" hidden>0</b></button>
-        </div>
-      </details>
-
-      <details class="nav-section">
+      <details class="nav-section" data-nav-section="settings">
         <summary><span>Einstellungen</span></summary>
         <div class="nav-items">
           <button id="btn-station"><i data-icon="settings"></i><span>Sender &amp; Branding</span></button>
-          <button data-view="users" aria-pressed="false" id="nav-users" hidden><i data-icon="user"></i><span>Benutzer &amp; Rollen</span></button>
           <button id="btn-audio"><i data-icon="headphones"></i><span>Audio &amp; Geräte</span></button>
-          <button id="btn-storage"><i data-icon="cloud"></i><span>Speicher &amp; Sync</span></button>
+          <button data-view="users" aria-pressed="false" id="nav-users" hidden><i data-icon="user"></i><span>Benutzer &amp; Rollen</span></button>
           <button id="btn-notify"><i data-icon="bell"></i><span>Benachrichtigungen</span></button>
           <button id="btn-update"><i data-icon="update"></i><span>Updates &amp; Backup</span><b class="nav-badge" id="update-badge" hidden>neu</b></button>
           <button id="btn-windows"><i data-icon="sliders"></i><span>Fenster &amp; Layout</span></button>
@@ -81,7 +81,7 @@
         </div>
       </details>
 
-      <details class="nav-section">
+      <details class="nav-section" data-nav-section="help">
         <summary><span>Hilfe</span></summary>
         <div class="nav-items">
           <button data-view="handbuch" aria-pressed="false"><i data-icon="list"></i><span>Handbuch</span><kbd>9</kbd></button>
@@ -108,6 +108,16 @@
         </div>
       </div>
       <div class="onair" id="onair" data-state="off"><span class="dot"></span><span id="onair-text">OFF AIR</span></div>
+      <div class="top-now" aria-label="Jetzt läuft">
+        <div class="top-now-cover" id="top-cover"></div>
+        <div class="top-now-copy">
+          <span>Jetzt läuft</span>
+          <strong id="top-title">–</strong>
+          <small id="top-artist"></small>
+        </div>
+        <div class="top-now-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="top-now-time" id="top-time"></div>
+      </div>
       <div class="mode-switch" role="group" aria-label="Betriebsart">
         <button id="btn-manual" aria-pressed="false" title="Manuell: Du bist selbst live. Decks, Mikrofon und Cartwall bedienst du von Hand – nichts startet von selbst."><i data-icon="mic" data-size="16"></i> Manuell</button>
         <button id="btn-auto" aria-pressed="false" title="24/7 AutoDJ: spielt rund um die Uhr Queue, Sendeuhr und Sendeplan mit Überblendung – auch ohne geöffnetes Fenster."><i data-icon="auto" data-size="16"></i> 24/7 AutoDJ</button>
@@ -141,6 +151,18 @@
     <!-- Studio-Arbeitsbereich (Decks, Cardwall, Queue, Live) - nicht das Dashboard -->
     <main class="dash" id="view-studio" hidden>
       <div class="dash-main">
+        <div class="studio-titlebar" aria-label="Live Studio">
+          <div class="studio-title">
+            <i data-icon="stream" data-size="18"></i>
+            <strong>Live Studio</strong>
+            <span class="studio-live-chip"><span class="dot"></span> Studio</span>
+          </div>
+          <div class="studio-title-actions">
+            <button class="btn small" data-jump="work-panel"><i data-icon="list" data-size="14"></i> Queue</button>
+            <button class="btn small" data-jump="carts-panel"><i data-icon="grid" data-size="14"></i> Cardwall</button>
+            <button class="btn small" data-view="planning"><i data-icon="calendar" data-size="14"></i> Sendeplan</button>
+          </div>
+        </div>
         <section class="m-home" aria-label="Mobil-Übersicht">
           <div class="m-np">
             <div class="cover big" id="m-cover"></div>
@@ -203,6 +225,20 @@
           </section>
         </div>
 
+        <section class="panel studio-schedule" id="studio-schedule" aria-label="Sendeplan" data-win="schedule" data-title="Sendeplan">
+          <div class="panel-head">
+            <h2>Sendeplan</h2>
+            <span class="muted" id="studio-schedule-date">Heute</span>
+            <button class="btn small" id="studio-schedule-refresh" title="Sendeplan aktualisieren"><i data-icon="update" data-size="13"></i></button>
+            <button class="btn small primary" data-view="planning"><i data-icon="calendar" data-size="13"></i> Vollständig öffnen</button>
+          </div>
+          <div class="studio-schedule-hours" id="studio-schedule-hours"></div>
+          <div class="studio-schedule-track" id="studio-schedule-track">
+            <div class="studio-schedule-now" id="studio-schedule-now" hidden></div>
+            <div class="empty" id="studio-schedule-empty">Sendeplan wird geladen …</div>
+          </div>
+        </section>
+
         <div class="row3" id="work-panel">
           <section class="panel lib-panel" aria-label="Musikarchiv" data-win="lib" data-title="Playlist / Archiv">
             <div class="panel-head">
@@ -247,28 +283,28 @@
             </div>
           </section>
 
-          <div class="stack" id="live-panel">
-            <section class="panel" data-win="quick" data-title="Schnelltrigger">
-              <div class="panel-head"><h2>Schnelltrigger</h2></div>
-              <div class="quick" id="quick"></div>
-            </section>
-            <section class="panel live-voice" data-win="live" data-title="Live-Voice">
-              <div class="panel-head"><h2>Live-Voice</h2><span class="pill" id="lv-state">bereit</span></div>
-              <div class="lv-body">
-                <div class="vu-v"><i id="lv-meter"></i></div>
-                <button class="mic-btn" id="lv-mic" title="Mikrofon an/aus"><i data-icon="mic" data-size="30"></i></button>
-                <div class="lv-side">
-                  <label class="chk"><input type="checkbox" id="lv-ptt"> Push-to-Talk</label>
-                  <span class="muted" id="lv-info">Browser-Mikrofon</span>
-                </div>
-              </div>
-            </section>
-          </div>
         </div>
       </div>
 
       <!-- Rechte Spalte -->
       <aside class="side">
+        <div class="stack" id="live-panel">
+          <section class="panel" data-win="quick" data-title="Schnellzugriff">
+            <div class="panel-head"><h2>Schnellzugriff</h2></div>
+            <div class="quick" id="quick"></div>
+          </section>
+          <section class="panel live-voice" data-win="live" data-title="Mikrofon / Live">
+            <div class="panel-head"><h2>Mikrofon / Live</h2><span class="pill" id="lv-state">bereit</span></div>
+            <div class="lv-body">
+              <div class="vu-v"><i id="lv-meter"></i></div>
+              <button class="mic-btn" id="lv-mic" title="Mikrofon an/aus"><i data-icon="mic" data-size="30"></i></button>
+              <div class="lv-side">
+                <label class="chk"><input type="checkbox" id="lv-ptt"> Push-to-Talk</label>
+                <span class="muted" id="lv-info">Browser-Mikrofon</span>
+              </div>
+            </div>
+          </section>
+        </div>
         <section class="panel" data-win="stream" data-title="Stream &amp; Encoder">
           <div class="panel-head"><h2>Stream &amp; Encoder</h2><button class="btn small" id="btn-liq" title="Liquidsoap-Skript erzeugen">LIQ</button><button class="btn small" id="btn-profiles" title="AirDeckCast: Zusatz-Stream-Profile verwalten (z. B. Mobile AAC 64k)">Profile</button><button class="btn small" id="btn-airdeckcast-test" title="AirDeckCast-Teststream: kurzer Testton über alle aktiven Ausgänge/Profile/HLS, prüft ob wirklich Daten ankommen">Test</button><button class="btn small" id="btn-add-output" title="Ausgang hinzufügen">＋</button></div>
           <div class="stream-sum">
@@ -299,8 +335,8 @@
           <div class="fader-row"><span>Vorhören</span><input type="range" id="fx-pfl" min="0" max="1" step="0.01" value="0.8"><span class="num" id="fx-pfl-v">80 %</span></div>
         </section>
 
-        <section class="panel meters-panel" data-win="meters" data-title="VU / Pegel">
-          <div class="panel-head"><h2>VU / Pegel</h2><span class="muted" id="lufs-v">– dB</span></div>
+        <section class="panel meters-panel" data-win="meters" data-title="Statistik &amp; Pegel">
+          <div class="panel-head"><h2>Statistik &amp; Pegel</h2><span class="muted" id="lufs-v">– dB</span></div>
           <div class="vu-h"><i id="m-rms"></i></div>
           <div class="meter-row"><span>RMS</span><span class="num" id="m-rms-v">-∞</span><span>Peak</span><span class="num" id="m-peak-v">-∞</span></div>
           <div class="meter-row small"><span>Peak</span><div class="meter"><i id="m-peak"></i></div></div>
