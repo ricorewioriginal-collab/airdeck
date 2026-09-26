@@ -195,10 +195,13 @@ jobs:
           }
           Remove-Item $pfx
       - name: Installer-Test (still installieren, starten, deinstallieren)
+        timeout-minutes: 5
         shell: pwsh
         run: |
           $setup = Get-ChildItem dist/AirDeck-Setup-*.exe | Select-Object -First 1
-          Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=""' -Wait
+          $install = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/SP-', '/TASKS=""' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer fehlgeschlagen: $($install.ExitCode)" }
+          if (Test-Path "$env:LOCALAPPDATA/AirDeck/data/installer-bootstrap.json") { throw 'Silent-Setup darf keine leeren Admin-Zugangsdaten anlegen' }
           if (-not (Test-Path "$env:LOCALAPPDATA/Programs/AirDeck/AirDeck.exe")) { throw 'AirDeck.exe nach Installation nicht gefunden' }
           $exe = "$env:LOCALAPPDATA/Programs/AirDeck/airdeck-engine.exe"
           if (-not (Test-Path $exe)) { throw 'airdeck-engine.exe nach Installation nicht gefunden' }
@@ -211,7 +214,9 @@ jobs:
           Stop-Process -Id $p.Id -Force
           if (-not $r.ok) { throw 'Installierte Version antwortet nicht' }
           if ($page.StatusCode -ne 200) { throw 'Installierte Version liefert das Studio nicht aus' }
-          Start-Process "$env:LOCALAPPDATA/Programs/AirDeck/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES' -Wait
+          $uninstall = Start-Process "$env:LOCALAPPDATA/Programs/AirDeck/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Deinstallation fehlgeschlagen: $($uninstall.ExitCode)" }
+          if (Test-Path $exe) { throw 'Engine nach Deinstallation noch vorhanden' }
           Write-Host 'Installer: Installation, Start und Deinstallation OK'
       - uses: actions/upload-artifact@v4
         with:

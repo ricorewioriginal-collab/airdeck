@@ -200,7 +200,10 @@ begin
     'Empfohlen für Server-/LAN-Betrieb. Das Kennwort wird beim ersten Start gehasht und die Bootstrap-Datei danach gelöscht.', True, False);
   AdminChoicePage.Add('Y (Yes) – eigenen Admin-Zugang einrichten');
   AdminChoicePage.Add('N (No) – später im AirDeck-Setup einrichten');
-  AdminChoicePage.SelectedValueIndex := 0;
+  { Unattended installation defers credentials to the application's first-run setup.
+    Never create a bootstrap file with an empty password or wait for an invisible dialog. }
+  if WizardSilent then AdminChoicePage.SelectedValueIndex := 1
+  else AdminChoicePage.SelectedValueIndex := 0;
 
   AdminPage := CreateInputQueryPage(AdminChoicePage.ID,
     'Administrator', 'Eigener AirDeck-Zugang',
@@ -269,7 +272,7 @@ end;
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
-  if IsUpdate then
+  if IsUpdate or WizardSilent then
   begin
     if (PageID = BrandPage.ID) or (PageID = ServerModePage.ID) or (PageID = NetworkPage.ID) or
        (PageID = LanPage.ID) or (PageID = AdminChoicePage.ID) or (PageID = AdminPage.ID) or
