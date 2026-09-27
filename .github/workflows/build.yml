@@ -2,11 +2,19 @@
 
 on:
   push:
-    branches: ['AirDeck-Radio-Automation-&-Broadcast']
+    branches: ['**']
+    tags: ['v*']
     paths-ignore:
       - 'docs/screenshots/**'
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: airdeck-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOCKER_BUILD_RECORD_UPLOAD: false
 
 permissions:
   contents: read
@@ -513,8 +521,8 @@ jobs:
           path: apps/android/out/AirDeck-Android.apk
           retention-days: 3
 
-  # Download-Bereich: Nach jedem Push auf den Hauptbranch liegen Installer, portable Version und APK
-  # unter „Releases → AirDeck (aktueller Stand)“, ohne GitHub-Login-Umweg über Artefakte.
+  # Releases nur bewusst über Versions-Tags erzeugen. Normale Commits bauen/testen,
+  # erzeugen aber keine dauerhaften Release-Artefakte.
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [windows, android, linux]
@@ -543,10 +551,10 @@ jobs:
           tag_name: ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: AirDeck ${{ github.ref_name }}
-          prerelease: false
+          prerelease: true
           make_latest: true
           body: |
-            Gebaut und getestet aus ${{ github.sha }}.
+            AirDeck V1 Beta – automatisch gebaut und getestet aus ${{ github.sha }}.
             • AirDeck-Setup.exe – Windows-Installer (ohne Adminrechte, Deutsch/English, mit Audio-Engine und Android-APK)
             • AirDeck-Windows-Portable.zip – ohne Installation: entpacken, AirDeck.exe starten
             • AirDeck-Android.apk – Android-App: Handy-Sender (Mikrofon + Musik direkt zu laut.fm/Icecast, ohne Server) oder Studio-Fernbedienung für AirDeck auf PC/Server
