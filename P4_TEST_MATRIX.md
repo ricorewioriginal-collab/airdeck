@@ -1,6 +1,6 @@
 # P4 – Beta-1-Abnahme
 
-Stand: 26.09.2026; Ausgangscommit `296b799`. Grundlage: vom Betreiber bereitgestellter „AIRDECK P4 – V1 BETA QUALIFICATION“-Masterprompt.
+Stand: 27.09.2026; Ausgangscommit `296b799`. Grundlage: vom Betreiber bereitgestellter „AIRDECK P4 – V1 BETA QUALIFICATION“-Masterprompt. Release-Branche: `release/v1.0.0-beta.1` @ `00b1442`.
 
 PASS gilt nur für den ausdrücklich beschriebenen Prüfumfang. Vorhandener Code oder frühere CI ist kein plattformübergreifender UI-Abnahmenachweis. IN PROGRESS bedeutet noch nicht qualifiziert, nicht zwingend laufender Test. FAIL bedeutet konkret belegte Lücke. Kein Release-Gate ist durch diese Inventur bestanden.
 
