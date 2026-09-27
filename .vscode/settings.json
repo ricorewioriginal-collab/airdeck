@@ -1,0 +1,4 @@
+{
+    "editor.defaultFormatter": "googlecloudtools.cloudcode",
+    "notebook.defaultFormatter": "googlecloudtools.cloudcode"
+}
