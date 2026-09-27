@@ -11,7 +11,7 @@ await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1050 }, deviceScaleFactor: 1 });
 await page.addInitScript((t) => localStorage.setItem('airdeck.token', t), token);
-await page.goto(base + '/', { waitUntil: 'networkidle' });
+await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#view-overview:not([hidden])', { timeout: 20_000 });
 await page.waitForTimeout(800);
 

@@ -3,6 +3,7 @@
 on:
   push:
     branches: ['AirDeck-Radio-Automation-&-Broadcast']
+    tags: ['v*']
     paths-ignore:
       - 'docs/screenshots/**'
   pull_request:
@@ -303,7 +304,7 @@ jobs:
           echo "Demo: Login, Cardwall, Playout und Reset OK"
 
   screenshots:
-    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && !contains(github.event.head_commit.message, '[screenshots]')
+    if: (github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch) && !contains(github.event.head_commit.message, '[screenshots]')
     needs: demo
     runs-on: ubuntu-latest
     permissions:
@@ -357,6 +358,7 @@ jobs:
           fi
           du -h docs/screenshots/* | sort -h
       - name: Screenshots nur bei Aenderungen committen
+        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
         run: |
           git config user.name "AirDeck CI"
           git config user.email "actions@users.noreply.github.com"

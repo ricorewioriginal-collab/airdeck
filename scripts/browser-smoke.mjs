@@ -10,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } });
 await page.addInitScript((t) => localStorage.setItem('airdeck.token', t), token);
 
 try {
-  await page.goto(base + '/', { waitUntil: 'networkidle' });
+  await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-view="studio"]').first().click();
   await page.waitForSelector('#view-studio:not([hidden])');
 
