@@ -8,7 +8,7 @@
 </p>
 
 [![Build](https://github.com/ricorewioriginal-collab/anmacha_control/actions/workflows/build.yml/badge.svg)](https://github.com/ricorewioriginal-collab/anmacha_control/actions/workflows/build.yml)
-![Tests](https://img.shields.io/badge/tests-182%20%C2%B7%20176%20gr%C3%BCn%20%C2%B7%206%20%C3%BCbersprungen-brightgreen)
+![Tests](https://img.shields.io/badge/tests-177%20%C2%B7%20143%20gr%C3%BCn%20%C2%B7%206%20rot%20%C2%B7%2028%20%C3%BCbersprungen-yellow)
 ![Version](https://img.shields.io/badge/version-1.0.0--beta.1-blue)
 ![Plattformen](https://img.shields.io/badge/Windows%20%7C%20Android%20%7C%20Linux%20%7C%20Docker-eigenst%C3%A4ndig-2f8cff)
 ![arm64](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64%20(Raspberry%20Pi)-2496ed)
