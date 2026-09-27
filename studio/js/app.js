@@ -389,7 +389,7 @@ async function loadStation() {
   const ctx = { api, url, library: () => S.library, folders: () => api.get(url('/folders')), mediaUrl: (/** @type {string} */ id) => api.mediaUrl(S.station.id, id) };
   views = {
     planning: mountPlanning($('view-planning'), ctx),
-    mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),
+    mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, stationId: () => S.station.id, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),
     playlists: mountPlaylistManagement($('view-playlists'), ctx),
     handbuch: mountHandbuch($('view-handbuch')),
     recorder: mountRecorder($('view-recorder'), ctx),

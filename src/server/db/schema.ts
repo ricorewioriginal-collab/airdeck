@@ -69,7 +69,15 @@ export const TABLES_V1: TableSpec[] = [
   { name: 'ai_usage', columns: { id: 'key', data: 'long' }, primaryKey: ['id'] },
 ];
 
-export const TABLES = new Map(TABLES_V1.map((t) => [t.name, t]));
+// MusikHub ist ein eigenständiges, geschlossenes Katalogdokument. Die bestehenden
+// senderbezogenen Medienzeilen und ihre IDs bleiben unverändert.
+export const TABLES_V2: TableSpec[] = [
+  { name: 'hub_items', columns: { id: 'key', owner_kind: 'key', owner_id: 'key', title: 'text', artist: 'text', data: 'long' }, primaryKey: ['id'], indexes: [['owner_kind', 'owner_id']] },
+  { name: 'hub_collections', columns: { id: 'key', owner_kind: 'key', owner_id: 'key', data: 'long' }, primaryKey: ['id'], indexes: [['owner_kind', 'owner_id']] },
+  { name: 'hub_grants', columns: { id: 'key', resource_kind: 'key', resource_id: 'key', recipient_kind: 'key', recipient_id: 'key', data: 'long' }, primaryKey: ['id'], indexes: [['resource_kind', 'resource_id'], ['recipient_kind', 'recipient_id']] },
+];
+
+export const TABLES = new Map([...TABLES_V1, ...TABLES_V2].map((t) => [t.name, t]));
 
 export interface Migration {
   version: number;
@@ -79,6 +87,7 @@ export interface Migration {
 
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: 'initial', up: (d) => TABLES_V1.flatMap((t) => createTableSql(t, d)) },
+  { version: 2, name: 'music_hub_catalog', up: (d) => TABLES_V2.flatMap((t) => createTableSql(t, d)) },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

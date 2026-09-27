@@ -12,6 +12,7 @@
 
 import { $, CATEGORY_STYLE, clockTime, fmt, formDialog, h, mediaTitle, run, status } from './ui.js';
 import { mountNextcloud } from './nextcloud.js';
+import { mountMusicHub } from './musikhub.js';
 
 const CATEGORY_LABEL = /** @type {Record<string,string>} */ ({
   music: 'Musik', jingle: 'Jingle', sweeper: 'Sweeper', station_id: 'Station-ID', drop: 'Drop', news: 'Nachrichten',
@@ -27,7 +28,7 @@ const SORTS = /** @type {Record<string, (a: any, b: any) => number>} */ ({
 
 /**
  * @typedef {{ api: import('./api.js').Api, url: (p: string) => string, library: () => any[], folders: () => Promise<string[]>,
- *   mediaUrl: (id: string) => string, sendToDeck: (deckId: string, media: any) => void, upload: (files: File[]) => Promise<any[]> }} Ctx
+ *   stationId: () => string, mediaUrl: (id: string) => string, sendToDeck: (deckId: string, media: any) => void, upload: (files: File[]) => Promise<any[]> }} Ctx
  */
 
 /** @param {HTMLElement} root @param {Ctx} ctx */
@@ -205,7 +206,9 @@ export function mountMediaManagement(root, ctx) {
 
   let source = 'library';
   const nextcloudPane = h('div', { hidden: true });
+  const musicHubPane = h('div', { hidden: true });
   let nextcloudView = null;
+  let musicHubView = null;
 
   const libraryPane = h('div', {},
     dropZone,
@@ -222,14 +225,19 @@ export function mountMediaManagement(root, ctx) {
   }
   const tabBar = h('div', { class: 'row' });
   function renderTabs() {
-    tabBar.replaceChildren(tabBtn('library', 'AirDeck-Bibliothek'), tabBtn('nextcloud', 'Nextcloud'));
+    tabBar.replaceChildren(tabBtn('library', 'AirDeck-Bibliothek'), tabBtn('musikhub', 'MusikHub'), tabBtn('nextcloud', 'Nextcloud'));
   }
 
   async function selectSource(id) {
     source = id;
     renderTabs();
     libraryPane.hidden = id !== 'library';
+    musicHubPane.hidden = id !== 'musikhub';
     nextcloudPane.hidden = id !== 'nextcloud';
+    if (id === 'musikhub') {
+      if (!musicHubView) musicHubView = mountMusicHub(musicHubPane, ctx);
+      await musicHubView.show();
+    }
     if (id === 'nextcloud') {
       if (!nextcloudView) nextcloudView = mountNextcloud(nextcloudPane, ctx);
       await nextcloudView.show();
@@ -253,13 +261,16 @@ export function mountMediaManagement(root, ctx) {
         h('div', { class: 'panel-head' }, h('h2', {}, 'Bibliothek & Quellen')),
         tabBar,
         libraryPane,
+        musicHubPane,
         nextcloudPane));
     libraryPane.hidden = source !== 'library';
+    musicHubPane.hidden = source !== 'musikhub';
     nextcloudPane.hidden = source !== 'nextcloud';
     items = ctx.library();
     refresh();
     void refreshIntegrity();
     if (source === 'nextcloud' && nextcloudView) await nextcloudView.show();
+    if (source === 'musikhub' && musicHubView) await musicHubView.show();
   }
 
   return { show, onEvent: (/** @type {string} */ kind) => { if (kind === 'library.changed') void reload(); } };

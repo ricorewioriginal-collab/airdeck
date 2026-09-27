@@ -103,6 +103,22 @@ function list(table: string, cols: (x: Obj) => Row, order?: (a: Obj, b: Obj) => 
 
 const MAPPINGS: Record<string, DocMapping> = {
   airdeck,
+  musikhub: {
+    toRows: (value) => {
+      const hub = value as Obj;
+      return new Map<string, Row[]>([
+        ['hub_items', (hub.items as Obj[] ?? []).map((x) => ({ id: x.id, owner_kind: x.owner.kind, owner_id: x.owner.id, title: x.title, artist: x.artist, data: x }))],
+        ['hub_collections', (hub.collections as Obj[] ?? []).map((x) => ({ id: x.id, owner_kind: x.owner.kind, owner_id: x.owner.id, data: x }))],
+        ['hub_grants', (hub.grants as Obj[] ?? []).map((x) => ({ id: x.id, resource_kind: x.resource.kind, resource_id: x.resource.id, recipient_kind: x.recipient.kind, recipient_id: x.recipient.id, data: x }))],
+      ]);
+    },
+    fromRows: (rows) => {
+      const items = (rows.get('hub_items') ?? []).map((r) => r.data);
+      const collections = (rows.get('hub_collections') ?? []).map((r) => r.data);
+      const grants = (rows.get('hub_grants') ?? []).map((r) => r.data);
+      return items.length || collections.length || grants.length ? { version: 1, items, collections, grants } : undefined;
+    },
+  },
   tokens: list('api_tokens', (t) => ({ id: t.id, hash: t.hash }), (a, b) => String(a.createdAt).localeCompare(String(b.createdAt))),
   users: list('users', (u) => ({ id: u.id, username: u.username }), (a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? ''))),
   sessions: list('sessions', (s) => ({ id: s.hash, user_id: s.userId, expires_at: s.expiresAt })),

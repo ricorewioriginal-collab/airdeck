@@ -2,8 +2,9 @@
 
 Der Workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) rollt AirDeck per Knopfdruck
 („Run workflow“ unter **Actions → Deploy**) auf einen eigenen Server aus: Er verbindet sich per SSH mit dem
-Server und führt dort `git fetch/checkout` + `docker compose up -d --build` aus. Läuft **nicht automatisch**
-bei jedem Push – nur wenn du ihn manuell startest.
+Server und führt dort nach einer Sicherung `git fetch/checkout` + `docker compose up -d --build` aus.
+Ein Push auf den AirDeck-Branch löst den Rollout erst nach einem erfolgreichen **Build**-Workflow aus;
+„Run workflow“ erlaubt weiterhin einen manuellen Start.
 
 Diese Sandbox selbst kann kein SSH (nur ausgehendes HTTPS über einen Proxy) – deshalb läuft der eigentliche
 Rollout auf einem GitHub-Actions-Runner, der normales Internet hat.
@@ -71,6 +72,7 @@ dem Server und prüft danach den Health-Check, falls `DEPLOY_HEALTH_URL` gesetzt
 
 ## Danach erneut ausrollen (Updates)
 
-Einfach den Workflow erneut starten – `git reset --hard` auf dem Server holt den gewünschten Stand, Docker
-baut nur das, was sich geändert hat. Daten (Datenbank, Medien) liegen in Docker-Volumes und bleiben erhalten
+Einfach den Workflow erneut starten – `git merge --ff-only` holt den gewünschten Stand, sofern der
+Server-Checkout sauber ist. Vor dem Update werden Datenbank und `/data` nach
+`~/airdeck-backups/<UTC-Zeitstempel>/` gesichert. Docker baut nur das, was sich geändert hat. Daten liegen in Docker-Volumes und bleiben erhalten
 (siehe [docs/DOCKER.md](DOCKER.md#daten--updates)).

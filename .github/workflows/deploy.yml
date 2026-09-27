@@ -1,11 +1,10 @@
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: ['Build']
+    types: [completed]
     branches: ['AirDeck-Radio-Automation-&-Broadcast']
-    paths-ignore:
-      - 'docs/screenshots/**'
-      - 'docs/**'
   workflow_dispatch:
     inputs:
       ref:
@@ -13,11 +12,13 @@ on:
         required: false
         default: "AirDeck-Radio-Automation-&-Broadcast"
 
-# Automatischer Rollout bei Push + manueller Start moeglich.
-# Fuehrt git fetch/checkout + docker compose up -d --build auf dem Server aus.
+# Automatischer Rollout erst nach erfolgreichem Build + manueller Start moeglich.
+# Vor dem Checkout wird der aktuelle Stand gesichert und ein nicht sauberer
+# Server-Checkout nicht ueberschrieben.
 # Laeuft nur mit vollstaendig hinterlegten Secrets (siehe docs/DEPLOY.md).
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -27,7 +28,7 @@ jobs:
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
       DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
       DEPLOY_HEALTH_URL: ${{ secrets.DEPLOY_HEALTH_URL }}
-      DEPLOY_REF: ${{ github.ref_name }}
+      DEPLOY_REF: ${{ github.event.workflow_run.head_branch || inputs.ref || github.ref_name }}
     steps:
       - name: Secrets pruefen
         run: |
@@ -51,17 +52,15 @@ jobs:
           else
             ssh-keyscan -p "$port" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           fi
-      - name: Rollout per SSH (git fetch + docker compose up -d --build)
+      - name: Sicherung und Rollout per SSH
         run: |
           port="${DEPLOY_PORT:-22}"
           quoted_ref=$(printf '%q' "$DEPLOY_REF")
           quoted_path=$(printf '%q' "$DEPLOY_PATH")
           ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<REMOTE
             set -e
+            umask 077
             cd $quoted_path
-            git fetch origin $quoted_ref
-            git checkout $quoted_ref
-            git reset --hard origin/$quoted_ref
             if ! docker compose version > /dev/null 2>&1; then
               (command -v apt-get > /dev/null 2>&1 && \
                 (command -v sudo > /dev/null 2>&1 && sudo apt-get update -qq && sudo apt-get install -y -qq docker-compose-plugin \
@@ -70,13 +69,35 @@ jobs:
             fi
             if ! docker compose version > /dev/null 2>&1; then
               mkdir -p ~/.docker/cli-plugins
-              curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+              curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-\$(uname -m)" \
                 -o ~/.docker/cli-plugins/docker-compose
               chmod +x ~/.docker/cli-plugins/docker-compose
             fi
             docker compose version
+            if [ -n "\$(git status --porcelain)" ]; then
+              echo "::error::Server-Checkout enthaelt lokale Aenderungen; Rollout wird nicht ueberschrieben."
+              exit 1
+            fi
+            backup_dir="\$HOME/airdeck-backups/\$(date -u +%Y%m%dT%H%M%SZ)"
+            mkdir -p "\$backup_dir"
+            git rev-parse HEAD > "\$backup_dir/previous-commit.txt"
+            if [ -n "\$(docker compose ps -q postgres)" ]; then
+              docker compose exec -T postgres pg_dump -U airdeck -d airdeck -Fc > "\$backup_dir/postgres.dump"
+              test -s "\$backup_dir/postgres.dump"
+            fi
+            if [ -n "\$(docker compose ps -q airdeck)" ]; then
+              docker compose exec -T airdeck tar -C /data -czf - . > "\$backup_dir/data.tar.gz"
+              test -s "\$backup_dir/data.tar.gz"
+            fi
+            echo "Sicherung angelegt: \$backup_dir"
+            git fetch origin $quoted_ref
+            git checkout $quoted_ref
+            git merge --ff-only FETCH_HEAD
             docker compose up -d --build
             docker compose ps
+            docker compose -f packaging/demo/docker-compose.demo.yml build
+            sh packaging/demo/reset-demo.sh
+            curl -fs http://127.0.0.1:8751/api/v1/health > /dev/null
           REMOTE
       - name: Health-Check
         run: |

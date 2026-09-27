@@ -11,6 +11,7 @@ import { DeviceService } from './devices.ts';
 import { LautfmService } from './lautfm.ts';
 import { ListenerService } from './listeners.ts';
 import { MediaService } from './media.ts';
+import { MusicHubService } from './musikhub.ts';
 import { NextcloudService } from './nextcloud.ts';
 import { NotificationService } from './notifications.ts';
 import { PlanningService } from './planning.ts';
@@ -26,6 +27,7 @@ export function createServices(app: AirDeckApp) {
     devices: new DeviceService(app),
     stations: new StationService(app),
     media: new MediaService(app),
+    musikhub: new MusicHubService(app),
     nextcloud: new NextcloudService(app),
     lautfm: new LautfmService(app),
     system: new SystemService(app),

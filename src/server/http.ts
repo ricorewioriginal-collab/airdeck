@@ -256,6 +256,38 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return STREAMED;
   });
 
+  // --- MusikHub Phase 1: geschlossener Katalog, Sammlungen und explizite Grants ---
+  // Die Sender-Medien-Dateiroute oben bleibt sendergebunden. Ein Hub-Grant gibt
+  // hier ausschließlich Katalogrechte frei, keine implizite Datei-URL.
+  add('GET', '/api/v1/music-hub/items', 'media:read', (c) => app.svc.musikhub.listItems(
+    c.p, String(c.url.searchParams.get('station') ?? ''), String(c.url.searchParams.get('q') ?? ''),
+    Number(c.url.searchParams.get('offset') ?? 0), Number(c.url.searchParams.get('limit') ?? 50),
+  ));
+  add('POST', '/api/v1/music-hub/items', 'media:write', async (c) => {
+    const b = await c.body();
+    return app.svc.musikhub.registerStationMedia(c.p, String(b.stationId ?? ''), String(b.mediaId ?? ''));
+  });
+  add('GET', '/api/v1/music-hub/collections', 'media:read', (c) => app.svc.musikhub.listCollections(c.p, String(c.url.searchParams.get('station') ?? '')));
+  add('GET', '/api/v1/music-hub/recipients', 'media:write', (c) => app.svc.musikhub.recipients(c.p, String(c.url.searchParams.get('q') ?? '')));
+  add('POST', '/api/v1/music-hub/collections', 'media:write', async (c) => {
+    const b = await c.body();
+    return app.svc.musikhub.createCollection(c.p, b.owner, b.name);
+  });
+  add('PUT', '/api/v1/music-hub/collections/:id/items', 'media:write', async (c) => {
+    const b = await c.body();
+    return app.svc.musikhub.setCollectionItems(c.p, c.params.id!, b.itemIds, b.revision, String(b.stationId ?? ''));
+  });
+  add('GET', '/api/v1/music-hub/:kind/:id/grants', 'media:write', (c) => {
+    if (c.params.kind !== 'item' && c.params.kind !== 'collection') throw new AppError(404, 'not_found', 'Ressource nicht gefunden');
+    return app.svc.musikhub.listGrants(c.p, { kind: c.params.kind, id: c.params.id! }, String(c.url.searchParams.get('station') ?? ''));
+  });
+  add('POST', '/api/v1/music-hub/:kind/:id/grants', 'media:write', async (c) => {
+    if (c.params.kind !== 'item' && c.params.kind !== 'collection') throw new AppError(404, 'not_found', 'Ressource nicht gefunden');
+    const b = await c.body();
+    return app.svc.musikhub.createGrant(c.p, { kind: c.params.kind, id: c.params.id! }, b.recipient, b.actions, b.targetStationIds, String(b.stationId ?? ''), b.expiresAt);
+  });
+  add('DELETE', '/api/v1/music-hub/grants/:id', 'media:write', async (c) => app.svc.musikhub.revokeGrant(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+
   // --- Queue / Automation / Decks ---
   add('GET', '/api/v1/stations/:sid/queue', 'queue:read', (c) => app.queueView(sid(c), Number(c.url.searchParams.get('remainingMs') ?? 0)));
   add('POST', '/api/v1/stations/:sid/queue', 'queue:write', async (c) => {

@@ -98,4 +98,24 @@ curl -fs -X POST -H "Authorization: Bearer $token" -H "Content-Type: application
   -d "{\"username\":\"$demo_user\",\"name\":\"Demo\",\"password\":\"$demo_pass\",\"roles\":[\"admin\"],\"stationIds\":[\"main\"],\"mustChangePassword\":false}" \
   "http://127.0.0.1:8751/api/v1/users" > /dev/null
 
+# Der bestehende Demo-Reset zeigt den echten MusikHub-Katalog. Freigaben an
+# weitere Sender gibt es hier bewusst nicht; die Demo hat nur einen Sender.
+demo_login=$(curl -fs -X POST -H "Content-Type: application/json" \
+  -d "{\"username\":\"$demo_user\",\"password\":\"$demo_pass\"}" \
+  "http://127.0.0.1:8751/api/v1/auth/login")
+demo_token=$(printf '%s' "$demo_login" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+test -n "$demo_token"
+hub_item=$(curl -fs -X POST -H "Authorization: Bearer $demo_token" -H "Content-Type: application/json" \
+  -d "{\"stationId\":\"main\",\"mediaId\":\"$track_a\"}" \
+  "http://127.0.0.1:8751/api/v1/music-hub/items")
+hub_id=$(printf '%s' "$hub_item" | sed -n 's/^{"id":"\([^"]*\)".*/\1/p')
+hub_collection=$(curl -fs -X POST -H "Authorization: Bearer $demo_token" -H "Content-Type: application/json" \
+  -d '{"owner":{"kind":"station","id":"main"},"name":"Demo-Sammlung"}' \
+  "http://127.0.0.1:8751/api/v1/music-hub/collections")
+collection_id=$(printf '%s' "$hub_collection" | sed -n 's/^{"id":"\([^"]*\)".*/\1/p')
+test -n "$hub_id" && test -n "$collection_id"
+curl -fs -X PUT -H "Authorization: Bearer $demo_token" -H "Content-Type: application/json" \
+  -d "{\"stationId\":\"main\",\"itemIds\":[\"$hub_id\"],\"revision\":1}" \
+  "http://127.0.0.1:8751/api/v1/music-hub/collections/$collection_id/items" > /dev/null
+
 echo "[$(date -Is)] Demo vollstaendig zurueckgesetzt: AirDeck-FM, Testmedien, HLS, interner Icecast/AirDeckCast und Demo-Zugang ($demo_user) sind eingerichtet."
