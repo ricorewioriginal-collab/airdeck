@@ -62,6 +62,7 @@ try {
   assert.equal(await page.locator('#studio-schedule').count(), 1);
   await page.locator('#studio-schedule [data-view="planning"]').click();
   await page.waitForSelector('#view-planning:not([hidden])');
+  await page.waitForSelector('#view-planning .planning-schedule');
   assert.equal(await page.locator('#view-planning .planning-schedule').count(), 1, 'vollstaendiger Sendeplan fehlt');
 
   // Responsive Regression: Referenzdesign muss auch auf Laptop, Tablet und Handy ohne Seiten-Overflow funktionieren.
