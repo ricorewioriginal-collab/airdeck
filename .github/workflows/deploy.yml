@@ -89,14 +89,16 @@ jobs:
               test -s "$backup_dir/postgres.dump"
             fi
             if [ -n "$(docker compose ps -q airdeck </dev/null)" ]; then
-              docker compose exec -T airdeck tar -C /data -czf - . </dev/null > "$backup_dir/data.tar.gz"
+              docker compose run --rm --no-deps -u 0 --entrypoint tar airdeck -C /data -czf - . </dev/null > "$backup_dir/data.tar.gz"
               test -s "$backup_dir/data.tar.gz"
             fi
             echo "Sicherung angelegt: $backup_dir"
+            umask 022
             git fetch origin "$deploy_ref" </dev/null
             git checkout "$deploy_ref"
             git merge --ff-only FETCH_HEAD
             test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+            chmod -R a+rX src studio
             echo "Checkout aktualisiert auf $(git rev-parse --short HEAD)"
             docker compose up -d --build </dev/null
             docker compose ps </dev/null
