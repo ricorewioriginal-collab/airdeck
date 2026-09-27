@@ -25,13 +25,18 @@ test('Studio-HTTP-Vertrag: Medien → Queue → Verschieben → Deck laden → Q
   };
 
   try {
+    // Hier wird die manuelle Queue geprüft. AutoFill hat eigene Workflow-Tests
+    // und würde nach queue/next absichtlich neue Titel ergänzen.
+    assert.equal((await call('PATCH','/stations/main/automation',{autoFill:false})).status, 200);
     assert.equal((await call('POST','/stations/main/queue',{mediaId:'a'})).status, 204);
     assert.equal((await call('POST','/stations/main/queue',{mediaId:'b'})).status, 204);
     let q = (await call('GET','/stations/main/queue')).body;
     assert.deepEqual(q.items.map((x:any)=>x.mediaId), ['a','b']);
 
     const uid = q.items[1].uid;
-    assert.equal((await call('POST',`/stations/main/queue/${uid}/move`,{index:0})).status, 200);
+    // Verschieben gibt keinen Body zurück (HTTP 204). Der folgende GET prüft
+    // unabhängig davon, dass die Reihenfolge tatsächlich gespeichert wurde.
+    assert.equal((await call('POST',`/stations/main/queue/${uid}/move`,{index:0})).status, 204);
     q = (await call('GET','/stations/main/queue')).body;
     assert.deepEqual(q.items.map((x:any)=>x.mediaId), ['b','a']);
 
