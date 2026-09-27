@@ -1837,9 +1837,8 @@ function bindStatic() {
       else $(b.dataset.jump).scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
-  $('view-tabs').addEventListener('click', nav);
-  $('bottom-nav').addEventListener('click', nav);
-  document.querySelector('.m-tiles')?.addEventListener('click', nav);
+  // Include view links inside Studio panels as well as sidebar and mobile navigation.
+  document.addEventListener('click', nav);
   $('m-play').addEventListener('click', () => $('btn-auto').click());
   $('m-next').addEventListener('click', () => (serverMode() ? run(() => api.post(url('/playout/skip'))) : autoNext()));
   $('m-restart').addEventListener('click', () => {

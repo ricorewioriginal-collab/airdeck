@@ -11,12 +11,17 @@ await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1050 }, deviceScaleFactor: 1 });
 await page.addInitScript((t) => localStorage.setItem('airdeck.token', t), token);
-await page.goto(base + '/', { waitUntil: 'networkidle' });
+await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#view-overview:not([hidden])', { timeout: 20_000 });
 await page.waitForTimeout(800);
 
 async function view(name, file) {
-  await page.locator(`[data-view="${name}"]`).first().click();
+  const button = page.locator(`[data-view="${name}"]`).first();
+  const section = button.locator('xpath=ancestor::details[1]');
+  if (await section.count() && await section.getAttribute('open') === null) {
+    await section.locator('summary').first().click();
+  }
+  await button.click();
   await page.waitForSelector(`#view-${name}:not([hidden])`);
   await page.waitForTimeout(500);
   await page.screenshot({ path: new URL(file, out).pathname, fullPage: false });

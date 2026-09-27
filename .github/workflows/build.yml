@@ -3,6 +3,7 @@
 on:
   push:
     branches: ['AirDeck-Radio-Automation-&-Broadcast']
+    tags: ['v*']
     paths-ignore:
       - 'docs/screenshots/**'
   pull_request:
@@ -303,7 +304,7 @@ jobs:
           echo "Demo: Login, Cardwall, Playout und Reset OK"
 
   screenshots:
-    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && !contains(github.event.head_commit.message, '[screenshots]')
+    if: (github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch) && !contains(github.event.head_commit.message, '[screenshots]')
     needs: demo
     runs-on: ubuntu-latest
     permissions:
@@ -357,6 +358,7 @@ jobs:
           fi
           du -h docs/screenshots/* | sort -h
       - name: Screenshots nur bei Aenderungen committen
+        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
         run: |
           git config user.name "AirDeck CI"
           git config user.email "actions@users.noreply.github.com"
@@ -496,7 +498,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           mkdir -p out
-          if [ -n "$KEYSTORE_B64" ]; then
+          if [ -n "$KEYSTORE_B64" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/airdeck.jks"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/airdeck.jks"
             npm run build:release
@@ -505,7 +507,7 @@ jobs:
           else
             npm run build:debug
             cp android/app/build/outputs/apk/debug/app-debug.apk out/AirDeck-Android.apk
-            echo "::warning::Kein Keystore hinterlegt (Secret ANDROID_KEYSTORE_B64) – Debug-APK gebaut"
+            echo "Test-APK mit Debug-Signatur; Release-Signierung erfolgt bei Versionstags mit hinterlegtem Keystore."
           fi
       - uses: actions/upload-artifact@v4
         with:
