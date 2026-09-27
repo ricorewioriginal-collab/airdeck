@@ -57,47 +57,54 @@ jobs:
           port="${DEPLOY_PORT:-22}"
           quoted_ref=$(printf '%q' "$DEPLOY_REF")
           quoted_path=$(printf '%q' "$DEPLOY_PATH")
-          ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<REMOTE
-            set -e
+          ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" "bash -se -- $quoted_path $quoted_ref" <<'REMOTE'
+            set -euo pipefail
+            trap 'echo "::error::Rollout abgebrochen bei Zeile $LINENO" >&2' ERR
             umask 077
-            cd $quoted_path
-            if ! docker compose version > /dev/null 2>&1; then
+            cd "$1"
+            deploy_ref="$2"
+            echo "Rollout startet von $(git rev-parse --short HEAD)"
+            if ! docker compose version </dev/null > /dev/null 2>&1; then
               (command -v apt-get > /dev/null 2>&1 && \
                 (command -v sudo > /dev/null 2>&1 && sudo apt-get update -qq && sudo apt-get install -y -qq docker-compose-plugin \
                   || (apt-get update -qq && apt-get install -y -qq docker-compose-plugin))) \
                 || true
             fi
-            if ! docker compose version > /dev/null 2>&1; then
+            if ! docker compose version </dev/null > /dev/null 2>&1; then
               mkdir -p ~/.docker/cli-plugins
-              curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-\$(uname -m)" \
+              curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
                 -o ~/.docker/cli-plugins/docker-compose
               chmod +x ~/.docker/cli-plugins/docker-compose
             fi
-            docker compose version
-            if [ -n "\$(git status --porcelain)" ]; then
+            docker compose version </dev/null
+            if [ -n "$(git status --porcelain)" ]; then
               echo "::error::Server-Checkout enthaelt lokale Aenderungen; Rollout wird nicht ueberschrieben."
               exit 1
             fi
-            backup_dir="\$HOME/airdeck-backups/\$(date -u +%Y%m%dT%H%M%SZ)"
-            mkdir -p "\$backup_dir"
-            git rev-parse HEAD > "\$backup_dir/previous-commit.txt"
-            if [ -n "\$(docker compose ps -q postgres)" ]; then
-              docker compose exec -T postgres pg_dump -U airdeck -d airdeck -Fc > "\$backup_dir/postgres.dump"
-              test -s "\$backup_dir/postgres.dump"
+            backup_dir="$HOME/airdeck-backups/$(date -u +%Y%m%dT%H%M%SZ)"
+            mkdir -p "$backup_dir"
+            git rev-parse HEAD > "$backup_dir/previous-commit.txt"
+            if [ -n "$(docker compose ps -q postgres </dev/null)" ]; then
+              docker compose exec -T postgres pg_dump -U airdeck -d airdeck -Fc </dev/null > "$backup_dir/postgres.dump"
+              test -s "$backup_dir/postgres.dump"
             fi
-            if [ -n "\$(docker compose ps -q airdeck)" ]; then
-              docker compose exec -T airdeck tar -C /data -czf - . > "\$backup_dir/data.tar.gz"
-              test -s "\$backup_dir/data.tar.gz"
+            if [ -n "$(docker compose ps -q airdeck </dev/null)" ]; then
+              docker compose exec -T airdeck tar -C /data -czf - . </dev/null > "$backup_dir/data.tar.gz"
+              test -s "$backup_dir/data.tar.gz"
             fi
-            echo "Sicherung angelegt: \$backup_dir"
-            git fetch origin $quoted_ref
-            git checkout $quoted_ref
+            echo "Sicherung angelegt: $backup_dir"
+            git fetch origin "$deploy_ref" </dev/null
+            git checkout "$deploy_ref"
             git merge --ff-only FETCH_HEAD
-            docker compose up -d --build
-            docker compose ps
-            docker compose -f packaging/demo/docker-compose.demo.yml build
-            sh packaging/demo/reset-demo.sh
+            test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+            echo "Checkout aktualisiert auf $(git rev-parse --short HEAD)"
+            docker compose up -d --build </dev/null
+            docker compose ps </dev/null
+            docker compose -f packaging/demo/docker-compose.demo.yml build </dev/null
+            sh packaging/demo/reset-demo.sh </dev/null
             curl -fs http://127.0.0.1:8751/api/v1/health > /dev/null
+            test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8751/api/v1/music-hub/items)" = 401
+            echo "MusikHub auf Demo erreichbar; Rollout abgeschlossen"
           REMOTE
       - name: Health-Check
         run: |
