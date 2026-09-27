@@ -378,7 +378,7 @@ jobs:
               echo "Screenshots bereits aktuell."
             else
               git commit -m "README: aktuelle UI-Screenshots [screenshots]"
-              git push
+              git push || echo "Push fehlgeschlagen"
             fi
           fi
           docker compose -f packaging/demo/docker-compose.demo.yml down -v
