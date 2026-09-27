@@ -1,4 +1,4 @@
-# AirDeck – Radio-Automation & Live-Broadcast
+﻿# AirDeck – Radio-Automation & Live-Broadcast
 
 <p>
   <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="96" alt="AirDeck">
@@ -54,7 +54,7 @@ Diese Tabelle wird laufend nach echten Tests aktualisiert (kein Feature gilt als
 | 🐧 **Linux-Server** | [**AirDeck-Linux.deb**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Linux.deb) | `sudo apt install ./AirDeck-Linux.deb` (Debian/Ubuntu, x86_64) – läuft als systemd-Dienst `airdeck-server` |
 | 🐳 **Server (Docker)** | `docker compose up -d` | amd64 **und arm64** (Raspberry Pi 4/5) – siehe [docs/DOCKER.md](docs/DOCKER.md) |
 
-Alle Dateien stehen auf der Seite [**Releases → neuestes Release**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest). Sie werden nach jeder Änderung automatisch gebaut und getestet. Solange das Repository privat ist, funktionieren die Links nur für angemeldete Mitglieder.
+Alle Dateien stehen auf der Seite [**Releases → neuestes Release**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest). Releases werden bei Versions-Tags (`v*`) gebaut und getestet – der CI-Build läuft weiterhin bei jedem Commit. Solange das Repository privat ist, funktionieren die Links nur für angemeldete Mitglieder.
 Windows kann bei nicht signierten Dateien warnen: „Weitere Informationen“ → „Trotzdem ausführen“ (Details in [docs/INSTALLATION.md](docs/INSTALLATION.md)).
 
 ## 🚀 Live-Demo ausprobieren
@@ -204,6 +204,16 @@ Webentwicklerinnen und Webentwickler dürfen eigene Features einbauen. Aufbau, R
 npm run check        # Typprüfung (Server + Studio) und alle Tests (aktuell 182, davon 176 grün, 6 übersprungen ohne z. B. echte MySQL/ffmpeg-Umgebung - in CI mit echten DB-Containern alle 182 grün)
 ```
 
+**Release erzeugen:** Der CI-Build läuft bei jedem Commit (Tests, Docker, Windows, Linux, Android). Ein öffentliches Release mit Installer, APK und .deb entsteht nur durch einen Versions-Tag:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+Das hält den GitHub-Speicher klein — keine hundert Installer-Builds für jede kleine Textänderung.
+
 ## Haftungsausschluss
 
 AirDeck ist ein **privates Hobbyprojekt** und wird ohne Gewähr bereitgestellt. Die Nutzung erfolgt auf eigene Verantwortung, siehe [HAFTUNGSAUSSCHLUSS.md](HAFTUNGSAUSSCHLUSS.md).
+
