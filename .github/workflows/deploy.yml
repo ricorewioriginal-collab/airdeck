@@ -59,7 +59,7 @@ jobs:
           quoted_path=$(printf '%q' "$DEPLOY_PATH")
           ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" "bash -se -- $quoted_path $quoted_ref" <<'REMOTE'
             set -euo pipefail
-            trap 'echo "::error::Rollout abgebrochen bei Zeile $LINENO" >&2' ERR
+            trap 'echo "::error::Rollout abgebrochen bei Zeile $LINENO" >&2; docker compose -f packaging/demo/docker-compose.demo.yml logs --tail=80 airdeck-demo </dev/null >&2 || true' ERR
             umask 077
             cd "$1"
             deploy_ref="$2"
