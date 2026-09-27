@@ -3,8 +3,16 @@ name: Build
 on:
   push:
     branches: ['**']
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: airdeck-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOCKER_BUILD_RECORD_UPLOAD: false
 
 permissions:
   contents: read
@@ -204,12 +212,12 @@ jobs:
         with:
           name: AirDeck-Windows-Installer
           path: dist/AirDeck-Setup-*.exe
-          retention-days: 30
+          retention-days: 3
       - uses: actions/upload-artifact@v4
         with:
           name: AirDeck-Windows
           path: dist/AirDeck
-          retention-days: 30
+          retention-days: 3
 
   docker:
     needs: test
@@ -351,7 +359,7 @@ jobs:
         with:
           name: AirDeck-Linux-Deb
           path: dist/airdeck_*.deb
-          retention-days: 30
+          retention-days: 3
 
   android:
     needs: test
@@ -392,12 +400,12 @@ jobs:
         with:
           name: AirDeck-Android
           path: apps/android/out/AirDeck-Android.apk
-          retention-days: 30
+          retention-days: 3
 
-  # Download-Bereich: Nach jedem Push auf den Hauptbranch liegen Installer, portable Version und APK
-  # unter „Releases → AirDeck (aktueller Stand)“, ohne GitHub-Login-Umweg über Artefakte.
+  # Releases nur bewusst über Versions-Tags erzeugen. Normale Commits bauen/testen,
+  # erzeugen aber keine dauerhaften Release-Artefakte.
   release:
-    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [windows, android, linux]
     runs-on: ubuntu-latest
     permissions:
@@ -419,15 +427,13 @@ jobs:
           ls -la out
       - uses: softprops/action-gh-release@v2
         with:
-          # Releases sind im Repository unveränderlich: jeder Build bekommt ein eigenes Release,
-          # die Download-Links zeigen über „latest“ immer auf das neueste
-          tag_name: build-${{ github.run_number }}
+          tag_name: ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
-          name: AirDeck – Build ${{ github.run_number }}
-          prerelease: false
-          make_latest: true
+          name: AirDeck ${{ github.ref_name }}
+          prerelease: true
+          make_latest: false
           body: |
-            Automatisch gebaut und getestet aus ${{ github.sha }}.
+            AirDeck V1 Beta – automatisch gebaut und getestet aus ${{ github.sha }}.
             • AirDeck-Setup.exe – Windows-Installer (ohne Adminrechte, Deutsch/English, mit Audio-Engine und Android-APK)
             • AirDeck-Windows-Portable.zip – ohne Installation: entpacken, AirDeck.exe starten
             • AirDeck-Android.apk – Android-App: Handy-Sender (Mikrofon + Musik direkt zu laut.fm/Icecast, ohne Server) oder Studio-Fernbedienung für AirDeck auf PC/Server
