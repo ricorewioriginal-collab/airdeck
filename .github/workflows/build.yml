@@ -498,7 +498,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           mkdir -p out
-          if [ -n "$KEYSTORE_B64" ]; then
+          if [ -n "$KEYSTORE_B64" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/airdeck.jks"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/airdeck.jks"
             npm run build:release
@@ -507,7 +507,7 @@ jobs:
           else
             npm run build:debug
             cp android/app/build/outputs/apk/debug/app-debug.apk out/AirDeck-Android.apk
-            echo "::warning::Kein Keystore hinterlegt (Secret ANDROID_KEYSTORE_B64) – Debug-APK gebaut"
+            echo "Test-APK mit Debug-Signatur; Release-Signierung erfolgt bei Versionstags mit hinterlegtem Keystore."
           fi
       - uses: actions/upload-artifact@v4
         with:
