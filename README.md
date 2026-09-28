@@ -5,9 +5,18 @@
 <p align="center">Automation · Live Studio · Musikverwaltung · Sendeplanung · Streaming · MusicHub</p>
 <p align="center">Automatisieren, live senden und mehrere Stationen verwalten – mit einer Oberfläche für den echten Radiobetrieb.</p>
 
-<table><tr><td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml?query=branch%3AAirDeck-Radio-Automation-%26-Broadcast"><img src="assets/readme/status/build.svg" alt="Build"></a></td><td align="center"><img src="assets/readme/status/version.svg" alt="Version 0.4.0"></td><td align="center"><img src="assets/readme/status/beta.svg" alt="Beta"></td><td align="center"><a href="LICENSE"><img src="assets/readme/status/license.svg" alt="Source Available"></a></td></tr></table>
+<p align="center">
+<a href="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml?query=branch%3AAirDeck-Radio-Automation-%26-Broadcast"><img src="assets/readme/status/build.svg" height="46" alt="Build"></a>
+<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest"><img src="https://img.shields.io/github/v/release/ricorewioriginal-collab/airdeck?display_name=release&label=Aktuelle%20Version&style=for-the-badge&color=1677ff" height="46" alt="Aktuelle AirDeck-Version"></a>
+<img src="assets/readme/status/beta.svg" height="46" alt="Beta">
+<a href="LICENSE"><img src="assets/readme/status/license.svg" height="46" alt="Source Available"></a>
+</p>
 
-<table><tr><td align="center" width="33%"><a href="https://airdeck-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="Live Demo"></a></td><td align="center" width="33%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><img src="assets/readme/actions/downloads.svg" alt="Downloads"></a></td><td align="center" width="33%"><a href="https://ricorewioriginal-collab.github.io/airdeck/"><strong>🌐 AirDeck Projektseite</strong></a></td></tr></table>
+<p align="center">
+<a href="https://airdeck-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" width="300" alt="Live Demo"></a>
+<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest"><img src="assets/readme/actions/downloads.svg" width="300" alt="Downloads"></a>
+</p>
+<p align="center"><a href="https://ricorewioriginal-collab.github.io/airdeck/"><strong>🌐 AirDeck Projektseite</strong></a></p>
 
 <p align="center"><a href="#-airdeck">Über AirDeck</a> · <a href="#-oberfläche--screenshots">Screenshots</a> · <a href="#-live-demo">Demo</a> · <a href="#️-airdeck-herunterladen">Downloads</a> · <a href="#-projektstand">Projektstand</a> · <a href="#-entwickeln--mitwirken">Entwickeln</a> · <a href="#-dokumentation">Dokumentation</a> · <a href="#️-lizenz--kommerzielle-nutzung">Lizenz</a></p>
 
@@ -32,18 +41,25 @@ AirDeck ist eine eigenständige Radio-Automation und Live-Broadcast-Plattform. S
 
 ## 📸 Oberfläche & Screenshots
 
-<p align="center"><strong>Kompakte Vorschau – Screenshot anklicken, um die Originalansicht groß zu öffnen.</strong></p>
+<p align="center"><strong>AirDeck in Bewegung</strong><br><sub>Die Vorschau wird vom bestehenden Screenshot-Workflow aktualisiert. Für Details einfach ein Bild anklicken.</sub></p>
+<p align="center"><a href="docs/screenshots/slideshow.gif"><img src="docs/screenshots/slideshow.gif" width="720" alt="AirDeck UI Vorschau"></a></p>
 
 <table>
-<tr><td align="center" width="33%"><a href="docs/screenshots/panel-decks.png"><img src="docs/screenshots/panel-decks.png" width="280" alt="AirDeck Decks"></a><br><strong>🎚️ Decks</strong></td><td align="center" width="33%"><a href="docs/screenshots/panel-queue.png"><img src="docs/screenshots/panel-queue.png" width="280" alt="AirDeck Queue"></a><br><strong>▶️ Queue & Playout</strong></td><td align="center" width="33%"><a href="docs/screenshots/panel-carts.png"><img src="docs/screenshots/panel-carts.png" width="280" alt="AirDeck Cartwall"></a><br><strong>🔊 Cartwall</strong></td></tr>
-<tr><td align="center"><a href="docs/screenshots/panel-lib.png"><img src="docs/screenshots/panel-lib.png" width="280" alt="AirDeck Library"></a><br><strong>🎵 Musikbibliothek</strong></td><td align="center"><a href="docs/screenshots/panel-live.png"><img src="docs/screenshots/panel-live.png" width="280" alt="AirDeck Live"></a><br><strong>🔴 Live-Betrieb</strong></td><td align="center"><a href="docs/screenshots/handy-sender.png"><img src="docs/screenshots/handy-sender.png" width="280" alt="AirDeck Mobile"></a><br><strong>📱 Mobile Ansicht</strong></td></tr>
+<tr>
+<td align="center" width="33%"><a href="docs/screenshots/view-dashboard.png"><img src="docs/screenshots/view-dashboard.png" width="250" alt="AirDeck Dashboard"></a><br><strong>🏠 Dashboard</strong></td>
+<td align="center" width="33%"><a href="docs/screenshots/view-studio.png"><img src="docs/screenshots/view-studio.png" width="250" alt="AirDeck Studio"></a><br><strong>🎚️ Studio</strong></td>
+<td align="center" width="33%"><a href="docs/screenshots/view-mediathek.png"><img src="docs/screenshots/view-mediathek.png" width="250" alt="AirDeck Mediathek"></a><br><strong>🎵 Mediathek</strong></td>
+</tr>
 </table>
 
-<details><summary><strong>🖼️ Weitere UI-Bereiche anzeigen</strong></summary><br>
-<table><tr><td align="center"><a href="docs/screenshots/panel-meters.png"><img src="docs/screenshots/panel-meters.png" width="250" alt="Meters"></a><br>Audio Meter</td><td align="center"><a href="docs/screenshots/panel-processing.png"><img src="docs/screenshots/panel-processing.png" width="250" alt="Processing"></a><br>Processing</td><td align="center"><a href="docs/screenshots/panel-np.png"><img src="docs/screenshots/panel-np.png" width="250" alt="Now Playing"></a><br>Now Playing</td></tr></table>
+<details><summary><strong>🖼️ Weitere Screenshots anzeigen</strong></summary><br>
+<table>
+<tr><td align="center"><a href="docs/screenshots/view-planning.png"><img src="docs/screenshots/view-planning.png" width="220" alt="Sendeplanung"></a><br>Sendeplanung</td><td align="center"><a href="docs/screenshots/view-playlists.png"><img src="docs/screenshots/view-playlists.png" width="220" alt="Playlists"></a><br>Playlists</td><td align="center"><a href="docs/screenshots/view-recorder.png"><img src="docs/screenshots/view-recorder.png" width="220" alt="Recorder"></a><br>Recorder</td></tr>
+<tr><td align="center"><a href="docs/screenshots/view-nextcloud.png"><img src="docs/screenshots/view-nextcloud.png" width="220" alt="Nextcloud"></a><br>Nextcloud</td><td align="center"><a href="docs/screenshots/view-users.png"><img src="docs/screenshots/view-users.png" width="220" alt="Benutzer"></a><br>Benutzer & Rechte</td><td align="center"><a href="docs/screenshots/handy-sender.png"><img src="docs/screenshots/handy-sender.png" width="220" alt="Mobile Ansicht"></a><br>Mobile Ansicht</td></tr>
+</table>
 </details>
 
-<p align="center"><a href="docs/screenshots/"><strong>Alle Screenshot-Dateien →</strong></a> · <a href="https://ricorewioriginal-collab.github.io/airdeck/#screenshots"><strong>Interaktive Galerie auf der AirDeck-Seite →</strong></a></p>
+<p align="center"><a href="docs/screenshots/"><strong>Alle Screenshot-Dateien →</strong></a> · <a href="https://ricorewioriginal-collab.github.io/airdeck/#screenshots"><strong>Interaktive Galerie →</strong></a></p>
 
 ---
 
@@ -51,7 +67,7 @@ AirDeck ist eine eigenständige Radio-Automation und Live-Broadcast-Plattform. S
 
 AirDeck kann direkt im Browser ausprobiert werden.
 
-<p align="center"><a href="https://airdeck-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="AirDeck Demo starten" width="520"></a></p>
+<p align="center"><a href="https://airdeck-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="AirDeck Demo starten" width="420"></a></p>
 
 **Demo-Zugang:** `demo` / `airdeck-demo`
 
@@ -63,11 +79,13 @@ Geplant ist ein serverseitiger Demo-Login-Endpunkt, der eine eingeschränkte Dem
 
 ## ⬇️ AirDeck herunterladen
 
-**Aktueller Beta-Prüfstand: AirDeck – Build 323 (Beta)**
+**Die Links unten zeigen automatisch auf die Dateien des jeweils neuesten veröffentlichten GitHub-Releases.** Die aktuelle Versions-/Buildbezeichnung steht direkt im Release.
 
-<table><tr><td align="center" width="33%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Setup.exe"><img src="assets/readme/downloads/windows-installer.svg" alt="Windows Installer"></a></td><td align="center" width="33%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Windows-Portable.zip"><img src="assets/readme/downloads/windows-portable.svg" alt="Windows Portable"></a></td><td align="center" width="33%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Android.apk"><img src="assets/readme/downloads/android.svg" alt="Android APK"></a></td></tr><tr><td align="center" colspan="2"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Linux.deb"><img src="assets/readme/downloads/linux.svg" alt="Linux Debian"></a></td><td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><img src="assets/readme/downloads/releases.svg" alt="Alle Releases"></a></td></tr></table>
+<table><tr><td align="center" width="50%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Setup.exe"><strong>🪟 Windows Installer (.exe)</strong></a></td><td align="center" width="50%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Windows-Portable.zip"><strong>📦 Windows Portable (.zip)</strong></a></td></tr><tr><td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Android.apk"><strong>🤖 Android APK</strong></a></td><td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Linux.deb"><strong>🐧 Linux / Debian (.deb)</strong></a></td></tr></table>
 
-> ⚠️ **Beta:** Entwicklungs-/Beta-Builds vor produktivem Einsatz selbst prüfen und Daten sichern. Die Android-APK des aktuellen Build 323 verwendet eine Debug-Signatur.
+<p align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest"><strong>📋 Aktuelles Release mit Versionsnummer & Changelog</strong></a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><strong>Alle Releases</strong></a></p>
+
+> ⚠️ **Beta:** Entwicklungs-/Beta-Builds vor produktivem Einsatz selbst prüfen und Daten sichern. Hinweise zu Signierung oder bekannten Einschränkungen stehen immer im jeweiligen Release.
 
 ---
 
@@ -92,7 +110,7 @@ AirDeck wird aktiv entwickelt. Vorhandene Kernbereiche umfassen Automation, Live
 
 AirDeck wird in Teilen im Radio-Umfeld von **RicoReWi Radio** eingesetzt und erprobt.
 
-<p align="center"><a href="https://www.ricorewi-radio.de/"><img src="assets/readme/actions/radio.svg" alt="RicoReWi Radio" width="560"></a></p>
+<p align="center"><a href="https://www.ricorewi-radio.de/"><img src="assets/readme/actions/radio.svg" alt="RicoReWi Radio" width="460"></a></p>
 
 Auf **ricorewi-radio.de** laufen unter anderem die **AnMaCha- und RicoReWi-Musicstreams**. Dadurch können Teile der AirDeck-Entwicklung auch in realen Radio-Workflows erprobt werden.
 
@@ -100,7 +118,7 @@ Auf **ricorewi-radio.de** laufen unter anderem die **AnMaCha- und RicoReWi-Music
 
 Die Radioangebote nutzen **laut.fm** als Radioplattform. laut.fm übernimmt nach eigenen Angaben für dort betriebene Stationen die anfallenden GEMA- und GVL-Gebühren sowie Streamingkosten; maßgeblich sind die jeweils aktuellen Bedingungen und Musikregeln von laut.fm.
 
-<p align="center"><a href="https://laut.fm/"><img src="assets/readme/actions/laut-fm.svg" alt="laut.fm" width="560"></a></p>
+<p align="center"><a href="https://laut.fm/"><img src="assets/readme/actions/laut-fm.svg" alt="laut.fm" width="460"></a></p>
 
 > **Transparenz:** AirDeck ist ein eigenständiges Projekt von RicoReWi / RicoReWi Music & Media. Die Nennung von laut.fm beschreibt die eingesetzte Radioplattform und bedeutet keine Herausgabe oder Trägerschaft von AirDeck durch die LAUT AG.
 
@@ -161,7 +179,7 @@ Coding-Assistenten und KI-Agenten dürfen bei AirDeck unterstützen; es gibt kei
 
 **Architektur:** [`ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) · [`DATABASE.md`](docs/architecture/DATABASE.md) · [`SECURITY.md`](docs/architecture/SECURITY.md) · [`NETWORK.md`](docs/architecture/NETWORK.md) · [`STORAGE.md`](docs/architecture/STORAGE.md) · [`DEPLOYMENT.md`](docs/architecture/DEPLOYMENT.md)
 
-<p align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/wiki"><img src="assets/readme/actions/wiki.svg" alt="AirDeck Wiki" width="560"></a></p>
+<p align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/wiki"><img src="assets/readme/actions/wiki.svg" alt="AirDeck Wiki" width="460"></a></p>
 
 ---
 
@@ -186,4 +204,4 @@ Die Lizenz ist Source Available und wird nicht als OSI-zertifizierte Open-Source
 <p align="center"><img src="https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="92" alt="AirDeck"></p>
 <h3 align="center">AirDeck – Radio Automation & Live Broadcast</h3>
 <p align="center"><strong>Originally created by Ricardo Ramon Reimer Wiebe / RicoReWi</strong><br>RicoReWi Music & Media</p>
-<p align="center"><a href="https://ricorewioriginal-collab.github.io/airdeck/">Projektseite</a> · <a href="https://airdeck-demo.ricorewi-radio.de">Live-Demo</a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/releases">Downloads</a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/wiki">Wiki</a></p>
+<p align="center"><a href="https://ricorewioriginal-collab.github.io/airdeck/">Projektseite</a> · <a href="https://airdeck-demo.ricorewi-radio.de">Live-Demo</a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest">Aktuelles Release</a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/wiki">Wiki</a></p>
