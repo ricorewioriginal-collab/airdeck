@@ -1,74 +1,43 @@
 # AirDeck Changelog
 
-Alle wesentlichen Änderungen an **offiziell veröffentlichten AirDeck-Versionen** werden in dieser Datei dokumentiert.
+Alle wesentlichen Änderungen an **offiziell veröffentlichten AirDeck-Versionen** werden hier dokumentiert.
 
-Dieses Changelog ist bewusst **keine Liste jedes Commits** und keine laufende Entwicklungs-To-do-Liste. Unveröffentlichte Arbeiten gehören primär in Pull Requests, Issues/Projects und den aktuellen Codezustand.
+> **Automatisch gepflegt:** Bei einer neuen Veröffentlichung aktualisiert der AirDeck-Changelog-Workflow den Bereich zwischen `AUTO-CHANGELOG` und `/AUTO-CHANGELOG`. Grundlage sind die tatsächlich veröffentlichten GitHub-Releases sowie der Git-Vergleich zwischen zwei Versionen. Individuelle Release-Hinweise gehören in die GitHub Release Notes.
 
-Die Versionshistorie soll sich an [Semantic Versioning](https://semver.org/) orientieren, soweit dies für AirDeck praktikabel ist.
+Die Versionshistorie orientiert sich soweit praktikabel an Semantic Versioning.
 
 ## Kategorien
-
-Für Releases können folgende Kategorien verwendet werden:
 
 - **Added** – neue Funktionen
 - **Changed** – geändertes Verhalten
 - **Fixed** – Fehlerbehebungen
-- **Security** – behobene Sicherheitsprobleme, soweit eine öffentliche Beschreibung verantwortbar ist
-- **Deprecated** – Funktionen, die künftig entfernt oder ersetzt werden sollen
+- **Security** – öffentlich dokumentierbare Sicherheitskorrekturen
+- **Deprecated** – künftig zu entfernende/ersetzende Funktionen
 - **Removed** – entfernte Funktionen
 
 ## [Unreleased]
 
-Dieser Bereich darf kurz auf Änderungen hinweisen, die bereits für das nächste offizielle Release angenommen wurden. Experimentelle Arbeiten, bloße Ideen und nicht gemergte Community-Forks gehören nicht hierher.
+Dieser Bereich bleibt für bewusst dokumentierte Änderungen vorgesehen, die noch nicht veröffentlicht wurden. Automatisch erzeugte Release-Historie beginnt darunter.
 
-### Added
+<!-- AUTO-CHANGELOG:START -->
+## Veröffentlichte Versionen
 
-- _Noch keine offiziell für das nächste Release dokumentierten Einträge._
+### AirDeck Aurora v0.4.1 — 28.09.2026
 
-### Changed
+**Version:** `v0.4.1`  
+**Vergleich:** [build-323 → v0.4.1](https://github.com/ricorewioriginal-collab/airdeck/compare/build-323...v0.4.1)  
+**Release:** [AirDeck Aurora v0.4.1](https://github.com/ricorewioriginal-collab/airdeck/releases/tag/v0.4.1)
 
-- _Noch keine offiziell für das nächste Release dokumentierten Einträge._
+Die detaillierte automatisch erzeugte Änderungsliste wird ab der nächsten Veröffentlichung aus dem tatsächlichen Commit-Vergleich ergänzt.
 
-### Fixed
+### AirDeck – Build 323 (Beta) — 27.09.2026
 
-- _Noch keine offiziell für das nächste Release dokumentierten Einträge._
+**Version:** `build-323`  
+**Release:** [Build 323](https://github.com/ricorewioriginal-collab/airdeck/releases/tag/build-323)
+<!-- AUTO-CHANGELOG:END -->
 
-### Security
+## Hinweise zur Historie
 
-- _Noch keine öffentlich dokumentierten Security-Einträge._
+Der automatisch gepflegte Abschnitt ist eine technische Zusammenfassung der veröffentlichten Git-Historie. Er soll keine Änderungen erfinden oder Commit-Nachrichten als fachlich geprüfte Release Notes ausgeben. Für besonders wichtige Änderungen können die Release Notes weiterhin manuell verständlicher ergänzt werden.
 
----
-
-## Frühere Entwicklungsstände
-
-AirDeck besitzt bereits Entwicklungs- und Buildstände aus der Zeit vor Einführung dieses strukturierten Changelogs. Diese werden hier **nicht nachträglich erfunden oder aus unvollständigen Erinnerungen rekonstruiert**.
-
-Für historische Details sind die vorhandene Git-Historie und tatsächlich veröffentlichte GitHub Releases maßgeblich:
-
-https://github.com/ricorewioriginal-collab/anmacha_control/releases
-
-Ab dem nächsten bewusst freigegebenen Release soll dessen Versionsabschnitt hier mit Datum und den tatsächlich geprüften Änderungen ergänzt werden.
-
-## Beispiel für ein zukünftiges Release
-
-```markdown
-## [0.5.0] - YYYY-MM-DD
-
-### Added
-- Neue Funktion X.
-
-### Changed
-- Verhalten Y angepasst.
-
-### Fixed
-- Fehler Z behoben.
-
-### Security
-- Berechtigungsprüfung für Bereich A gehärtet.
-```
-
-## Release-Regel
-
-Ein Eintrag im Changelog bedeutet nicht automatisch, dass eine Funktion vollständig live verifiziert wurde. Release Notes sollen bei kritischen Änderungen bei Bedarf zwischen automatisiert getestet, manuell getestet und live verifiziert unterscheiden.
-
-Nur vom Maintainer freigegebene Builds werden als offizielle AirDeck-Versionen in die veröffentlichte Versionshistorie aufgenommen.
+Nur freigegebene GitHub-Releases werden in die veröffentlichte Versionshistorie aufgenommen.
