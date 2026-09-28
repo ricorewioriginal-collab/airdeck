@@ -16,12 +16,40 @@
 
 AirDeck ist eine eigenständige Radio-Automation und Live-Broadcast-Plattform. Ziel ist ein gemeinsames System für 24/7-Automation, Live-Studio, Sendeplanung, Medien- und Playlistverwaltung, Recorder, Streaming-Ausgänge, externe Provider, MusikHub und mobile Bedienung.
 
+## ⬇️ Direkt herunterladen
+
+Aktuell veröffentlichter Beta-Prüfstand: **AirDeck – Build 323 (Beta)**.
+
+| Plattform | Download |
+|---|---|
+| 🪟 Windows Installer | **[AirDeck-Setup.exe](https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Setup.exe)** |
+| 🧳 Windows Portable | **[AirDeck-Windows-Portable.zip](https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Windows-Portable.zip)** |
+| 🤖 Android | **[AirDeck-Android.apk](https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Android.apk)** |
+| 🐧 Linux / Debian | **[AirDeck-Linux.deb](https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Linux.deb)** |
+| 📦 Alle Releases | **[GitHub Releases](https://github.com/ricorewioriginal-collab/anmacha_control/releases)** |
+
+> **Beta-Hinweis:** Die Downloads sind Entwicklungs-/Beta-Builds. Für produktive Systeme vor Einsatz sichern und die benötigten Funktionen selbst prüfen. Die Android-APK des aktuellen Builds verwendet eine Debug-Signatur.
+
 <p align="center">
   <a href="https://airdeck-demo.ricorewi-radio.de"><strong>🚀 Live-Demo öffnen → airdeck-demo.ricorewi-radio.de</strong></a><br>
   Login: <code>demo</code> / <code>airdeck-demo</code> · direkt im Browser
 </p>
 
 > **Entwicklungsstand:** AirDeck wird aktiv entwickelt. Ein implementiertes Feature, ein grüner automatisierter Test und eine menschlich bzw. live geprüfte Funktion sind unterschiedliche Qualitätsstufen. Offizielle Releases werden erst nach Maintainer-Freigabe veröffentlicht.
+
+## 📻 AirDeck im Radio erleben
+
+AirDeck entsteht nicht nur als Entwicklungsprojekt, sondern wird in Teilen auch im realen Radio-Umfeld von **RicoReWi Radio** eingesetzt und erprobt.
+
+👉 **[ricorewi-radio.de](https://www.ricorewi-radio.de/)** – dort findest du unter anderem die **AnMaCha- und RicoReWi-Musicstreams**.
+
+Die Radioangebote nutzen **[laut.fm](https://laut.fm/)** als Radioplattform. laut.fm ermöglicht den Betrieb eigener Internetradiostationen und übernimmt nach eigenen Angaben die anfallenden **GEMA- und GVL-Gebühren sowie Streamingkosten** für die dort betriebenen Stationen; im Gegenzug wird das Angebot über Werbung finanziert. Für die konkrete Nutzung gelten die Bedingungen und Musikregeln von laut.fm.
+
+### ❤️ Empfehlung: laut.fm
+
+Wer selbst mit Webradio anfangen möchte, kann sich **[laut.fm – User Generated Radio™](https://laut.fm/)** ansehen. Die Plattform bietet eigene Radiostationen, Musikpool, Playlisten, Automation und Live-Radio. AirDeck verfolgt ein eigenes Softwarekonzept, kann aber unter anderem für Workflows rund um externe Radioplattformen wie laut.fm eingesetzt und weiterentwickelt werden.
+
+> **Transparenz:** AirDeck ist ein eigenständiges Projekt von RicoReWi / RicoReWi Music & Media. Die Nennung von laut.fm beschreibt die von uns eingesetzte Radioplattform und ist keine Aussage, dass AirDeck ein offizielles Produkt der LAUT AG ist oder von ihr herausgegeben wird.
 
 ## 🚦 Projektstand
 
@@ -41,9 +69,7 @@ Der tatsächliche Entwicklungsstand ergibt sich aus aktuellem Code, Tests, Issue
 
 ## ⬇️ Downloads & Releases
 
-Offizielle, vom Maintainer freigegebene Builds werden über GitHub Releases veröffentlicht:
-
-**https://github.com/ricorewioriginal-collab/anmacha_control/releases**
+Offizielle, vom Maintainer freigegebene Builds werden über **[GitHub Releases](https://github.com/ricorewioriginal-collab/anmacha_control/releases)** veröffentlicht.
 
 Je nach Release können Pakete für Windows, Android, Linux und Docker bereitgestellt werden. Nicht jeder Entwicklungscommit erzeugt automatisch einen freigegebenen Endnutzer-Build.
 
