@@ -7,7 +7,7 @@
 
 <p align="center">
 <a href="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml?query=branch%3AAirDeck-Radio-Automation-%26-Broadcast"><img src="assets/readme/status/build.svg" height="46" alt="Build"></a>
-<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest"><img src="https://img.shields.io/github/v/release/ricorewioriginal-collab/airdeck?display_name=release&label=Aktuelle%20Version&style=for-the-badge&color=1677ff" height="46" alt="Aktuelle AirDeck-Version"></a>
+<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest"><img src="assets/readme/status/version.svg" height="46" alt="Aktuelle AirDeck-Version"></a>
 <img src="assets/readme/status/beta.svg" height="46" alt="Beta">
 <a href="LICENSE"><img src="assets/readme/status/license.svg" height="46" alt="Source Available"></a>
 </p>
@@ -79,129 +79,67 @@ Geplant ist ein serverseitiger Demo-Login-Endpunkt, der eine eingeschränkte Dem
 
 ## ⬇️ AirDeck herunterladen
 
-**Die Links unten zeigen automatisch auf die Dateien des jeweils neuesten veröffentlichten GitHub-Releases.** Die aktuelle Versions-/Buildbezeichnung steht direkt im Release.
+<p align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest"><img src="assets/readme/status/version.svg" height="64" alt="Aktuelles AirDeck Release"></a></p>
+<p align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><strong>Alle Releases & Changelog →</strong></a></p>
 
-<table><tr><td align="center" width="50%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Setup.exe"><strong>🪟 Windows Installer (.exe)</strong></a></td><td align="center" width="50%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Windows-Portable.zip"><strong>📦 Windows Portable (.zip)</strong></a></td></tr><tr><td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Android.apk"><strong>🤖 Android APK</strong></a></td><td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Linux.deb"><strong>🐧 Linux / Debian (.deb)</strong></a></td></tr></table>
+<p align="center">
+<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Setup.exe"><img src="assets/readme/downloads/windows-installer.svg" width="270" alt="Windows Installer"></a>
+<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Windows-Portable.zip"><img src="assets/readme/downloads/windows-portable.svg" width="270" alt="Windows Portable"></a>
+</p>
+<p align="center">
+<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Android.apk"><img src="assets/readme/downloads/android.svg" width="270" alt="Android APK"></a>
+<a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest/download/AirDeck-Linux.deb"><img src="assets/readme/downloads/linux.svg" width="270" alt="Linux DEB"></a>
+</p>
 
-<p align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest"><strong>📋 Aktuelles Release mit Versionsnummer & Changelog</strong></a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><strong>Alle Releases</strong></a></p>
-
-> ⚠️ **Beta:** Entwicklungs-/Beta-Builds vor produktivem Einsatz selbst prüfen und Daten sichern. Hinweise zu Signierung oder bekannten Einschränkungen stehen immer im jeweiligen Release.
-
----
-
-## 🚦 Projektstand
-
-AirDeck wird aktiv entwickelt. Vorhandene Kernbereiche umfassen Automation, Live Studio, Mediathek, Playlists, Sendeplanung, Streaming, Benutzer-/Rechtesystem und mehrere Zielplattformen.
-
-| Bereich | Status / Fokus |
-|---|---|
-| 🎛️ Automation & Live Studio | Kernbereiche vorhanden, laufende Härtung |
-| 🎵 MusicHub | Ausbau senderübergreifender Medienfreigaben |
-| ☁️ Cloud | Nextcloud-/weitere Storage-Anbindungen im Ausbau |
-| 🎨 UI/UX | laufende Umsetzung auf Basis der AirDeck-Zielbilder |
-| 📦 Packaging | Windows Installer, First-Run und plattformübergreifende Builds |
-| 🛡️ Qualität | Long-Run, Recovery, Releases, Sicherheit & Berechtigungen |
-
-> Ein implementiertes Feature, ein bestandener automatisierter Test und eine menschlich bzw. live geprüfte Funktion sind unterschiedliche Qualitätsstufen. Maßgeblich sind aktueller Code, Tests, Issues/PRs und veröffentlichte Releases.
+> Die Download-Links zeigen automatisch auf die Dateien des jeweils neuesten veröffentlichten GitHub-Releases.
 
 ---
 
-## 📻 Im echten Radio-Umfeld
+## 📊 Projektstand
 
-AirDeck wird in Teilen im Radio-Umfeld von **RicoReWi Radio** eingesetzt und erprobt.
+AirDeck befindet sich in aktiver Entwicklung. Funktionen, Oberfläche, Plattformpakete und Dokumentation werden laufend erweitert und getestet.
 
-<p align="center"><a href="https://www.ricorewi-radio.de/"><img src="assets/readme/actions/radio.svg" alt="RicoReWi Radio" width="460"></a></p>
-
-Auf **ricorewi-radio.de** laufen unter anderem die **AnMaCha- und RicoReWi-Musicstreams**. Dadurch können Teile der AirDeck-Entwicklung auch in realen Radio-Workflows erprobt werden.
-
-### ❤️ Webradio mit laut.fm
-
-Die Radioangebote nutzen **laut.fm** als Radioplattform. laut.fm übernimmt nach eigenen Angaben für dort betriebene Stationen die anfallenden GEMA- und GVL-Gebühren sowie Streamingkosten; maßgeblich sind die jeweils aktuellen Bedingungen und Musikregeln von laut.fm.
-
-<p align="center"><a href="https://laut.fm/"><img src="assets/readme/actions/laut-fm.svg" alt="laut.fm" width="460"></a></p>
-
-> **Transparenz:** AirDeck ist ein eigenständiges Projekt von RicoReWi / RicoReWi Music & Media. Die Nennung von laut.fm beschreibt die eingesetzte Radioplattform und bedeutet keine Herausgabe oder Trägerschaft von AirDeck durch die LAUT AG.
+- **Status:** Beta
+- **Build:** GitHub Actions
+- **Release:** [immer die aktuelle veröffentlichte Version](https://github.com/ricorewioriginal-collab/airdeck/releases/latest)
+- **Plattformen:** Windows · Android · Linux/Server · Docker
+- **Live-Demo:** [airdeck-demo.ricorewi-radio.de](https://airdeck-demo.ricorewi-radio.de)
 
 ---
 
-## ⚡ Entwickeln & mitwirken
+## 🧑‍💻 Entwickeln & Mitwirken
 
-```bash
-git clone https://github.com/ricorewioriginal-collab/airdeck.git
-cd airdeck
-git checkout 'AirDeck-Radio-Automation-&-Broadcast'
-npm ci
-npm run check
-npm start
-```
+AirDeck kann von Entwicklern geklont und in einer eigenen Entwicklungsumgebung weiterentwickelt werden. Änderungen sollen nachvollziehbar, testbar und sicher bleiben. Vor einer offiziellen Übernahme oder Veröffentlichung werden Anpassungen geprüft und freigegeben.
 
-### 🔁 Entwicklungsweg
-
-```text
-Fork / Clone → Feature-Branch → entwickeln + testen → Pull Request
-     → CI + menschliches Review → Maintainer-Freigabe → offizieller Build / Release
-```
-
-Entwickler können AirDeck forken oder klonen und eigenständig weiterentwickeln. Ein Pull Request oder Community-Build wird **nicht automatisch** zum offiziellen AirDeck-Release.
-
-**Entwickler-Dokumente:** [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md) · [`SUPPORT.md`](SUPPORT.md)
-
----
-
-## 🤖 KI-unterstützte Entwicklung
-
-Coding-Assistenten und KI-Agenten dürfen bei AirDeck unterstützen; es gibt keine fest reservierten Agenten oder Anbieter. [`AI_HANDOVER.md`](AI_HANDOVER.md) beschreibt Empfehlungen für einen verantwortungsvollen Einsatz.
-
-**Grundsatz:** KI kann Fehler machen. KI-generierter oder KI-veränderter Code muss menschlich geprüft, real getestet und sicherheitsrelevant kontrolliert werden.
-
-- Funktionen real testen statt Erfolg zu simulieren
-- Bugs an ihrer Ursache beheben
-- Sicherheitslücken schließen und Fixes erneut testen
-- Secrets und Zugangsdaten schützen
-- wesentliche KI-Unterstützung transparent kennzeichnen
+Bitte vor Beiträgen **[CONTRIBUTING.md](CONTRIBUTING.md)** lesen. Für KI-unterstützte Entwicklung gelten zusätzlich die Hinweise in **[AI_HANDOUT.md](AI_HANDOUT.md)**: KI-generierte bzw. wesentlich KI-unterstützte Änderungen transparent kennzeichnen, Funktionen menschlich prüfen, Bugs beheben und Sicherheitslücken nicht ungeprüft übernehmen.
 
 ---
 
 ## 📚 Dokumentation
 
-| 📄 Bereich | Zweck |
-|---|---|
-| [`README.md`](README.md) | Projektübersicht, Demo, Screenshots & Downloads |
-| [GitHub Wiki](https://github.com/ricorewioriginal-collab/airdeck/wiki) | Benutzerhandbuch |
-| [`docs/architecture/`](docs/architecture/) | technische Architektur |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Entwicklung & Beiträge |
-| [`SECURITY.md`](SECURITY.md) | Sicherheitsmeldungen |
-| [`SUPPORT.md`](SUPPORT.md) | Supportwege |
-| [`AI_HANDOVER.md`](AI_HANDOVER.md) | KI-Entwicklungsleitfaden |
-| [`CHANGELOG.md`](CHANGELOG.md) | Versionshistorie |
-| [Issues](https://github.com/ricorewioriginal-collab/airdeck/issues) / Pull Requests | Bugs, Features, Änderungen & Reviews |
-| [Releases](https://github.com/ricorewioriginal-collab/airdeck/releases) | veröffentlichte Builds |
-
-**Architektur:** [`ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) · [`DATABASE.md`](docs/architecture/DATABASE.md) · [`SECURITY.md`](docs/architecture/SECURITY.md) · [`NETWORK.md`](docs/architecture/NETWORK.md) · [`STORAGE.md`](docs/architecture/STORAGE.md) · [`DEPLOYMENT.md`](docs/architecture/DEPLOYMENT.md)
-
-<p align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/wiki"><img src="assets/readme/actions/wiki.svg" alt="AirDeck Wiki" width="460"></a></p>
+- **[AirDeck Projektdokumentation](https://ricorewioriginal-collab.github.io/airdeck/docs.html)** – README, Wiki und Lizenz direkt auf der Projektseite
+- **[GitHub Wiki](https://github.com/ricorewioriginal-collab/airdeck/wiki)** – ausführliche Projekt- und Entwicklerdokumentation
+- **[Installation](docs/INSTALLATION.md)** – Installation und Plattformhinweise
+- **[Docker](docs/DOCKER.md)** – Server-/Containerbetrieb
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** – Regeln für Beiträge und Freigaben
+- **[AI_HANDOUT.md](AI_HANDOUT.md)** – Empfehlungen für KI-unterstützte Entwicklung
 
 ---
 
 ## ⚖️ Lizenz & kommerzielle Nutzung
 
-**Die normale AirDeck-Version soll kostenlos nutzbar bleiben.**
+Die normale AirDeck-Version soll kostenlos nutzbar bleiben. Der Quellcode ist verfügbar, aber AirDeck ist **nicht als klassische Open-Source-Lizenz zur uneingeschränkten kommerziellen Weiterverwertung gedacht**. Maßgeblich sind ausschließlich die Bedingungen in **[LICENSE](LICENSE)**.
 
-Die projektspezifische **AirDeck Source Available License (ASAL) v1.0** erlaubt unter ihren Bedingungen insbesondere das Ansehen, Klonen, Forken, Verändern und den eigenen Betrieb von AirDeck.
-
-Ein Radiosender darf AirDeck für den eigenen Sendebetrieb verwenden; normale Einnahmen des Radiosenders lösen nicht allein dadurch eine AirDeck-Umsatzbeteiligung aus.
-
-Wer **AirDeck oder einen AirDeck-Fork als kostenpflichtiges Hosting, SaaS, Abo, Reseller- oder White-Label-Angebot für Dritte monetarisiert**, benötigt vorher eine gesonderte Commercial Hosting License.
-
-**Recht & Projektregeln:** [`LICENSE`](LICENSE) · [`COMMERCIAL.md`](COMMERCIAL.md) · [`BRANDING.md`](BRANDING.md) · [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
-
-> **Based on AirDeck – originally created by Ricardo Ramon Reimer Wiebe / RicoReWi.**
-
-Die Lizenz ist Source Available und wird nicht als OSI-zertifizierte Open-Source-Lizenz dargestellt. Der aktuelle Lizenztext ist als Entwurf gekennzeichnet und sollte vor kommerzieller Nutzung juristisch geprüft werden.
+Wer AirDeck oder einen Fork kommerziell hosten, als kostenpflichtigen Dienst oder als eigenes Abomodell anbieten möchte, muss die dort beschriebenen Lizenzbedingungen beachten und gegebenenfalls eine kommerzielle Vereinbarung abschließen.
 
 ---
 
-<p align="center"><img src="https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="92" alt="AirDeck"></p>
-<h3 align="center">AirDeck – Radio Automation & Live Broadcast</h3>
-<p align="center"><strong>Originally created by Ricardo Ramon Reimer Wiebe / RicoReWi</strong><br>RicoReWi Music & Media</p>
-<p align="center"><a href="https://ricorewioriginal-collab.github.io/airdeck/">Projektseite</a> · <a href="https://airdeck-demo.ricorewi-radio.de">Live-Demo</a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/releases/latest">Aktuelles Release</a> · <a href="https://github.com/ricorewioriginal-collab/airdeck/wiki">Wiki</a></p>
+## 📻 AirDeck im Einsatz
+
+AirDeck wird teilweise im Umfeld von **RicoReWi Radio / AnMaCha** eingesetzt. Musikstreams und weitere Radioprojekte findest du unter **[ricorewi-radio.de](https://www.ricorewi-radio.de/)**.
+
+Für ausgewählte Streams wird **laut.fm** eingesetzt. laut.fm übernimmt im Rahmen seines Angebots für die dort betriebenen Sender die Abwicklung mit GEMA und GVL; für den konkreten Nutzungsfall gelten die jeweils aktuellen Bedingungen des Anbieters.
+
+---
+
+<p align="center"><strong>AirDeck</strong><br>Dein Radio. Dein Studio. Dein AirDeck.</p>
