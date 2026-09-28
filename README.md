@@ -1,7 +1,7 @@
 # AirDeck – Radio Automation & Live Broadcast
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="118" alt="AirDeck Logo">
+  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="118" alt="AirDeck Logo">
 </p>
 
 <h3 align="center">Radio Automation · Live Studio · Streaming · MusicHub</h3>
@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/actions/workflows/build.yml?query=branch%3AAirDeck-Radio-Automation-%26-Broadcast"><img src="https://github.com/ricorewioriginal-collab/anmacha_control/actions/workflows/build.yml/badge.svg?branch=AirDeck-Radio-Automation-%26-Broadcast" alt="Build"></a>
+  <a href="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml?query=branch%3AAirDeck-Radio-Automation-%26-Broadcast"><img src="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml/badge.svg?branch=AirDeck-Radio-Automation-%26-Broadcast" alt="Build"></a>
   <img src="https://img.shields.io/badge/version-0.4.0-2563eb" alt="Version 0.4.0">
   <img src="https://img.shields.io/badge/status-Beta-f59e0b" alt="Beta">
   <img src="https://img.shields.io/badge/license-Source%20Available-7c3aed" alt="Source Available">
@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="https://airdeck-demo.ricorewi-radio.de"><img src="https://img.shields.io/badge/▶%20LIVE%20DEMO-AirDeck%20öffnen-2563eb?style=for-the-badge" alt="AirDeck Live Demo"></a>
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/releases"><img src="https://img.shields.io/badge/⬇%20DOWNLOADS-Alle%20Releases-111827?style=for-the-badge" alt="Alle AirDeck Downloads"></a>
+  <a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><img src="https://img.shields.io/badge/⬇%20DOWNLOADS-Alle%20Releases-111827?style=for-the-badge" alt="Alle AirDeck Downloads"></a>
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
 AirDeck ist eine eigenständige Radio-Automation und Live-Broadcast-Plattform. Das Projekt verbindet klassische Radioautomation mit einem modernen Studio, mehreren Sendern, Mediathek, Playlists, Sendeplanung, Streaming, Recorder, externen Providern und dem entstehenden senderübergreifenden **MusicHub**.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/slideshow.gif" alt="AirDeck UI" width="860">
+  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/slideshow.gif" alt="AirDeck UI" width="860">
 </p>
 
 ### ✨ Schwerpunkte
@@ -57,11 +57,11 @@ AirDeck ist eine eigenständige Radio-Automation und Live-Broadcast-Plattform. D
 
 | Dashboard | Live Studio | Sendeplan |
 |---|---|---|
-| [![Dashboard](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-dashboard.png)](docs/screenshots/view-dashboard.png) | [![Studio](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-studio.png)](docs/screenshots/view-studio.png) | [![Sendeplan](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-planning.png)](docs/screenshots/view-planning.png) |
+| [![Dashboard](https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-dashboard.png)](docs/screenshots/view-dashboard.png) | [![Studio](https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-studio.png)](docs/screenshots/view-studio.png) | [![Sendeplan](https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-planning.png)](docs/screenshots/view-planning.png) |
 
 | Mediathek | Playlists | Recorder |
 |---|---|---|
-| [![Mediathek](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png)](docs/screenshots/view-mediathek.png) | [![Playlists](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-playlists.png)](docs/screenshots/view-playlists.png) | [![Recorder](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-recorder.png)](docs/screenshots/view-recorder.png) |
+| [![Mediathek](https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png)](docs/screenshots/view-mediathek.png) | [![Playlists](https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-playlists.png)](docs/screenshots/view-playlists.png) | [![Recorder](https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-recorder.png)](docs/screenshots/view-recorder.png) |
 
 <p align="center"><a href="docs/screenshots/"><strong>Weitere AirDeck-Screenshots ansehen →</strong></a></p>
 
@@ -85,19 +85,17 @@ Die Instanz dient ausschließlich zum Testen. Bitte dort keine produktiven oder 
 
 Aktuell veröffentlichter Beta-Prüfstand: **AirDeck – Build 323 (Beta)**.
 
-<p align="center">
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Setup.exe"><img src="https://img.shields.io/badge/🪟%20WINDOWS-Installer%20(.exe)-2563eb?style=for-the-badge" alt="AirDeck Windows Installer"></a>
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Windows-Portable.zip"><img src="https://img.shields.io/badge/🧳%20WINDOWS-Portable%20(.zip)-0f766e?style=for-the-badge" alt="AirDeck Windows Portable"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Android.apk"><img src="https://img.shields.io/badge/🤖%20ANDROID-APK-16a34a?style=for-the-badge" alt="AirDeck Android APK"></a>
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/releases/download/build-323/AirDeck-Linux.deb"><img src="https://img.shields.io/badge/🐧%20LINUX-Debian%20(.deb)-7c3aed?style=for-the-badge" alt="AirDeck Linux Debian"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/releases"><img src="https://img.shields.io/badge/📦%20GITHUB-Alle%20Versionen%20&%20Downloads-111827?style=for-the-badge&logo=github&logoColor=white" alt="Alle AirDeck Releases"></a>
-</p>
+<table>
+<tr>
+<td align="center" width="33%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Setup.exe"><img src="assets/readme/downloads/windows-installer.svg" alt="AirDeck Windows Installer"></a></td>
+<td align="center" width="33%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Windows-Portable.zip"><img src="assets/readme/downloads/windows-portable.svg" alt="AirDeck Windows Portable"></a></td>
+<td align="center" width="33%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Android.apk"><img src="assets/readme/downloads/android.svg" alt="AirDeck Android APK"></a></td>
+</tr>
+<tr>
+<td align="center" colspan="2"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases/download/build-323/AirDeck-Linux.deb"><img src="assets/readme/downloads/linux.svg" alt="AirDeck Linux Debian"></a></td>
+<td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><img src="assets/readme/downloads/releases.svg" alt="Alle AirDeck Releases"></a></td>
+</tr>
+</table>
 
 > **Beta-Hinweis:** Die Downloads sind Entwicklungs-/Beta-Builds. Vor einem produktiven Einsatz Daten sichern und die benötigten Funktionen selbst prüfen. Die Android-APK des aktuellen Build 323 verwendet eine Debug-Signatur.
 
@@ -148,8 +146,8 @@ Wer selbst mit Webradio anfangen möchte, kann sich laut.fm ansehen. Die Plattfo
 ## ⚡ Entwickeln & mitwirken
 
 ```bash
-git clone https://github.com/ricorewioriginal-collab/anmacha_control.git
-cd anmacha_control
+git clone https://github.com/ricorewioriginal-collab/airdeck.git
+cd airdeck
 git checkout 'AirDeck-Radio-Automation-&-Broadcast'
 npm ci
 npm run check
@@ -216,7 +214,7 @@ Dabei gelten insbesondere:
 **Architektur:** [`ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) · [`DATABASE.md`](docs/architecture/DATABASE.md) · [`SECURITY.md`](docs/architecture/SECURITY.md) · [`NETWORK.md`](docs/architecture/NETWORK.md) · [`STORAGE.md`](docs/architecture/STORAGE.md) · [`DEPLOYMENT.md`](docs/architecture/DEPLOYMENT.md)
 
 <p align="center">
-  <a href="https://github.com/ricorewioriginal-collab/anmacha_control/wiki"><img src="https://img.shields.io/badge/📖%20AIRDECK-Wiki%20&%20Dokumentation-2563eb?style=for-the-badge" alt="AirDeck Wiki"></a>
+  <a href="https://github.com/ricorewioriginal-collab/airdeck/wiki"><img src="https://img.shields.io/badge/📖%20AIRDECK-Wiki%20&%20Dokumentation-2563eb?style=for-the-badge" alt="AirDeck Wiki"></a>
 </p>
 
 ---
@@ -240,7 +238,7 @@ Die Lizenz ist Source Available und wird nicht als OSI-zertifizierte Open-Source
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="72" alt="AirDeck">
+  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/airdeck/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="72" alt="AirDeck">
 </p>
 
 <h3 align="center">AirDeck – Radio Automation & Live Broadcast</h3>
