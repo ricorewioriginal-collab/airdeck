@@ -2,7 +2,7 @@ name: Last Known Good
 
 on:
   workflow_run:
-    workflows: ["AirDeck Build"]
+    workflows: ["Build"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -10,11 +10,9 @@ on:
         description: "Aktion"
         required: true
         type: choice
-        options:
-          - show
-          - rollback
+        options: [show, rollback]
       confirm:
-        description: "Für Rollback exakt ROLLBACK eingeben"
+        description: "Für manuellen Rollback exakt ROLLBACK eingeben"
         required: false
         type: string
 
@@ -24,6 +22,9 @@ permissions:
 concurrency:
   group: airdeck-last-known-good
   cancel-in-progress: false
+
+env:
+  BRANCH: AirDeck-Radio-Automation-&-Broadcast
 
 jobs:
   remember:
@@ -41,14 +42,75 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Markiere erfolgreichen AirDeck-Build: $SHA"
-          git init repo
-          cd repo
+          git init repo && cd repo
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --depth=1 origin "$SHA"
           git tag -f last-known-good "$SHA"
           git push --force origin refs/tags/last-known-good
           echo "last-known-good -> $SHA"
+
+  auto-rollback:
+    name: Automatischer sicherer Rollback
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'AirDeck-Radio-Automation-&-Broadcast' &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'revert: automatic rollback') &&
+      !startsWith(github.event.workflow_run.head_commit.message, 'revert: rollback')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: AirDeck-Radio-Automation-&-Broadcast
+          fetch-depth: 0
+
+      - name: Rollback-Ziel und Branchzustand prüfen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOOD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/last-known-good" --jq '.object.sha' 2>/dev/null || true)"
+          CURRENT="$(git rev-parse HEAD)"
+          if [ -z "$GOOD" ]; then
+            echo "::warning::Noch kein last-known-good vorhanden. Automatischer Rollback wird nicht durchgeführt."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$CURRENT" != "$FAILED_SHA" ]; then
+            echo "::warning::Branch wurde nach dem fehlgeschlagenen Build bereits verändert. Kein automatischer Rollback, damit neuere Arbeit nicht überschrieben wird."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$GOOD" = "$CURRENT" ]; then
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          git merge-base --is-ancestor "$GOOD" "$CURRENT" || {
+            echo "::warning::last-known-good ist kein Vorfahr des aktuellen Branches. Kein automatischer Rollback."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          }
+          echo "GOOD=$GOOD" >> "$GITHUB_ENV"
+          echo "CURRENT=$CURRENT" >> "$GITHUB_ENV"
+          echo "SKIP=0" >> "$GITHUB_ENV"
+
+      - name: Fehlgeschlagene Änderungen als Revert-Commit zurücknehmen
+        if: env.SKIP == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'AirDeck Auto Rollback'
+          git config user.email 'actions@users.noreply.github.com'
+          git revert --no-commit "$GOOD..$CURRENT"
+          if git diff --cached --quiet && git diff --quiet; then
+            echo "Keine rücknehmbaren Änderungen."
+            exit 0
+          fi
+          git commit -m "revert: automatic rollback to last known good $GOOD [skip ci]"
+          git push origin HEAD:AirDeck-Radio-Automation-&-Broadcast
+          echo "Fehlgeschlagener Stand wurde automatisch als nachvollziehbarer Revert-Commit zurückgenommen."
 
   show:
     name: Last Known Good anzeigen
@@ -73,17 +135,12 @@ jobs:
       - name: Sicherheitsbestätigung prüfen
         shell: bash
         run: |
-          if [ "${{ inputs.confirm }}" != "ROLLBACK" ]; then
-            echo "::error::Rollback abgebrochen. Im Feld confirm muss exakt ROLLBACK stehen."
-            exit 1
-          fi
-
+          test "${{ inputs.confirm }}" = "ROLLBACK" || { echo "::error::Im Feld confirm muss exakt ROLLBACK stehen."; exit 1; }
       - uses: actions/checkout@v4
         with:
           ref: AirDeck-Radio-Automation-&-Broadcast
           fetch-depth: 0
-
-      - name: Last Known Good ermitteln
+      - name: Last Known Good wiederherstellen
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -91,31 +148,10 @@ jobs:
           set -euo pipefail
           GOOD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/last-known-good" --jq '.object.sha')"
           CURRENT="$(git rev-parse HEAD)"
-          echo "GOOD=$GOOD" >> "$GITHUB_ENV"
-          echo "CURRENT=$CURRENT" >> "$GITHUB_ENV"
-          echo "Aktuell: $CURRENT"
-          echo "Rollback-Ziel: $GOOD"
-          test "$GOOD" != "$CURRENT" || {
-            echo "Aktueller Branch entspricht bereits last-known-good."
-            exit 0
-          }
-
-      - name: Änderungen seit Last Known Good als Revert-Commit zurücknehmen
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "$GOOD" = "$CURRENT" ]; then exit 0; fi
+          [ "$GOOD" != "$CURRENT" ] || exit 0
+          git merge-base --is-ancestor "$GOOD" "$CURRENT" || { echo "::error::Unsicherer Verlauf; Rollback abgebrochen."; exit 1; }
           git config user.name 'AirDeck Rollback'
           git config user.email 'actions@users.noreply.github.com'
-          git merge-base --is-ancestor "$GOOD" "$CURRENT" || {
-            echo "::error::last-known-good ist kein Vorfahr des aktuellen Branches. Automatischer Rollback wird aus Sicherheitsgründen nicht durchgeführt."
-            exit 1
-          }
           git revert --no-commit "$GOOD..$CURRENT"
-          if git diff --cached --quiet && git diff --quiet; then
-            echo "Keine rücknehmbaren Änderungen gefunden."
-            exit 0
-          fi
-          git commit -m "revert: rollback to last known good $GOOD"
+          git commit -m "revert: rollback to last known good $GOOD [skip ci]"
           git push origin HEAD:AirDeck-Radio-Automation-&-Broadcast
-          echo "Rollback als neuer Commit durchgeführt. Historie wurde nicht überschrieben."
