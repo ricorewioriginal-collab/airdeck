@@ -538,6 +538,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('PUT', '/api/v1/stations/:sid/listener', 'stations:write', async (c) => app.svc.listeners.setConfig(c.p, sid(c), await c.body()));
   // Setup-Assistent (nur Administration)
   add('GET', '/api/v1/setup', null, (c) => (globalAdmin(c), app.svc.setup.status()));
+  add('POST', '/api/v1/setup/installer-welcome/ack', null, (c) => (globalAdmin(c), app.svc.setup.acknowledgeInstallerWelcome(), { ok: true }));
   add('PUT', '/api/v1/setup/:step', null, async (c) => (globalAdmin(c), app.svc.setup.apply(c.p, c.params.step!, await c.body())));
   add('POST', '/api/v1/system/restart', null, (c) => {
     globalAdmin(c);

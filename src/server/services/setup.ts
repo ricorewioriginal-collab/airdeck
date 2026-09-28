@@ -16,6 +16,8 @@ export type SetupStep = (typeof SETUP_STEPS)[number];
 interface SetupState {
   completedAt?: string;
   disclaimerAcceptedAt?: string;
+  installerWelcomeAt?: string;
+  installerWelcomeSeenAt?: string;
   steps?: Partial<Record<SetupStep, 'done' | 'skipped'>>;
   /** Änderungen, die erst nach einem Neustart gelten */
   restart?: string[];
@@ -52,11 +54,12 @@ export class SetupService {
     const s = this.state();
     const cfg = this.app.config;
     const station = [...this.app.stations.values()][0]?.station;
-    const po = station ? (this.app.playoutView(station.id) as { config: { autostart: boolean; emergencyFolder?: string } }) : null;
+    const po = station ? (this.app.playoutView(station.id) as { config: { autostart: boolean; emergencyFolder?: string; hls?: { enabled?: boolean } } }) : null;
     const lan = this.app.listenHost === '0.0.0.0' || this.app.listenHost === '::';
     return {
       required: !s.completedAt && this.isFresh(),
       completed: !!s.completedAt,
+      installerWelcome: !!s.installerWelcomeAt && !s.installerWelcomeSeenAt,
       steps: s.steps ?? {},
       order: SETUP_STEPS,
       restart: s.restart ?? [],
@@ -70,11 +73,18 @@ export class SetupService {
         station: station ? { id: station.id, name: station.name, slogan: station.slogan, genre: station.genre ?? '' } : null,
         outputs: this.app.outputs.size,
         ffmpeg: this.app.ffmpeg ? { version: this.app.ffmpeg.version, mp3: this.app.ffmpeg.encoders.mp3 } : null,
-        automation: po ? { autostart: po.config.autostart, emergencyFolder: po.config.emergencyFolder ?? '', running: this.app.playouts.has(station!.id) } : null,
+        automation: po ? { autostart: po.config.autostart, emergencyFolder: po.config.emergencyFolder ?? '', running: this.app.playouts.has(station!.id), localMonitoring: po.config.hls?.enabled === true } : null,
         linkedFolders: station ? this.app.svc.media.linkedFolders(station.id) : [],
         disclaimerAccepted: !!s.disclaimerAcceptedAt,
       },
     };
+  }
+
+  acknowledgeInstallerWelcome(): void {
+    const s = this.state();
+    if (!s.installerWelcomeAt || s.installerWelcomeSeenAt) return;
+    s.installerWelcomeSeenAt = new Date().toISOString();
+    this.save(s);
   }
 
   private mark(step: SetupStep, how: 'done' | 'skipped', restart?: string): void {

@@ -184,7 +184,17 @@ async function boot() {
   // Erster Start: Setup-Assistent (nur Administration, bestehende Installationen werden nicht gestört)
   if (isGlobalAdmin()) {
     const st = await api.get('/setup').catch(() => null);
-    if (st?.required) await openSetup();
+    if (st?.installerWelcome) {
+      const c = st.current;
+      const choice = await formDialog('AirDeck ist eingerichtet', [
+        { name: 'summary', label: 'Ersteinrichtung', type: 'info', value: `Sender: ${c.station?.name ?? 'AirDeck Radio'}\nBetriebsart: ${c.mode}\nLokales Monitoring: ${c.automation?.localMonitoring ? 'AirDeckCast HLS vorbereitet' : 'nicht eingerichtet'}\nAudio-Engine: ${c.ffmpeg ? 'bereit' : 'noch nicht verfügbar'}\nExterne Streamziele: ${c.outputs ? `${c.outputs} eingerichtet` : 'noch nicht verbunden'}` },
+        { name: 'next', label: 'Weiter', value: 'studio', options: [['studio', 'Studio öffnen'], ['setup', 'Weitere Einstellungen öffnen']] },
+      ], 'Weiter');
+      if (choice) {
+        await api.post('/setup/installer-welcome/ack', {});
+        if (choice.next === 'setup' || st.required) await openSetup();
+      }
+    } else if (st?.required) await openSetup();
   }
   setInterval(tick, 200);
   setInterval(clock, 1000);

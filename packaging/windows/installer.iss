@@ -110,8 +110,8 @@ Name: "{autodesktop}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AirDeck"; ValueData: """{app}\AirDeck.exe"" --minimized"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-; Firewall-Freigabe für das lokale Netz (nur bei Installation für alle Benutzer mit Adminrechten)
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""AirDeck"" dir=in action=allow program=""{app}\airdeck-engine.exe"" profile=private,domain enable=yes"; Flags: runhidden; Tasks: lan; Check: IsAdminInstallMode
+; Nur bei bewusst gewähltem LAN-Zugriff mit Adminrechten, auf den tatsächlichen AirDeck-Port begrenzt.
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""AirDeck"" dir=in action=allow protocol=TCP localport={code:InstallerPort} program=""{app}\airdeck-engine.exe"" profile=private enable=yes"; Flags: runhidden; Tasks: lan; Check: ShouldAddLanFirewall
 Filename: "{app}\AirDeck.exe"; Description: "{cm:RunNow}"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\studio\handbuch.html"; Description: "{cm:RunManual}"; Flags: shellexec postinstall skipifsilent unchecked nowait
 
@@ -130,13 +130,15 @@ en.WelcomeLabel2=This will install AirDeck on your computer.%n%nAirDeck runs ful
 [Code]
 { Moderner Einrichtungsdialog: Betriebsart/Port/LAN, eigener Admin, Komponentenuebersicht,
   Datenspeicher und abschliessende Y/N-Bestaetigung. Kennwoerter werden nur als einmalige
-  Bootstrap-Datei abgelegt, beim ersten Start gehasht und sofort geloescht. }
+  Bootstrap-Datei abgelegt, während der Installation gehasht und sofort geloescht. }
 
 var
+  ExistingAtStart: Boolean;
   BrandPage: TOutputMsgMemoWizardPage;
   ServerModePage: TInputOptionWizardPage;
   NetworkPage: TInputQueryWizardPage;
   LanPage: TInputOptionWizardPage;
+  MonitoringPage: TInputOptionWizardPage;
   AdminChoicePage: TInputOptionWizardPage;
   AdminPage: TInputQueryWizardPage;
   ThirdPartyPage: TOutputMsgMemoWizardPage;
@@ -146,9 +148,27 @@ var
   FirebasePage: TInputFileWizardPage;
   FirstSyncPage: TInputOptionWizardPage;
 
+function InitializeSetup: Boolean;
+begin
+  ExistingAtStart :=
+    FileExists(ExpandConstant('{localappdata}\AirDeck\data\airdeck.db')) or
+    FileExists(ExpandConstant('{localappdata}\AirDeck\data\config\airdeck.conf'));
+  Result := True;
+end;
+
 function IsUpdate: Boolean;
 begin
-  Result := ExpandConstant('{param:UPDATE|0}') = '1';
+  Result := (ExpandConstant('{param:UPDATE|0}') = '1') or ExistingAtStart;
+end;
+
+function InstallerPort(Param: String): String;
+begin
+  Result := Trim(NetworkPage.Values[0]);
+end;
+
+function ShouldAddLanFirewall: Boolean;
+begin
+  Result := (not IsUpdate) and IsAdminInstallMode and (LanPage.SelectedValueIndex = 0);
 end;
 
 { Nach dem Update: lief nur die Engine (24/7 ohne Fenster), wieder nur die Engine starten, sonst das Programm }
@@ -177,9 +197,9 @@ begin
   ServerModePage := CreateInputOptionPage(BrandPage.ID,
     'Betriebsart', 'Wie soll AirDeck auf diesem Computer laufen?',
     'Die Einstellung kann später im AirDeck-Setup-Assistenten geändert werden.', True, False);
-  ServerModePage.Add('LOCAL – Studio und Automation auf diesem PC');
-  ServerModePage.Add('SERVER – 24/7-Server, Bedienung per Browser/App');
-  ServerModePage.Add('HYBRID – lokales Studio mit Server-/Netzwerkfunktionen');
+  ServerModePage.Add('Standard / Lokal – Studio und Automation auf diesem PC');
+  ServerModePage.Add('Erweitert / Server – 24/7, mehrere Sender und Streamziele');
+  ServerModePage.Add('Erweitert / Hybrid – lokales Studio mit Server-/Netzwerkfunktionen');
   ServerModePage.SelectedValueIndex := 0;
 
   NetworkPage := CreateInputQueryPage(ServerModePage.ID,
@@ -195,9 +215,16 @@ begin
   LanPage.Add('N (No) – nur auf diesem Computer');
   LanPage.SelectedValueIndex := 1;
 
-  AdminChoicePage := CreateInputOptionPage(LanPage.ID,
+  MonitoringPage := CreateInputOptionPage(LanPage.ID,
+    'Lokales Monitoring', 'AirDeck auf diesem PC mithören?',
+    'AirDeckCast stellt bei laufender Automation ein authentifiziertes HLS-Monitoring über den AirDeck-Port bereit. Ein zusätzlicher Icecast-Dienst und eine Firewallregel für Port 8000 sind dafür nicht nötig.', True, False);
+  MonitoringPage.Add('Y (Yes) – lokales HLS-Monitoring vorbereiten (empfohlen)');
+  MonitoringPage.Add('N (No) – später im Studio einrichten');
+  MonitoringPage.SelectedValueIndex := 0;
+
+  AdminChoicePage := CreateInputOptionPage(MonitoringPage.ID,
     'Administrator', 'Eigenen AirDeck-Admin jetzt anlegen?',
-    'Empfohlen für Server-/LAN-Betrieb. Das Kennwort wird beim ersten Start gehasht und die Bootstrap-Datei danach gelöscht.', True, False);
+    'Empfohlen für Server-/LAN-Betrieb. Das Kennwort wird während der Installation gehasht und die Bootstrap-Datei danach gelöscht.', True, False);
   AdminChoicePage.Add('Y (Yes) – eigenen Admin-Zugang einrichten');
   AdminChoicePage.Add('N (No) – später im AirDeck-Setup einrichten');
   { Unattended installation defers credentials to the application's first-run setup.
@@ -275,7 +302,7 @@ begin
   if IsUpdate or WizardSilent then
   begin
     if (PageID = BrandPage.ID) or (PageID = ServerModePage.ID) or (PageID = NetworkPage.ID) or
-       (PageID = LanPage.ID) or (PageID = AdminChoicePage.ID) or (PageID = AdminPage.ID) or
+       (PageID = LanPage.ID) or (PageID = MonitoringPage.ID) or (PageID = AdminChoicePage.ID) or (PageID = AdminPage.ID) or
        (PageID = ThirdPartyPage.ID) or (PageID = StoragePage.ID) or (PageID = MysqlPage.ID) or
        (PageID = FirebasePage.ID) or (PageID = FirstSyncPage.ID) or (PageID = ConfirmPage.ID) then
     begin
@@ -330,7 +357,7 @@ end;
 
 procedure CurPageChanged(CurPageID: Integer);
 var
-  ModeName, LanName, AdminName, StorageName, ComponentsText: String;
+  ModeName, LanName, AdminName, StorageName, ComponentsText, MonitoringName: String;
 begin
   if CurPageID <> ConfirmPage.ID then Exit;
 
@@ -339,6 +366,7 @@ begin
   else ModeName := 'LOCAL';
 
   if LanPage.SelectedValueIndex = 0 then LanName := 'Y (LAN)' else LanName := 'N (nur dieser PC)';
+  if MonitoringPage.SelectedValueIndex = 0 then MonitoringName := 'AirDeckCast HLS (lokal)' else MonitoringName := 'spaeter einrichten';
 
   if AdminChoicePage.SelectedValueIndex = 0 then
     AdminName := Trim(AdminPage.Values[0])
@@ -364,6 +392,7 @@ begin
     'Betriebsart: ' + ModeName + #13#10 +
     'Port: ' + Trim(NetworkPage.Values[0]) + #13#10 +
     'Netzwerk: ' + LanName + #13#10 +
+    'Monitoring: ' + MonitoringName + #13#10 +
     'Administrator: ' + AdminName + #13#10 +
     'Datenspeicher: ' + StorageName + #13#10 +
     'Komponenten: ' + ComponentsText + #13#10#13#10 +
@@ -409,6 +438,25 @@ begin
     end;
   end;
 
+  if CurPageID = LanPage.ID then
+  begin
+    if LanPage.SelectedValueIndex = 0 then
+    begin
+      WizardSelectTasks('lan');
+      if not IsAdminInstallMode then
+        MsgBox('AirDeck wird im LAN gebunden. Bei Installation nur für diesen Benutzer kann der Installer keine Firewallregel anlegen; gib den gewählten Port bei Bedarf manuell für das private Netzwerk frei.', mbInformation, MB_OK);
+    end
+    else WizardSelectTasks('!lan');
+  end;
+
+  if (CurPageID = MonitoringPage.ID) and (MonitoringPage.SelectedValueIndex = 0) and
+     not WizardIsComponentSelected('ffmpeg') then
+  begin
+    MsgBox('Lokales Monitoring benötigt die Audio-Engine ffmpeg. Bitte die Komponente auswählen oder Monitoring später einrichten.', mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
   if (CurPageID = MysqlPage.ID) and ((Trim(MysqlPage.Values[0]) = '') or (Trim(MysqlPage.Values[2]) = '') or (Trim(MysqlPage.Values[4]) = '')) then
   begin
     MsgBox('Bitte Server, Benutzer und Datenbank angeben.', mbError, MB_OK);
@@ -446,8 +494,9 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  DataDir, ConfigDir, Json, FirstSync, ModeName, BindName, AdminJson: String;
+  DataDir, ConfigDir, Json, FirstSync, ModeName, BindName, AdminJson, BootstrapFile: String;
   Lines: TArrayOfString;
+  ResultCode: Integer;
 begin
   if CurStep <> ssPostInstall then Exit;
   if IsUpdate then Exit;
@@ -470,32 +519,76 @@ begin
   Lines[3] := '[network]';
   Lines[4] := 'port = ' + Trim(NetworkPage.Values[0]);
   Lines[5] := 'bind = ' + BindName;
-  SaveStringsToUTF8File(ConfigDir + '\airdeck.conf', Lines, False);
+  if not SaveStringsToUTF8File(ConfigDir + '\airdeck.conf', Lines, False) then
+    RaiseException('AirDeck-Grundeinstellungen konnten nicht geschrieben werden.');
 
   SetArrayLength(Lines, 1);
   if LanPage.SelectedValueIndex = 0 then Lines[0] := '{"lan":true}' else Lines[0] := '{"lan":false}';
-  SaveStringsToUTF8File(DataDir + '\network.json', Lines, False);
+  if not SaveStringsToUTF8File(DataDir + '\network.json', Lines, False) then
+    RaiseException('AirDeck-Netzwerkeinstellungen konnten nicht geschrieben werden.');
 
-  if AdminChoicePage.SelectedValueIndex = 0 then
+  ResultCode := -1;
+  if (not Exec(ExpandConstant('{app}\airdeck-engine.exe'), '--headless --check-port',
+    ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
   begin
-    AdminJson := '{"username":"' + JsonEscape(Lowercase(Trim(AdminPage.Values[0]))) +
-      '","name":"' + JsonEscape(Trim(AdminPage.Values[1])) +
-      '","password":"' + JsonEscape(AdminPage.Values[2]) + '"}';
-    SetArrayLength(Lines, 1);
-    Lines[0] := AdminJson;
-    SaveStringsToUTF8File(DataDir + '\installer-bootstrap.json', Lines, False);
+    DeleteFile(ConfigDir + '\airdeck.conf');
+    DeleteFile(DataDir + '\network.json');
+    RaiseException('Der gewählte AirDeck-Port ist belegt oder konnte nicht geprüft werden. Bitte einen anderen Port wählen.');
   end;
 
-  if StoragePage.SelectedValueIndex = 0 then Exit;
-  if FirstSyncPage.SelectedValueIndex = 1 then FirstSync := 'push' else FirstSync := 'pull';
-  if StoragePage.SelectedValueIndex = 1 then
-    Json := '{"backend":"mysql","firstSync":"' + FirstSync + '","mysql":{"host":"' + JsonEscape(Trim(MysqlPage.Values[0])) +
-      '","port":"' + JsonEscape(Trim(MysqlPage.Values[1])) + '","user":"' + JsonEscape(Trim(MysqlPage.Values[2])) +
-      '","password":"' + JsonEscape(MysqlPage.Values[3]) + '","database":"' + JsonEscape(Trim(MysqlPage.Values[4])) + '"}}'
-  else
-    Json := '{"backend":"firebase","firstSync":"' + FirstSync + '","firebase":{"credentialsFile":"' + JsonEscape(FirebasePage.Values[0]) + '"}}';
-  SetArrayLength(Lines, 1);
-  Lines[0] := Json;
-  SaveStringsToUTF8File(DataDir + '\storage-setup.json', Lines, False);
+  BootstrapFile := DataDir + '\installer-bootstrap.json';
+  if StoragePage.SelectedValueIndex <> 0 then
+  begin
+    if FirstSyncPage.SelectedValueIndex = 1 then FirstSync := 'push' else FirstSync := 'pull';
+    if StoragePage.SelectedValueIndex = 1 then
+      Json := '{"backend":"mysql","firstSync":"' + FirstSync + '","mysql":{"host":"' + JsonEscape(Trim(MysqlPage.Values[0])) +
+        '","port":"' + JsonEscape(Trim(MysqlPage.Values[1])) + '","user":"' + JsonEscape(Trim(MysqlPage.Values[2])) +
+        '","password":"' + JsonEscape(MysqlPage.Values[3]) + '","database":"' + JsonEscape(Trim(MysqlPage.Values[4])) + '"}}'
+    else
+      Json := '{"backend":"firebase","firstSync":"' + FirstSync + '","firebase":{"credentialsFile":"' + JsonEscape(FirebasePage.Values[0]) + '"}}';
+    SetArrayLength(Lines, 1);
+    Lines[0] := Json;
+    if not SaveStringsToUTF8File(DataDir + '\storage-setup.json', Lines, False) then
+      RaiseException('AirDeck-Datenspeicher konnte nicht vorbereitet werden.');
+  end;
+
+  if (AdminChoicePage.SelectedValueIndex = 0) or (MonitoringPage.SelectedValueIndex = 0) or
+     (StoragePage.SelectedValueIndex <> 0) then
+  begin
+    AdminJson := '{"localMonitoring":';
+    if MonitoringPage.SelectedValueIndex = 0 then AdminJson := AdminJson + 'true'
+    else AdminJson := AdminJson + 'false';
+    if StoragePage.SelectedValueIndex = 1 then AdminJson := AdminJson + ',"storageBackend":"mysql"'
+    else if StoragePage.SelectedValueIndex = 2 then AdminJson := AdminJson + ',"storageBackend":"firebase"';
+    if AdminChoicePage.SelectedValueIndex = 0 then
+      AdminJson := AdminJson + ',"username":"' + JsonEscape(Lowercase(Trim(AdminPage.Values[0]))) +
+        '","name":"' + JsonEscape(Trim(AdminPage.Values[1])) +
+        '","password":"' + JsonEscape(AdminPage.Values[2]) + '"';
+    AdminJson := AdminJson + '}';
+    SetArrayLength(Lines, 1);
+    Lines[0] := AdminJson;
+    if not SaveStringsToUTF8File(BootstrapFile, Lines, False) then
+    begin
+      DeleteFile(DataDir + '\storage-setup.json');
+      RaiseException('AirDeck-Einmaldaten konnten nicht geschrieben werden.');
+    end;
+  end;
+
+  if FileExists(BootstrapFile) then
+  begin
+    { Das Passwort verlässt den Installer nicht als Kommandozeilenargument. Die
+      Engine importiert die Datei sofort, hasht den Admin und löscht sie auch
+      im Fehlerfall. Der Installer meldet nur einen nachweislich fertigen Import. }
+    ResultCode := -1;
+    if (not Exec(ExpandConstant('{app}\airdeck-engine.exe'),
+      '--headless --import-installer-bootstrap', ExpandConstant('{app}'),
+      SW_HIDE, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) or
+      FileExists(BootstrapFile) then
+    begin
+      DeleteFile(BootstrapFile);
+      DeleteFile(DataDir + '\storage-setup.json');
+      RaiseException('AirDeck konnte die Ersteinrichtung nicht übernehmen. Bitte Installation prüfen; kein Admin-Passwort wurde behalten.');
+    end;
+  end;
 end;
 

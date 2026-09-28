@@ -5,6 +5,7 @@
 //   airdeck-engine.exe --shell            vom Windows-Programm gestartet: kein eigenes Fenster, kein eigenes Tray-Symbol
 //   airdeck-engine.exe --print-url        Adresse fürs Studio-Fenster ausgeben (für AirDeck.exe), Exit 0 = läuft
 //   … --new-admin-token                   neues Admin-Token ausgeben
+//   … --import-installer-bootstrap        einmalige, lokale Installer-Daten übernehmen und beenden
 
 import { spawn } from 'node:child_process';
 import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
@@ -147,6 +148,10 @@ async function connectDatabase(): Promise<DatabaseProvider> {
 }
 
 async function main(): Promise<void> {
+  if (argv.includes('--check-port')) {
+    if (await portInUse(port, host)) throw new Error(`AirDeck-Port ${port} ist bereits belegt`);
+    return;
+  }
   const logFile = packaged ? logToFile() : '';
 
   // Das Desktop-Token legt die laufende Instanz beim Start an; Hilfsaufrufe lesen es nur (ohne Datenbank)
@@ -211,15 +216,19 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Windows-Installer kann bei einer frischen Installation einen eigenen Admin-Zugang vorbereiten.
-  // Die Datei enthält das Passwort nur bis zum ersten Start: sofort einlesen, als scrypt-Hash im
-  // UserStore speichern und anschließend sicher aus dem Datenordner entfernen.
+  // Windows-Installer uebergibt Einmaldaten nur ueber eine lokale Datei. Der
+  // Installer startet diesen Import unmittelbar und wartet auf den Exit-Code.
+  // Ein normaler Start verarbeitet auch Dateien aelterer Installer-Versionen.
   const installerBootstrap = join(dataDir, 'installer-bootstrap.json');
-  if (app.users.count === 0 && existsSync(installerBootstrap)) {
+  const importOnly = argv.includes('--import-installer-bootstrap');
+  let importedBootstrap = false;
+  if (existsSync(installerBootstrap)) {
     try {
+      if (app.users.count !== 0) throw new Error('Administrator ist bereits vorhanden');
       const b = JSON.parse(readFileSync(installerBootstrap, 'utf8').replace(/^\uFEFF/, '')) as {
-        username?: string; name?: string; password?: string;
+        username?: string; name?: string; password?: string; localMonitoring?: boolean; storageBackend?: 'mysql' | 'firebase';
       };
+      if (!!b.username !== !!b.password) throw new Error('Administrator-Zugangsdaten unvollständig');
       if (b.username && b.password) {
         await app.users.create({
           username: String(b.username),
@@ -229,15 +238,30 @@ async function main(): Promise<void> {
           stationIds: ['*'],
           mustChangePassword: false,
         });
-        console.log(`Administrator „${String(b.username)}“ aus der Installer-Konfiguration angelegt.`);
       }
+      if (!b.username && b.localMonitoring !== true && !b.storageBackend) throw new Error('Keine Installer-Einstellungen vorhanden');
+      if (b.storageBackend && (sync.config.backend !== b.storageBackend || sync.status.lastError)) {
+        throw new Error('Datenspeicher aus dem Installer konnte nicht eingerichtet werden');
+      }
+      if (b.localMonitoring === true) app.savePlayoutConfig('main', { hls: { enabled: true, bitrateKbps: 128, segmentSeconds: 6 }, autostart: true });
+      const setup = docs.get<Record<string, unknown>>('setup', {});
+      docs.set('setup', { ...setup, installerWelcomeAt: new Date().toISOString() });
+      await docs.flush();
+      importedBootstrap = true;
+      console.log('Installer-Einstellungen in AirDeck übernommen.');
     } catch (err) {
       console.warn('Installer-Admin konnte nicht angelegt werden:', (err as Error).message);
+      if (importOnly) throw err;
     } finally {
-      // Klartext-Zugangsdaten niemals liegen lassen – bei einem Fehler kann der Setup-Assistent
-      // stattdessen ein Konto erzeugen.
+      // Auch bei Fehlern oder einem vorhandenen Konto keine Klartextdatei behalten.
       rmSync(installerBootstrap, { force: true });
     }
+  }
+  if (importOnly) {
+    if (!importedBootstrap) throw new Error('Keine neuen Installer-Daten übernommen');
+    await sync.close();
+    await db.close();
+    return;
   }
 
   // Eigenbetrieb (Server/Docker): erstes Administrator-Konto mit Einmal-Passwort anlegen

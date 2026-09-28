@@ -58,7 +58,7 @@ const STEPS = [
     id: 'network', title: 'Netzwerk', intro: 'Wer darf AirDeck erreichen?',
     fields: (s) => [
       { name: 'access', label: 'Zugriff', value: s.current.network.lan ? 'lan' : 'local', options: [['local', 'Nur dieser PC'], ['lan', 'Im Netzwerk (Handy-App, andere PCs)']], hint: 'Für das Internet AirDeck hinter HTTPS (Reverse Proxy, z. B. Caddy) betreiben' },
-      { name: 'port', label: 'Port', type: 'number', value: s.current.network.port },
+      { name: 'port', label: 'Port', type: 'number', value: s.current.network.port, hint: 'Windows: Bei LAN-Zugriff nach einer Portänderung die AirDeck-Firewallregel auf den neuen Port anpassen. Nur dieser PC benötigt keine eingehende Regel.' },
     ],
   },
   {
