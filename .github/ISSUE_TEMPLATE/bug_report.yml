@@ -1,0 +1,102 @@
+name: Bug melden
+description: Einen reproduzierbaren Fehler in AirDeck melden
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für die Meldung. Bitte keine ungepatchten Sicherheitslücken oder Exploitdetails hier veröffentlichen. Dafür `SECURITY.md` beachten.
+
+  - type: input
+    id: version
+    attributes:
+      label: AirDeck-Version / Commit
+      description: Release-Version oder Commit-SHA, falls bekannt.
+      placeholder: "z. B. 0.4.0 oder abc1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Plattform
+      options:
+        - Windows Installer
+        - Windows Portable
+        - Linux
+        - Docker amd64
+        - Docker arm64 / Raspberry Pi
+        - Android
+        - Browser / Demo
+        - Entwicklung / Quellcode
+        - Andere
+    validations:
+      required: true
+
+  - type: input
+    id: component
+    attributes:
+      label: Betroffener Bereich
+      placeholder: "z. B. Live Studio, MusikHub, Sendeplan, Installer"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Fehlerbeschreibung
+      description: Was funktioniert nicht?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Reproduzieren
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes Verhalten
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Tatsächliches Verhalten
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Fehlermeldungen
+      description: Bitte Secrets, Passwörter, Tokens, Stream- oder Cloud-Zugangsdaten entfernen.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Zusätzliche Informationen
+      description: Screenshots, betroffene Senderkonfiguration, Häufigkeit, Regression usw. Keine Secrets einfügen.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Check
+      options:
+        - label: Ich habe geprüft, ob bereits ein passendes Issue existiert.
+          required: true
+        - label: Ich habe keine Passwörter, Tokens oder anderen Secrets in diese Meldung eingefügt.
+          required: true
+        - label: Dies ist keine vertraulich zu meldende Sicherheitslücke.
+          required: true
