@@ -1,8 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="360" height="92" viewBox="0 0 360 92">
-<defs><linearGradient id="b" x1="0" x2="1"><stop stop-color="#071427"/><stop offset="1" stop-color="#173c7a"/></linearGradient></defs>
-<rect x="2" y="2" width="356" height="88" rx="22" fill="url(#b)" stroke="#4d8dff" stroke-width="3"/>
-<circle cx="48" cy="46" r="22" fill="#12264b" stroke="#4d8dff" stroke-width="2"/>
-<path d="M38 46h20M48 36v20" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
-<text x="84" y="39" font-family="Segoe UI,Arial" font-size="18" fill="#a9c1ef">VERSION</text>
-<text x="84" y="64" font-family="Segoe UI,Arial" font-size="28" font-weight="700" fill="#fff">0.4.1</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="92" viewBox="0 0 430 92" role="img" aria-label="Aktuelle AirDeck Version Build 323 Beta">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#061426"/><stop offset=".55" stop-color="#0a2340"/><stop offset="1" stop-color="#123b70"/></linearGradient><linearGradient id="accent" x1="0" x2="1"><stop stop-color="#18b7ff"/><stop offset="1" stop-color="#4d8dff"/></linearGradient></defs>
+<rect x="2" y="2" width="426" height="88" rx="22" fill="url(#bg)" stroke="#1e6595" stroke-width="2"/>
+<circle cx="49" cy="46" r="25" fill="#071b31" stroke="url(#accent)" stroke-width="2"/>
+<path d="M37 48l9 9 17-22" fill="none" stroke="#55d7ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="88" y="35" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="1.4" fill="#79cdf6">AKTUELLE VERSION</text>
+<text x="88" y="65" font-family="Segoe UI,Arial,sans-serif" font-size="27" font-weight="700" fill="#ffffff">Build 323</text>
+<rect x="282" y="43" width="70" height="27" rx="13.5" fill="#102d4a" stroke="#1c6c98"/>
+<text x="317" y="62" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#7ed7ff">BETA</text>
+<path d="M378 39l13 7-13 7" fill="none" stroke="#55d7ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
