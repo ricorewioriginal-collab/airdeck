@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="890" height="355" viewBox="0 0 890 355">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2b1200"/><stop offset="1" stop-color="#6b3200"/></linearGradient><filter id="g"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect x="8" y="8" width="874" height="339" rx="30" fill="url(#bg)" stroke="#ffb000" stroke-width="4"/>
+<text x="54" y="78" font-family="Segoe UI,Arial" font-weight="700" font-size="36" fill="#fff">Air<tspan fill="#18b7ff">Deck</tspan></text>
+<text x="225" y="150" font-family="Segoe UI,Arial" font-weight="700" font-size="44" fill="#fff">Linux / Debian</text>
+<text x="225" y="205" font-family="Segoe UI,Arial" font-size="25" fill="#ffe2a8">Für Linux-Systeme (.deb)</text>
+<rect x="58" y="126" width="115" height="115" rx="25" fill="#ffb000" opacity=".95"/><text x="115" y="198" text-anchor="middle" font-family="Segoe UI Symbol,Arial" font-size="66" fill="#2b1200">⌘</text>
+<circle cx="768" cy="229" r="58" fill="#4a2300" stroke="#ffb000" stroke-width="5" filter="url(#g)"/>
+<path d="M768 183v64m-25-23 25 25 25-25M735 270h66" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
