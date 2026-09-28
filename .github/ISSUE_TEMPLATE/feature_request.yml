@@ -1,0 +1,77 @@
+name: Feature vorschlagen
+description: Eine neue Funktion oder Verbesserung für AirDeck vorschlagen
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deinen Vorschlag. Beschreibe möglichst das Problem bzw. den Anwendungsfall statt nur eine konkrete technische Lösung vorzugeben.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Anwendungsfall
+      description: Welches konkrete Problem soll AirDeck lösen oder welcher Workflow soll verbessert werden?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Gewünschte Funktion
+      description: Wie stellst du dir die Funktion aus Benutzersicht vor?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Bereich
+      options:
+        - Automation / Playout
+        - Live Studio / UI
+        - Mediathek
+        - MusikHub
+        - Playlists / Sendeplan
+        - Streaming / AirDeckCast
+        - laut.fm / Provider
+        - Nextcloud / Cloud / Storage
+        - Benutzer / Rollen / Sicherheit
+        - Windows / Installer
+        - Android
+        - Linux / Docker / Server
+        - API / Integrationen
+        - Dokumentation
+        - Andere
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Beispiel-Workflow
+      description: Optional – beschreibe Schritt für Schritt, wie ein Nutzer die Funktion verwenden würde.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativen / bestehende Möglichkeiten
+      description: Gibt es heute einen Workaround oder eine ähnliche AirDeck-Funktion?
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Referenzen
+      description: Optional – Screenshots oder andere Produkte dürfen als Konzeptreferenz dienen. Bitte keine fremden Zugangsdaten, proprietären Dateien oder kopierten geschützten Assets hochladen.
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Projektgrundsätze
+      options:
+        - label: Der Vorschlag soll vorhandene AirDeck-Systeme möglichst erweitern statt unnötig ein paralleles System zu erzeugen.
+          required: true
+        - label: Mir ist bewusst, dass ein Vorschlag keine Zusage für Implementierung oder Release darstellt.
+          required: true
