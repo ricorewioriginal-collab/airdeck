@@ -6,6 +6,49 @@ AirDeck wird aktiv weiterentwickelt. Beiträge sollen sich in die bestehende Arc
 
 > **Vor dem Start:** Lies die [`README.md`](README.md) für Projektstatus und Funktionsüberblick. Die verbindlichen technischen Grundlagen liegen unter [`docs/architecture/`](docs/architecture/). Das GitHub Wiki ist für Benutzerhandbuch und Bedienungsdokumentation vorgesehen. `AI_HANDOVER.md` dient ausschließlich der Koordination von Coding-Agents und ist keine technische Spezifikation.
 
+## Lizenz zuerst lesen
+
+AirDeck steht unter der projektspezifischen [`AirDeck Source Available License`](LICENSE).
+
+Kurz gesagt:
+
+- normale AirDeck-Nutzung und eigener Betrieb sind unter den Lizenzbedingungen kostenlos;
+- AirDeck darf studiert, geklont, geforkt und verändert werden;
+- eigene Radioeinnahmen lösen nicht allein deshalb eine Umsatzbeteiligung aus;
+- kostenpflichtiges AirDeck-Hosting, AirDeck-SaaS, AirDeck-Abos, Reselling oder White Label für Dritte benötigen vorab eine gesonderte Commercial Hosting License;
+- bei Weitergabe gelten die vorgeschriebenen Urheber- und Lizenzhinweise;
+- inoffizielle Forks dürfen nicht als offizielle AirDeck-Releases dargestellt werden.
+
+Siehe auch [`COMMERCIAL.md`](COMMERCIAL.md) und [`BRANDING.md`](BRANDING.md).
+
+## Eigenständig entwickeln – offizielle Freigabe durch den Maintainer
+
+Entwickler können das Projekt klonen oder forken und Änderungen eigenständig auf einem eigenen Branch entwickeln und testen.
+
+Empfohlener Ablauf:
+
+```text
+Fork / Clone
+   ↓
+eigener Feature-Branch
+   ↓
+entwickeln + testen
+   ↓
+Pull Request an AirDeck
+   ↓
+CI + Review
+   ↓
+Freigabe durch den Maintainer
+   ↓
+Merge
+   ↓
+offizieller Build / versioniertes Release
+```
+
+Ein Fork, Commit oder Pull Request wird **nicht automatisch** Bestandteil des offiziellen AirDeck-Projekts. Die Aufnahme in einen offiziellen Build oder ein versioniertes Release erfolgt erst nach ausdrücklicher Prüfung und Freigabe durch den AirDeck-Maintainer.
+
+Community-Entwickler können ihre Arbeit unabhängig weiterführen; solange sie nicht offiziell freigegeben wurde, muss eine mögliche Verwechslungsgefahr mit einem offiziellen AirDeck-Build vermieden werden.
+
 ## Entwicklungsbranch
 
 Die laufende AirDeck-Entwicklung findet derzeit auf folgendem Branch statt:
@@ -173,8 +216,27 @@ Ein Pull Request bzw. eine Übergabe sollte kurz angeben:
 4. Welche Tests wurden ausgeführt?
 5. Was wurde nur implementiert und was tatsächlich manuell/live verifiziert?
 6. Gibt es bekannte Einschränkungen oder Folgearbeiten?
+7. Soll die Änderung für einen offiziellen AirDeck-Build vorgeschlagen werden?
 
 Keine unrelated Nebenänderungen in einen Feature-Commit mischen.
+
+### Maintainer-Freigabe
+
+Nur der Maintainer entscheidet im offiziellen Projekt über:
+
+- Annahme/Merge eines Beitrags;
+- Aufnahme in einen offiziellen AirDeck-Build;
+- Versionsnummer und Release-Zuordnung;
+- Kennzeichnung als offiziell unterstützt;
+- Veröffentlichung über die offiziellen AirDeck-Releasekanäle.
+
+## Beiträge und Nutzungsrechte
+
+Beitragende behalten grundsätzlich ihre Rechte an ihren eigenen Beiträgen, soweit keine gesonderte Vereinbarung etwas anderes bestimmt.
+
+Da AirDeck sowohl kostenlos bereitgestellt als auch künftig unter zusätzlichen kommerziellen Bedingungen angeboten werden kann, kann für bestimmte Beiträge vor der Aufnahme eine zusätzliche Contributor-Vereinbarung erforderlich werden. Reiche nur Inhalte ein, für die du die erforderlichen Rechte besitzt.
+
+Ein Pull Request darf keine Lizenzbedingungen enthalten, die AirDeck daran hindern würden, den Beitrag innerhalb des bestehenden AirDeck-Lizenz- und Distributionsmodells zu verwenden.
 
 ## Builds und Releases
 
@@ -184,4 +246,6 @@ Ein grüner lokaler Test ersetzt nicht die CI. Umgekehrt sollten Workflows nicht
 
 ## Lizenz und Hinweise
 
-Beachte die im Repository enthaltenen Lizenz-, Haftungs- und Rechtshinweise. Beiträge dürfen keine fremden Zugangsdaten, proprietären Referenzdateien oder Inhalte enthalten, für die keine ausreichenden Rechte vorliegen.
+Beachte [`LICENSE`](LICENSE), [`COMMERCIAL.md`](COMMERCIAL.md), [`BRANDING.md`](BRANDING.md) sowie die weiteren im Repository enthaltenen Haftungs- und Rechtshinweise.
+
+Beiträge dürfen keine fremden Zugangsdaten, proprietären Referenzdateien oder Inhalte enthalten, für die keine ausreichenden Rechte vorliegen.
