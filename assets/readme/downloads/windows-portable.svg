@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="340" viewBox="0 0 700 340">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#11102f"/><stop offset="1" stop-color="#45116d"/></linearGradient><filter id="g"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect x="8" y="8" width="684" height="324" rx="30" fill="url(#bg)" stroke="#d453ff" stroke-width="4"/>
+<text x="44" y="72" font-family="Segoe UI,Arial" font-weight="700" font-size="34" fill="#fff">Air<tspan fill="#18b7ff">Deck</tspan></text>
+<rect x="55" y="133" width="92" height="120" rx="16" fill="#d8b4fe"/><rect x="78" y="103" width="46" height="37" rx="8" fill="#d8b4fe"/><circle cx="100" cy="177" r="10" fill="#5b21b6"/><circle cx="100" cy="216" r="10" fill="#5b21b6"/>
+<text x="210" y="150" font-family="Segoe UI,Arial" font-weight="700" font-size="42" fill="#fff">Windows</text>
+<text x="210" y="198" font-family="Segoe UI,Arial" font-weight="700" font-size="42" fill="#fff">Portable</text>
+<text x="210" y="245" font-family="Segoe UI,Arial" font-size="22" fill="#e9d5ff">Ohne Installation, sofort startklar (.zip)</text>
+<circle cx="590" cy="235" r="54" fill="#28123d" stroke="#d453ff" stroke-width="5" filter="url(#g)"/>
+<path d="M590 193v58m-23-22 23 23 23-23M558 269h64" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
