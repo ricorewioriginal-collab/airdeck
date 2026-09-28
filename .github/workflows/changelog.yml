@@ -1,0 +1,105 @@
+name: Release Changelog
+
+on:
+  release:
+    types: [published, released]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: airdeck-changelog
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: AirDeck-Radio-Automation-&-Broadcast
+          fetch-depth: 0
+
+      - name: Veröffentlichte Versionen laden und Changelog erzeugen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate 'repos/${{ github.repository }}/releases?per_page=100' > /tmp/releases-pages.json
+          jq -s 'add | map(select(.draft == false)) | sort_by(.published_at) | reverse' /tmp/releases-pages.json > /tmp/releases.json
+
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          from datetime import datetime
+          from pathlib import Path
+          from urllib.parse import quote
+
+          repo=os.environ['GITHUB_REPOSITORY']
+          releases=json.load(open('/tmp/releases.json', encoding='utf-8'))
+          start='<!-- AUTO-CHANGELOG:START -->'
+          end='<!-- AUTO-CHANGELOG:END -->'
+          p=Path('CHANGELOG.md')
+          text=p.read_text(encoding='utf-8')
+
+          def git_lines(old, new):
+              try:
+                  out=subprocess.check_output(
+                      ['git','log','--no-merges','--pretty=format:%s',f'{old}..{new}'],
+                      text=True, stderr=subprocess.DEVNULL
+                  )
+              except subprocess.CalledProcessError:
+                  return []
+              seen=set(); rows=[]
+              for line in out.splitlines():
+                  line=line.strip()
+                  if not line or line in seen: continue
+                  if line.startswith(('README: aktuelle UI-Screenshots','README: aktuelle Release-Version')): continue
+                  seen.add(line); rows.append(line)
+              return rows[:40]
+
+          lines=['## Veröffentlichte Versionen','']
+          for i, rel in enumerate(releases):
+              tag=rel.get('tag_name') or ''
+              name=rel.get('name') or tag
+              published=rel.get('published_at') or rel.get('created_at') or ''
+              try: date=datetime.fromisoformat(published.replace('Z','+00:00')).strftime('%d.%m.%Y')
+              except Exception: date=published[:10]
+              url=rel.get('html_url') or f'https://github.com/{repo}/releases/tag/{quote(tag)}'
+              lines += [f'### {name} — {date}','',f'**Version:** `{tag}`  ',f'**Release:** [{name}]({url})  ']
+              if i+1 < len(releases):
+                  previous=releases[i+1].get('tag_name') or ''
+                  compare=f'https://github.com/{repo}/compare/{quote(previous, safe="")}...{quote(tag, safe="")}'
+                  lines += [f'**Vergleich:** [{previous} → {tag}]({compare})','']
+                  changes=git_lines(previous, tag)
+                  if changes:
+                      lines += ['**Änderungen laut Git-Historie:**','']
+                      lines += [f'- {c}' for c in changes]
+                      lines.append('')
+              body=(rel.get('body') or '').strip()
+              if body:
+                  # Release-Body bewusst nicht vollständig duplizieren; Changelog bleibt übersichtlich.
+                  lines += [f'> Ausführliche Hinweise und Downloads stehen im [GitHub Release]({url}).','']
+
+          block=start+'\n'+'\n'.join(lines).rstrip()+'\n'+end
+          pattern=re.compile(re.escape(start)+r'.*?'+re.escape(end), re.S)
+          if pattern.search(text):
+              text=pattern.sub(block, text)
+          else:
+              text=text.rstrip()+'\n\n'+block+'\n'
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Changelog nur bei Änderung committen
+        shell: bash
+        run: |
+          if git diff --quiet -- CHANGELOG.md; then
+            echo 'CHANGELOG.md ist bereits aktuell.'
+            exit 0
+          fi
+          git config user.name 'AirDeck CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add CHANGELOG.md
+          git commit -m 'Docs: Changelog für aktuelles Release aktualisieren [skip ci]'
+          git push origin HEAD:AirDeck-Radio-Automation-&-Broadcast
