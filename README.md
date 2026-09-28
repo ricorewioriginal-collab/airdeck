@@ -87,7 +87,7 @@ Aktuell besonders im Ausbau bzw. in der Härtung sind:
 - MusicHub und senderübergreifende Medienfreigaben
 - Nextcloud-/Cloud-Anbindungen
 - UI/UX auf Basis der AirDeck-Zielbilder
-- Windows Installer und First-Run-Ersteinrichtung
+- Windows Installer und First-Run-Ersteinrichtung (Portprüfung, Admin-Import und optionales lokales HLS-Monitoring im Entwicklungsbranch)
 - plattformübergreifende Packaging-/Build-Prozesse
 - Long-Run-, Recovery- und Release-Härtung
 - Sicherheits- und Berechtigungsprüfungen
