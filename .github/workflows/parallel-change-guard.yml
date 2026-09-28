@@ -1,0 +1,76 @@
+name: Parallel Change Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: parallel-change-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  collision-check:
+    name: Parallel work collision check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check files touched by other open pull requests
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const current = context.payload.pull_request;
+
+            const currentFiles = await github.paginate(
+              github.rest.pulls.listFiles,
+              { owner, repo, pull_number: current.number, per_page: 100 }
+            );
+            const ours = new Set(currentFiles.map(f => f.filename));
+
+            const prs = await github.paginate(
+              github.rest.pulls.list,
+              { owner, repo, state: 'open', per_page: 100 }
+            );
+
+            const collisions = [];
+            for (const pr of prs) {
+              if (pr.number === current.number || pr.draft) continue;
+              const files = await github.paginate(
+                github.rest.pulls.listFiles,
+                { owner, repo, pull_number: pr.number, per_page: 100 }
+              );
+              const shared = files.map(f => f.filename).filter(f => ours.has(f));
+              if (shared.length) collisions.push({ number: pr.number, title: pr.title, shared });
+            }
+
+            const summary = core.summary
+              .addHeading('AirDeck Parallel Change Guard')
+              .addRaw(`Current PR #${current.number} touches ${ours.size} file(s).`)
+              .addEOL();
+
+            if (!collisions.length) {
+              summary.addRaw('No file overlap with other open non-draft pull requests was detected.').addEOL();
+              await summary.write();
+              return;
+            }
+
+            summary
+              .addHeading('Concurrent file overlap detected', 2)
+              .addRaw('This is a warning, not an automatic rejection. Git can safely merge independent changes, but the listed files require extra attention before merging.')
+              .addEOL();
+
+            for (const hit of collisions) {
+              summary.addHeading(`#${hit.number} – ${hit.title}`, 3);
+              summary.addList(hit.shared.map(f => `\`${f}\``));
+            }
+
+            summary
+              .addRaw('Before merge: update the branch from the current target branch, resolve any conflicts deliberately, rerun CI, and verify that both changes are still present.')
+              .addEOL();
+            await summary.write();
+
+            core.warning(`Parallel work touches the same file(s) as ${collisions.length} other open pull request(s). Review the job summary before merging.`);
