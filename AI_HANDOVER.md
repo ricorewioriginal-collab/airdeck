@@ -1,10 +1,32 @@
-# AirDeck – AI Agent Handover
+# AirDeck – AI Development Guidelines
 
-> **Interne Kurz-Übergabe für Claude Code, Codex, Replit, Cursor und andere Coding-Agents.**
->
-> `README.md` bleibt die öffentliche Projektseite mit Projektstand, Demo, Downloads und Screenshots. Diese Datei enthält ausschließlich die knappe Arbeitsübergabe. Ausführliche Benutzer- und Entwicklerdokumentation gehört ins GitHub Wiki bzw. in notwendige versionierte technische `docs/`-Dateien.
+> Leitfaden für den verantwortungsvollen Einsatz von KI-Werkzeugen bei der Entwicklung von AirDeck.
 
-## Vor jeder Arbeit
+AirDeck darf mit Unterstützung von Coding-Assistenten und KI-Agenten weiterentwickelt werden. Diese Datei schreibt **keinen bestimmten Anbieter, kein bestimmtes Modell und keinen reservierten Arbeitsbereich** vor. Sie beschreibt Empfehlungen, Qualitätsanforderungen und den Umgang mit KI-generierten Änderungen.
+
+Geeignete Werkzeuge können beispielsweise Coding-Assistenten, lokale Modelle, Cloud-Agenten, IDE-Assistenten oder andere automatisierte Entwicklungswerkzeuge sein. Welches Werkzeug verwendet wird, ist zweitrangig. Entscheidend ist die Qualität des Ergebnisses.
+
+## Grundsatz
+
+**KI ist ein Entwicklungswerkzeug, kein Ersatz für menschliche Prüfung.**
+
+KI-generierter Code kann unter anderem:
+
+- logisch falsch sein,
+- nur teilweise funktionieren,
+- bestehende Funktionen beschädigen,
+- Sicherheitslücken erzeugen,
+- Randfälle übersehen,
+- APIs oder Bibliotheken falsch verwenden,
+- nicht vorhandene Funktionen erfinden,
+- veraltete Architekturannahmen verwenden,
+- Tests bestehen und trotzdem im realen Betrieb fehlerhaft sein.
+
+Deshalb darf eine KI-Aussage wie „fertig“, „funktioniert“, „sicher“ oder „getestet“ niemals ungeprüft als Nachweis übernommen werden.
+
+## Vor der Arbeit
+
+Unabhängig vom verwendeten Werkzeug zuerst den aktuellen Repository-Stand prüfen:
 
 ```bash
 git fetch
@@ -13,70 +35,205 @@ git branch --show-current
 git log -1 --oneline
 ```
 
-Arbeitsbranch: `AirDeck-Radio-Automation-&-Broadcast`.
+Danach mindestens lesen bzw. berücksichtigen:
 
-Keine älteren Handover-Pakete über einen neueren Git-Stand schreiben. Kein Force-Push. Keine fremden Änderungen überschreiben.
+- `README.md` für Projekt und aktuellen öffentlichen Überblick,
+- `CONTRIBUTING.md` für Entwicklungsregeln,
+- `docs/architecture/` für verbindliche technische Architektur,
+- die für die konkrete Änderung relevanten Quell- und Testdateien.
 
-## Dokumentationsstruktur
+Nicht blind auf ältere Prompts, Chatverläufe, ZIP-Handover oder KI-Zusammenfassungen vertrauen. **Der aktuelle Code und die aktuelle technische Dokumentation haben Vorrang.**
 
-- `README.md` = öffentliche Projektübersicht, sichtbarer Projektstand, Demo, Downloads/Releases, Screenshots und Schnellstart.
-- `AI_HANDOVER.md` = kurze aktuelle Agentenübergabe; keine öffentliche Produktdokumentation.
-- GitHub Wiki = ausführliche Benutzer-/Entwicklerdokumentation, Architektur, Installation, MusikHub, Nextcloud, AirDeckCast, lautCast, API, Rollen/Rechte und Troubleshooting.
-- `docs/` = nur technische Dokumente und Assets, die sinnvoll zusammen mit dem Quellcode versioniert werden müssen, insbesondere Screenshot-Assets und build-/codebezogene Spezifikationen.
-- GitHub Releases = veröffentlichte Installer, Portable Builds, APK/DEB und Release Notes.
-- Issues/Projects = Bugs und geplante Arbeit statt immer neuer Status-Markdown-Dateien.
+## Empfohlener Umgang mit KI
 
-## Arbeitsprinzip
+KI eignet sich besonders für:
 
-- Erst `README.md` und diese Datei lesen, danach nur die für den aktuellen Arbeitsblock relevanten Dateien.
-- Bestehende Architektur erweitern; keine zweite Benutzerverwaltung, Senderverwaltung, Mediathek, Automation, Queue, Authentifizierung oder parallele Datenbank bauen.
-- Keine Mockfunktionen oder Fake-Daten als fertige Features ausgeben.
-- Nach jedem Block relevante Tests ausführen und nur den eigenen Arbeitsbereich committen.
-- Status sauber unterscheiden: `implementiert`, `automatisiert getestet`, `manuell getestet`, `live verifiziert`.
+- Analyse bestehender Komponenten,
+- Vorschläge für Implementierungen,
+- klar abgegrenzte Feature-Arbeiten,
+- Refactoring mit Tests,
+- Testfall-Erstellung,
+- Dokumentationsentwürfe,
+- Fehlersuche,
+- Code-Review als zusätzliche Prüfebene,
+- repetitive Entwicklungsaufgaben.
 
-## Parallele Agents
+Große Änderungen möglichst in nachvollziehbare Teilaufgaben zerlegen. Das erleichtert Review, Tests, Fehlersuche und Rücknahme fehlerhafter Änderungen.
 
-### Codex – aktuell reservierter Bereich
+## Bestehende Architektur respektieren
 
-Windows Installer / Inno Setup / First-Run / Bootstrap.
+Vor dem Erstellen neuer Komponenten prüfen, ob AirDeck bereits eine passende Implementierung besitzt.
 
-Andere Agents ändern während dieses Blocks nicht eigenständig:
+Insbesondere nicht ohne technische Begründung ein zweites oder paralleles System für folgende Bereiche erzeugen:
 
-- `packaging/windows/installer.iss` und Installer-Hilfsdateien,
-- First-Run-/Installer-Bootstrap,
-- Installer-Firewall-/lokale Icecast-Installation,
-- Windows-Packaging-/Installer-CI, soweit Codex daran arbeitet.
+- Authentifizierung,
+- Benutzer und Rollen,
+- Senderverwaltung,
+- Persistenz/Datenbanken,
+- Mediathek,
+- MusikHub,
+- Automation,
+- Sendeplanung,
+- Queue/Playout,
+- Streaming,
+- Secrets,
+- Events/SSE/WebSockets.
 
-Probleme dort dokumentieren statt parallel eine zweite Lösung zu bauen.
+KI neigt dazu, fehlenden Kontext durch neue Strukturen zu ersetzen. Bei AirDeck soll stattdessen grundsätzlich die vorhandene Architektur erweitert werden.
 
-### UI-Agent – aktueller UI-Bereich
+## Keine erfundenen Funktionen oder Daten
 
-UI/UX anhand der vereinbarten AirDeck-Demobilder aus dem aktuellen Handover weiterentwickeln. Die Bilder sind visuelle Zielvorgabe; aktuelles Git ist funktionale Wahrheit. Keine zweite UI, keine statischen Mockups.
+KI-generierte Oberflächen dürfen keinen falschen Betriebszustand vortäuschen.
 
-Empfohlene kleine Blöcke:
+Nicht als fertige Funktion akzeptieren:
 
-1. UI-01 Designsystem + App Shell + Navigation + Header
-2. UI-02 Dashboard
-3. UI-03 Live Studio
-4. UI-04 Mediathek + MusikHub
-5. UI-05 Playlists + Sendeplan
-6. UI-06 Statistik
-7. UI-07 Sender + Branding + Team + Einstellungen
-8. UI-08 Responsive + Accessibility + Polish
+- Fake-Hörerzahlen,
+- statisches `ON AIR` ohne echten Serverstatus,
+- erfundene Titel oder Statistiken,
+- Buttons ohne funktionierende Aktion,
+- Mock-APIs im produktiven Pfad,
+- Platzhalterdaten, die wie echte Daten aussehen,
+- simulierte Erfolgszustände nach fehlgeschlagenen Operationen.
 
-### Größere Backend-Blöcke
+Wenn eine Capability noch fehlt, einen ehrlichen Empty-, Disabled- oder Unavailable-State verwenden.
 
-Vor Arbeiten am MusikHub zuerst aktuellen Code und Tests prüfen. Danach in der vorgesehenen Reihenfolge weiterarbeiten: private/sichere MusikHub-Nutzung → Nextcloud-Quellen/Jobs → AirDeckCast-Auflösung → lautCast → Beta-Abnahme. Nicht aufgrund dieser Kurzdatei einen bereits weiterentwickelten Stand zurückrollen.
+## Menschliche Funktionsprüfung
 
-## Referenzen
+Nach KI-generierten Änderungen muss ein Mensch die betroffenen Kernfunktionen nachvollziehbar prüfen, bevor eine Änderung als produktionsreif oder offiziell freigegeben gilt.
 
-- AirDeck-UI-Demobilder aus dem Handover definieren die visuelle Zielrichtung.
-- AzuraCast-, laut.fm-/Radioadmin- und AnMaCha-Screenshots sind Funktions-/Workflowreferenzen, keine Designvorlagen und kein Code zum Kopieren.
-- Referenzmaterial kann sensible Daten enthalten: keine Credentials transkribieren oder committen.
+Je nach Änderung gehören dazu beispielsweise:
 
-## Git-Regeln bei Agentwechsel
+- Anwendung tatsächlich starten,
+- betroffene Seite/Funktion öffnen,
+- typische Benutzerabläufe durchführen,
+- Fehlerfälle testen,
+- Browser-/Serverkonsole prüfen,
+- API-Antworten prüfen,
+- Senderwechsel testen,
+- Login/Logout und Berechtigungen prüfen,
+- Streaming-/Audiofunktionen real testen,
+- Persistenz nach Neustart prüfen,
+- Update-/Migrationspfade prüfen,
+- Desktop/mobile Darstellung prüfen.
 
-Vor Commit/Push erneut:
+Automatisierte Tests ergänzen diese Prüfung, ersetzen sie bei kritischen Betriebsfunktionen aber nicht vollständig.
+
+## Bugs
+
+Wenn durch eine KI-Änderung ein Bug entsteht oder entdeckt wird:
+
+1. Ursache nachvollziehen,
+2. nicht nur das sichtbare Symptom kaschieren,
+3. betroffene angrenzende Funktionen prüfen,
+4. Fix implementieren,
+5. wenn sinnvoll einen Regressionstest ergänzen,
+6. ursprünglichen Fehlerablauf erneut testen.
+
+Keine Fehler einfach durch das Entfernen einer Sicherheitsprüfung, Validierung oder Fehlermeldung „lösen“.
+
+## Sicherheit
+
+KI-generierter Code muss genauso kritisch geprüft werden wie Code unbekannter Herkunft.
+
+Besonders prüfen:
+
+- Authentifizierung und Session-Handling,
+- RBAC und Sender-/Tenant-Grenzen,
+- Autorisierung jedes sensiblen Endpunkts,
+- Datei- und Pfadzugriffe,
+- Uploads,
+- Download- und Preview-Rechte,
+- SQL/DB-Zugriffe,
+- Command-/Shell-Aufrufe,
+- SSRF und externe URLs,
+- XSS/HTML-Ausgabe,
+- CSRF soweit relevant,
+- CORS,
+- WebSockets/SSE,
+- Secrets und Tokens,
+- Logs mit sensiblen Informationen,
+- Nextcloud-/Cloud-Zugänge,
+- Streaming-Credentials,
+- Installer-/Service-Rechte,
+- Dependency- und Supply-Chain-Risiken.
+
+Entdeckte Sicherheitslücken sollen nicht lediglich dokumentiert und liegen gelassen werden. Sie müssen entsprechend ihrer Auswirkung priorisiert, geschlossen und anschließend getestet werden.
+
+Sicherheitsrelevante Prüfungen dürfen nicht entfernt oder abgeschwächt werden, nur damit ein KI-generierter Codepfad funktioniert.
+
+Siehe auch `docs/architecture/SECURITY.md`.
+
+## Datenschutz und Secrets
+
+Keine echten Zugangsdaten in KI-Prompts, Screenshots, Commits, Testfixtures oder Dokumentation übernehmen.
+
+Dazu zählen insbesondere:
+
+- Passwörter,
+- API-Tokens,
+- Session-Tokens,
+- SSH-Schlüssel,
+- Datenbankzugänge,
+- Streaming-Passwörter,
+- Cloud-/Nextcloud-Credentials,
+- private Schlüssel.
+
+Referenzscreenshots und Handover-Dateien können sensible Daten enthalten. Solche Inhalte vor Weitergabe an externe Systeme prüfen bzw. anonymisieren.
+
+Wenn versehentlich ein Secret veröffentlicht wurde, reicht das Entfernen aus dem aktuellen Code nicht aus: das Secret muss grundsätzlich als kompromittiert behandelt und rotiert werden.
+
+## Abhängigkeiten und fremder Code
+
+KI darf nicht ungeprüft fremden Code, Bibliotheken oder Assets in AirDeck übernehmen.
+
+Vor Aufnahme prüfen:
+
+- Herkunft,
+- Lizenz,
+- Wartungszustand,
+- Sicherheitsrisiken,
+- technische Notwendigkeit,
+- Kompatibilität mit der AirDeck-Lizenz.
+
+Keine unbekannten Codeblöcke aus fremden Projekten übernehmen, nur weil ein KI-System sie vorgeschlagen hat.
+
+Referenzprojekte wie AzuraCast, laut.fm-/Radioadmin-Oberflächen oder andere Systeme dienen zur Analyse von Konzepten und Workflows; ihre Implementierungen oder geschützten Assets werden nicht einfach kopiert.
+
+## Kennzeichnung KI-unterstützter Änderungen
+
+Transparenz ist erwünscht, ohne jeden einzelnen Codeabschnitt mit Kommentaren zu überladen.
+
+Wenn KI einen wesentlichen Anteil an einer Änderung hatte, soll dies im Pull Request oder in der Entwicklungsübergabe angegeben werden.
+
+Empfohlene Kennzeichnung:
+
+```text
+AI-assisted: yes
+Tool/Agent: <optional>
+Human-reviewed: yes/no
+Automated tests: <tests>
+Manual verification: <durchgeführte Prüfung>
+Security review: yes/no/not applicable
+```
+
+Bei kleinen Hilfen wie Autovervollständigung muss nicht jede einzelne Zeile als KI-generiert markiert werden.
+
+Entscheidend ist, dass bei wesentlichen KI-generierten Features nachvollziehbar bleibt, **ob ein Mensch die Änderung tatsächlich geprüft hat**.
+
+## Commit- und PR-Empfehlung
+
+Eine KI sollte möglichst nicht große, thematisch unabhängige Änderungen in einen einzigen Commit mischen.
+
+Empfohlen:
+
+- ein klarer Zweck pro Arbeitsblock,
+- verständliche Commit-Nachricht,
+- relevante Tests,
+- Beschreibung bekannter Einschränkungen,
+- Kennzeichnung wesentlicher KI-Unterstützung,
+- keine Behauptung einer manuellen Prüfung, wenn diese nicht stattgefunden hat.
+
+Vor Push/PR erneut:
 
 ```bash
 git fetch
@@ -84,34 +241,78 @@ git status
 git log --oneline -5
 ```
 
-Wenn Remote inzwischen weitergelaufen ist, Änderungen sauber integrieren. Keine Handover-ZIPs, Referenz-Screenshots mit Zugangsdaten, Secrets oder große Audio-Testdateien committen.
+Kein Force-Push auf gemeinsam genutzte Entwicklungsbranches und keine fremden Änderungen ungeprüft überschreiben.
 
-## CURRENT HANDOVER
+## Qualitätsstatus
 
-**Zuletzt bearbeitet von:** ChatGPT – Dokumentationsstruktur / README-Wiederherstellung
+Für AirDeck werden folgende Aussagen unterschieden:
 
-**Arbeitsblock:** Multi-Agent-Koordination
+### Implementiert
+Code wurde geschrieben bzw. geändert.
 
-**Status:** README als öffentliche Projektseite wiederhergestellt; AI-Handover separat gehalten.
+### Automatisiert getestet
+Die relevanten automatisierten Tests wurden ausgeführt und bestanden.
 
-**Parallel reserviert:** Codex arbeitet am Windows-Installer-/First-Run-Zwischenschritt.
+### Manuell getestet
+Ein Mensch hat die betroffene Funktion tatsächlich ausgeführt und den relevanten Ablauf geprüft.
 
-**Nächster UI-Schritt:** UI-01 – ausschließlich Designsystem + App Shell + Navigation + Header anhand der vorhandenen AirDeck-UI/UX-Demobilder; Backend und Installer nicht umbauen.
+### Live verifiziert
+Die Funktion wurde unter einer realistischen bzw. tatsächlichen Betriebsumgebung erfolgreich geprüft.
 
-**Danach:** UI-02 Dashboard.
+### Security-reviewed
+Die sicherheitsrelevanten Auswirkungen der Änderung wurden gezielt geprüft.
 
-### Nach jedem Agent-Durchlauf aktualisieren
+Diese Begriffe nicht gleichsetzen. Ein KI-Agent kann Code implementieren und automatisierte Tests ausführen; dadurch ist die Funktion noch nicht automatisch manuell oder live verifiziert.
 
-- letzter bestätigter Commit
-- Agent
-- Arbeitsblock
-- Status
-- geänderte Hauptdateien
-- ausgeführte Tests
-- bekannte Probleme
-- reservierte Bereiche anderer Agents
-- genau ein nächster konkreter Arbeitsblock
+## Empfehlungen für KI-Reviews
+
+Eine zweite KI kann als zusätzliche Review-Ebene hilfreich sein, beispielsweise um:
+
+- potenzielle Bugs zu suchen,
+- fehlende Tests zu identifizieren,
+- Sicherheitsprobleme zu finden,
+- Architekturabweichungen aufzudecken,
+- unnötige Komplexität zu erkennen.
+
+Ein zweites KI-Modell ist jedoch ebenfalls keine menschliche Freigabe und kann denselben Fehler übersehen oder neue falsche Annahmen treffen.
+
+## Offizielle Freigabe
+
+KI-generierter oder KI-unterstützter Code erhält keine Sonderstellung. Für die Aufnahme in offizielle AirDeck-Builds gelten dieselben Review-, Test-, Lizenz- und Maintainer-Regeln wie für jeden anderen Beitrag.
+
+Die Freigabe eines offiziellen Builds oder Releases erfolgt durch den Maintainer nach Prüfung des jeweiligen Entwicklungsstands.
+
+## Dokumentation
+
+KI darf Dokumentation erstellen und aktualisieren. Technische Aussagen müssen jedoch gegen den aktuellen Code geprüft werden.
+
+Keine parallelen Wahrheitsquellen erzeugen:
+
+- `README.md` – öffentliche Projektübersicht, Status, Demo, Screenshots und Downloads,
+- GitHub Wiki – Benutzerhandbuch,
+- `docs/architecture/` – verbindliche technische Architektur,
+- weitere `docs/` – notwendige code-nahe Spezifikationen,
+- Issues/Projects – Bugs und geplante Aufgaben,
+- Releases – veröffentlichte Versionen und Release Notes.
+
+Diese Datei ist ein **allgemeiner KI-Entwicklungsleitfaden** und keine laufende Aufgabenliste.
+
+## Kurzcheck vor einer offiziellen Freigabe
+
+- [ ] Änderung gegen aktuellen Git-Stand geprüft
+- [ ] Architektur eingehalten
+- [ ] keine Fake-/Mock-Funktion als produktiv ausgegeben
+- [ ] automatisierte Tests ausgeführt
+- [ ] relevante Funktion menschlich geprüft
+- [ ] bekannte Bugs behoben oder transparent als nicht freigabefähig behandelt
+- [ ] sicherheitsrelevante Auswirkungen geprüft
+- [ ] bekannte Sicherheitslücken geschlossen
+- [ ] keine Secrets enthalten
+- [ ] neue Abhängigkeiten/Lizenzen geprüft
+- [ ] Dokumentation aktualisiert
+- [ ] wesentliche KI-Unterstützung im PR/Review kenntlich gemacht
+- [ ] offizieller Release erst nach Maintainer-Freigabe
 
 ---
 
-**Grundsatz:** Git ist die technische Wahrheit. `README.md` ist die öffentliche Projektseite. `AI_HANDOVER.md` ist nur die kurze Arbeitsübergabe. Das Wiki ist für ausführliche Dokumentation vorgesehen.
+**Leitsatz:** KI kann AirDeck schneller weiterentwickeln. Verantwortung für Funktion, Sicherheit, Qualität und Veröffentlichung bleibt beim Menschen.
