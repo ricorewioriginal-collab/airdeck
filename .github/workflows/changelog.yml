@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: airdeck-changelog
@@ -34,8 +35,7 @@ jobs:
           from datetime import datetime
           from pathlib import Path
           from urllib.parse import quote
-          repo=os.environ['GITHUB_REPOSITORY']; rels=json.load(open('/tmp/releases.json'))
-          start='<!-- AUTO-CHANGELOG:START -->'; end='<!-- AUTO-CHANGELOG:END -->'; p=Path('CHANGELOG.md'); text=p.read_text()
+          repo=os.environ['GITHUB_REPOSITORY']; rels=json.load(open('/tmp/releases.json')); start='<!-- AUTO-CHANGELOG:START -->'; end='<!-- AUTO-CHANGELOG:END -->'; p=Path('CHANGELOG.md'); text=p.read_text()
           def logs(a,b):
             try: out=subprocess.check_output(['git','log','--no-merges','--pretty=format:%s',f'{a}..{b}'],text=True)
             except: return []
@@ -49,17 +49,13 @@ jobs:
             tag=r.get('tag_name',''); name=r.get('name') or tag; pub=r.get('published_at') or r.get('created_at') or ''
             try: date=datetime.fromisoformat(pub.replace('Z','+00:00')).strftime('%d.%m.%Y')
             except: date=pub[:10]
-            url=r.get('html_url') or f'https://github.com/{repo}/releases/tag/{quote(tag)}'
-            lines += [f'### {name} — {date}','',f'**Version:** `{tag}`  ',f'**Release:** [{name}]({url})  ']
+            url=r.get('html_url') or f'https://github.com/{repo}/releases/tag/{quote(tag)}'; lines += [f'### {name} — {date}','',f'**Version:** `{tag}`  ',f'**Release:** [{name}]({url})  ']
             if i+1<len(rels):
-              old=rels[i+1].get('tag_name',''); cmp=f'https://github.com/{repo}/compare/{quote(old,safe="")}...{quote(tag,safe="")}'
-              lines += [f'**Vergleich:** [{old} → {tag}]({cmp})','']
-              ch=logs(old,tag)
+              old=rels[i+1].get('tag_name',''); cmp=f'https://github.com/{repo}/compare/{quote(old,safe="")}...{quote(tag,safe="")}'; lines += [f'**Vergleich:** [{old} → {tag}]({cmp})','']; ch=logs(old,tag)
               if ch: lines += ['**Änderungen laut Git-Historie:**','']+[f'- {x}' for x in ch]+['']
-          block=start+'\n'+'\n'.join(lines).rstrip()+'\n'+end
-          p.write_text(re.sub(re.escape(start)+r'.*?'+re.escape(end),block,text,flags=re.S))
+          block=start+'\n'+'\n'.join(lines).rstrip()+'\n'+end; p.write_text(re.sub(re.escape(start)+r'.*?'+re.escape(end),block,text,flags=re.S))
           PY
-      - name: Änderung über Automations-PR einreichen
+      - name: Änderung über Automations-PR einreichen und Prüfungen starten
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -67,8 +63,11 @@ jobs:
           set -euo pipefail
           git add CHANGELOG.md
           git diff --cached --quiet && { echo 'Changelog aktuell.'; exit 0; }
-          TAG="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq .tag_name | tr '/ ' '--')"
-          BRANCH="automation/changelog-${TAG}-${GITHUB_RUN_ID}"
+          TAG="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq .tag_name | tr '/ ' '--')"; BRANCH="automation/changelog-${TAG}-${GITHUB_RUN_ID}"
           git config user.name 'AirDeck CI'; git config user.email 'actions@users.noreply.github.com'
           git switch -c "$BRANCH"; git commit -m "Docs: Changelog für ${TAG} aktualisieren"; git push origin "$BRANCH"
-          gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: Changelog ${TAG}" --body "Automatisch erzeugte Release-Historie. Durchläuft Branch-Schutz und CI vor dem Merge."
+          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: Changelog ${TAG}" --body "Automatisch erzeugte Release-Historie. Branch-Schutz und CI bleiben aktiv.")"; PR_NUMBER="${PR_URL##*/}"
+          gh workflow run build.yml --ref "$BRANCH"
+          gh workflow run security.yml --ref "$BRANCH"
+          gh workflow run parallel-change-guard.yml --ref "$BRANCH" -f pr_number="$PR_NUMBER"
+          echo "Automations-PR #${PR_NUMBER} erstellt; Validierungen explizit gestartet."
