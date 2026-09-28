@@ -1,4 +1,4 @@
-﻿# AirDeck – Radio-Automation & Live-Broadcast
+# AirDeck – Radio-Automation & Live-Broadcast
 
 <p>
   <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/assets/icons/airdeck-gesamt.png" width="96" alt="AirDeck">
@@ -8,212 +8,196 @@
 </p>
 
 [![Build](https://github.com/ricorewioriginal-collab/anmacha_control/actions/workflows/build.yml/badge.svg)](https://github.com/ricorewioriginal-collab/anmacha_control/actions/workflows/build.yml)
-![Tests](https://img.shields.io/badge/tests-182%20%C2%B7%20176%20gr%C3%BCn%20%C2%B7%206%20%C3%BCbersprungen-brightgreen)
 ![Version](https://img.shields.io/badge/version-0.4.0-blue)
-![Plattformen](https://img.shields.io/badge/Windows%20%7C%20Android%20%7C%20Linux%20%7C%20Docker-eigenst%C3%A4ndig-2f8cff)
-![arm64](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64%20(Raspberry%20Pi)-2496ed)
+![Platforms](https://img.shields.io/badge/Windows%20%7C%20Android%20%7C%20Linux%20%7C%20Docker-2f8cff)
+![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed)
 
 **Ein Projekt von RicoReWi / RicoReWi Music & Media – für Broadcast, Automation, Live und laut.fm.**
 
-AirDeck ist eine eigenständige Sendesoftware für Webradio: Automation rund um die Uhr, Live-Sendungen mit Quellen-Priorität und Failover, Sendeplan, Playlist- und Medienverwaltung, Recorder, laut.fm-Verwaltung, Klangoptimierung, Hörer-Interaktion und auf Wunsch ein komplett KI-moderierter Sender. AirDeck läuft als **Windows-Programm**, als **Server/Docker** (auch auf Raspberry Pi/arm64) oder gesteuert per **Android-App** – ohne fremden Cloud-Dienst, ohne Zwang zu einem eigenen Server.
+AirDeck ist eine eigenständige Radio-Automation und Live-Broadcast-Plattform. Sie verbindet 24/7-Automation, Live-Studio, Sendeplanung, Medien- und Playlistverwaltung, Recorder, Streaming-Ausgänge, AirDeckCast, externe Provider und mobile Bedienung in einem System.
 
 <p align="center">
-  <a href="https://airdeck-demo.ricorewi-radio.de"><strong>🚀 Jetzt live ausprobieren → airdeck-demo.ricorewi-radio.de</strong></a><br>
-  Login: <code>demo</code> / <code>airdeck-demo</code> · direkt im Browser, keine Installation
+  <a href="https://airdeck-demo.ricorewi-radio.de"><strong>🚀 Live-Demo öffnen → airdeck-demo.ricorewi-radio.de</strong></a><br>
+  Login: <code>demo</code> / <code>airdeck-demo</code> · direkt im Browser
 </p>
 
-## 🚦 Status: was läuft, was noch nicht
+> **Dokumentationsprinzip:** Diese README ist die öffentliche Projektübersicht. Ausführliche Benutzer- und Entwicklerdokumentation gehört ins GitHub Wiki bzw. in technische `docs/`-Dateien. Die interne Übergabe zwischen Coding-Agents steht separat in [`AI_HANDOVER.md`](AI_HANDOVER.md).
 
-Diese Tabelle wird laufend nach echten Tests aktualisiert (kein Feature gilt als „fertig“, ohne real getestet zu sein). Ausführlicher Verlauf: [AIRDECK_PROGRESS.md](AIRDECK_PROGRESS.md).
+## 🚦 Projektstand
+
+Die folgende Übersicht beschreibt den bestätigten Stand des Projekts. Neue Funktionen werden erst nach Implementierung und passenden Tests als abgeschlossen geführt.
 
 | Bereich | Status | Kurz |
 |---|---|---|
-| **Kernbetrieb** (Server-Automation 24/7, Source-Priority, Crossfade, Ausgänge, REST-API) | ✅ läuft | Grundfunktionen, mit echtem ffmpeg/Icecast getestet |
-| **Oberfläche & Workflow** (Dashboard, Medienverwaltung, Nextcloud-Anbindung, Playlistverwaltung, Live Studio, In-App-Handbuch) | ✅ läuft | Eigene Arbeitsbereiche statt Einzelfunktionen, mit Playwright gegen echte Server getestet |
-| **Crossfade-Audioqualität** | ✅ läuft | Musik↔Musik/Jingle, Voice-Track→Musik, externer Stream↔Musik und Live-Quelle↔Automation je per echtem Audio-Dekodier-Test bestätigt |
-| **Failover-Ketten** (Quellen-Priorität) | ✅ läuft | Mehrstufige Fallback-Ketten (`fallbackSourceId`) werden vollständig durchlaufen statt nur einen Schritt, inklusive Ringschutz gegen Fehlkonfiguration |
-| **Playlist-Shuffle** | ✅ läuft | Eigener Shuffle-Modus je Playlist (Interpreten-Trennung, „Jetzt neu mischen“) |
-| **Medien-Integrität** | ✅ läuft | Fehlende Dateien, Duplikate, Relink für die gesamte Bibliothek |
-| **Backup/Restore** | ✅ läuft | Echter Ende-zu-Ende-Test: Sichern → Daten löschen → Wiederherstellen → Zustand vergleichen |
-| **Intelligente Rotation, Clock-Templates, Preflight, Hard/Soft-Timing** | ✅ läuft | Interpreten-/Genre-Trennung, Sendeuhr-Vorlagen, Preflight-Prüfung, feste Zeitmarken im Sendeplan |
-| **AirDeckCast** (eigene Streaming-/Verteilschicht, HLS, alternative Profile, Teststream, Failover) | ✅ läuft | Ein Programmbus speist mehrere Encoder-Ausgänge gleichzeitig, inkl. HLS direkt vom Server |
-| **Geräte-Pairing, LAN-Discovery, Connect-Schicht** | ✅ läuft | Kopplungscode, echter scanbarer QR-Code, **Kamera-Scan direkt in App/Browser** (kein natives Plugin), Geräteliste mit Widerruf, LAN-Discovery |
-| **Docker-Paketierung** | ✅ läuft | Läuft nachweislich auch auf **arm64/Raspberry Pi** (echter QEMU-Build+Start in CI, nicht nur amd64) |
-| **Erweiterungen/Marktplatz, Team-Chat, Bug-Report-Backend, Statistik, Audit** | ⬜ offen | Noch nicht begonnen |
-| **Long-Run-/Release-Härtung** (Watchdog, Crash Recovery, 24h/48h-Test, RC1) | ⬜ offen | Noch nicht begonnen |
+| Kernbetrieb, Automation, Source-Priority, REST-API | ✅ läuft | Kernfunktionen vorhanden und getestet |
+| Dashboard, Mediathek, Playlists, Live Studio, Handbuch | ✅ läuft | zentrale Arbeitsbereiche vorhanden |
+| Crossfade und Audio-Pipeline | ✅ läuft | mehrere Übergangsszenarien umgesetzt |
+| Failover-Ketten | ✅ läuft | mehrstufige Fallback-Logik mit Schutz vor Fehlkonfiguration |
+| Playlist-Shuffle und Rotation | ✅ läuft | Interpreten-/Regel-Logik vorhanden |
+| Medien-Integrität und Relink | ✅ läuft | fehlende Dateien und Duplikate behandelbar |
+| Backup / Restore | ✅ läuft | Wiederherstellungsworkflow vorhanden |
+| Sendeplanung, Clock-Templates, Preflight | ✅ läuft | Planungs- und Timingfunktionen vorhanden |
+| AirDeckCast / HLS / mehrere Ausgänge | ✅ läuft | eigener Streaming-/Verteilpfad vorhanden |
+| Geräte-Pairing und LAN-Discovery | ✅ läuft | Kopplung und Geräteverwaltung vorhanden |
+| Docker amd64 / arm64 | ✅ läuft | Serverbetrieb für beide Architekturen vorgesehen |
+| MusikHub / Rechte / Cloud-Quellen | 🟡 Ausbau | sichere Freigaben und Quellen werden weiterentwickelt |
+| UI/UX-Neugestaltung | 🟡 Ausbau | schrittweise Umsetzung anhand der AirDeck-Zielbilder |
+| Windows Installer / First-Run | 🟡 Ausbau | integrierte Ersteinrichtung wird erweitert |
+| Long-Run-/Release-Härtung | ⬜ offen | Watchdog, Crash-Recovery und längere Release-Tests folgen |
 
-**Legende:** ✅ läuft (real getestet) · 🟡 teilweise (Grundfunktion da, Lücken bekannt) · ⬜ offen (noch nicht umgesetzt). „Ein UI-Button gilt nicht als Funktion, ein grüner Build beweist nicht den Workflow“ – jeder Status hier stützt sich auf echte Tests, nicht auf bloßen Code.
+**Legende:** ✅ bestätigt · 🟡 in Weiterentwicklung · ⬜ noch offen.
+
+Für den laufenden Coding-Agent-Stand gilt ausschließlich [`AI_HANDOVER.md`](AI_HANDOVER.md); historische Progress-Markdowns werden nicht mehr als parallele Wahrheitsquelle gepflegt.
 
 ## ⬇️ Download
 
-| | Datei | Hinweis |
+| Plattform | Datei | Hinweis |
 |---|---|---|
-| 🪟 **Windows-Installer** | [**AirDeck-Setup.exe**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Setup.exe) | Installation ohne Adminrechte. Deutsch/English, mit Audio-Engine (ffmpeg/LAME) und Android-APK |
-| 🪟 **Windows portable** | [**AirDeck-Windows-Portable.zip**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Windows-Portable.zip) | Ohne Installation: entpacken, `AirDeck.exe` starten |
-| 🤖 **Android-App** | [**AirDeck-Android.apk**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Android.apk) | Handy-Sender (ohne Server) oder Touch-Studio mit MIC LIVE, Kamera-QR-Kopplung und Mithören |
-| 🐧 **Linux-Server** | [**AirDeck-Linux.deb**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Linux.deb) | `sudo apt install ./AirDeck-Linux.deb` (Debian/Ubuntu, x86_64) – läuft als systemd-Dienst `airdeck-server` |
-| 🐳 **Server (Docker)** | `docker compose up -d` | amd64 **und arm64** (Raspberry Pi 4/5) – siehe [docs/DOCKER.md](docs/DOCKER.md) |
+| 🪟 Windows Installer | [**AirDeck-Setup.exe**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Setup.exe) | reguläre Windows-Installation |
+| 🪟 Windows Portable | [**AirDeck-Windows-Portable.zip**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Windows-Portable.zip) | entpacken und starten |
+| 🤖 Android | [**AirDeck-Android.apk**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Android.apk) | mobile AirDeck-App |
+| 🐧 Linux | [**AirDeck-Linux.deb**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest/download/AirDeck-Linux.deb) | Debian/Ubuntu-Paket |
+| 🐳 Docker | `docker compose up -d` | amd64 und arm64 |
 
-Alle Dateien stehen auf der Seite [**Releases → neuestes Release**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest). Releases werden bei Versions-Tags (`v*`) gebaut und getestet – der CI-Build läuft weiterhin bei jedem Commit. Solange das Repository privat ist, funktionieren die Links nur für angemeldete Mitglieder.
-Windows kann bei nicht signierten Dateien warnen: „Weitere Informationen“ → „Trotzdem ausführen“ (Details in [docs/INSTALLATION.md](docs/INSTALLATION.md)).
+[**Alle Releases und Release Notes öffnen**](https://github.com/ricorewioriginal-collab/anmacha_control/releases/latest)
 
-## 🚀 Live-Demo ausprobieren
+## 🚀 Live-Demo
 
-**[airdeck-demo.ricorewi-radio.de](https://airdeck-demo.ricorewi-radio.de)** – Studio direkt im Browser, ohne Installation.
-Login: Benutzername `demo`, Passwort `airdeck-demo`
+**https://airdeck-demo.ricorewi-radio.de**
 
-⚠️ Reine Testinstanz: setzt sich **automatisch alle 10 Minuten komplett zurück** (alle Daten weg). Die Demo enthält ffmpeg, einen isolierten internen Icecast/AirDeckCast-Ausgang, HLS, Testmedien und ein befülltes Cardwall, damit die Broadcast-Funktionen real ausprobiert werden können. Bitte nichts Echtes hier ablegen.
+- Benutzer: `demo`
+- Passwort: `airdeck-demo`
+- Browserbasiert, keine Installation erforderlich
+- reine Testinstanz; keine produktiven oder vertraulichen Daten ablegen
 
-## 📸 Vorschau – jeder Arbeitsbereich, jedes Bedienfeld
-
-Alle Screenshots zeigen den Beispielsender **„AirDeck-FM“** mit Testdaten (kein echter Sender). Sie werden auf dem Hauptbranch automatisch aus der aktuellen Demo neu erzeugt, sobald sich die UI ändert. Jedes Bild ist einzeln verlinkt und öffnet in voller Auflösung – anklicken zum Vergrößern.
+## 📸 Vorschau
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/slideshow.gif" alt="AirDeck Slideshow: Dashboard, Studio, Decks, Quellen, Sendeplan, Medienverwaltung, KI-Automation, Hörer, Benutzer, Handbuch" width="820">
+  <img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/slideshow.gif" alt="AirDeck UI Slideshow" width="820">
 </p>
 
-### Die Arbeitsbereiche
+### Arbeitsbereiche
 
-| Dashboard (Senderübersicht) | Studio-Arbeitsbereich (Gesamtansicht) | Sendeplan & Events |
+| Dashboard | Live Studio | Sendeplan |
 |---|---|---|
 | [![Dashboard](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-dashboard.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-dashboard.png) | [![Studio](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-studio.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-studio.png) | [![Sendeplan](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-planning.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-planning.png) |
-| Alle Sender auf einen Blick: Titel, Status, Modus, Schnellzugriff | Decks, Cardwall, Queue, Stream/Encoder, Quellen, Automation, Pegel – frei anordenbar | Zeitplan, Stunden-Uhr, Rotation & Regeln, Uhr-Vorlage, Preflight, Sendeplan-Raster |
 
-| Medienverwaltung | Playlistverwaltung | Recorder |
+| Mediathek / Musik | Playlists | Recorder |
 |---|---|---|
-| [![Medienverwaltung](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png) | [![Playlistverwaltung](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-playlists.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-playlists.png) | [![Recorder](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-recorder.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-recorder.png) |
-| Bibliothek, Upload, Ordner-Import, Lautheit, Integritätsprüfung | Manuell/Shuffle, Titel verwalten, Farbe & Modus je Playlist | Mitschnitt starten, automatische Zeitfenster, Replays |
+| [![Mediathek](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png) | [![Playlists](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-playlists.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-playlists.png) | [![Recorder](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-recorder.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-recorder.png) |
 
-| KI-Automation | Anbindungen (Bridge zu bestehenden Systemen) | Hörer-Interaktion |
+| KI-Automation | Anbindungen | Hörer |
 |---|---|---|
-| [![KI-Automation](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-ai.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-ai.png) | [![Anbindungen](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-bridges.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-bridges.png) | [![Hörer](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-listeners.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-listeners.png) |
-| Director-Status, Moderation/Musikplanung, Freigaben, Protokoll | AzuraCast/Icecast/SAM/mAirList/RadioDJ als Relay & Status-Spiegel | Posteingang (Wunsch, Gruß, Votes), Hörerseiten-Link zum Einbetten |
+| [![KI](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-ai.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-ai.png) | [![Bridges](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-bridges.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-bridges.png) | [![Hörer](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-listeners.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-listeners.png) |
 
-| Medien & Nextcloud | Benutzer & Rollen | Handbuch (im Programm) |
-|---|---|---|
-| [![Medien & Nextcloud](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-mediathek.png) | [![Benutzer & Rollen](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-users.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-users.png) | [![Handbuch](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-handbuch.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/view-handbuch.png) |
-| Nextcloud ist als Quellen-Reiter direkt in der Medienverwaltung integriert – kein separater Sidebar-Bereich mehr | Rollenmatrix, Konten mit Sender-Zuordnung, letzte Anmeldung | Volltextsuche, gleiche Seitenleiste/Kopfzeile wie das restliche Programm |
+### Studio-Panels
 
-### Jedes einzelne Bedienfeld im Studio-Arbeitsbereich
-
-| Decks (4× CUE/Vorhören) | Cardwall | Now Playing |
+| Decks | Cardwall | Now Playing |
 |---|---|---|
 | [![Decks](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-decks.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-decks.png) | [![Cardwall](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-carts.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-carts.png) | [![Now Playing](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-np.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-np.png) |
 
-| Playlist / Archiv | Queue (mit Backtiming) | Schnelltrigger |
+| Queue | Mikrofon / Live | Stream / Encoder |
 |---|---|---|
-| [![Playlist/Archiv](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-lib.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-lib.png) | [![Queue](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-queue.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-queue.png) | [![Schnelltrigger](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-quick.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-quick.png) |
+| [![Queue](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-queue.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-queue.png) | [![Live](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-live.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-live.png) | [![Stream](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-stream.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-stream.png) |
 
-| Live-Voice (Mikrofon/PTT) | Stream & Encoder | Server-Automation 24/7 |
-|---|---|---|
-| [![Live-Voice](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-live.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-live.png) | [![Stream & Encoder](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-stream.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-stream.png) | [![Server-Automation](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-playout.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-playout.png) |
+Weitere Screenshots liegen unter [`docs/screenshots/`](docs/screenshots/).
 
-| Lautstärke / Processing | VU / Pegel | Quellen · Priorität |
-|---|---|---|
-| [![Processing](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-processing.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-processing.png) | [![VU/Pegel](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-meters.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-meters.png) | [![Quellen · Priorität](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-sources.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-sources.png) |
+## ✨ Kernfunktionen
 
-| System | | |
-|---|---|---|
-| [![System](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-system.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/panel-system.png) | Alle Fenster lassen sich frei verschieben, in der Größe ändern und abdocken (**Fenster & Layout**). | |
+- 24/7 Radio-Automation mit Quellenpriorität, Failover und Crossfade
+- Live Studio mit Decks, Queue, Cardwall, Mikrofon/PTT und Vorhören
+- Medien-, Playlist- und Sendeplanverwaltung
+- Recorder und Replay-Workflows
+- AirDeckCast und mehrere Streaming-Ausgänge
+- Icecast/SHOUTcast- und Provider-Integrationen
+- Nextcloud-/Cloud-Quellen als Teil der Medienarchitektur
+- MusikHub für freigegebene persönliche, Sender- und senderübergreifende Medien
+- Benutzer, Rollen und senderbezogene Berechtigungen
+- Windows-, Android-, Linux-/Server- und Docker-Betrieb
+- REST-API, Live-Ereignisse und Integrationen
+- KI-gestützte Automation mit konfigurierbaren Providern
 
-### Mobil & Hörerseite
+## ⚡ Schnellstart
 
-| Handy-Sender (Android) | Hörerbereich (Browser) |
-|---|---|
-| [![Handy-Sender](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/handy-sender.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/handy-sender.png) | [![Hörerbereich](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/hoerer-browser.png)](https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_control/AirDeck-Radio-Automation-%26-Broadcast/docs/screenshots/hoerer-browser.png) |
-| Live senden vom Handy – Mikrofon, Musik und Pegel, ganz ohne AirDeck-Server | Musikwunsch, Grüße und Voting direkt aus dem Browser der Hörer |
+### Windows
 
-## Funktionen
+Aktuellen Installer aus den Releases herunterladen und den Einrichtungsassistenten starten.
 
-**Studio & Sendebetrieb**
-- **Dashboard** als Sender-/Netzwerkübersicht (Karten je Sender: Logo, Status, aktueller Titel, Modus) – die eigentliche Arbeitsfläche liegt eine Ansicht weiter unter **Live Studio**, mit frei anordenbaren Fenstern (verschieben, Größe ändern, abdocken).
-- **Medienverwaltung** als eigener Arbeitsbereich: Suche/Filter/Sortierung über die ganze Bibliothek, Mehrfach-Upload, Ordner-Import, Metadaten-Editor, Lautheit (LUFS) je Titel, Integritätsprüfung (fehlende Dateien, Duplikate, Relink), direktes Senden an Deck/Queue/Playlist/Cardwall. **Nextcloud** ist als Quellen-Reiter direkt eingebettet, nicht isoliert daneben.
-- **Playlistverwaltung** als eigener Arbeitsbereich: anlegen/umbenennen/duplizieren, Titel hinzufügen/entfernen/verschieben, Modus **Manuell** oder **Shuffle** (Interpreten-Trennung, „Jetzt neu mischen“).
-- Vier Decks mit CUE/Vorhören, Cardwall (Jingles/Sweeper/Station-IDs/Drops/News/Werbung, per Ducking automatisch abgesenkt), Schnelltrigger, Queue mit Backtiming, Drag & Drop (auch Dateien direkt aus dem Explorer).
-- **Server-Automation 24/7** ohne offenes Fenster: Crossfade, Carts mit Ducking, Mikrofon/Line-In, Stille-Erkennung, Notfall-Ordner, Autostart.
-- **Source Priority Engine:** Live-Studio, Remote, Android, Automation und Relays mit Priorität, Übernahme, Anti-Flapping und **mehrstufigen Failover-Ketten** (fällt bis zur ersten wirklich erreichbaren Quelle durch, mit Ringschutz gegen Fehlkonfiguration).
-- **Sendeplan & Events:** Programmpläne, Stundenuhr, Uhr-Vorlage (Kategorien-Takt), Preflight-Prüfung, Einzel-Jobs, Aufnahmepläne. Dazu ein **Recorder** mit Replays.
-- **Klang:** Lautheitsangleich pro Titel (EBU R128), Klangprofile, 10-Band-EQ, Multiband, AGC und Limiter. **LAME-MP3** (CBR/VBR), AAC, Opus.
-- **Ausgänge:** Icecast, SHOUTcast v1/v2, **laut.fm** (Zugang automatisch aus dem Radioadmin), optional über **Liquidsoap**.
-- **Audio-Routing:** Sendesignal und Vorhören getrennt auf Windows-Ausgabegeräte legbar.
+### Server / Docker
 
-**laut.fm**
-- Kompletter Radioadmin: Playlists, Titel, **Tags**, **Automations-Algorithmen** (16 Vorlagen), Sendeplan, Statistik, **Werbe-Trigger-Log**, Benutzer, Station, Live-Zugang.
-- Anmeldung per Radioadmin-Token (callback/Origin wie von laut.fm vorgegeben). Dazu die öffentliche laut.fm-API vollständig nach Spezifikation.
-
-**Status, Web & Anbindungen**
-- **Stream-Status** für alle Sendewege, so wie Icecast ihn liefert: JSON, XML, M3U und XSPF. Für laut.fm-Sender baut AirDeck die Werte nach. Dazu kommen eine öffentliche Statusseite und ein einbettbares **Player-Widget**.
-- **Brücke zu bestehenden Systemen:** AzuraCast, Icecast, SAM, mAirList, RadioDJ oder ein Web-Relay lassen sich als Relay-Quelle und Status-Spiegel einbinden. Die **Bridge-API** vergibt stabile Schlüssel, damit nichts doppelt angelegt wird ([docs/BRIDGE.md](docs/BRIDGE.md)).
-- **Hörer-Interaktion:** Musikwunsch aus der Bibliothek, Grüße, Song-Voting mit Hörer-Charts und Sprachnachrichten ans Studio. Alles landet in einem Posteingang, die Hörerseite ist einbettbar und hat Schutz vor Missbrauch.
-- **Nextcloud-Brücke:** Medien aus der Cloud übernehmen, Mitschnitte hochladen.
-- REST-API mit Live-Ereignissen (SSE), signierte Webhooks, Telegram-Alarme, Now-Playing-Export.
-
-**KI-Automation** ([docs/AI.md](docs/AI.md))
-- Eigene API-Keys oder lokale Modelle. Text: OpenAI, Anthropic, Gemini, Ollama/LM Studio. Sprache: OpenAI TTS, ElevenLabs, Kokoro, Piper offline.
-- Moderation alle n Titel, Nachrichten zur vollen Stunde aus eigenen Quellen und KI-Musikplanung. Freigabe-Modus, Kostenkontrolle mit Budgets und Protokoll.
-
-**Betrieb & Sicherheit**
-- **Benutzerverwaltung** mit Login und Logout sowie Rollen: Administrator, Sendeleitung, Redaktion, Moderation, Ansicht. Die Rollen lassen sich pro Sender zuweisen.
-- Mehrere Sender mit eigenem Logo. Datenspeicher lokal oder mit Sync zu MySQL/MariaDB/PostgreSQL bzw. Firebase. Zugangsdaten liegen verschlüsselt (AES-256-GCM).
-- **Geräte-Pairing:** Kopplungscode (mit/ohne Benutzerkonto), echter scanbarer QR-Code, **Kamera-Scan direkt in der App/im Browser** (kein natives Plugin nötig), Geräteliste mit Widerruf, LAN-Discovery.
-- **Windows-Programm** `AirDeck.exe` mit eigenem Fenster, Tray-Symbol und Audio-Engine im Hintergrund (Fenster zu, Sendung läuft weiter). **Updates** per Klick. Handbuch als echte Ansicht im Programm (gleiche Seitenleiste/Kopfzeile, mit Volltextsuche), nicht als externe Seite.
-- **Android-App** mit eigenem **Handy-Sender**: Mikrofon und Musik vom Handy direkt zu laut.fm oder Icecast, ohne Server und auch bei ausgeschaltetem Bildschirm. Alternativ Fernbedienung für das Studio am PC.
-- **Docker/Server:** amd64 und **arm64 (Raspberry Pi 4/5)**, beide in echter CI gebaut und gestartet – kein bloßes Versprechen in der Doku.
-
-## Schnellstart
-
-**Windows:** Installer starten, fertig. Das Studio öffnet sich, AirDeck läuft danach im Hintergrund. Das Symbol im Infobereich bietet Studio öffnen, Protokoll und Beenden.
-
-**Android:** Im Studio am PC unter **Android-App** „Im Netzwerk erreichbar“ einschalten. Dann die APK auf dem Handy laden und mit Adresse und Kopplungscode verbinden – per Eingabe, per QR-Code oder direkt mit der Handy-Kamera scannen ([Anleitung](docs/INSTALLATION.md#android)).
-
-**Server:**
 ```bash
 docker compose up -d
-docker compose logs airdeck      # Einmal-Passwort für „admin“ und Admin-Token
+docker compose logs airdeck
 ```
-Läuft auch auf einem Raspberry Pi 4/5 (arm64) – ohne Docker geht es mit Node.js ≥ 22.18 und ffmpeg: `npm install && npm start`. Danach läuft das Studio unter `http://127.0.0.1:8750`.
 
-| Variable | Standard | Bedeutung |
-|---|---|---|
-| `AIRDECK_PORT` | `8750` | HTTP-Port |
-| `AIRDECK_HOST` | `127.0.0.1` | Bind-Adresse. `0.0.0.0` für Netz/Server, im Internet nur hinter HTTPS |
-| `AIRDECK_DATA` | `./data` | Daten, Medien, Protokolle, verschlüsselte Zugangsdaten |
-| `AIRDECK_SECRET_KEY` | *(auto)* | 64 Hex-Zeichen. Sonst wird `data/.secret.key` erzeugt |
-| `AIRDECK_FFMPEG` | *(auto)* | Pfad zu ffmpeg |
+Standardmäßig läuft das Studio unter `http://127.0.0.1:8750`.
 
-## Dokumentation
+### Entwicklung
+
+```bash
+npm install
+npm run check
+npm start
+```
+
+Vor Änderungen bitte [`CONTRIBUTING.md`](CONTRIBUTING.md) lesen.
+
+## 📚 Dokumentation
+
+### GitHub Wiki
+
+Das Wiki ist für die ausführliche, leserfreundliche Produktdokumentation vorgesehen:
+
+- Erste Schritte
+- Installation Windows / Android / Linux / Docker
+- Live Studio
+- Automation und Sendeplanung
+- Mediathek und MusikHub
+- Nextcloud und externe Quellen
+- AirDeckCast und Streaming
+- laut.fm / lautCast
+- Benutzer, Rollen und Sicherheit
+- API und Integrationen
+- Entwicklung und Architektur
+- Troubleshooting
+- Releases / Upgrade-Hinweise
+
+**Wiki:** https://github.com/ricorewioriginal-collab/anmacha_control/wiki
+
+### Technische Repository-Dokumentation
 
 | Thema | Datei |
 |---|---|
-| Handbuch (Inhalt; im Programm als eigene Ansicht eingebettet) | [studio/handbuch.html](studio/handbuch.html) |
-| Installation Windows/Android | [docs/INSTALLATION.md](docs/INSTALLATION.md) |
-| Docker/Server (amd64 + arm64) | [docs/DOCKER.md](docs/DOCKER.md) |
-| Streaming, Klang, Liquidsoap | [docs/STREAMING.md](docs/STREAMING.md) |
-| Brücke & Bridge-API | [docs/BRIDGE.md](docs/BRIDGE.md) |
-| KI-Automation | [docs/AI.md](docs/AI.md) |
-| Architektur | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Funktionsabgleich | [docs/FEATURE_PARITY.md](docs/FEATURE_PARITY.md) |
-| Fortschritt | [AIRDECK_PROGRESS.md](AIRDECK_PROGRESS.md) |
-| Beta-Qualifikation (Status, offene Punkte) | [BETA_READINESS.md](BETA_READINESS.md) · [P4_REMAINING.md](P4_REMAINING.md) |
+| In-App-Handbuch | [`studio/handbuch.html`](studio/handbuch.html) |
+| Installation | [`docs/INSTALLATION.md`](docs/INSTALLATION.md) |
+| Docker / Server | [`docs/DOCKER.md`](docs/DOCKER.md) |
+| Streaming / Audio | [`docs/STREAMING.md`](docs/STREAMING.md) |
+| Bridge / Integrationen | [`docs/BRIDGE.md`](docs/BRIDGE.md) |
+| KI-Automation | [`docs/AI.md`](docs/AI.md) |
+| Architektur | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Funktionsabgleich | [`docs/FEATURE_PARITY.md`](docs/FEATURE_PARITY.md) |
+| Runtime-Abhängigkeiten | [`RUNTIME_DEPENDENCIES.md`](RUNTIME_DEPENDENCIES.md) |
+| Drittanbieter-Komponenten | [`THIRD_PARTY_COMPONENTS.md`](THIRD_PARTY_COMPONENTS.md) |
+| Agenten-Handover | [`AI_HANDOVER.md`](AI_HANDOVER.md) |
 
-## Mitmachen
+Alte Dateien wie `AIRDECK_PROGRESS.md`, `BETA_READINESS.md` und `P4_REMAINING.md` werden bewusst nicht mehr geführt. Öffentlicher Status bleibt in dieser README; Agenten-Arbeitsstand bleibt in `AI_HANDOVER.md`; ausführliche Erklärungen gehören ins Wiki bzw. in stabile technische Dokumentation.
 
-Webentwicklerinnen und Webentwickler dürfen eigene Features einbauen. Aufbau, Regeln und Andockpunkte stehen in [CONTRIBUTING.md](CONTRIBUTING.md).
+## 🧭 Dokumentationsstruktur
 
-```bash
-npm run check        # Typprüfung (Server + Studio) und alle Tests (aktuell 182, davon 176 grün, 6 übersprungen ohne z. B. echte MySQL/ffmpeg-Umgebung - in CI mit echten DB-Containern alle 182 grün)
+```text
+README.md             öffentliche Projektübersicht, Status, Demo, Downloads, Screenshots
+AI_HANDOVER.md        kompakter aktueller Arbeitsstand für Coding-Agents
+CONTRIBUTING.md       Regeln für Mitarbeit und Entwicklung
+docs/                 technische, mit dem Code versionierte Dokumentation
+GitHub Wiki           ausführliches Benutzer-/Entwicklerhandbuch
+GitHub Releases       veröffentlichte Builds und Release Notes
+GitHub Issues/Projects Bugs, Aufgaben und Planung
 ```
 
-**Release erzeugen:** Der CI-Build läuft bei jedem Commit (Tests, Docker, Windows, Linux, Android). Ein öffentliches Release mit Installer, APK und .deb entsteht nur durch einen Versions-Tag:
+## 🤝 Mitmachen
 
-```bash
-git tag v1.2.3
-git push origin v1.2.3
-```
+Beiträge sind willkommen. Architektur, Regeln und Andockpunkte stehen in [`CONTRIBUTING.md`](CONTRIBUTING.md). Änderungen sollten bestehende AirDeck-Systeme erweitern und keine parallelen Ersatzsysteme einführen.
 
-Das hält den GitHub-Speicher klein — keine hundert Installer-Builds für jede kleine Textänderung.
+## ⚖️ Haftung
 
-## Haftungsausschluss
-
-AirDeck ist ein **privates Hobbyprojekt** und wird ohne Gewähr bereitgestellt. Die Nutzung erfolgt auf eigene Verantwortung, siehe [HAFTUNGSAUSSCHLUSS.md](HAFTUNGSAUSSCHLUSS.md).
-
+AirDeck ist ein privates Hobbyprojekt und wird ohne Gewähr bereitgestellt. Die Nutzung erfolgt auf eigene Verantwortung. Siehe [`HAFTUNGSAUSSCHLUSS.md`](HAFTUNGSAUSSCHLUSS.md).
