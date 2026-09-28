@@ -1,0 +1,121 @@
+name: Last Known Good
+
+on:
+  workflow_run:
+    workflows: ["AirDeck Build"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Aktion"
+        required: true
+        type: choice
+        options:
+          - show
+          - rollback
+      confirm:
+        description: "Für Rollback exakt ROLLBACK eingeben"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: airdeck-last-known-good
+  cancel-in-progress: false
+
+jobs:
+  remember:
+    name: Letzten grünen Build merken
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'AirDeck-Radio-Automation-&-Broadcast'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Erfolgreichen Commit als last-known-good markieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Markiere erfolgreichen AirDeck-Build: $SHA"
+          git init repo
+          cd repo
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "$SHA"
+          git tag -f last-known-good "$SHA"
+          git push --force origin refs/tags/last-known-good
+          echo "last-known-good -> $SHA"
+
+  show:
+    name: Last Known Good anzeigen
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'show'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Status ausgeben
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/last-known-good" --jq '.object.sha')"
+          echo "Letzter erfolgreicher AirDeck-Build: $SHA"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/$SHA" --jq '"Commit: " + .sha + "\nDatum: " + .commit.committer.date + "\nNachricht: " + .commit.message'
+
+  rollback:
+    name: Manueller Rollback
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sicherheitsbestätigung prüfen
+        shell: bash
+        run: |
+          if [ "${{ inputs.confirm }}" != "ROLLBACK" ]; then
+            echo "::error::Rollback abgebrochen. Im Feld confirm muss exakt ROLLBACK stehen."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: AirDeck-Radio-Automation-&-Broadcast
+          fetch-depth: 0
+
+      - name: Last Known Good ermitteln
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOOD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/last-known-good" --jq '.object.sha')"
+          CURRENT="$(git rev-parse HEAD)"
+          echo "GOOD=$GOOD" >> "$GITHUB_ENV"
+          echo "CURRENT=$CURRENT" >> "$GITHUB_ENV"
+          echo "Aktuell: $CURRENT"
+          echo "Rollback-Ziel: $GOOD"
+          test "$GOOD" != "$CURRENT" || {
+            echo "Aktueller Branch entspricht bereits last-known-good."
+            exit 0
+          }
+
+      - name: Änderungen seit Last Known Good als Revert-Commit zurücknehmen
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GOOD" = "$CURRENT" ]; then exit 0; fi
+          git config user.name 'AirDeck Rollback'
+          git config user.email 'actions@users.noreply.github.com'
+          git merge-base --is-ancestor "$GOOD" "$CURRENT" || {
+            echo "::error::last-known-good ist kein Vorfahr des aktuellen Branches. Automatischer Rollback wird aus Sicherheitsgründen nicht durchgeführt."
+            exit 1
+          }
+          git revert --no-commit "$GOOD..$CURRENT"
+          if git diff --cached --quiet && git diff --quiet; then
+            echo "Keine rücknehmbaren Änderungen gefunden."
+            exit 0
+          fi
+          git commit -m "revert: rollback to last known good $GOOD"
+          git push origin HEAD:AirDeck-Radio-Automation-&-Broadcast
+          echo "Rollback als neuer Commit durchgeführt. Historie wurde nicht überschrieben."
