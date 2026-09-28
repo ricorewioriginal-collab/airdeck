@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="340" viewBox="0 0 700 340">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#061328"/><stop offset="1" stop-color="#082d65"/></linearGradient><filter id="g"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect x="8" y="8" width="684" height="324" rx="30" fill="url(#bg)" stroke="#16c7ff" stroke-width="4"/>
+<text x="44" y="72" font-family="Segoe UI,Arial" font-weight="700" font-size="34" fill="#fff">Air<tspan fill="#18b7ff">Deck</tspan></text>
+<rect x="46" y="122" width="55" height="55" fill="#16c7ff"/><rect x="108" y="122" width="55" height="55" fill="#16c7ff"/><rect x="46" y="184" width="55" height="55" fill="#16c7ff"/><rect x="108" y="184" width="55" height="55" fill="#16c7ff"/>
+<text x="210" y="150" font-family="Segoe UI,Arial" font-weight="700" font-size="42" fill="#fff">Windows</text>
+<text x="210" y="198" font-family="Segoe UI,Arial" font-weight="700" font-size="42" fill="#fff">Installer</text>
+<text x="210" y="245" font-family="Segoe UI,Arial" font-size="22" fill="#c8d8f0">Automatische Installation (.exe)</text>
+<circle cx="590" cy="235" r="54" fill="#0b1f3a" stroke="#16c7ff" stroke-width="5" filter="url(#g)"/>
+<path d="M590 193v58m-23-22 23 23 23-23M558 269h64" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
