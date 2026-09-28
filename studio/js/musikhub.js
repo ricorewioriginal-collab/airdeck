@@ -105,25 +105,28 @@ export function mountMusicHub(root, ctx) {
     const visible = items.filter((item) => filter === 'all' || filter === 'station' && item.owner.kind === 'station' && item.owner.id === sid || filter === 'shared' && (item.owner.kind !== 'station' || item.owner.id !== sid));
     const ownCollections = collections.filter((c) => c.owner.kind === 'station' && c.owner.id === sid);
     const unregistered = ctx.library().filter((m) => !m.url && !items.some((item) => item.source?.stationId === sid && item.source?.mediaId === m.id));
+    const first = total ? page * 50 + 1 : 0;
+    const last = Math.min((page + 1) * 50, total);
     root.replaceChildren(
       h('div', { class: 'row mh-toolbar' },
-        h('input', { type: 'search', value: query, placeholder: 'Titel oder Interpret suchen', 'aria-label': 'MusikHub durchsuchen', oninput: (e) => { query = /** @type {HTMLInputElement} */ (e.target).value; page = 0; } }),
+        h('input', { type: 'search', value: query, placeholder: 'Titel oder Interpret suchen', 'aria-label': 'MusikHub durchsuchen', oninput: (e) => { query = /** @type {HTMLInputElement} */ (e.target).value; page = 0; }, onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); void run(load); } } }),
         h('button', { class: 'btn small', onclick: () => run(load) }, 'Suchen / Aktualisieren'),
-        h('span', { class: 'muted' }, `${total} sichtbare Titel`)),
+        h('span', { class: 'muted', role: 'status' }, `${total} sichtbare Titel insgesamt`)),
       h('div', { class: 'row mh-filters' },
         ...[['all', 'Alle'], ['station', 'Senderarchiv'], ['shared', 'Mit mir geteilt']].map(([id, label]) => h('button', { class: `btn small${filter === id ? ' primary' : ''}`, 'aria-pressed': String(filter === id), onclick: () => { filter = id; render(); } }, label))),
       h('div', { class: 'mh-grid' },
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sammlungen'), h('button', { class: 'btn small', onclick: createCollection }, '＋ Neu')),
           collections.length ? h('ul', { class: 'plain-list' }, ...collections.map((c) => h('li', { class: 'mh-entry' },
             h('strong', {}, c.name), h('span', { class: 'muted' }, ` · ${c.itemIds.length} Titel`),
-            ownCollections.includes(c) ? h('div', { class: 'row' },
+            ownCollections.includes(c) && c.actions.includes('shares.manage') ? h('div', { class: 'row mh-actions' },
               h('button', { class: 'btn small', onclick: () => shareCollection(c) }, 'Freigeben'),
               h('button', { class: 'btn small', onclick: () => manageGrants(c) }, 'Freigaben ansehen')) : null))) : h('p', { class: 'muted' }, 'Noch keine sichtbaren Sammlungen.')),
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Katalog')),
+          h('p', { class: 'muted mh-page-info' }, `Titel ${first}–${last} von ${total} · ${visible.length} auf dieser Seite im gewählten Filter`),
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
             h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}`),
             h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : 'Persönlich'}`),
-            item.owner.kind === 'station' && item.owner.id === sid && item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null))) : h('p', { class: 'muted' }, 'Keine freigegebenen Titel gefunden.'),
+            item.owner.kind === 'station' && item.owner.id === sid && item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null))) : h('p', { class: 'muted' }, total ? 'Auf dieser Seite entspricht kein Titel dem gewählten Filter.' : 'Keine freigegebenen Titel gefunden.'),
           h('div', { class: 'row' },
             h('button', { class: 'btn small', disabled: page === 0, onclick: () => { page--; void run(load); } }, 'Zurück'),
             h('button', { class: 'btn small', disabled: (page + 1) * 50 >= total, onclick: () => { page++; void run(load); } }, 'Weiter')))),

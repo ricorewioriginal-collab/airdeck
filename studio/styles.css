@@ -489,11 +489,15 @@ tr.active-row td { background: rgba(34,197,94,.08); }
 /* ---------- Nextcloud ---------- */
 .mh-toolbar { margin: 12px 0; align-items: center; }
 .mh-toolbar input { flex: 1; min-width: 190px; }
+.mh-toolbar [role="status"] { white-space: nowrap; }
 .mh-filters { margin-bottom: 12px; }
 .mh-grid { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(300px, 2fr); gap: 12px; margin-bottom: 12px; }
-.mh-entry { padding: 8px 0; border-bottom: 1px solid rgba(155, 180, 220, .14); }
-.mh-entry .btn { margin-left: 8px; }
-@media (max-width: 700px) { .mh-grid { grid-template-columns: 1fr; } }
+.mh-page-info { margin: 6px 0 10px; }
+.mh-entry { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 0; border-bottom: 1px solid rgba(155, 180, 220, .14); overflow-wrap: anywhere; }
+.mh-entry strong { min-width: 0; }
+.mh-entry > .btn { margin-left: auto; }
+.mh-actions { flex-wrap: wrap; margin-top: 6px; }
+@media (max-width: 700px) { .mh-grid { grid-template-columns: 1fr; } .mh-toolbar [role="status"] { white-space: normal; } }
 .nc-crumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .nc-list { list-style: none; margin: 0; padding: 0; }
 .nc-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; border-bottom: 1px solid var(--line); min-height: 48px; }
