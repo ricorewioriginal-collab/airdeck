@@ -1,0 +1,98 @@
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -303,7 +303,94 @@
+           docker compose -f packaging/demo/docker-compose.demo.yml down -v
+           echo "Demo: Login, Cardwall, Playout und Reset OK"
+ 
++          docker compose -f packaging/demo/docker-compose.demo.yml down -v
++          echo "Demo: Login, Cardwall, Playout und Reset OK"
++
++  # Read-only gegen die bereits laufende Demo: kein Docker, kein Compose, keine neuen Volumes.
++  # Die Demo wird von ihrem eigenen Reset-Job verwaltet; dieser Job legt dort nichts an und veraendert nichts.
++  demo-zero-to-air:
++    name: Live-Demo Zero-to-Air Smoke
++    needs: test
++    runs-on: ubuntu-latest
++    env:
++      AIRDECK_DEMO_URL: https://airdeck-demo.ricorewi-radio.de
++      AIRDECK_DEMO_USER: demo
++      AIRDECK_DEMO_PASSWORD: airdeck-demo
++    steps:
++      - name: ffprobe installieren
++        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
++      - name: Demo read-only bis zum Audioausgang pruefen
++        run: |
++          set -euo pipefail
++          node <<'NODE'
++          import { writeFile } from 'node:fs/promises';
++
++          const base = process.env.AIRDECK_DEMO_URL.replace(/\/+$/, '');
++          const auth = { 'Content-Type': 'application/json' };
++          const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
++
++          async function request(path, init = {}, attempts = 6) {
++            const url = path.startsWith('http') ? path : base + path;
++            let last = '';
++            for (let attempt = 1; attempt <= attempts; attempt++) {
++              try {
++                const response = await fetch(url, { ...init, headers: { ...auth, ...(init.headers || {}) } });
++                if (response.ok) return response;
++                last = response.status + ' ' + response.statusText;
++              } catch (error) {
++                last = String(error);
++              }
++              if (attempt < attempts) await wait(5000);
++            }
++            throw new Error(url + ' nicht erreichbar: ' + last);
++          }
++
++          async function json(path, init = {}) {
++            return (await request(path, init)).json();
++          }
++
++          const health = await json('/api/v1/health');
++          if (health.ok !== true) throw new Error('Health ist nicht OK');
++
++          const login = await json('/api/v1/auth/login', {
++            method: 'POST',
++            body: JSON.stringify({ username: process.env.AIRDECK_DEMO_USER, password: process.env.AIRDECK_DEMO_PASSWORD }),
++          });
++          if (!login.token) throw new Error('Demo-Login liefert kein Token');
++          const bearer = { Authorization: 'Bearer ' + login.token };
++
++          const [system, playout, outputs, stream] = await Promise.all([
++            json('/api/v1/system', { headers: bearer }),
++            json('/api/v1/stations/main/playout', { headers: bearer }),
++            json('/api/v1/stations/main/outputs', { headers: bearer }),
++            json('/api/v1/stream', { headers: bearer }),
++          ]);
++
++          const ffmpeg = system.dependencies?.find((dependency) => dependency.id === 'ffmpeg');
++          const ffprobe = system.dependencies?.find((dependency) => dependency.id === 'ffprobe');
++          if (ffmpeg?.state !== 'READY') throw new Error('ffmpeg ist nicht READY');
++          if (ffprobe?.state !== 'READY') throw new Error('ffprobe ist nicht READY');
++          if (playout.supported !== true || playout.config?.autostart !== true) throw new Error('Playout ist nicht startbereit');
++          const connected = outputs.find((output) => output.state?.status === 'connected' && Number(output.state?.bytesSent) > 0);
++          if (!connected) throw new Error('Kein verbundener Ausgang mit gesendeten Bytes');
++          if (stream.state !== 'connected') throw new Error('Stream ist nicht verbunden');
++
++          const manifest = await (await request('/hls/main/index.m3u8', { headers: bearer })).text();
++          const segments = manifest.split(/\r?\n/).filter((line) => line && !line.startsWith('#'));
++          if (!manifest.startsWith('#EXTM3U') || segments.length < 3) throw new Error('HLS-Manifest enthaelt zu wenige Segmente');
++          const segmentUrl = new URL(segments[Math.max(0, segments.length - 2)], base + '/hls/main/index.m3u8').href;
++          const segment = Buffer.from(await (await request(segmentUrl, { headers: bearer })).arrayBuffer());
++          if (segment.length < 1000) throw new Error('HLS-Segment ist unerwartet klein');
++          await writeFile(process.env.RUNNER_TEMP + '/airdeck-demo-segment.ts', segment);
++
++          console.log('Demo read-only OK: Health, ffmpeg, ffprobe, Playout, Ausgang, Stream und HLS bereit.');
++          console.log('Audio-Segment gespeichert: ' + segment.length + ' Bytes.');
++          NODE
++      - name: Echtes HLS-Audio dekodieren
++        run: |
++          ffprobe -v error -select_streams a:0 \
++            -show_entries stream=codec_name,sample_rate,channels \
+   screenshots:
+     if: (github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch) && !contains(github.event.head_commit.message, '[screenshots]')
+     needs: demo
+     runs-on: ubuntu-latest
