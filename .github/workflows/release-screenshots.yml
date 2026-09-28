@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: airdeck-release-screenshots
@@ -46,7 +47,7 @@ jobs:
           mogrify -strip -define png:compression-level=9 -define png:compression-filter=5 docs/screenshots/*.png
           convert docs/screenshots/view-dashboard.png docs/screenshots/view-studio.png docs/screenshots/view-planning.png docs/screenshots/view-mediathek.png docs/screenshots/view-playlists.png docs/screenshots/view-bridges.png docs/screenshots/view-listeners.png docs/screenshots/view-users.png -resize '820x540>' -gravity center -background '#020817' -extent 820x540 -delay 140 -loop 0 -layers Optimize docs/screenshots/slideshow.gif
           ! find docs/screenshots -type f -size +5M | grep -q . || { echo 'Screenshot >5MiB'; exit 1; }
-      - name: Geänderte Screenshots über Automations-PR einreichen
+      - name: Geänderte Screenshots über Automations-PR einreichen und Prüfungen starten
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -54,11 +55,14 @@ jobs:
           set -euo pipefail
           git add docs/screenshots
           git diff --cached --quiet && { echo 'Screenshots aktuell.'; exit 0; }
-          TAG="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq .tag_name | tr '/ ' '--')"
-          BRANCH="automation/screenshots-${TAG}-${GITHUB_RUN_ID}"
+          TAG="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq .tag_name | tr '/ ' '--')"; BRANCH="automation/screenshots-${TAG}-${GITHUB_RUN_ID}"
           git config user.name 'AirDeck CI'; git config user.email 'actions@users.noreply.github.com'
           git switch -c "$BRANCH"; git commit -m "Docs: Screenshots für ${TAG} aktualisieren"; git push origin "$BRANCH"
-          gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: Release-Screenshots ${TAG}" --body "Automatisch erzeugte UI-Screenshots. Durchläuft Branch-Schutz, Parallel Change Guard und CI."
+          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: Release-Screenshots ${TAG}" --body "Automatisch erzeugte UI-Screenshots. Branch-Schutz und CI bleiben aktiv.")"; PR_NUMBER="${PR_URL##*/}"
+          gh workflow run build.yml --ref "$BRANCH"
+          gh workflow run security.yml --ref "$BRANCH"
+          gh workflow run parallel-change-guard.yml --ref "$BRANCH" -f pr_number="$PR_NUMBER"
+          echo "Automations-PR #${PR_NUMBER} erstellt; Validierungen explizit gestartet."
       - name: Demo beenden
         if: always()
         run: docker compose -f packaging/demo/docker-compose.demo.yml down -v || true
