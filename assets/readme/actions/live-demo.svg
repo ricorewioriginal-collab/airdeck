@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="128" viewBox="0 0 520 128">
+<defs><linearGradient id="bg" x1="0" x2="1"><stop stop-color="#06172d"/><stop offset="1" stop-color="#0b4ea3"/></linearGradient><filter id="g"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<rect x="3" y="3" width="514" height="122" rx="26" fill="url(#bg)" stroke="#1ec8ff" stroke-width="3"/>
+<circle cx="68" cy="64" r="34" fill="#0c3159" stroke="#1ec8ff" stroke-width="3" filter="url(#g)"/>
+<path d="M58 46l28 18-28 18z" fill="#fff"/>
+<text x="122" y="54" font-family="Segoe UI,Arial" font-size="19" fill="#9cc8ed">AIRDECK</text>
+<text x="122" y="84" font-family="Segoe UI,Arial" font-size="31" font-weight="700" fill="#fff">Live Demo starten</text>
+<text x="122" y="108" font-family="Segoe UI,Arial" font-size="17" fill="#c8ddf4">Direkt im Browser testen</text>
+</svg>
