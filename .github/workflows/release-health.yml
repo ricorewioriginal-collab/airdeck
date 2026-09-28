@@ -1,0 +1,125 @@
+name: Release Health
+
+on:
+  release:
+    types: [published, released, edited]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: airdeck-release-health
+  cancel-in-progress: true
+
+jobs:
+  release-consistency:
+    name: Release-Konsistenz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: AirDeck-Radio-Automation-&-Broadcast
+      - name: Aktuelles Release und Versionen prüfen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          JSON="$(gh api repos/${{ github.repository }}/releases/latest)"
+          TAG="$(jq -r '.tag_name' <<<"$JSON")"
+          VERSION="${TAG#v}"
+          test -n "$VERSION"
+          echo "Aktuelles Release: $TAG"
+
+          ROOT_VERSION="$(node -p "require('./package.json').version")"
+          echo "package.json: $ROOT_VERSION"
+          test "$ROOT_VERSION" = "$VERSION" || {
+            echo "::error::Release $TAG passt nicht zu package.json ($ROOT_VERSION)."
+            exit 1
+          }
+
+          if [ -f apps/android/package.json ]; then
+            ANDROID_VERSION="$(node -p "require('./apps/android/package.json').version")"
+            echo "Android package.json: $ANDROID_VERSION"
+            test "$ANDROID_VERSION" = "$VERSION" || {
+              echo "::error::Android-Version $ANDROID_VERSION passt nicht zu $TAG."
+              exit 1
+            }
+          fi
+
+          grep -q 'assets/readme/status/version.svg' README.md || {
+            echo "::error::README verwendet nicht den AirDeck-Versionsbutton."
+            exit 1
+          }
+          grep -q 'releases/latest/download/AirDeck-Setup.exe' README.md
+          grep -q 'releases/latest/download/AirDeck-Windows-Portable.zip' README.md
+          grep -q 'releases/latest/download/AirDeck-Android.apk' README.md
+          grep -q 'releases/latest/download/AirDeck-Linux.deb' README.md
+          echo "Release-/README-Konsistenz OK."
+
+  release-assets:
+    name: Release-Dateien
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release-Dateien vollständig und herunterladbar prüfen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          JSON="$(gh api repos/${{ github.repository }}/releases/latest)"
+          TAG="$(jq -r '.tag_name' <<<"$JSON")"
+          echo "Prüfe $TAG"
+          REQUIRED=(
+            AirDeck-Setup.exe
+            AirDeck-Windows-Portable.zip
+            AirDeck-Android.apk
+            AirDeck-Linux.deb
+          )
+          mkdir -p /tmp/airdeck-release
+          for FILE in "${REQUIRED[@]}"; do
+            URL="$(jq -r --arg f "$FILE" '.assets[] | select(.name==$f) | .browser_download_url' <<<"$JSON" | head -1)"
+            SIZE="$(jq -r --arg f "$FILE" '.assets[] | select(.name==$f) | .size' <<<"$JSON" | head -1)"
+            if [ -z "$URL" ] || [ "$URL" = null ]; then
+              echo "::error::Release-Datei fehlt: $FILE"
+              exit 1
+            fi
+            if [ -z "$SIZE" ] || [ "$SIZE" = null ] || [ "$SIZE" -lt 1024 ]; then
+              echo "::error::$FILE ist leer oder ungewöhnlich klein ($SIZE Bytes)."
+              exit 1
+            fi
+            echo "$FILE: $SIZE Bytes"
+            curl -fL --retry 3 --retry-delay 2 -o "/tmp/airdeck-release/$FILE" "$URL"
+            test -s "/tmp/airdeck-release/$FILE"
+          done
+
+          unzip -t /tmp/airdeck-release/AirDeck-Windows-Portable.zip >/dev/null
+          file /tmp/airdeck-release/AirDeck-Setup.exe
+          file /tmp/airdeck-release/AirDeck-Android.apk
+          file /tmp/airdeck-release/AirDeck-Linux.deb
+          dpkg-deb --info /tmp/airdeck-release/AirDeck-Linux.deb >/dev/null
+          unzip -t /tmp/airdeck-release/AirDeck-Android.apk >/dev/null
+          echo "Alle Release-Dateien vorhanden und strukturell lesbar."
+
+  public-health:
+    name: Öffentliche Dienste
+    runs-on: ubuntu-latest
+    steps:
+      - name: Projektseite, Demo und GitHub-Release prüfen
+        shell: bash
+        run: |
+          set -euo pipefail
+          check() {
+            local name="$1" url="$2"
+            echo "Prüfe $name: $url"
+            curl -fLsS --retry 3 --retry-delay 3 --connect-timeout 15 --max-time 45 -o /dev/null "$url"
+          }
+          check "AirDeck Projektseite" "https://ricorewioriginal-collab.github.io/airdeck/"
+          check "AirDeck Dokumentation" "https://ricorewioriginal-collab.github.io/airdeck/docs.html"
+          check "AirDeck Demo" "https://airdeck-demo.ricorewi-radio.de/"
+          check "AirDeck Demo Health" "https://airdeck-demo.ricorewi-radio.de/api/v1/health"
+          check "Latest Release" "https://github.com/${{ github.repository }}/releases/latest"
+          echo "Öffentliche AirDeck-Endpunkte erreichbar."
