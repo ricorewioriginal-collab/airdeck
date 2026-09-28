@@ -11,12 +11,14 @@
   Medienverwaltung, Streaming-Ausgänge und mehrere Sender.
 </p>
 
-<p align="center">
-  <a href="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml?query=branch%3AAirDeck-Radio-Automation-%26-Broadcast"><img src="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml/badge.svg?branch=AirDeck-Radio-Automation-%26-Broadcast" alt="Build"></a>
-  <img src="https://img.shields.io/badge/version-0.4.0-2563eb" alt="Version 0.4.0">
-  <img src="https://img.shields.io/badge/status-Beta-f59e0b" alt="Beta">
-  <img src="https://img.shields.io/badge/license-Source%20Available-7c3aed" alt="Source Available">
-</p>
+<table>
+<tr>
+<td align="center"><a href="https://github.com/ricorewioriginal-collab/airdeck/actions/workflows/build.yml?query=branch%3AAirDeck-Radio-Automation-%26-Broadcast"><img src="assets/readme/status/build.svg" alt="AirDeck Build Status"></a></td>
+<td align="center"><img src="assets/readme/status/version.svg" alt="AirDeck Version 0.4.0"></td>
+<td align="center"><img src="assets/readme/status/beta.svg" alt="AirDeck Beta Channel"></td>
+<td align="center"><a href="LICENSE"><img src="assets/readme/status/license.svg" alt="AirDeck Source Available License"></a></td>
+</tr>
+</table>
 
 <p align="center">
   <a href="https://airdeck-demo.ricorewi-radio.de"><img src="https://img.shields.io/badge/▶%20LIVE%20DEMO-AirDeck%20öffnen-2563eb?style=for-the-badge" alt="AirDeck Live Demo"></a>
