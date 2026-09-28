@@ -4,5 +4,5 @@
 <circle cx="48" cy="46" r="22" fill="#12264b" stroke="#4d8dff" stroke-width="2"/>
 <path d="M38 46h20M48 36v20" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
 <text x="84" y="39" font-family="Segoe UI,Arial" font-size="18" fill="#a9c1ef">VERSION</text>
-<text x="84" y="64" font-family="Segoe UI,Arial" font-size="28" font-weight="700" fill="#fff">0.4.0</text>
+<text x="84" y="64" font-family="Segoe UI,Arial" font-size="28" font-weight="700" fill="#fff">0.4.1</text>
 </svg>
