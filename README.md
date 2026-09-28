@@ -20,10 +20,12 @@
 </tr>
 </table>
 
-<p align="center">
-  <a href="https://airdeck-demo.ricorewi-radio.de"><img src="https://img.shields.io/badge/▶%20LIVE%20DEMO-AirDeck%20öffnen-2563eb?style=for-the-badge" alt="AirDeck Live Demo"></a>
-  <a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><img src="https://img.shields.io/badge/⬇%20DOWNLOADS-Alle%20Releases-111827?style=for-the-badge" alt="Alle AirDeck Downloads"></a>
-</p>
+<table>
+<tr>
+<td align="center" width="50%"><a href="https://airdeck-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="AirDeck Live Demo"></a></td>
+<td align="center" width="50%"><a href="https://github.com/ricorewioriginal-collab/airdeck/releases"><img src="assets/readme/actions/downloads.svg" alt="Alle AirDeck Downloads"></a></td>
+</tr>
+</table>
 
 <p align="center">
   <strong>Ein Projekt von RicoReWi / RicoReWi Music & Media.</strong>
