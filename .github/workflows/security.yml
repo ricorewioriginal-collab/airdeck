@@ -1,0 +1,74 @@
+name: Security Check
+
+on:
+  push:
+    branches: ['AirDeck-Radio-Automation-&-Broadcast']
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '31 4 * * 2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: airdeck-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit:
+    name: NPM-Abhängigkeiten
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Root-Abhängigkeiten installieren
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Bekannte Schwachstellen prüfen
+        run: npm audit --audit-level=high
+      - name: Weitere package-lock.json prüfen
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r lock; do
+            dir="$(dirname "$lock")"
+            [ "$dir" = "." ] && continue
+            echo "--- npm audit: $dir"
+            (cd "$dir" && npm audit --audit-level=high)
+          done < <(find . -name package-lock.json -not -path './node_modules/*' -not -path '*/node_modules/*' -print)
+
+  secret-scan:
+    name: Secret- und Schlüsselprüfung
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dangerous-files:
+    name: Versehentlich eingecheckte Geheimdateien
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Private Schlüssel, Keystores und Umgebungsdateien blockieren
+        shell: bash
+        run: |
+          set -euo pipefail
+          BAD="$(find . -type f \
+            \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' -o -name '*.pfx' -o -name '*.pem' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '.env' -o -name '.env.*' \) \
+            -not -path './.git/*' \
+            -not -name '.env.example' \
+            -not -name '.env.sample' -print || true)"
+          if [ -n "$BAD" ]; then
+            echo "::error::Mögliche Geheimdateien im Repository gefunden:"
+            printf '%s\n' "$BAD"
+            exit 1
+          fi
+          echo "Keine offensichtlichen privaten Schlüssel/Keystores eingecheckt."
