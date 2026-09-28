@@ -1,0 +1,92 @@
+name: Release Screenshots
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: airdeck-release-screenshots
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    name: Screenshots bei Veröffentlichung prüfen
+    runs-on: ubuntu-latest
+    steps:
+      - name: AirDeck-Entwicklungsbranch auschecken
+        uses: actions/checkout@v4
+        with:
+          ref: AirDeck-Radio-Automation-&-Broadcast
+          fetch-depth: 0
+
+      - name: Browser und Bildwerkzeuge installieren
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+
+      - name: Demo für aktuelle Screenshots starten
+        run: |
+          set -euo pipefail
+          docker compose -f packaging/demo/docker-compose.demo.yml build
+          sh packaging/demo/reset-demo.sh
+          for i in $(seq 1 60); do
+            curl -fs http://127.0.0.1:8751/api/v1/health >/dev/null && break
+            sleep 1
+          done
+          curl -fs http://127.0.0.1:8751/api/v1/health >/dev/null
+          TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs airdeck-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
+          test -n "$TOKEN"
+          echo "AIRDECK_SCREENSHOT_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Browser-Funktionen gegen echte Demo prüfen
+        env:
+          AIRDECK_SCREENSHOT_URL: http://127.0.0.1:8751
+        run: node scripts/browser-smoke.mjs
+
+      - name: Screenshots und Galerie neu erzeugen
+        env:
+          AIRDECK_SCREENSHOT_URL: http://127.0.0.1:8751
+        run: |
+          set -euo pipefail
+          node scripts/screenshots.mjs
+          mogrify -strip -define png:compression-level=9 -define png:compression-filter=5 docs/screenshots/*.png
+          convert \
+            docs/screenshots/view-dashboard.png \
+            docs/screenshots/view-studio.png \
+            docs/screenshots/view-planning.png \
+            docs/screenshots/view-mediathek.png \
+            docs/screenshots/view-playlists.png \
+            docs/screenshots/view-bridges.png \
+            docs/screenshots/view-listeners.png \
+            docs/screenshots/view-users.png \
+            -resize '820x540>' -gravity center -background '#020817' -extent 820x540 \
+            -delay 140 -loop 0 -layers Optimize docs/screenshots/slideshow.gif
+          if find docs/screenshots -type f -size +5M | grep -q .; then
+            echo "Screenshot größer als 5 MiB – bitte weiter optimieren:"
+            find docs/screenshots -type f -size +5M -print
+            exit 1
+          fi
+
+      - name: Nur geänderte Screenshots übernehmen
+        run: |
+          set -euo pipefail
+          git config user.name "AirDeck CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/screenshots
+          if git diff --cached --quiet; then
+            echo "Screenshots sind bereits aktuell für ${GITHUB_REF_NAME:-Release}."
+          else
+            git commit -m "README: Screenshots für aktuelles Release aktualisieren [screenshots]"
+            git pull --rebase origin AirDeck-Radio-Automation-&-Broadcast
+            git push origin HEAD:AirDeck-Radio-Automation-&-Broadcast
+          fi
+
+      - name: Demo beenden
+        if: always()
+        run: docker compose -f packaging/demo/docker-compose.demo.yml down -v || true
