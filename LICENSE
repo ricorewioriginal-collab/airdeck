@@ -1,0 +1,124 @@
+AirDeck Source Available License (ASAL) v1.0 – DRAFT
+Copyright (c) 2026 Ricardo Ramon Reimer Wiebe / RicoReWi
+
+IMPORTANT: This is a project-specific license draft and has not been certified by OSI or independently reviewed as legal advice. Before relying on it commercially, obtain qualified legal review.
+
+1. Definitions
+
+"AirDeck" means the software, source code, documentation, and other materials distributed with this license.
+
+"Licensor" means Ricardo Ramon Reimer Wiebe / RicoReWi, to the extent he owns the applicable rights in AirDeck.
+
+"You" means an individual or legal entity exercising rights under this license.
+
+"Modified Version" means AirDeck with changes, additions, adaptations, or other derivative modifications.
+
+"Hosted AirDeck Service" means making AirDeck or a Modified Version available to third parties as a hosted, managed, subscription, SaaS, reseller, white-label, or comparable service in which access to AirDeck itself is part of what the customer receives.
+
+2. Free use
+
+Subject to this license, the Licensor grants You a non-exclusive, worldwide, revocable only as provided below, royalty-free permission to:
+
+(a) view and study the AirDeck source code;
+(b) copy, clone, and fork AirDeck;
+(c) modify AirDeck for Your own use;
+(d) operate AirDeck for Yourself or Your own organization;
+(e) use AirDeck to operate a radio station, including a commercial radio station or other revenue-generating media operation;
+(f) redistribute an unmodified or Modified Version without charging for access to AirDeck itself, provided all applicable conditions in this license are met; and
+(g) submit modifications back to the official AirDeck project.
+
+AirDeck's normal version is intended to remain available without a software usage fee under these terms. Nothing in this license requires a radio station to share advertising, sponsorship, donation, music, broadcasting, or other unrelated business revenue merely because the station uses AirDeck.
+
+3. Attribution and notices
+
+Any copy or Modified Version that You distribute or make available to third parties must retain this license and applicable copyright notices.
+
+A reasonably prominent attribution must identify the original project substantially as follows:
+
+"Based on AirDeck – originally created by Ricardo Ramon Reimer Wiebe / RicoReWi."
+
+You may accurately describe Your software as based on or derived from AirDeck, but You must not imply that an unofficial fork, modification, service, or build is an official AirDeck release or endorsed by the Licensor.
+
+4. Free self-hosting
+
+You may self-host AirDeck without paying a license fee when it is used by You or Your organization for Your own operations, including operation of Your own radio station.
+
+You may also provide AirDeck without charge to third parties under the redistribution conditions of this license.
+
+5. Commercial hosted services, subscriptions, and resale
+
+This license does NOT grant permission to monetize access to AirDeck itself through a Hosted AirDeck Service.
+
+Before You charge third parties for access to AirDeck or a Modified Version as a hosted service, subscription, managed AirDeck platform, reseller service, white-label service, or materially similar commercial offering, You must obtain a separate written Commercial Hosting License from the Licensor.
+
+The Commercial Hosting License may provide for a revenue share, recurring fee, minimum fee, individually negotiated terms, or another commercial arrangement.
+
+No particular percentage or commercial price is granted or promised by this public license.
+
+This restriction does not by itself prohibit charging for unrelated services or business activities merely because AirDeck is used internally as a tool. For example, operating a commercial radio station with AirDeck does not automatically create a revenue-share obligation.
+
+6. Paid installation and professional services
+
+Unless a separate agreement states otherwise, this license does not prohibit charging for genuine consulting, installation, migration, training, development, or support work where the customer is not being charged for access to a Hosted AirDeck Service.
+
+A service provider may not use this section as a workaround to sell recurring access to AirDeck while describing the charge solely as support, maintenance, administration, or another service.
+
+7. Modified and community versions
+
+Modified Versions distributed outside the official AirDeck project must be clearly identifiable as unofficial or modified where a reasonable user could otherwise mistake them for an official release.
+
+You are responsible for Your modifications, hosting, support, security, compliance, and representations to Your users.
+
+8. Branding and trademarks
+
+This software license grants no ownership in the AirDeck name, logos, RicoReWi name, logos, artwork, or other trademarks or brand identifiers.
+
+Referential use necessary to provide the attribution required by this license is permitted. Branding of unofficial products or services is governed additionally by the project's BRANDING.md policy and applicable trademark law.
+
+9. Contributions
+
+Submitting a contribution to the official AirDeck project does not by itself transfer ownership of Your copyright. Contributions may be subject to the contribution terms published by the project, including a Contributor License Agreement if one is adopted.
+
+Do not submit code or other material that You do not have sufficient rights to contribute.
+
+10. Third-party components
+
+AirDeck may include or depend on third-party software, codecs, libraries, services, fonts, media, or other components governed by their own licenses and terms. This license does not replace or override those third-party terms.
+
+11. No warranty
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, AIRDECK IS PROVIDED "AS IS" AND WITHOUT WARRANTY OF ANY KIND. THE LICENSOR DOES NOT WARRANT THAT AIRDECK IS ERROR-FREE, SECURE, FIT FOR A PARTICULAR PURPOSE, CONTINUOUSLY AVAILABLE, OR SUITABLE FOR BROADCAST, COMMERCIAL, OR SAFETY-CRITICAL OPERATION.
+
+12. Limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSOR SHALL NOT BE LIABLE UNDER THIS LICENSE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR LOSS OF DATA, REVENUE, PROFITS, BROADCAST TIME, OR BUSINESS OPPORTUNITY, EXCEPT WHERE SUCH EXCLUSION IS NOT LEGALLY PERMITTED.
+
+13. Termination
+
+Your rights under this license terminate if You materially violate its conditions and do not cure the violation within 30 days after receiving written notice where cure is reasonably possible.
+
+Termination does not create rights to continue a commercial Hosted AirDeck Service without the required commercial agreement.
+
+14. No Open Source representation
+
+Because this license restricts certain commercial hosted-service uses, it is a source-available license and is not represented as an OSI-approved Open Source license.
+
+15. Separate agreements
+
+The Licensor may offer AirDeck under additional or different terms, including commercial hosting, OEM, reseller, enterprise, or white-label agreements. A separate written agreement controls to the extent it expressly conflicts with this public license for the parties to that agreement.
+
+16. Contact
+
+For commercial hosting, SaaS, subscription, reseller, OEM, white-label, or other commercial licensing, use the official contact channel published by the AirDeck project. Do not rely on an address copied from an unofficial fork.
+
+---
+
+DEUTSCHE KURZFASSUNG (nur Orientierung – bei Abweichungen ist der englische Lizenztext oben maßgeblich):
+
+AirDeck darf kostenlos genutzt, selbst gehostet, geklont, geforkt und verändert werden. Auch ein kommerzieller Radiosender darf AirDeck für den eigenen Sendebetrieb kostenlos einsetzen. Kostenlose Weitergabe ist unter Beibehaltung der Lizenz, Urheberhinweise und vorgeschriebenen Namensnennung möglich.
+
+Wer dagegen AirDeck oder einen AirDeck-Fork selbst als kostenpflichtigen gehosteten Dienst, SaaS, Abo, Reseller- oder White-Label-Angebot für Dritte monetarisiert, benötigt vorher eine gesonderte schriftliche Commercial Hosting License des Urhebers. Darin kann insbesondere eine Umsatzbeteiligung oder andere Vergütung vereinbart werden.
+
+Inoffizielle Forks und Builds müssen als solche erkennbar sein. Die Urhebernennung lautet sinngemäß: "Based on AirDeck – originally created by Ricardo Ramon Reimer Wiebe / RicoReWi."
+
+Diese Lizenz ist Source Available und keine OSI-zertifizierte Open-Source-Lizenz.
