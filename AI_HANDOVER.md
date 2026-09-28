@@ -1,8 +1,8 @@
 # AirDeck – AI Agent Handover
 
-> **Startpunkt für Claude Code, Codex, Replit, Cursor und andere Coding-Agents.**
+> **Interne Kurz-Übergabe für Claude Code, Codex, Replit, Cursor und andere Coding-Agents.**
 >
-> Die ausführliche Projektbeschreibung und der öffentliche Entwicklungsstand stehen in [`README.md`](README.md). Git und README sind die primären Wahrheiten; diese Datei hält nur die knappe Arbeitsübergabe fest.
+> `README.md` bleibt die öffentliche Projektseite mit Projektstand, Demo, Downloads und Screenshots. Diese Datei enthält ausschließlich die knappe Arbeitsübergabe. Ausführliche Benutzer- und Entwicklerdokumentation gehört ins GitHub Wiki bzw. in notwendige versionierte technische `docs/`-Dateien.
 
 ## Vor jeder Arbeit
 
@@ -17,9 +17,18 @@ Arbeitsbranch: `AirDeck-Radio-Automation-&-Broadcast`.
 
 Keine älteren Handover-Pakete über einen neueren Git-Stand schreiben. Kein Force-Push. Keine fremden Änderungen überschreiben.
 
+## Dokumentationsstruktur
+
+- `README.md` = öffentliche Projektübersicht, sichtbarer Projektstand, Demo, Downloads/Releases, Screenshots und Schnellstart.
+- `AI_HANDOVER.md` = kurze aktuelle Agentenübergabe; keine öffentliche Produktdokumentation.
+- GitHub Wiki = ausführliche Benutzer-/Entwicklerdokumentation, Architektur, Installation, MusikHub, Nextcloud, AirDeckCast, lautCast, API, Rollen/Rechte und Troubleshooting.
+- `docs/` = nur technische Dokumente und Assets, die sinnvoll zusammen mit dem Quellcode versioniert werden müssen, insbesondere Screenshot-Assets und build-/codebezogene Spezifikationen.
+- GitHub Releases = veröffentlichte Installer, Portable Builds, APK/DEB und Release Notes.
+- Issues/Projects = Bugs und geplante Arbeit statt immer neuer Status-Markdown-Dateien.
+
 ## Arbeitsprinzip
 
-- Erst README und diese Datei lesen, danach nur die für den aktuellen Arbeitsblock relevanten Dateien.
+- Erst `README.md` und diese Datei lesen, danach nur die für den aktuellen Arbeitsblock relevanten Dateien.
 - Bestehende Architektur erweitern; keine zweite Benutzerverwaltung, Senderverwaltung, Mediathek, Automation, Queue, Authentifizierung oder parallele Datenbank bauen.
 - Keine Mockfunktionen oder Fake-Daten als fertige Features ausgeben.
 - Nach jedem Block relevante Tests ausführen und nur den eigenen Arbeitsbereich committen.
@@ -61,7 +70,6 @@ Vor Arbeiten am MusikHub zuerst aktuellen Code und Tests prüfen. Danach in der 
 
 ## Referenzen
 
-- `README.md` ist der allgemeine Ausgangspunkt und enthält Status, Screenshots, Installation und Funktionsübersicht.
 - AirDeck-UI-Demobilder aus dem Handover definieren die visuelle Zielrichtung.
 - AzuraCast-, laut.fm-/Radioadmin- und AnMaCha-Screenshots sind Funktions-/Workflowreferenzen, keine Designvorlagen und kein Code zum Kopieren.
 - Referenzmaterial kann sensible Daten enthalten: keine Credentials transkribieren oder committen.
@@ -76,15 +84,15 @@ git status
 git log --oneline -5
 ```
 
-Wenn Remote weitergelaufen ist, Änderungen sauber integrieren. Keine Handover-ZIPs, Referenz-Screenshots mit Zugangsdaten, Secrets oder große Audio-Testdateien committen.
+Wenn Remote inzwischen weitergelaufen ist, Änderungen sauber integrieren. Keine Handover-ZIPs, Referenz-Screenshots mit Zugangsdaten, Secrets oder große Audio-Testdateien committen.
 
 ## CURRENT HANDOVER
 
-**Zuletzt bearbeitet von:** ChatGPT – Dokumentationsbereinigung / Agent-Handover
+**Zuletzt bearbeitet von:** ChatGPT – Dokumentationsstruktur / README-Wiederherstellung
 
 **Arbeitsblock:** Multi-Agent-Koordination
 
-**Status:** implementiert
+**Status:** README als öffentliche Projektseite wiederhergestellt; AI-Handover separat gehalten.
 
 **Parallel reserviert:** Codex arbeitet am Windows-Installer-/First-Run-Zwischenschritt.
 
@@ -106,4 +114,4 @@ Wenn Remote weitergelaufen ist, Änderungen sauber integrieren. Keine Handover-Z
 
 ---
 
-**Grundsatz:** Git ist die technische Wahrheit. README ist der allgemeine Einstieg. Diese Datei ist nur die kurze Übergabe, damit ein neuer Agent nicht das komplette Projekt erneut analysieren muss.
+**Grundsatz:** Git ist die technische Wahrheit. `README.md` ist die öffentliche Projektseite. `AI_HANDOVER.md` ist nur die kurze Arbeitsübergabe. Das Wiki ist für ausführliche Dokumentation vorgesehen.
