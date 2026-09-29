@@ -124,6 +124,22 @@ export function mountMusicHub(root, ctx) {
     status(`„${item.title}“ in die Sender-Queue gelegt`);
   }
 
+  async function addToStationPlaylist(item) {
+    const sid = station();
+    const playlists = await run(() => ctx.api.get(`/stations/${encodeURIComponent(sid)}/playlists`));
+    if (!playlists?.length) return status('Lege zuerst eine Sender-Playlist an.', true);
+    const value = await formDialog('MusicHub-Titel zur Playlist', [
+      { name: 'playlistId', label: 'Playlist', options: playlists.map((pl) => [pl.id, pl.name]) },
+    ], 'Hinzufügen');
+    if (!value) return;
+    const result = await run(() => ctx.api.post(
+      url(`/items/${encodeURIComponent(item.id)}/playlists/${encodeURIComponent(value.playlistId)}`),
+      { stationId: sid },
+    ));
+    if (!result) return;
+    status(`„${item.title}“ zur Playlist „${result.name}“ hinzugefügt`);
+  }
+
   async function deleteItem(item) {
     if (!confirm(`„${item.title}“ wirklich aus dem MusikHub löschen?`)) return;
     const result = await run(() => ctx.api.del(url(`/items/${encodeURIComponent(item.id)}?station=${encodeURIComponent(station())}`)));
@@ -248,6 +264,7 @@ export function mountMusicHub(root, ctx) {
               item.actions.includes('preview.play') ? h('button', { class: 'btn small', onclick: () => preview(item) }, '▶ Vorhören') : null,
               item.actions.includes('file.download') ? h('button', { class: 'btn small', onclick: () => download(item) }, '↓ Download') : null,
               item.actions.includes('broadcast.use') ? h('button', { class: 'btn small primary', onclick: () => queueForBroadcast(item) }, '＋ In Queue') : null,
+              item.actions.includes('broadcast.use') ? h('button', { class: 'btn small', onclick: () => addToStationPlaylist(item) }, '＋ Playlist') : null,
               item.actions.includes('metadata.edit') ? h('button', { class: 'btn small', onclick: () => editMetadata(item) }, 'Metadaten') : null,
               item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => shareResource('item', item) }, 'Freigeben') : null,
               item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => manageGrants('item', item) }, 'Freigaben') : null,
