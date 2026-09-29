@@ -101,6 +101,8 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal(queued.status, 200, 'broadcast.use erlaubt MusicHub→Queue');
     assert.equal(queued.body.items.length, 1);
     assert.equal(queued.body.items[0].media.title, 'Abendshow');
+    assert.equal(queued.body.items[0].mediaId, `musikhub:${itemId}`, 'öffentliche Queue-ID enthält keinen Benutzerbezug');
+    assert.equal(String(queued.body.items[0].mediaId).includes(b.id), false, 'interne Grant-Akteur-ID bleibt verborgen');
     assert.equal(app.svc.media.library('b').length, 0, 'Broadcast-Freigabe kopiert nichts in die Senderbibliothek');
 
     assert.equal((await call(ta, 'DELETE', `/music-hub/grants/${broadcastGrant.body.id}?station=main`)).status, 204);
