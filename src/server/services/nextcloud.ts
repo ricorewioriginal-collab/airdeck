@@ -76,6 +76,7 @@ const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.sc
 
 export class NextcloudService {
   private readonly app: AirDeckApp;
+  private syncRunning = false;
 
   constructor(app: AirDeckApp) {
     this.app = app;
@@ -113,11 +114,67 @@ export class NextcloudService {
   }
 
   private hubState(): HubNextcloudState {
-    return this.app.docs.get<HubNextcloudState>('musikhub-nextcloud', { version: 1, sources: [], entries: [], jobs: [] });
+    const state = this.app.docs.get<HubNextcloudState>('musikhub-nextcloud', { version: 1, sources: [], entries: [], jobs: [] });
+    for (const source of state.sources) {
+      source.createdByUserId ??= source.owner.kind === 'user' ? source.owner.id : '';
+      source.syncEnabled ??= false;
+      source.syncIntervalMinutes = Math.min(HUB_NC_MAX_SYNC_MINUTES, Math.max(HUB_NC_MIN_SYNC_MINUTES, Number(source.syncIntervalMinutes) || 60));
+      source.syncQuotaBytes = Math.max(1, Number(source.syncQuotaBytes) || HUB_NC_DEFAULT_QUOTA);
+      source.syncMaxFileBytes = Math.max(1, Math.min(HUB_NC_DEFAULT_MAX_FILE, Number(source.syncMaxFileBytes) || HUB_NC_DEFAULT_MAX_FILE));
+      source.nextSyncAt ??= source.syncEnabled ? Date.now() : null;
+      source.lastSyncAt ??= null;
+      source.syncFailures ??= 0;
+      source.offlineUntil ??= null;
+    }
+    return state;
   }
 
   private saveHubState(state: HubNextcloudState): void {
     this.app.docs.set('musikhub-nextcloud', state);
+  }
+
+  private backgroundPrincipal(source: HubNextcloudSource): Principal {
+    const userId = source.owner.kind === 'user' ? source.owner.id : source.createdByUserId;
+    const user = userId ? this.app.users.get(userId) : null;
+    if (!user || user.disabled) throw new AppError(403, 'forbidden', 'Cloud-Sync-Benutzer ist nicht aktiv');
+    if (source.owner.kind === 'station' && !user.stationIds.includes(source.owner.id)) {
+      throw new AppError(403, 'forbidden', 'Cloud-Sync-Benutzer ist dem Eigentümersender nicht mehr zugeordnet');
+    }
+    return {
+      id: user.id,
+      tokenId: `musikhub-sync:${source.id}`,
+      roles: user.roles,
+      stationIds: user.stationIds,
+      scopes: UserStore.scopesFor(user.roles),
+      user: { id: user.id, username: user.username, name: user.name },
+    };
+  }
+
+  private contextStation(source: HubNextcloudSource): string {
+    if (source.owner.kind === 'station') return source.owner.id;
+    const user = this.app.users.get(source.owner.id);
+    const stationId = user?.stationIds.find((id) => id !== '*' && this.app.stations.has(id));
+    if (!stationId) throw new AppError(409, 'no_station_context', 'Für persönliche Cloud-Synchronisierung ist kein Senderkontext verfügbar');
+    return stationId;
+  }
+
+  async resumeHubNextcloudSync(): Promise<void> {
+    const state = this.hubState();
+    let changed = false;
+    const now = Date.now();
+    for (const job of state.jobs) {
+      if (job.status !== 'running' && job.status !== 'queued') continue;
+      job.status = 'failed';
+      job.error = 'Durch Neustart unterbrochen; Quelle wurde zur erneuten Synchronisierung vorgemerkt';
+      job.updatedAt = now;
+      const source = state.sources.find((x) => x.id === job.sourceId);
+      if (source?.syncEnabled) source.nextSyncAt = now;
+      changed = true;
+    }
+    if (changed) {
+      this.saveHubState(state);
+      await this.app.docs.flush();
+    }
   }
 
   private explicitStationMember(p: Principal, stationId: string): boolean {
