@@ -21,7 +21,7 @@
     "@types/node": "^22.18.0",
     "@types/omggif": "^1.0.5",
     "@types/pg": "^8.23.1",
-    "esbuild": "^0.25.12",
+    "esbuild": "^0.28.2",
     "jsqr": "^1.4.0",
     "omggif": "^1.0.10",
     "postject": "^1.0.0-alpha.6",
