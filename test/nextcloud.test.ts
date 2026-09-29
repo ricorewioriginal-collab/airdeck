@@ -118,7 +118,7 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.equal(afterSync.items.some((x) => x.title === 'New Song' && x.availability.sourceKind === 'nextcloud'), true);
 
     const currentSource = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
-    const tinyLimit = await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
+    await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
       revision: currentSource.revision,
       ownerKind: 'user', name: currentSource.name, url: currentSource.url, user: currentSource.user, root: currentSource.root,
       allowPrivateNetwork: true, syncEnabled: true, syncIntervalMinutes: 5,
@@ -142,7 +142,7 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.equal(failedSource.offlineUntil > Date.now(), true, 'Fehler setzt Backoff/Offline-Zeit');
     assert.equal(failedSource.nextSyncAt >= failedSource.offlineUntil, true);
 
-    const recoverSource = await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
+    await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
       revision: failedSource.revision,
       ownerKind: 'user', name: failedSource.name, url: failedSource.url, user: failedSource.user, root: failedSource.root,
       allowPrivateNetwork: true, syncEnabled: true, syncIntervalMinutes: 5,
@@ -170,6 +170,8 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
       }),
       /inzwischen geändert/,
     );
+    delete FILES['/Radio/Hits/New Artist - New Song.mp3'];
+    delete FILES['/Radio/Hits/Too Large.mp3'];
 
     const top = (await app.svc.nextcloud.nextcloudList('/Hits')) as { entries: { name: string; path: string; dir: boolean; audio: boolean }[] };
     assert.deepEqual(top.entries.map((e) => [e.name, e.dir, e.audio]), [['Deep', true, false], ['Cover.jpg', false, false], ['Kygo - Firestone.mp3', false, true]]);
