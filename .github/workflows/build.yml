@@ -344,6 +344,7 @@ jobs:
             docs/screenshots/view-studio.png \
             docs/screenshots/view-planning.png \
             docs/screenshots/view-mediathek.png \
+            docs/screenshots/view-musikhub.png \
             docs/screenshots/view-playlists.png \
             docs/screenshots/view-bridges.png \
             docs/screenshots/view-listeners.png \
@@ -357,6 +358,12 @@ jobs:
             exit 1
           fi
           du -h docs/screenshots/* | sort -h
+      - name: UI-Screenshots als Build-Artefakt bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirDeck-UI-Screenshots
+          path: docs/screenshots
+          retention-days: 3
       - name: Screenshots nur bei Aenderungen committen
         if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
         run: |
