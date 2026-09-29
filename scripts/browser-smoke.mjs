@@ -125,6 +125,14 @@ try {
   await page.getByLabel('Max. Dateigröße (MB)', { exact: true }).fill('16');
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.waitForFunction(() => !document.querySelector('#dialog')?.hasAttribute('open'), undefined, { timeout: 10_000 });
+  await page.waitForFunction(
+    () => {
+      const text = document.querySelector('#status-text')?.textContent || '';
+      return text.includes('Cloud-Quelle') || text.includes('Fehler') || text.includes('Nextcloud');
+    },
+    undefined,
+    { timeout: 10_000 },
+  );
   const cloudSaveStatus = await page.locator('#status-text').textContent();
   assert.match(cloudSaveStatus || '', /Cloud-Quelle .*UI Smoke Cloud.* gespeichert/, `MusicHub: Nextcloud-Quelle wurde nicht gespeichert: ${cloudSaveStatus}`);
   const cloudEntry = page.locator('.mh-entry').filter({ hasText: 'UI Smoke Cloud' }).first();
