@@ -71,6 +71,23 @@ try {
     assert.ok(dims.scroll <= dims.inner + 2, `${label}: horizontaler Seiten-Overflow ${dims.scroll}px > ${dims.inner}px`);
   };
 
+  // MusicHub ist ein echter Teil der Medienverwaltung und muss im Browser sichtbar/bedienbar sein.
+  await page.locator('[data-nav-section="media"]').evaluate((el) => { /** @type {HTMLDetailsElement} */ (el).open = true; });
+  await page.locator('[data-view="mediathek"]').first().click();
+  await page.waitForSelector('#view-mediathek:not([hidden])');
+  await page.getByRole('button', { name: 'MusikHub', exact: true }).click();
+  await page.getByRole('heading', { name: 'Cloud-Quellen', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Meine persönliche Musik', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: '＋ Nextcloud', exact: true }).count(), 1, 'MusicHub: Nextcloud-Quelle anlegen fehlt');
+  assert.equal(await page.getByRole('button', { name: '＋ Neu', exact: true }).count() >= 1, true, 'MusicHub: Sammlung anlegen fehlt');
+  assert.equal(await page.locator('#view-mediathek input[type="file"]').count() >= 1, true, 'MusicHub: persönlicher Upload fehlt');
+  await noHorizontalOverflow('MusicHub Desktop');
+
+  await page.setViewportSize({ width: 520, height: 900 });
+  await page.waitForTimeout(100);
+  await noHorizontalOverflow('MusicHub Handy 520');
+  assert.equal(await page.getByRole('heading', { name: 'Cloud-Quellen', exact: true }).isVisible(), true, 'MusicHub: Cloud-Bereich mobil nicht sichtbar');
+
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.locator('[data-view="studio"]').first().click();
   await page.waitForSelector('#view-studio:not([hidden])');
