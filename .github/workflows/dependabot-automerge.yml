@@ -1,0 +1,68 @@
+name: Dependabot Auto Merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_run:
+    workflows: ["Build", "Security Check", "Parallel Change Guard"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+concurrency:
+  group: dependabot-automerge
+  cancel-in-progress: false
+
+jobs:
+  enable-automerge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge for Dependabot PRs
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            let numbers = [];
+
+            if (context.payload.pull_request) {
+              numbers = [context.payload.pull_request.number];
+            } else if (context.payload.workflow_run?.pull_requests?.length) {
+              numbers = context.payload.workflow_run.pull_requests.map(pr => pr.number);
+            } else {
+              const { data } = await github.rest.pulls.list({ owner, repo, state: 'open', per_page: 100 });
+              numbers = data.map(pr => pr.number);
+            }
+
+            for (const number of [...new Set(numbers)]) {
+              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+              if (pr.user?.login !== 'dependabot[bot]' || pr.draft) continue;
+              if (pr.base.ref !== 'AirDeck-Radio-Automation-&-Broadcast') continue;
+
+              const labels = (pr.labels || []).map(l => typeof l === 'string' ? l : l.name);
+              if (labels.some(l => ['do-not-merge', 'manual-merge', 'migration-required'].includes(l))) {
+                core.info(`#${number}: automatic merge blocked by label.`);
+                continue;
+              }
+              if (pr.mergeable_state === 'dirty') {
+                core.info(`#${number}: merge conflict; manual resolution required.`);
+                continue;
+              }
+
+              try {
+                await github.graphql(`
+                  mutation($id: ID!) {
+                    enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) {
+                      pullRequest { number autoMergeRequest { enabledAt } }
+                    }
+                  }
+                `, { id: pr.node_id });
+                core.info(`#${number}: auto-merge enabled. Branch/ruleset requirements remain authoritative.`);
+              } catch (error) {
+                core.warning(`#${number}: auto-merge could not be enabled: ${error.message}`);
+              }
+            }
