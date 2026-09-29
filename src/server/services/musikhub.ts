@@ -174,6 +174,23 @@ export class MusicHubService {
     return this.queuedParts(mediaId) !== null;
   }
 
+  publicBroadcastRef(mediaId: string): string {
+    const parts = this.queuedParts(mediaId);
+    return parts ? `musikhub:${parts.itemId}` : mediaId;
+  }
+
+  private itemIdFromPublicRef(mediaId: string): string | null {
+    return mediaId.startsWith('musikhub:') && mediaId.length > 'musikhub:'.length
+      ? mediaId.slice('musikhub:'.length)
+      : null;
+  }
+
+  restoreExistingBroadcastRef(publicRef: string, existing: readonly string[]): string | null {
+    const itemId = this.itemIdFromPublicRef(publicRef);
+    if (!itemId) return null;
+    return existing.find((x) => this.queuedParts(x)?.itemId === itemId) ?? null;
+  }
+
   queueBroadcast(p: Principal, itemId: string, stationId: string): string {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'broadcast.use');
     if (!p.user) throw new AppError(403, 'forbidden', 'MusicHub-Sendeberechtigung benötigt ein Benutzerkonto');
