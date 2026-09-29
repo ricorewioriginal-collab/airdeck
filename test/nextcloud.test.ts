@@ -108,6 +108,27 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').some((j) => j.kind === 'scan' && j.status === 'done' && j.files === 2), true);
 
     const firestonePath = index.find((e) => e.name === 'Kygo - Firestone.mp3')!.path;
+    const sourceBusy = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    sourceBusy.jobs.push({
+      id: 'source-sync-busy', sourceId: hubSource.id, kind: 'sync', status: 'running',
+      createdAt: Date.now(), updatedAt: Date.now(), files: 0, error: null,
+    });
+    app.docs.set('musikhub-nextcloud', sourceBusy);
+    await app.docs.flush();
+    await assert.rejects(
+      app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id),
+      /bereits eine Synchronisierung/,
+      'manueller Scan startet nicht parallel zum Quellen-Sync',
+    );
+    await assert.rejects(
+      app.svc.nextcloud.retrieveHubNextcloudEntry(ownerP, 'main', hubSource.id, firestonePath),
+      /bereits eine Synchronisierung/,
+      'manueller Dateiabruf startet nicht parallel zum Quellen-Sync',
+    );
+    sourceBusy.jobs = sourceBusy.jobs.filter((j: any) => j.id !== 'source-sync-busy');
+    app.docs.set('musikhub-nextcloud', sourceBusy);
+    await app.docs.flush();
+
     const retrieveDedupe = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
     retrieveDedupe.jobs.push({
       id: 'running-retrieve', sourceId: hubSource.id, kind: 'retrieve', status: 'running',
