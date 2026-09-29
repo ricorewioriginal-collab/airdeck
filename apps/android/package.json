@@ -9,7 +9,7 @@
     "build:release": "node prepare.mjs && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
-    "@capacitor/android": "^7.0.0",
+    "@capacitor/android": "^8.5.2",
     "@capacitor/core": "^7.0.0"
   },
   "devDependencies": {
