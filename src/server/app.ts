@@ -547,7 +547,7 @@ export class AirDeckApp {
     const po = this.playouts.get(stationId);
     if (!po) throw new AppError(409, 'not_running', 'Der Sendebus läuft nicht – zuerst Automation/Senden starten');
     if (this.modeOf(stationId).mode === 'LIVE') throw new AppError(409, 'live_on_air', 'Live-Quelle ist auf Sendung – für Einspieler die Cartwall nutzen');
-    const m = this.svc.media.media(stationId, mediaId);
+    const m = this.resolvedMedia(stationId, mediaId);
     po.playout.playNow(m);
     this.audit.write({ kind: 'mode', event: 'play_now', actor: p.id, stationId, mediaId });
     return this.modeView(stationId);
@@ -888,12 +888,24 @@ export class AirDeckApp {
 
   // ---------- Queue / Automation / Decks ----------
 
-  queueView(stationId: string, remainingCurrentMs = 0): unknown {
+  queueView(stationId: string, remainingCurrentMs = 0, p?: Principal): unknown {
     const rt = this.rt(stationId);
     const lib = new Map(rt.data.library.map((m) => [m.id, m]));
+    if (p) {
+      for (const q of rt.queue.list()) {
+        if (!this.svc.musikhub.isQueuedBroadcastRef(q.mediaId)) continue;
+        const m = this.svc.musikhub.queuedBroadcastView(p, q.mediaId, stationId);
+        if (m) lib.set(q.mediaId, m);
+      }
+    }
     const bt = backtime(rt.queue.list(), lib, Date.now(), remainingCurrentMs);
     return {
-      items: rt.queue.list().map((q, i) => ({ ...q, media: lib.get(q.mediaId) ?? null, startsAt: bt.rows[i]?.startsAt, known: bt.rows[i]?.known })),
+      items: rt.queue.list().map((q, i) => ({
+        ...q,
+        media: lib.get(q.mediaId) ?? (this.svc.musikhub.isQueuedBroadcastRef(q.mediaId) ? { id: q.mediaId, title: 'MusicHub-Titel', artist: '', category: 'music', durationMs: null } : null),
+        startsAt: bt.rows[i]?.startsAt,
+        known: bt.rows[i]?.known,
+      })),
       autoFill: rt.data.autoFill,
       totalMs: rt.queue.list().reduce((a, q) => a + (playLength(lib.get(q.mediaId) ?? ({ durationMs: 0 } as MediaItem)) ?? 0), 0),
     };
@@ -902,6 +914,16 @@ export class AirDeckApp {
   queueAdd(stationId: string, mediaId: string, index?: number): void {
     this.svc.media.media(stationId, mediaId);
     this.rt(stationId).queue.add(mediaId, 'manual', index);
+    this.publishQueue(stationId);
+  }
+
+  queueAddHub(p: Principal, stationId: string, itemId: string, index?: number): void {
+    const mediaId = this.svc.musikhub.queueBroadcast(p, itemId, stationId);
+    // Erster Preflight beim Einreihen. Vor der tatsächlichen Wiedergabe wird erneut geprüft.
+    const media = this.svc.musikhub.resolveQueuedBroadcast(mediaId, stationId);
+    this.transientMedia.set(this.transientKey(stationId, mediaId), media);
+    this.rt(stationId).queue.add(mediaId, 'manual', index);
+    this.audit.write({ kind: 'musikhub', event: 'broadcast_queued', actor: p.id, stationId, itemId });
     this.publishQueue(stationId);
   }
 
@@ -920,16 +942,32 @@ export class AirDeckApp {
     this.publishQueue(stationId);
   }
 
-  /** Nächsten Titel entnehmen (Deck lädt ihn). Füllt bei Bedarf nach Sendeuhr nach. */
+  /** Nächsten Titel entnehmen (Deck lädt ihn). MusicHub-Referenzen werden unmittelbar vor Playout erneut autorisiert. */
   queueNext(stationId: string): MediaItem | null {
     const rt = this.rt(stationId);
     this.autoFill(rt);
     let e = rt.queue.shift();
-    // Einträge mit gelöschten Medien überspringen
-    while (e && !rt.data.library.some((m) => m.id === e!.mediaId)) e = rt.queue.shift();
+    let media: MediaItem | null = null;
+    while (e) {
+      if (this.svc.musikhub.isQueuedBroadcastRef(e.mediaId)) {
+        try {
+          media = this.svc.musikhub.resolveQueuedBroadcast(e.mediaId, stationId);
+          this.transientMedia.set(this.transientKey(stationId, e.mediaId), media);
+          break;
+        } catch (err) {
+          this.transientMedia.delete(this.transientKey(stationId, e.mediaId));
+          this.audit.write({ kind: 'musikhub', event: 'broadcast_preflight_denied', stationId, mediaId: e.mediaId, message: (err as Error).message });
+          e = rt.queue.shift();
+          continue;
+        }
+      }
+      media = rt.data.library.find((m) => m.id === e!.mediaId) ?? null;
+      if (media) break;
+      e = rt.queue.shift();
+    }
     this.autoFill(rt);
     this.publishQueue(stationId);
-    return e ? rt.data.library.find((m) => m.id === e!.mediaId)! : null;
+    return media;
   }
 
   queueFill(stationId: string): void {
@@ -964,6 +1002,17 @@ export class AirDeckApp {
   automationView(stationId: string): unknown {
     const d = this.rt(stationId).data;
     return { autoFill: d.autoFill, minQueue: d.minQueue, clock: d.clock, rotation: d.rotation };
+  }
+
+  /** MusicHub-Titel werden nur für Queue/Playout als flüchtige MediaItems aufgelöst; sie werden nie Teil der Senderbibliothek. */
+  private readonly transientMedia = new Map<string, MediaItem>();
+
+  private transientKey(stationId: string, mediaId: string): string {
+    return `${stationId}\0${mediaId}`;
+  }
+
+  private resolvedMedia(stationId: string, mediaId: string): MediaItem {
+    return this.transientMedia.get(this.transientKey(stationId, mediaId)) ?? this.svc.media.media(stationId, mediaId);
   }
 
   /** Live aus dem ICY-Metadatenstrom eines externen Streams gelesener Titel, je Sender (nicht persistiert). */
@@ -1008,7 +1057,7 @@ export class AirDeckApp {
   /** Sendet das kanonische "Jetzt läuft" (Icecast/SHOUTcast-Metadaten + now_playing.changed) - optional mit ICY-Override. */
   private publishNowPlaying(stationId: string, icy?: { artist: string; title: string }): void {
     const rt = this.rt(stationId);
-    const m = rt.nowPlaying.mediaId ? this.svc.media.media(stationId, rt.nowPlaying.mediaId) : null;
+    const m = rt.nowPlaying.mediaId ? this.resolvedMedia(stationId, rt.nowPlaying.mediaId) : null;
     if (!m) return;
     const shown = icy ? { ...m, artist: icy.artist, title: icy.title } : m;
     const song = shown.artist ? `${shown.artist} - ${shown.title}` : shown.title;
@@ -1020,12 +1069,17 @@ export class AirDeckApp {
     const rt = this.rt(stationId);
     const lib = rt.data.library;
     const next = rt.queue.list()[0];
-    const media = rt.nowPlaying.mediaId ? lib.find((m) => m.id === rt.nowPlaying.mediaId) ?? null : null;
+    const media = rt.nowPlaying.mediaId
+      ? this.transientMedia.get(this.transientKey(stationId, rt.nowPlaying.mediaId)) ?? lib.find((m) => m.id === rt.nowPlaying.mediaId) ?? null
+      : null;
+    const nextMedia = next
+      ? this.transientMedia.get(this.transientKey(stationId, next.mediaId)) ?? lib.find((m) => m.id === next.mediaId) ?? null
+      : null;
     const icy = this.icyNow.get(stationId);
     return {
       ...rt.nowPlaying,
       media: media && icy ? { ...media, artist: icy.artist, title: icy.title } : media,
-      next: next ? lib.find((m) => m.id === next.mediaId) ?? null : null,
+      next: nextMedia,
     };
   }
 
