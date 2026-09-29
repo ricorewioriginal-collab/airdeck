@@ -335,6 +335,10 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     app.queueAddHub(c.p, stationId, c.params.id!, typeof b.index === 'number' ? b.index : undefined);
     return app.queueView(stationId, 0, c.p);
   });
+  add('POST', '/api/v1/music-hub/items/:id/playlists/:playlistId', 'queue:write', async (c) => {
+    const b = await c.body();
+    return app.svc.planning.addMusicHubItemToPlaylist(c.p, String(b.stationId ?? ''), c.params.playlistId!, c.params.id!);
+  });
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', (c) =>
     app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
 
