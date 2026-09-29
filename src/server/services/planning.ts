@@ -37,7 +37,11 @@ export class PlanningService {
   readonly activePlanId = new Map<string, string | null>();
 
   playlists(stationId: string): Playlist[] {
-    return this.app.rt(stationId).data.playlists ?? [];
+    return (this.app.rt(stationId).data.playlists ?? []).map((pl) => ({
+      ...pl,
+      items: pl.items.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)),
+      ...(pl.shuffleOrder ? { shuffleOrder: pl.shuffleOrder.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)) } : {}),
+    }));
   }
 
   savePlaylist(stationId: string, id: string | null, input: { name?: string; color?: string; items?: unknown; mode?: unknown }): Playlist {
@@ -53,13 +57,30 @@ export class PlanningService {
     if (input.color !== undefined) pl.color = safeColor(input.color, pl.color);
     if (Array.isArray(input.items)) {
       const valid = new Set(rt.data.library.map((m) => m.id));
-      pl.items = input.items.map(String).filter((x) => valid.has(x)).slice(0, 5000);
+      const existing = [...pl.items];
+      pl.items = input.items.map(String).map((x) => {
+        if (valid.has(x)) return x;
+        return this.app.svc.musikhub.restoreExistingBroadcastRef(x, existing);
+      }).filter((x): x is string => !!x).slice(0, 5000);
       delete pl.shuffleOrder; // Reihenfolge ist ungültig geworden, wird bei Bedarf neu gemischt
     }
     if (input.mode === 'manual' || input.mode === 'shuffle') pl.mode = input.mode;
-    this.app.publish('playlists.changed', stationId, list);
+    this.app.publish('playlists.changed', stationId, this.playlists(stationId));
     this.app.changed();
-    return pl;
+    return { ...pl, items: pl.items.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)), ...(pl.shuffleOrder ? { shuffleOrder: pl.shuffleOrder.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)) } : {}) };
+  }
+
+  addMusicHubItemToPlaylist(p: import('../model.ts').Principal, stationId: string, playlistId: string, itemId: string): Playlist {
+    const rt = this.app.rt(stationId);
+    const pl = rt.data.playlists?.find((x) => x.id === playlistId);
+    if (!pl) throw new AppError(404, 'not_found', 'Playlist nicht gefunden');
+    const ref = this.app.svc.musikhub.queueBroadcast(p, itemId, stationId);
+    pl.items.push(ref);
+    delete pl.shuffleOrder;
+    this.app.publish('playlists.changed', stationId, this.playlists(stationId));
+    this.app.audit.write({ kind: 'musikhub', event: 'playlist_added', actor: p.id, stationId, playlistId, itemId });
+    this.app.changed();
+    return { ...pl, items: pl.items.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)) };
   }
 
   /** Playlist im Shuffle-Modus neu mischen: Fisher-Yates, danach direkt aufeinanderfolgende Titel desselben Interpreten möglichst auflösen. */
@@ -70,16 +91,16 @@ export class PlanningService {
     const byId = new Map(rt.data.library.map((m) => [m.id, m]));
     const order = shuffleSeparated(pl.items, (mid) => byId.get(mid)?.artist ?? '');
     pl.shuffleOrder = order;
-    this.app.publish('playlists.changed', stationId, rt.data.playlists);
+    this.app.publish('playlists.changed', stationId, this.playlists(stationId));
     this.app.changed();
-    return pl;
+    return { ...pl, items: pl.items.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)), shuffleOrder: order.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)) };
   }
 
   deletePlaylist(stationId: string, id: string): void {
     const rt = this.app.rt(stationId);
     if (rt.data.plans?.some((p) => p.playlistId === id)) throw new AppError(409, 'in_use', 'Playlist wird im Sendeplan verwendet');
     rt.data.playlists = (rt.data.playlists ?? []).filter((p) => p.id !== id);
-    this.app.publish('playlists.changed', stationId, rt.data.playlists);
+    this.app.publish('playlists.changed', stationId, this.playlists(stationId));
     this.app.changed();
   }
 
