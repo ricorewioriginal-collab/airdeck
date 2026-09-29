@@ -110,20 +110,12 @@ export function mountMusicHub(root, ctx) {
     const blob = await ctx.api.blob(url(`/items/${encodeURIComponent(item.id)}/cover?station=${encodeURIComponent(station())}`)).catch(() => null);
     if (!blob) return status('Für diesen Titel ist kein eingebettetes Cover verfügbar.', true);
     const objectUrl = URL.createObjectURL(blob);
-    const img = new Image();
-    img.src = objectUrl;
-    img.alt = `Cover: ${item.title}`;
-    img.style.maxWidth = 'min(420px, 80vw)';
-    img.style.maxHeight = '70vh';
-    img.style.borderRadius = '12px';
-    const win = window.open('', '_blank', 'noopener,noreferrer');
-    if (!win) {
-      URL.revokeObjectURL(objectUrl);
-      return status('Cover-Fenster wurde vom Browser blockiert.', true);
-    }
-    win.document.body.style.cssText = 'margin:0;display:grid;place-items:center;min-height:100vh;background:#050b14';
-    win.document.body.append(img);
-    win.addEventListener('beforeunload', () => URL.revokeObjectURL(objectUrl), { once: true });
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
   }
 
   async function deleteItem(item) {
