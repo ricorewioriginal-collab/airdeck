@@ -64,7 +64,10 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal(userGrant.status, 200);
     assert.equal((await call(tb, 'GET', '/music-hub/items?station=b')).body.total, 1, 'MH02: nur Empfänger B');
     assert.equal((await call(tc, 'GET', '/music-hub/items?station=b')).body.total, 0);
-    assert.deepEqual((await call(tb, 'GET', '/music-hub/items?station=b')).body.items[0].actions, ['catalog.read', 'preview.play']);
+    const sharedCatalogItem = (await call(tb, 'GET', '/music-hub/items?station=b')).body.items[0];
+    assert.deepEqual(sharedCatalogItem.actions, ['catalog.read', 'preview.play']);
+    assert.deepEqual(sharedCatalogItem.availability, { state: 'ready', sourceKind: 'station' });
+    assert.equal(sharedCatalogItem.source, undefined, 'fremde Quell-IDs werden trotz Verfügbarkeitsanzeige nicht offengelegt');
     const cover = await fetch(base + `/music-hub/items/${itemId}/cover?station=b`, {
       headers: { Authorization: `Bearer ${tb}` },
     });
@@ -122,6 +125,12 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     app.svc.planning.savePlan('b', null, { label: 'Hub-Zeitfenster', days: [], from: '00:00', to: '00:00', playlistId: playlist.id, shuffle: false });
     app.queueFill('b');
     assert.equal(app.rt('b').queue.list().some((q) => app.svc.musikhub.isQueuedBroadcastRef(q.mediaId)), true, 'aktiver Sendeplan füllt MusicHub-Referenzen in die Queue');
+
+    rmSync(join(app.mediaDir, 'main', 'song.mp3'), { force: true });
+    const missingCatalogItem = (await call(tb, 'GET', '/music-hub/items?station=b')).body.items[0];
+    assert.deepEqual(missingCatalogItem.availability, { state: 'missing', sourceKind: 'station' });
+    assert.equal((await call(tb, 'POST', `/music-hub/items/${itemId}/queue`, { stationId: 'b' })).status, 409, 'fehlende Quelle wird vor dem Einreihen blockiert');
+    writeFileSync(join(app.mediaDir, 'main', 'song.mp3'), Buffer.from('ID3-test-audio'));
 
     assert.equal((await call(ta, 'DELETE', `/music-hub/grants/${broadcastGrant.body.id}?station=main`)).status, 204);
     assert.equal(app.queueNext('b'), null, 'Widerruf vor Playout blockiert bereits eingereihten MusicHub-Titel erneut');
@@ -200,6 +209,7 @@ test('MusikHub: persönliche Uploads bleiben privat und getrennt von Senderbibli
     const ownerCatalog = await json(ownerToken, 'GET', '/music-hub/items?station=main&q=Song');
     assert.equal(ownerCatalog.body.total, 1);
     assert.equal(ownerCatalog.body.items[0].source.kind, 'personal');
+    assert.deepEqual(ownerCatalog.body.items[0].availability, { state: 'ready', sourceKind: 'personal' });
     assert.equal(ownerCatalog.body.items[0].source.file, undefined, 'interner Dateiname wird nicht über die API offengelegt');
     assert.equal(item.source.file, undefined, 'auch die Upload-Antwort verrät keinen internen Dateinamen');
     const metadata = await json(ownerToken, 'PATCH', `/music-hub/items/${item.id}?station=main`, {
