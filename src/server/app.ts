@@ -902,7 +902,8 @@ export class AirDeckApp {
     return {
       items: rt.queue.list().map((q, i) => ({
         ...q,
-        media: lib.get(q.mediaId) ?? (this.svc.musikhub.isQueuedBroadcastRef(q.mediaId) ? { id: q.mediaId, title: 'MusicHub-Titel', artist: '', category: 'music', durationMs: null } : null),
+        mediaId: this.svc.musikhub.isQueuedBroadcastRef(q.mediaId) ? (lib.get(q.mediaId)?.id ?? 'musikhub') : q.mediaId,
+        media: lib.get(q.mediaId) ?? (this.svc.musikhub.isQueuedBroadcastRef(q.mediaId) ? { id: 'musikhub', title: 'MusicHub-Titel', artist: '', category: 'music', durationMs: null } : null),
         startsAt: bt.rows[i]?.startsAt,
         known: bt.rows[i]?.known,
       })),
@@ -921,7 +922,7 @@ export class AirDeckApp {
     const mediaId = this.svc.musikhub.queueBroadcast(p, itemId, stationId);
     // Erster Preflight beim Einreihen. Vor der tatsächlichen Wiedergabe wird erneut geprüft.
     const media = this.svc.musikhub.resolveQueuedBroadcast(mediaId, stationId);
-    this.transientMedia.set(this.transientKey(stationId, mediaId), media);
+    this.transientMedia.set(this.transientKey(stationId, media.id), media);
     this.rt(stationId).queue.add(mediaId, 'manual', index);
     this.audit.write({ kind: 'musikhub', event: 'broadcast_queued', actor: p.id, stationId, itemId });
     this.publishQueue(stationId);
@@ -952,10 +953,10 @@ export class AirDeckApp {
       if (this.svc.musikhub.isQueuedBroadcastRef(e.mediaId)) {
         try {
           media = this.svc.musikhub.resolveQueuedBroadcast(e.mediaId, stationId);
-          this.transientMedia.set(this.transientKey(stationId, e.mediaId), media);
+          this.transientMedia.set(this.transientKey(stationId, media.id), media);
           break;
         } catch (err) {
-          this.transientMedia.delete(this.transientKey(stationId, e.mediaId));
+          // interne Queue-Referenz wird nicht als öffentliche Media-ID gespiegelt
           this.audit.write({ kind: 'musikhub', event: 'broadcast_preflight_denied', stationId, mediaId: e.mediaId, message: (err as Error).message });
           e = rt.queue.shift();
           continue;
