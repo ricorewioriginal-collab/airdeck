@@ -12,6 +12,8 @@ export function mountMusicHub(root, ctx) {
   let page = 0;
   /** @type {any[]} */ let items = [];
   /** @type {any[]} */ let collections = [];
+  /** @type {any[]} */ let cloudSources = [];
+  /** @type {Map<string, any[]>} */ const cloudIndexes = new Map();
   let total = 0;
 
   const station = () => ctx.stationId();
@@ -20,14 +22,86 @@ export function mountMusicHub(root, ctx) {
 
   async function load() {
     const sid = station();
-    const [catalog, groups] = await Promise.all([
+    const [catalog, groups, sources] = await Promise.all([
       ctx.api.get(url(`/items?station=${encodeURIComponent(sid)}&q=${encodeURIComponent(query)}&offset=${page * 50}&limit=50`)),
       ctx.api.get(url(`/collections?station=${encodeURIComponent(sid)}`)),
+      ctx.api.get(`/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources`),
     ]);
     items = catalog.items;
     total = catalog.total;
     collections = groups;
+    cloudSources = sources;
     render();
+  }
+
+  async function editCloudSource(source = null) {
+    const value = await formDialog(source ? 'Nextcloud-Quelle bearbeiten' : 'Nextcloud-Quelle anlegen', [
+      { name: 'ownerKind', label: 'Eigentum', options: [['user', 'Persönlich'], ['station', 'Aktueller Sender']], value: source?.owner?.kind || 'user' },
+      { name: 'name', label: 'Name', value: source?.name || 'Nextcloud', required: true },
+      { name: 'url', label: 'Nextcloud-Adresse', value: source?.url || '', placeholder: 'https://cloud.example.de', required: true },
+      { name: 'user', label: 'Nextcloud-Benutzer', value: source?.user || '', required: true },
+      { name: 'root', label: 'Startordner', value: source?.root || '/', required: true },
+      { name: 'password', label: source?.hasPassword ? 'Neues App-Passwort (leer = behalten)' : 'App-Passwort', type: 'password', value: '' },
+      { name: 'allowPrivateNetwork', label: 'Privates/LAN-Netz erlauben (nur Admin)', type: 'checkbox', value: source?.allowPrivateNetwork === true },
+    ], 'Speichern');
+    if (!value) return;
+    const sid = station();
+    const body = {
+      ownerKind: value.ownerKind,
+      name: value.name,
+      url: value.url,
+      user: value.user,
+      root: value.root,
+      allowPrivateNetwork: value.allowPrivateNetwork === true,
+      ...(value.password ? { password: value.password } : {}),
+      ...(source ? { revision: source.revision } : {}),
+    };
+    const result = await run(() => source
+      ? ctx.api.patch(`/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources/${encodeURIComponent(source.id)}`, body)
+      : ctx.api.post(`/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources`, body));
+    if (!result) return;
+    status(`Cloud-Quelle „${result.name}“ gespeichert`);
+    cloudIndexes.delete(result.id);
+    await run(load);
+  }
+
+  async function scanCloudSource(source) {
+    const sid = station();
+    const job = await run(() => ctx.api.post(
+      `/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources/${encodeURIComponent(source.id)}/scan`,
+      {},
+    ));
+    if (!job) return;
+    status(`Nextcloud-Scan abgeschlossen: ${job.files} Audiodateien indexiert`);
+    cloudIndexes.delete(source.id);
+    await run(load);
+  }
+
+  async function toggleCloudIndex(source) {
+    if (cloudIndexes.has(source.id)) {
+      cloudIndexes.delete(source.id);
+      render();
+      return;
+    }
+    const sid = station();
+    const entries = await run(() => ctx.api.get(
+      `/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources/${encodeURIComponent(source.id)}/index`,
+    ));
+    if (!entries) return;
+    cloudIndexes.set(source.id, entries);
+    render();
+  }
+
+  async function deleteCloudSource(source) {
+    if (!confirm(`Cloud-Quelle „${source.name}“ wirklich entfernen? Index und gespeichertes App-Passwort werden gelöscht.`)) return;
+    const sid = station();
+    const result = await run(() => ctx.api.del(
+      `/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources/${encodeURIComponent(source.id)}`,
+    ));
+    if (result === undefined) return;
+    cloudIndexes.delete(source.id);
+    status('Cloud-Quelle entfernt');
+    await run(load);
   }
 
   async function register(media) {
@@ -275,6 +349,27 @@ export function mountMusicHub(root, ctx) {
           h('div', { class: 'row' },
             h('button', { class: 'btn small', disabled: page === 0, onclick: () => { page--; void run(load); } }, 'Zurück'),
             h('button', { class: 'btn small', disabled: (page + 1) * 50 >= total, onclick: () => { page++; void run(load); } }, 'Weiter')))),
+      h('section', { class: 'panel' },
+        h('div', { class: 'panel-head' },
+          h('h2', {}, 'Cloud-Quellen'),
+          h('button', { class: 'btn small', onclick: () => editCloudSource() }, '＋ Nextcloud')),
+        h('p', { class: 'muted' }, 'MusicHub-Quellen gehören einem Nutzer oder Sender. App-Passwörter werden verschlüsselt gespeichert und nie an das Studio zurückgegeben.'),
+        cloudSources.length
+          ? h('ul', { class: 'plain-list' }, ...cloudSources.map((source) => {
+              const index = cloudIndexes.get(source.id);
+              return h('li', { class: 'mh-entry' },
+                h('strong', {}, source.name),
+                h('span', { class: 'muted' }, ` · ${source.owner.kind === 'station' ? 'Sender' : 'Persönlich'} · ${source.lastScanAt ? `zuletzt ${new Date(source.lastScanAt).toLocaleString('de-DE')}` : 'noch nicht gescannt'}${source.lastError ? ` · Fehler: ${source.lastError}` : ''}`),
+                h('div', { class: 'row mh-actions' },
+                  h('button', { class: 'btn small primary', onclick: () => scanCloudSource(source) }, 'Scannen'),
+                  h('button', { class: 'btn small', onclick: () => toggleCloudIndex(source) }, index ? 'Index schließen' : 'Index ansehen'),
+                  h('button', { class: 'btn small', onclick: () => editCloudSource(source) }, 'Bearbeiten'),
+                  h('button', { class: 'btn small danger', onclick: () => deleteCloudSource(source) }, 'Löschen')),
+                index ? h('ul', { class: 'plain-list' },
+                  ...index.slice(0, 50).map((entry) => h('li', { class: 'muted' }, `${entry.name} · ${Math.round((entry.size || 0) / 1024)} KB`)),
+                  index.length > 50 ? h('li', { class: 'muted' }, `… ${index.length - 50} weitere`) : null) : null);
+            }))
+          : h('p', { class: 'muted' }, 'Noch keine MusicHub-Cloudquelle eingerichtet.')),
       h('section', { class: 'panel' },
         h('div', { class: 'panel-head' }, h('h2', {}, 'Meine persönliche Musik')),
         h('p', { class: 'muted' }, 'Persönliche Uploads liegen getrennt von den Senderbibliotheken. Ohne ausdrückliche Freigabe sieht kein anderer Nutzer diese Titel.'),
