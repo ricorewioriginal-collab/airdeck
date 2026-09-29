@@ -258,7 +258,7 @@ export function mountMusicHub(root, ctx) {
           h('p', { class: 'muted mh-page-info' }, `Titel ${first}–${last} von ${total} · ${visible.length} auf dieser Seite im gewählten Filter`),
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
             h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}${item.version ? ` [${item.version}]` : ''}`),
-            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : 'Persönlich'}`),
+            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? 'Senderarchiv' : 'Persönlich'} · ${item.availability?.state === 'ready' ? 'verfügbar' : 'nicht verfügbar'}`),
             h('div', { class: 'row mh-actions' },
               item.actions.includes('catalog.read') ? h('button', { class: 'btn small', onclick: () => showCover(item) }, 'Cover') : null,
               item.actions.includes('preview.play') ? h('button', { class: 'btn small', onclick: () => preview(item) }, '▶ Vorhören') : null,
