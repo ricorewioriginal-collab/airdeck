@@ -497,7 +497,18 @@ tr.active-row td { background: rgba(34,197,94,.08); }
 .mh-entry strong { min-width: 0; }
 .mh-entry > .btn { margin-left: auto; }
 .mh-actions { flex-wrap: wrap; margin-top: 6px; }
-@media (max-width: 700px) { .mh-grid { grid-template-columns: 1fr; } .mh-toolbar [role="status"] { white-space: normal; } }
+@media (max-width: 700px) {
+  .mh-grid { grid-template-columns: 1fr; }
+  .mh-toolbar, .mh-filters, .mh-actions { flex-wrap: wrap; }
+  .mh-toolbar input[type="search"] { flex: 1 1 100%; min-width: 0; }
+  .mh-toolbar [role="status"] { white-space: normal; }
+  .mh-actions .btn { flex: 1 1 140px; }
+  .mh-entry { align-items: flex-start; }
+}
+.mh-job-list { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(155, 180, 220, .14); }
+.mh-job-list h3 { margin: 0 0 6px; font-size: .95rem; }
+.mh-job { padding: 6px 0; overflow-wrap: anywhere; }
+.mh-job-failed strong { color: var(--danger, #ff6b6b); }
 .nc-crumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .nc-list { list-style: none; margin: 0; padding: 0; }
 .nc-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; border-bottom: 1px solid var(--line); min-height: 48px; }
