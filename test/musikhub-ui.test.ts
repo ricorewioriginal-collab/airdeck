@@ -25,7 +25,7 @@ test('MusicHub-Studio deckt private Medien, Rechte und Broadcast ab', () => {
     'Löschen',
   ]) assert.ok(hub.includes(label), `UI-Aktion fehlt: ${label}`);
 
-  assert.match(hub, /\/music-hub\/personal/);
+  assert.ok(hub.includes("url(\`/personal?station="), 'persönlicher Upload-Pfad fehlt im Studio');
   assert.match(hub, /\/items\/\$\{encodeURIComponent\(item\.id\)\}\/preview/);
   assert.match(hub, /\/items\/\$\{encodeURIComponent\(item\.id\)\}\/download/);
   assert.match(hub, /\/items\/\$\{encodeURIComponent\(item\.id\)\}\/queue/);
