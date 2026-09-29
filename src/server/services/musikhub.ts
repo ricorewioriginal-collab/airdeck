@@ -408,6 +408,24 @@ export class MusicHubService {
       }
     }
     this.state.grants = this.state.grants.filter((g) => !(g.resource.kind === 'item' && g.resource.id === itemId));
+    for (const [stationId, rt] of this.app.stations) {
+      let changed = false;
+      for (const playlist of rt.data.playlists ?? []) {
+        const before = playlist.items.length;
+        playlist.items = playlist.items.filter((mediaId) => this.queuedParts(mediaId)?.itemId !== itemId);
+        if (playlist.items.length !== before) {
+          delete playlist.shuffleOrder;
+          changed = true;
+        }
+      }
+      const queueBefore = rt.queue.length;
+      rt.queue.prune((mediaId) => this.queuedParts(mediaId)?.itemId !== itemId);
+      if (rt.queue.length !== queueBefore) {
+        this.app.publishQueue(stationId);
+        changed = true;
+      }
+      if (changed) this.app.publish('playlists.changed', stationId, this.app.svc.planning.playlists(stationId));
+    }
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'item_deleted', actor: this.actor(p), itemId });
   }
