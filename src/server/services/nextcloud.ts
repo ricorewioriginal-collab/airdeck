@@ -3,14 +3,255 @@
 import type { AirDeckApp } from '../app.ts';
 import { extname, join } from 'node:path';
 import { MEDIA_CATEGORIES, parseFileName, type MediaItem } from '../../core/automation.ts';
-import { AUDIO_FILE_RE, AppError, newId } from '../model.ts';
+import { AUDIO_FILE_RE, AppError, canSee, newId, type Principal } from '../model.ts';
 import { Nextcloud, NextcloudError, cleanPath, type NextcloudConfig } from '../nextcloud.ts';
+
+type CloudOwner = { kind: 'user' | 'station'; id: string };
+
+interface HubNextcloudSource {
+  id: string;
+  owner: CloudOwner;
+  name: string;
+  url: string;
+  user: string;
+  root: string;
+  secretRef: string;
+  allowPrivateNetwork: boolean;
+  createdAt: number;
+  updatedAt: number;
+  revision: number;
+  lastScanAt: number | null;
+  lastError: string | null;
+}
+
+interface HubNextcloudEntry {
+  sourceId: string;
+  path: string;
+  name: string;
+  size: number;
+  type: string;
+  modified: string | null;
+  indexedAt: number;
+}
+
+interface HubNextcloudJob {
+  id: string;
+  sourceId: string;
+  kind: 'scan';
+  status: 'queued' | 'running' | 'done' | 'failed';
+  createdAt: number;
+  updatedAt: number;
+  files: number;
+  error: string | null;
+}
+
+interface HubNextcloudState {
+  version: 1;
+  sources: HubNextcloudSource[];
+  entries: HubNextcloudEntry[];
+  jobs: HubNextcloudJob[];
+}
+
+const HUB_NC_DEFAULT: HubNextcloudState = { version: 1, sources: [], entries: [], jobs: [] };
+const HUB_NC_MAX_FILES = 1000;
+const HUB_NC_MAX_DEPTH = 5;
+const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
 
 export class NextcloudService {
   private readonly app: AirDeckApp;
 
   constructor(app: AirDeckApp) {
     this.app = app;
+  }
+
+  private hubState(): HubNextcloudState {
+    return this.app.docs.get<HubNextcloudState>('musikhub-nextcloud', HUB_NC_DEFAULT);
+  }
+
+  private saveHubState(state: HubNextcloudState): void {
+    this.app.docs.set('musikhub-nextcloud', state);
+  }
+
+  private explicitStationMember(p: Principal, stationId: string): boolean {
+    if (!p.user) return false;
+    const user = this.app.users.get(p.user.id);
+    return !!user && !user.disabled && user.stationIds.includes(stationId);
+  }
+
+  private ownerAccess(p: Principal, owner: CloudOwner): boolean {
+    return owner.kind === 'user' ? p.user?.id === owner.id : this.explicitStationMember(p, owner.id);
+  }
+
+  private stationContext(p: Principal, stationId: string): void {
+    if (!this.app.stations.has(stationId) || !canSee(p, stationId)) throw new AppError(404, 'not_found', 'Sender nicht gefunden');
+  }
+
+  private publicHubSource(source: HubNextcloudSource) {
+    const { secretRef: _secretRef, ...safe } = source;
+    return { ...safe, hasPassword: this.app.secrets.has(source.secretRef) };
+  }
+
+  private hubSource(p: Principal, stationId: string, id: string, write = false): HubNextcloudSource {
+    this.stationContext(p, stationId);
+    if (!hasScope(p, write ? 'media:write' : 'media:read')) throw new AppError(403, 'forbidden', 'Medienrecht fehlt');
+    const source = this.hubState().sources.find((x) => x.id === id);
+    if (!source || !this.ownerAccess(p, source.owner)) throw new AppError(404, 'not_found', 'Cloud-Quelle nicht gefunden');
+    return source;
+  }
+
+  hubNextcloudSources(p: Principal, stationId: string) {
+    this.stationContext(p, stationId);
+    if (!hasScope(p, 'media:read')) throw new AppError(403, 'forbidden', 'Medien-Leserecht fehlt');
+    return this.hubState().sources.filter((source) => this.ownerAccess(p, source.owner)).map((source) => this.publicHubSource(source));
+  }
+
+  async saveHubNextcloudSource(p: Principal, stationId: string, id: string | null, input: Record<string, unknown>) {
+    this.stationContext(p, stationId);
+    if (!p.user || !hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Cloud-Quellen benötigen ein Benutzerkonto mit Medien-Schreibrecht');
+    const state = this.hubState();
+    let source = id ? state.sources.find((x) => x.id === id) : undefined;
+    if (id && (!source || !this.ownerAccess(p, source.owner))) throw new AppError(404, 'not_found', 'Cloud-Quelle nicht gefunden');
+
+    const ownerKind = input.ownerKind === 'station' ? 'station' : 'user';
+    const owner: CloudOwner = ownerKind === 'station' ? { kind: 'station', id: stationId } : { kind: 'user', id: p.user.id };
+    if (!this.ownerAccess(p, owner)) throw new AppError(403, 'forbidden', 'Eigentümer nicht erlaubt');
+
+    const rawUrl = String(input.url ?? source?.url ?? '').trim().replace(/\/+$/, '');
+    let parsed: URL;
+    try { parsed = new URL(rawUrl); } catch { throw new AppError(400, 'invalid_url', 'Ungültige Nextcloud-Adresse'); }
+    const allowPrivateNetwork = input.allowPrivateNetwork === true;
+    if (parsed.protocol !== 'https:' && !(allowPrivateNetwork && p.roles.includes('admin'))) {
+      throw new AppError(400, 'https_required', 'MusicHub-Cloudquellen benötigen HTTPS; private HTTP-Netze nur mit Admin-Freigabe');
+    }
+    if (!parsed.hostname || parsed.username || parsed.password) throw new AppError(400, 'invalid_url', 'Ungültige Nextcloud-Adresse');
+
+    const user = String(input.user ?? source?.user ?? '').trim().slice(0, 200);
+    if (!user) throw new AppError(400, 'invalid_user', 'Nextcloud-Benutzername fehlt');
+    let root: string;
+    try { root = cleanPath(String(input.root ?? source?.root ?? '/')); } catch { throw new AppError(400, 'invalid_path', 'Ungültiger Startordner'); }
+
+    if (!source) {
+      const sourceId = newId('ncsrc');
+      source = {
+        id: sourceId,
+        owner,
+        name: String(input.name ?? 'Nextcloud').trim().slice(0, 80) || 'Nextcloud',
+        url: rawUrl,
+        user,
+        root,
+        secretRef: `musikhub:nextcloud:${sourceId}:password`,
+        allowPrivateNetwork,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        revision: 1,
+        lastScanAt: null,
+        lastError: null,
+      };
+      state.sources.push(source);
+    } else {
+      const revision = Number(input.revision);
+      if (!Number.isInteger(revision) || revision !== source.revision) throw new AppError(409, 'revision_conflict', 'Cloud-Quelle wurde inzwischen geändert');
+      source.owner = owner;
+      source.name = String(input.name ?? source.name).trim().slice(0, 80) || source.name;
+      source.url = rawUrl;
+      source.user = user;
+      source.root = root;
+      source.allowPrivateNetwork = allowPrivateNetwork;
+      source.updatedAt = Date.now();
+      source.revision++;
+      source.lastError = null;
+    }
+    if (typeof input.password === 'string' && input.password.trim()) this.app.secrets.set(source.secretRef, input.password.trim());
+    if (!this.app.secrets.has(source.secretRef)) throw new AppError(400, 'no_password', 'Nextcloud-App-Passwort fehlt');
+    this.saveHubState(state);
+    await this.app.docs.flush();
+    this.app.audit.write({ kind: 'musikhub', event: 'cloud_source_saved', actor: p.user.id, sourceId: source.id, owner: source.owner });
+    return this.publicHubSource(source);
+  }
+
+  async deleteHubNextcloudSource(p: Principal, stationId: string, sourceId: string): Promise<void> {
+    const source = this.hubSource(p, stationId, sourceId, true);
+    const state = this.hubState();
+    state.sources = state.sources.filter((x) => x.id !== sourceId);
+    state.entries = state.entries.filter((x) => x.sourceId !== sourceId);
+    state.jobs = state.jobs.filter((x) => x.sourceId !== sourceId);
+    this.app.secrets.delete(source.secretRef);
+    this.saveHubState(state);
+    await this.app.docs.flush();
+    this.app.audit.write({ kind: 'musikhub', event: 'cloud_source_deleted', actor: p.user?.id ?? p.id, sourceId });
+  }
+
+  hubNextcloudIndex(p: Principal, stationId: string, sourceId: string) {
+    this.hubSource(p, stationId, sourceId, false);
+    return this.hubState().entries.filter((x) => x.sourceId === sourceId).map((x) => ({ ...x }));
+  }
+
+  hubNextcloudJobs(p: Principal, stationId: string) {
+    this.stationContext(p, stationId);
+    if (!hasScope(p, 'media:read')) throw new AppError(403, 'forbidden', 'Medien-Leserecht fehlt');
+    const state = this.hubState();
+    const allowed = new Set(state.sources.filter((source) => this.ownerAccess(p, source.owner)).map((source) => source.id));
+    return state.jobs.filter((job) => allowed.has(job.sourceId)).map((job) => ({ ...job }));
+  }
+
+  async scanHubNextcloudSource(p: Principal, stationId: string, sourceId: string) {
+    const source = this.hubSource(p, stationId, sourceId, true);
+    const password = this.app.secrets.get(source.secretRef);
+    if (!password) throw new AppError(409, 'no_password', 'Nextcloud-App-Passwort fehlt');
+    const state = this.hubState();
+    const job: HubNextcloudJob = { id: newId('ncjob'), sourceId, kind: 'scan', status: 'running', createdAt: Date.now(), updatedAt: Date.now(), files: 0, error: null };
+    state.jobs.push(job);
+    this.saveHubState(state);
+    await this.app.docs.flush();
+
+    const client = new Nextcloud({ url: source.url, user: source.user, root: source.root }, password);
+    const found: HubNextcloudEntry[] = [];
+    const walk = async (path: string, depth: number): Promise<void> => {
+      if (depth > HUB_NC_MAX_DEPTH || found.length >= HUB_NC_MAX_FILES) return;
+      const entries = await this.ncCall(() => client.list(path));
+      for (const entry of entries) {
+        if (found.length >= HUB_NC_MAX_FILES) break;
+        if (entry.dir) {
+          if (depth < HUB_NC_MAX_DEPTH) await walk(entry.path, depth + 1);
+          continue;
+        }
+        if (!AUDIO_FILE_RE.test(entry.name)) continue;
+        found.push({
+          sourceId,
+          path: cleanPath(entry.path),
+          name: entry.name,
+          size: entry.size,
+          type: entry.type,
+          modified: entry.modified,
+          indexedAt: Date.now(),
+        });
+      }
+    };
+
+    try {
+      await walk(source.root, 0);
+      state.entries = [...state.entries.filter((x) => x.sourceId !== sourceId), ...found];
+      source.lastScanAt = Date.now();
+      source.lastError = null;
+      source.updatedAt = Date.now();
+      job.status = 'done';
+      job.files = found.length;
+      job.updatedAt = Date.now();
+      this.saveHubState(state);
+      await this.app.docs.flush();
+      this.app.audit.write({ kind: 'musikhub', event: 'cloud_scan_done', actor: p.user?.id ?? p.id, sourceId, files: found.length });
+      return { ...job };
+    } catch (err) {
+      source.lastError = (err as Error).message.slice(0, 300);
+      source.updatedAt = Date.now();
+      job.status = 'failed';
+      job.error = source.lastError;
+      job.updatedAt = Date.now();
+      this.saveHubState(state);
+      await this.app.docs.flush();
+      this.app.audit.write({ kind: 'musikhub', event: 'cloud_scan_failed', actor: p.user?.id ?? p.id, sourceId });
+      throw err;
+    }
   }
 
   nextcloudConfig(): (NextcloudConfig & { hasPassword: boolean }) | { configured: false } {
