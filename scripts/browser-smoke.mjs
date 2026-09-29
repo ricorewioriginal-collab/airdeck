@@ -161,7 +161,7 @@ try {
   await page.getByText(/Smoke Song/).first().waitFor();
 
   const smokeEntry = page.locator('.mh-entry').filter({ hasText: 'Smoke Song' }).first();
-  for (const action of ['▶ Vorhören', '↓ Download', '＋ In Queue', '＋ Playlist', 'Metadaten', 'Freigeben', 'Freigaben', 'In Sammlung']) {
+  for (const action of ['▶ Vorhören', '↓ Download', '＋ In Queue', '＋ Playlist', 'Metadaten', 'Freigeben', 'Freigaben', 'In Sammlung', 'Löschen']) {
     assert.equal(await smokeEntry.getByRole('button', { name: action, exact: true }).count(), 1, `MusicHub Titel-Aktion fehlt: ${action}`);
   }
 
@@ -191,7 +191,7 @@ try {
   await page.getByRole('heading', { name: 'MusicHub-Freigabe', exact: true }).waitFor();
   for (const label of [
     'Empfänger', 'Gültig für Sender', 'Im Katalog sichtbar', 'Vorhören erlauben',
-    'Datei herunterladen erlauben', 'Für Sendung verwenden erlauben', 'Export/Transfer erlauben',
+    'Datei herunterladen erlauben', 'Für Sendung verwenden erlauben',
     'Gültig ab (optional)', 'Ablauf (optional)',
   ]) assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, `MusicHub Freigabedialog: Feld fehlt: ${label}`);
   await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
