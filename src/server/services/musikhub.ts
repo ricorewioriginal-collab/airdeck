@@ -2,6 +2,9 @@
 // ein vorhandenes Sendermedium; Dateiabruf und Sendebereitstellung folgen in
 // eigenen, erneut autorisierten Phasen.
 
+import { mkdirSync, rmSync } from 'node:fs';
+import { extname, join } from 'node:path';
+import { parseFileName } from '../../core/automation.ts';
 import type { AirDeckApp } from '../app.ts';
 import { AppError, canSee, newId, type Principal } from '../model.ts';
 
@@ -12,10 +15,14 @@ export const HUB_ACTIONS = [
 export type HubAction = typeof HUB_ACTIONS[number];
 export type HubSubject = { kind: 'user' | 'station'; id: string };
 export type HubResource = { kind: 'item' | 'collection'; id: string };
+export type HubItemSource =
+  | { kind?: 'station'; stationId: string; mediaId: string }
+  | { kind: 'personal'; file: string; originalName: string; contentType: string; size: number };
+
 export interface HubItem {
   id: string;
   owner: HubSubject;
-  source: { stationId: string; mediaId: string };
+  source: HubItemSource;
   title: string;
   artist: string;
   version: string | null;
@@ -48,6 +55,7 @@ interface HubState { version: 1; items: HubItem[]; collections: HubCollection[];
 const READ_ACTIONS = new Set<HubAction>(['catalog.read', 'preview.play', 'file.download']);
 const BROADCAST_ACTIONS = new Set<HubAction>(['broadcast.use']);
 const MAX_COLLECTION_ITEMS = 5000;
+const MAX_PERSONAL_UPLOAD = 300 * 1024 * 1024;
 const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
 const validAction = (value: unknown): value is HubAction => typeof value === 'string' && (HUB_ACTIONS as readonly string[]).includes(value);
 const same = (a: HubSubject, b: HubSubject) => a.kind === b.kind && a.id === b.id;
@@ -57,6 +65,10 @@ export class MusicHubService {
   private loaded: HubState | null = null;
 
   constructor(app: AirDeckApp) { this.app = app; }
+
+  private personalDir(userId: string): string {
+    return join(this.app.dataDir, 'musikhub', 'personal', userId);
+  }
 
   private get state(): HubState {
     return (this.loaded ??= this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [] }));
@@ -146,12 +158,82 @@ export class MusicHubService {
   resolveAudioFile(p: Principal, itemId: string, stationId: string, action: 'preview.play' | 'file.download') {
     this.require(p, { kind: 'item', id: itemId }, stationId, action);
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    if (item.source.kind === 'personal') {
+      return {
+        path: join(this.personalDir(item.owner.id), item.source.file),
+        name: item.source.originalName,
+        contentType: item.source.contentType,
+      };
+    }
     const media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
     if (media.url) throw new AppError(409, 'invalid_source', 'Stream-URLs können nicht über den MusikHub abgerufen werden');
     return {
       path: this.app.svc.media.mediaPath(item.source.stationId, media),
       name: media.originalName || media.file,
+      contentType: null,
     };
+  }
+
+  preparePersonalUpload(p: Principal, stationId: string, originalNameInput: string, contentType: string) {
+    this.actor(p);
+    this.station(p, stationId);
+    if (!p.user || !hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Persönlicher Upload benötigt ein Benutzerkonto mit Medien-Schreibrecht');
+    const originalName = originalNameInput.replace(/^.*[\\/]/, '').trim().slice(0, 200);
+    const ext = extname(originalName).toLowerCase();
+    if (!originalName || !ext) throw new AppError(400, 'invalid_name', 'Dateiname fehlt');
+    const id = newId('hub');
+    const file = `${id}${ext}`;
+    const dir = this.personalDir(p.user.id);
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    return { id, userId: p.user.id, originalName, contentType, file, path: join(dir, file), maxBytes: MAX_PERSONAL_UPLOAD };
+  }
+
+  discardPersonalUpload(draft: { path: string }): void {
+    rmSync(draft.path, { force: true });
+  }
+
+  async commitPersonalUpload(
+    p: Principal,
+    stationId: string,
+    draft: { id: string; userId: string; originalName: string; contentType: string; file: string },
+    size: number,
+  ): Promise<HubItem> {
+    this.actor(p);
+    this.station(p, stationId);
+    if (!p.user || p.user.id !== draft.userId || !hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Upload-Eigentümer stimmt nicht');
+    if (!Number.isFinite(size) || size <= 0 || size > MAX_PERSONAL_UPLOAD) throw new AppError(400, 'invalid_size', 'Ungültige Dateigröße');
+    const meta = parseFileName(draft.originalName);
+    const item: HubItem = {
+      id: draft.id,
+      owner: { kind: 'user', id: p.user.id },
+      source: { kind: 'personal', file: draft.file, originalName: draft.originalName, contentType: draft.contentType, size },
+      title: meta.title || draft.originalName,
+      artist: meta.artist,
+      version: null,
+      createdAt: Date.now(),
+      revision: 1,
+    };
+    this.state.items.push(item);
+    await this.save();
+    this.app.audit.write({ kind: 'musikhub', event: 'personal_uploaded', actor: this.actor(p), itemId: item.id, size });
+    return item;
+  }
+
+  async deleteItem(p: Principal, itemId: string, stationId: string): Promise<void> {
+    this.require(p, { kind: 'item', id: itemId }, stationId, 'media.delete');
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur Eigentümer können MusikHub-Medien löschen');
+    if (item.source.kind === 'personal') rmSync(join(this.personalDir(item.owner.id), item.source.file), { force: true });
+    this.state.items = this.state.items.filter((x) => x.id !== itemId);
+    for (const collection of this.state.collections) {
+      if (collection.itemIds.includes(itemId)) {
+        collection.itemIds = collection.itemIds.filter((id) => id !== itemId);
+        collection.revision++;
+      }
+    }
+    this.state.grants = this.state.grants.filter((g) => !(g.resource.kind === 'item' && g.resource.id === itemId));
+    await this.save();
+    this.app.audit.write({ kind: 'musikhub', event: 'item_deleted', actor: this.actor(p), itemId });
   }
 
   listItems(p: Principal, stationId: string, search = '', offset = 0, limit = 50) {
@@ -165,7 +247,19 @@ export class MusicHubService {
     const count = Math.min(100, Math.max(1, Math.floor(limit) || 50));
     return {
       total: filtered.length,
-      items: filtered.slice(start, start + count).map((item) => ({ id: item.id, title: item.title, artist: item.artist, version: item.version, owner: item.owner, ...(item.owner.kind === 'station' && item.owner.id === stationId && this.ownerAccess(p, item.owner) ? { source: item.source } : {}), actions: this.actions(p, { kind: 'item', id: item.id }, stationId) })),
+      items: filtered.slice(start, start + count).map((item) => ({
+        id: item.id,
+        title: item.title,
+        artist: item.artist,
+        version: item.version,
+        owner: item.owner,
+        ...(this.ownerAccess(p, item.owner)
+          ? { source: item.source.kind === 'personal'
+            ? { kind: 'personal', originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size }
+            : item.source }
+          : {}),
+        actions: this.actions(p, { kind: 'item', id: item.id }, stationId),
+      })),
       nextOffset: start + count < filtered.length ? start + count : null,
     };
   }
@@ -177,9 +271,9 @@ export class MusicHubService {
     if (!this.explicitMember(p, stationId)) throw new AppError(403, 'forbidden', 'Ausdrückliche Senderzuordnung erforderlich');
     const media = this.app.svc.media.media(stationId, mediaId);
     if (media.url) throw new AppError(400, 'invalid_source', 'URL-Streams sind keine Archivdateien');
-    const existing = this.state.items.find((x) => x.source.stationId === stationId && x.source.mediaId === mediaId);
+    const existing = this.state.items.find((x) => x.source.kind !== 'personal' && x.source.stationId === stationId && x.source.mediaId === mediaId);
     if (existing) return existing;
-    const item: HubItem = { id: newId('hub'), owner: { kind: 'station', id: stationId }, source: { stationId, mediaId }, title: media.title, artist: media.artist, version: null, createdAt: Date.now(), revision: 1 };
+    const item: HubItem = { id: newId('hub'), owner: { kind: 'station', id: stationId }, source: { kind: 'station', stationId, mediaId }, title: media.title, artist: media.artist, version: null, createdAt: Date.now(), revision: 1 };
     this.state.items.push(item);
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'item_registered', actor: this.actor(p), stationId, itemId: item.id });
