@@ -127,6 +127,13 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     FILES['/Radio/Hits/Too Large.mp3'] = Buffer.from('ID3-too-large-for-limit');
     const limitedSync = await app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false) as { skippedTooLarge: number };
     assert.equal(limitedSync.skippedTooLarge >= 1, true, 'Dateien über Quelllimit werden übersprungen');
+    const tooLargeIndex = app.svc.nextcloud.hubNextcloudIndex(ownerP, 'main', hubSource.id) as Array<{ name: string; path: string }>;
+    const tooLargePath = tooLargeIndex.find((e) => e.name === 'Too Large.mp3')!.path;
+    await assert.rejects(
+      app.svc.nextcloud.retrieveHubNextcloudEntry(ownerP, 'main', hubSource.id, tooLargePath),
+      /Limit/,
+      'manueller Abruf kann Dateigrößen-/Quotenregeln nicht umgehen',
+    );
 
     const sourceBeforeFailure = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
     await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
