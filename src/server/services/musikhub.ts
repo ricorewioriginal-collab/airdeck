@@ -21,7 +21,7 @@ export type HubResource = { kind: 'item' | 'collection'; id: string };
 export type HubItemSource =
   | { kind?: 'station'; stationId: string; mediaId: string }
   | { kind: 'personal'; file: string; originalName: string; contentType: string; size: number }
-  | { kind: 'nextcloud'; sourceId: string; remotePath: string; file: string; originalName: string; contentType: string; size: number; modified: string | null };
+  | { kind: 'nextcloud'; sourceId: string; remotePath: string; file: string; originalName: string; contentType: string; size: number; modified: string | null; localMetadataDirty?: boolean };
 
 export interface HubItem {
   id: string;
@@ -418,6 +418,7 @@ export class MusicHubService {
         contentType: input.contentType,
         size: input.size,
         modified: input.modified,
+        localMetadataDirty: false,
       },
       title: meta.title || input.originalName,
       artist: meta.artist,
@@ -449,6 +450,7 @@ export class MusicHubService {
     item.title = title;
     item.artist = artist;
     item.version = versionText || null;
+    if (item.source.kind === 'nextcloud') item.source.localMetadataDirty = true;
     item.revision++;
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'metadata_changed', actor: this.actor(p), itemId, revision: item.revision });
@@ -572,7 +574,17 @@ export class MusicHubService {
           ? { source: item.source.kind === 'personal'
             ? { kind: 'personal', originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size }
             : item.source.kind === 'nextcloud'
-              ? { kind: 'nextcloud', sourceId: item.source.sourceId, remotePath: item.source.remotePath, originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size, modified: item.source.modified }
+              ? {
+                  kind: 'nextcloud',
+                  sourceId: item.source.sourceId,
+                  remotePath: item.source.remotePath,
+                  originalName: item.source.originalName,
+                  contentType: item.source.contentType,
+                  size: item.source.size,
+                  modified: item.source.modified,
+                  localMetadataDirty: item.source.localMetadataDirty === true,
+                  remoteStatus: this.app.svc.nextcloud.hubNextcloudRemoteState(item.source.sourceId, item.source.remotePath, item.source.modified, item.source.size),
+                }
               : item.source }
           : {}),
         actions: this.actions(p, { kind: 'item', id: item.id }, stationId),
