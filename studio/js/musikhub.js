@@ -358,7 +358,7 @@ export function mountMusicHub(root, ctx) {
     const visible = items.filter((item) =>
       filter === 'all'
       || filter === 'station' && item.owner.kind === 'station' && item.owner.id === sid
-      || filter === 'personal' && item.owner.kind === 'user' && item.source?.kind === 'personal'
+      || filter === 'personal' && item.owner.kind === 'user' && !!item.source
       || filter === 'shared' && !(item.owner.kind === 'station' && item.owner.id === sid) && !item.source
     );
     const unregistered = ctx.library().filter((m) => !m.url && !items.some((item) => item.source?.stationId === sid && item.source?.mediaId === m.id));
