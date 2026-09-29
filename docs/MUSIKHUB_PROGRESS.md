@@ -1,6 +1,6 @@
 # MusikHub – überprüfbarer Entwicklungsstand
 
-Stand: 2026-09-28. Ausgangspunkt des Codes: `8f9839da043fb4ea574259b67f6ecfd4679e45f7`; Phase-1-Codecommit: `e88799a168a6fe1a72d306598db21f80cabfd70b`; Phase-0-Audit: `docs/MUSIKHUB_CODE_AUDIT.md`. Fachliche Anforderungen und Abnahmematrix liegen im vom Nutzer bereitgestellten Paket `AirDeck_Beta1_Handover_2026-09-27_MusikHub (1).zip`, Dateien `08`–`10`. Das ZIP ist Referenzmaterial, kein ausführbares Projekt und keine Behauptung über implementierten Code.
+Stand: 2026-09-29. Ausgangspunkt des Codes: `8f9839da043fb4ea574259b67f6ecfd4679e45f7`; Phase-1-Codecommit: `e88799a168a6fe1a72d306598db21f80cabfd70b`; Phase-0-Audit: `docs/MUSIKHUB_CODE_AUDIT.md`. Fachliche Anforderungen und Abnahmematrix liegen im vom Nutzer bereitgestellten Paket `AirDeck_Beta1_Handover_2026-09-27_MusikHub (1).zip`, Dateien `08`–`10`. Das ZIP ist Referenzmaterial, kein ausführbares Projekt und keine Behauptung über implementierten Code.
 
 ## Phasen
 
@@ -8,7 +8,7 @@ Stand: 2026-09-28. Ausgangspunkt des Codes: `8f9839da043fb4ea574259b67f6ecfd4679
 |---|---|---|
 | 0 – Bestandsaudit | Abgeschlossen | `docs/MUSIKHUB_CODE_AUDIT.md`, reale Medien-, RBAC-, Datenbank-, Nextcloud- und SSE-Einstiegspunkte. |
 | 1 – Katalog, Eigentum, Grants | Erster abgeschlossener Block | Additive Migration 2 (`hub_items`, `hub_collections`, `hub_grants`); `src/server/services/musikhub.ts`; REST in `src/server/http.ts`. Sender-Medien werden ausdrücklich als Katalogreferenz registriert, nie automatisch geteilt. Sammlung, Mitgliedschaft, Nutzer-/Sendergrant, Senderkontext, Ablauf, Widerruf und Optimistic Revision sind implementiert. Das vorhandene `media:read`/`media:write`-RBAC bleibt vorgeschaltet. Stationsinhalt verlangt eine konkrete Nutzer-Senderzuordnung; das Plattform-`*` und reine API-Tokens geben keinen MusikHub-Inhaltszugriff. Negativtests in `test/musikhub.test.ts`. |
-| 2 – Studio | Teilweise umgesetzt | Ein MusikHub-Reiter in der bestehenden Mediathek bietet Katalogsuche, Katalogisieren, Sender-Sammlungen sowie Katalogfreigaben und Widerruf. Es gibt noch keinen privaten Audio-Upload, autorisierten Hub-Vorhör-/Download-Endpunkt oder vollständige Mobile-Abnahme. Die UI bietet diese Aktionen deshalb nicht an. |
+| 2 – Studio | Weitgehend umgesetzt, Abnahme offen | Der MusikHub-Reiter bietet Katalogsuche, Sender- und persönliche Sammlungen, privaten persönlichen Audio-Upload außerhalb der Senderbibliothek, Metadaten mit Revision und Versions-/Mix-Feld, autorisiertes Vorhören mit Range-Requests, getrennten Download, geschützte Cover, granulare Nutzer-/Senderfreigaben mit Ablauf sowie Widerruf. Interne persönliche Speicherpfade werden nicht ausgegeben. Offen bleiben insbesondere vollständige Mobile-Abnahme, Broadcast-/Sendebus-Nutzung, Quell-/Verfügbarkeitsanzeige für spätere Cloudquellen und vollständige MH01–MH24-Abnahme. |
 | 3 – Nextcloud-Quellen/Jobs | Offen | Der Legacy-Import ist weiterhin global konfiguriert und synchron. Quelle je Eigentümer, Index, Abruf, persistente Jobs, Konflikte und Quoten fehlen. |
 | 4 – AirDeckCast | Offen | Hub-Referenzen werden noch nicht in Queue/Planung/Sendebus aufgelöst. Keine implizite Sendeberechtigung durch Kataloggrant. |
 | 5 – lautCast | Offen | Keine neue Radioadmin-Funktion. Aktuelle offizielle API/Capabilities je Station vor Implementierung verifizieren. |
@@ -38,6 +38,6 @@ Wichtige Rücknahmegrenze: Ein alter AirDeck-Build kennt Schema 2 nicht und star
 ## Nächste konkrete Arbeit
 
 1. UI im Browser mit Demo-Nutzer auf Desktop/Handy prüfen; keine Produktionstitel als Testdaten verwenden.
-2. Phase 2 fertigstellen: private Speicherung persönlicher Medien, Quell-/Versionsmodell, authentifiziertes Vorhören (ohne Voll-Download für reine Preview-Grants), separate Download- und Senderechte, klare Quell-/Verfügbarkeitsanzeige und Rechte-/Widerrufstests einschließlich Range-Requests, Cover und SSE.
+2. Phase 2 abschließen: Broadcast-/Sendebus-Nutzung für `broadcast.use`, klare Quell-/Verfügbarkeitsanzeige für kommende Cloudquellen, Mobile-Abnahme sowie verbleibende Rechte-/Widerruf-/SSE-Szenarien. Private Speicherung, Upload, Metadaten/Revision, Preview, separater Download und geschützte Cover sind im Arbeits-PR umgesetzt.
 3. Erst dann Phase 3 gemäß Paket 09: pro Eigentümer getrennte Nextcloud-Quelle und Secret, sichere URL-/Redirect-Prüfung, begrenzter Katalogscan und persistente Einweg-Importjobs mit Restart/Offline/Conflict/Quota-Tests.
 4. Danach AirDeckCast-Preflight und lautCast-Capabilities in dieser Reihenfolge. Jede Phase nach Tests committen, Build abwarten, auf der bestehenden Demo prüfen und den Rücknahmeweg dokumentieren.
