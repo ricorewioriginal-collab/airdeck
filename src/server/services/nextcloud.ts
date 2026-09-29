@@ -26,6 +26,7 @@ interface HubNextcloudSource {
   lastScanAt: number | null;
   lastError: string | null;
   createdByUserId: string;
+  stationContextId: string;
   syncEnabled: boolean;
   syncIntervalMinutes: number;
   syncQuotaBytes: number;
@@ -117,6 +118,7 @@ export class NextcloudService {
     const state = this.app.docs.get<HubNextcloudState>('musikhub-nextcloud', { version: 1, sources: [], entries: [], jobs: [] });
     for (const source of state.sources) {
       source.createdByUserId ??= source.owner.kind === 'user' ? source.owner.id : '';
+      source.stationContextId ??= source.owner.kind === 'station' ? source.owner.id : '';
       source.syncEnabled ??= false;
       source.syncIntervalMinutes = Math.min(HUB_NC_MAX_SYNC_MINUTES, Math.max(HUB_NC_MIN_SYNC_MINUTES, Number(source.syncIntervalMinutes) || 60));
       source.syncQuotaBytes = Math.max(1, Number(source.syncQuotaBytes) || HUB_NC_DEFAULT_QUOTA);
@@ -151,10 +153,11 @@ export class NextcloudService {
   }
 
   private contextStation(source: HubNextcloudSource): string {
-    if (source.owner.kind === 'station') return source.owner.id;
-    const user = this.app.users.get(source.owner.id);
-    const stationId = user?.stationIds.find((id) => id !== '*' && this.app.stations.has(id));
-    if (!stationId) throw new AppError(409, 'no_station_context', 'Für persönliche Cloud-Synchronisierung ist kein Senderkontext verfügbar');
+    const stationId = source.owner.kind === 'station' ? source.owner.id : source.stationContextId;
+    const user = this.app.users.get(source.owner.kind === 'user' ? source.owner.id : source.createdByUserId);
+    if (!stationId || !this.app.stations.has(stationId) || !user || !user.stationIds.includes(stationId)) {
+      throw new AppError(409, 'no_station_context', 'Cloud-Synchronisierung hat keinen gültigen Senderkontext');
+    }
     return stationId;
   }
 
@@ -273,6 +276,7 @@ export class NextcloudService {
         lastScanAt: null,
         lastError: null,
         createdByUserId: p.user.id,
+        stationContextId: stationId,
         syncEnabled: input.syncEnabled === true,
         syncIntervalMinutes: Math.min(HUB_NC_MAX_SYNC_MINUTES, Math.max(HUB_NC_MIN_SYNC_MINUTES, Number(input.syncIntervalMinutes) || 60)),
         syncQuotaBytes: Math.max(1, Math.floor(Number(input.syncQuotaBytes) || HUB_NC_DEFAULT_QUOTA)),
@@ -287,6 +291,7 @@ export class NextcloudService {
       const revision = Number(input.revision);
       if (!Number.isInteger(revision) || revision !== source.revision) throw new AppError(409, 'revision_conflict', 'Cloud-Quelle wurde inzwischen geändert');
       source.owner = owner;
+      source.stationContextId = stationId;
       source.name = String(input.name ?? source.name).trim().slice(0, 80) || source.name;
       source.url = rawUrl;
       source.user = user;
