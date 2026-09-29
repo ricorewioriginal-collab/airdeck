@@ -105,7 +105,13 @@ export class PlanningService {
   }
 
   saveQueueAsPlaylist(stationId: string, name: string): Playlist {
-    return this.savePlaylist(stationId, null, { name, items: this.app.rt(stationId).queue.list().map((q) => q.mediaId) });
+    const rt = this.app.rt(stationId);
+    const pl = this.savePlaylist(stationId, null, { name, items: rt.queue.list().map((q) => q.mediaId).filter((id) => !this.app.svc.musikhub.isQueuedBroadcastRef(id)) });
+    const stored = rt.data.playlists?.find((x) => x.id === pl.id)!;
+    for (const q of rt.queue.list()) if (this.app.svc.musikhub.isQueuedBroadcastRef(q.mediaId)) stored.items.push(q.mediaId);
+    this.app.publish('playlists.changed', stationId, this.playlists(stationId));
+    this.app.changed();
+    return { ...stored, items: stored.items.map((id) => this.app.svc.musikhub.publicBroadcastRef(id)) };
   }
 
   /** Playlist abspielen: ersetzt die Queue und schaltet per Crossfade weiter. Im Shuffle-Modus mit gemischter Reihenfolge. */
