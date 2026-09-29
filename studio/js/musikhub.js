@@ -100,7 +100,7 @@ export function mountMusicHub(root, ctx) {
 
   async function addToCollection(item) {
     const own = collections.filter((c) => c.owner.kind === item.owner.kind && c.owner.id === item.owner.id && c.actions.includes('media.upload'));
-    if (!own.length) return status('Lege zuerst eine Sender-Sammlung an.', true);
+    if (!own.length) return status('Lege zuerst eine passende Sammlung mit demselben Eigentümer an.', true);
     const value = await formDialog('Titel in Sammlung aufnehmen', [
       { name: 'collection', label: 'Sammlung', options: own.map((c) => [c.id, c.name]) },
     ], 'Aufnehmen');
@@ -160,7 +160,6 @@ export function mountMusicHub(root, ctx) {
       || filter === 'personal' && item.owner.kind === 'user' && item.source?.kind === 'personal'
       || filter === 'shared' && !(item.owner.kind === 'station' && item.owner.id === sid) && !item.source
     );
-    const ownCollections = collections.filter((c) => c.owner.kind === 'station' && c.owner.id === sid);
     const unregistered = ctx.library().filter((m) => !m.url && !items.some((item) => item.source?.stationId === sid && item.source?.mediaId === m.id));
     const first = total ? page * 50 + 1 : 0;
     const last = Math.min((page + 1) * 50, total);
@@ -175,7 +174,7 @@ export function mountMusicHub(root, ctx) {
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sammlungen'), h('button', { class: 'btn small', onclick: createCollection }, '＋ Neu')),
           collections.length ? h('ul', { class: 'plain-list' }, ...collections.map((c) => h('li', { class: 'mh-entry' },
             h('strong', {}, c.name), h('span', { class: 'muted' }, ` · ${c.itemIds.length} Titel`),
-            ownCollections.includes(c) && c.actions.includes('shares.manage') ? h('div', { class: 'row mh-actions' },
+            c.actions.includes('shares.manage') ? h('div', { class: 'row mh-actions' },
               h('button', { class: 'btn small', onclick: () => shareCollection(c) }, 'Freigeben'),
               h('button', { class: 'btn small', onclick: () => manageGrants(c) }, 'Freigaben ansehen')) : null))) : h('p', { class: 'muted' }, 'Noch keine sichtbaren Sammlungen.')),
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Katalog')),
