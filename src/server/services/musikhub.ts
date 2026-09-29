@@ -20,7 +20,8 @@ export type HubSubject = { kind: 'user' | 'station'; id: string };
 export type HubResource = { kind: 'item' | 'collection'; id: string };
 export type HubItemSource =
   | { kind?: 'station'; stationId: string; mediaId: string }
-  | { kind: 'personal'; file: string; originalName: string; contentType: string; size: number };
+  | { kind: 'personal'; file: string; originalName: string; contentType: string; size: number }
+  | { kind: 'nextcloud'; sourceId: string; remotePath: string; file: string; originalName: string; contentType: string; size: number; modified: string | null };
 
 export interface HubItem {
   id: string;
@@ -71,6 +72,16 @@ export class MusicHubService {
 
   private personalDir(userId: string): string {
     return join(this.app.dataDir, 'musikhub', 'personal', userId);
+  }
+
+  private cloudDir(sourceId: string): string {
+    return join(this.app.dataDir, 'musikhub', 'cloud', sourceId);
+  }
+
+  private localSourcePath(item: HubItem): string | null {
+    if (item.source.kind === 'personal') return join(this.personalDir(item.owner.id), item.source.file);
+    if (item.source.kind === 'nextcloud') return join(this.cloudDir(item.source.sourceId), item.source.file);
+    return null;
   }
 
   private get state(): HubState {
@@ -216,19 +227,20 @@ export class MusicHubService {
     const p = this.principalForQueuedUser(parts.userId);
     this.require(p, { kind: 'item', id: parts.itemId }, stationId, 'broadcast.use');
     const item = this.resource({ kind: 'item', id: parts.itemId }) as HubItem;
-    if (item.source.kind === 'personal') {
-      const linkedPath = join(this.personalDir(item.owner.id), item.source.file);
-      if (!existsSync(linkedPath)) throw new AppError(409, 'source_unavailable', 'MusicHub-Quelldatei ist nicht verfügbar');
+    const localPath = this.localSourcePath(item);
+    if (localPath) {
+      if (!existsSync(localPath)) throw new AppError(409, 'source_unavailable', 'MusicHub-Quelldatei ist nicht verfügbar');
+      const localSource = item.source as Extract<HubItemSource, { kind: 'personal' | 'nextcloud' }>;
       return {
         id: `musikhub:${item.id}`,
         title: item.title,
         artist: item.artist,
         category: 'music',
-        file: item.source.originalName,
-        originalName: item.source.originalName,
+        file: localSource.originalName,
+        originalName: localSource.originalName,
         durationMs: null,
         addedAt: item.createdAt,
-        linkedPath,
+        linkedPath: localPath,
         source: `musikhub:${item.id}`,
       };
     }
@@ -272,11 +284,13 @@ export class MusicHubService {
   resolveAudioFile(p: Principal, itemId: string, stationId: string, action: 'preview.play' | 'file.download') {
     this.require(p, { kind: 'item', id: itemId }, stationId, action);
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
-    if (item.source.kind === 'personal') {
+    const localPath = this.localSourcePath(item);
+    if (localPath) {
+      const localSource = item.source as Extract<HubItemSource, { kind: 'personal' | 'nextcloud' }>;
       return {
-        path: join(this.personalDir(item.owner.id), item.source.file),
-        name: item.source.originalName,
-        contentType: item.source.contentType,
+        path: localPath,
+        name: localSource.originalName,
+        contentType: localSource.contentType,
       };
     }
     const media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
@@ -342,6 +356,62 @@ export class MusicHubService {
     };
   }
 
+  async registerNextcloudFile(
+    p: Principal,
+    stationId: string,
+    input: {
+      owner: HubSubject;
+      sourceId: string;
+      remotePath: string;
+      file: string;
+      originalName: string;
+      contentType: string;
+      size: number;
+      modified: string | null;
+    },
+  ): Promise<HubItem> {
+    this.actor(p);
+    this.station(p, stationId);
+    if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    if (!this.ownerAccess(p, input.owner)) throw new AppError(403, 'forbidden', 'Fremdes Eigentum');
+    const existing = this.state.items.find((x) =>
+      x.source.kind === 'nextcloud' && x.source.sourceId === input.sourceId && x.source.remotePath === input.remotePath);
+    if (existing) {
+      existing.source.file = input.file;
+      existing.source.originalName = input.originalName;
+      existing.source.contentType = input.contentType;
+      existing.source.size = input.size;
+      existing.source.modified = input.modified;
+      existing.revision++;
+      await this.save();
+      return existing;
+    }
+    const meta = parseFileName(input.originalName);
+    const item: HubItem = {
+      id: newId('hub'),
+      owner: input.owner,
+      source: {
+        kind: 'nextcloud',
+        sourceId: input.sourceId,
+        remotePath: input.remotePath,
+        file: input.file,
+        originalName: input.originalName,
+        contentType: input.contentType,
+        size: input.size,
+        modified: input.modified,
+      },
+      title: meta.title || input.originalName,
+      artist: meta.artist,
+      version: null,
+      createdAt: Date.now(),
+      revision: 1,
+    };
+    this.state.items.push(item);
+    await this.save();
+    this.app.audit.write({ kind: 'musikhub', event: 'cloud_item_registered', actor: this.actor(p), itemId: item.id, sourceId: input.sourceId });
+    return item;
+  }
+
   async updateItemMetadata(
     p: Principal,
     itemId: string,
@@ -369,7 +439,8 @@ export class MusicHubService {
   async coverFile(p: Principal, itemId: string, stationId: string): Promise<string | null> {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'catalog.read');
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
-    if (item.source.kind !== 'personal') return this.app.svc.media.cover(item.source.stationId, item.source.mediaId);
+    const localPath = this.localSourcePath(item);
+    if (!localPath) return this.app.svc.media.cover(item.source.stationId, item.source.mediaId);
     if (!this.app.ffmpeg) return null;
     const dir = join(this.app.dataDir, 'covers', 'musikhub', item.owner.id);
     const file = join(dir, `${item.id}.jpg`);
@@ -377,7 +448,7 @@ export class MusicHubService {
     if (existsSync(file)) return file;
     if (existsSync(none)) return null;
     mkdirSync(dir, { recursive: true, mode: 0o700 });
-    const audio = join(this.personalDir(item.owner.id), item.source.file);
+    const audio = localPath;
     const ok = await new Promise<boolean>((resolve) => {
       const proc = spawn(this.app.ffmpeg!.ffmpeg, [
         '-hide_banner', '-loglevel', 'error', '-y', '-i', audio, '-an', '-frames:v', '1',
@@ -399,8 +470,9 @@ export class MusicHubService {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'media.delete');
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
     if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur Eigentümer können MusikHub-Medien löschen');
-    if (item.source.kind === 'personal') {
-      rmSync(join(this.personalDir(item.owner.id), item.source.file), { force: true });
+    const localPath = this.localSourcePath(item);
+    if (localPath) {
+      rmSync(localPath, { force: true });
       rmSync(join(this.app.dataDir, 'covers', 'musikhub', item.owner.id, `${item.id}.jpg`), { force: true });
       rmSync(join(this.app.dataDir, 'covers', 'musikhub', item.owner.id, `${item.id}.jpg.none`), { force: true });
     }
@@ -434,11 +506,12 @@ export class MusicHubService {
     this.app.audit.write({ kind: 'musikhub', event: 'item_deleted', actor: this.actor(p), itemId });
   }
 
-  private availability(item: HubItem): { state: 'ready' | 'missing'; sourceKind: 'personal' | 'station' } {
-    if (item.source.kind === 'personal') {
+  private availability(item: HubItem): { state: 'ready' | 'missing'; sourceKind: 'personal' | 'station' | 'nextcloud' } {
+    const localPath = this.localSourcePath(item);
+    if (localPath) {
       return {
-        state: existsSync(join(this.personalDir(item.owner.id), item.source.file)) ? 'ready' : 'missing',
-        sourceKind: 'personal',
+        state: existsSync(localPath) ? 'ready' : 'missing',
+        sourceKind: item.source.kind === 'nextcloud' ? 'nextcloud' : 'personal',
       };
     }
     try {
@@ -475,7 +548,9 @@ export class MusicHubService {
         ...(this.ownerAccess(p, item.owner)
           ? { source: item.source.kind === 'personal'
             ? { kind: 'personal', originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size }
-            : item.source }
+            : item.source.kind === 'nextcloud'
+              ? { kind: 'nextcloud', sourceId: item.source.sourceId, remotePath: item.source.remotePath, originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size, modified: item.source.modified }
+              : item.source }
           : {}),
         actions: this.actions(p, { kind: 'item', id: item.id }, stationId),
       })),
@@ -490,7 +565,7 @@ export class MusicHubService {
     if (!this.explicitMember(p, stationId)) throw new AppError(403, 'forbidden', 'Ausdrückliche Senderzuordnung erforderlich');
     const media = this.app.svc.media.media(stationId, mediaId);
     if (media.url) throw new AppError(400, 'invalid_source', 'URL-Streams sind keine Archivdateien');
-    const existing = this.state.items.find((x) => x.source.kind !== 'personal' && x.source.stationId === stationId && x.source.mediaId === mediaId);
+    const existing = this.state.items.find((x) => x.source.kind !== 'personal' && x.source.kind !== 'nextcloud' && x.source.stationId === stationId && x.source.mediaId === mediaId);
     if (existing) return existing;
     const item: HubItem = { id: newId('hub'), owner: { kind: 'station', id: stationId }, source: { kind: 'station', stationId, mediaId }, title: media.title, artist: media.artist, version: null, createdAt: Date.now(), revision: 1 };
     this.state.items.push(item);
