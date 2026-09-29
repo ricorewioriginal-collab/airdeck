@@ -92,6 +92,17 @@ export function mountMusicHub(root, ctx) {
     render();
   }
 
+  async function retrieveCloudEntry(source, entry) {
+    const sid = station();
+    const result = await run(() => ctx.api.post(
+      `/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources/${encodeURIComponent(source.id)}/retrieve`,
+      { path: entry.path },
+    ));
+    if (!result) return;
+    status(`„${result.item.title}“ aus Nextcloud in den MusicHub übernommen`);
+    await run(load);
+  }
+
   async function deleteCloudSource(source) {
     if (!confirm(`Cloud-Quelle „${source.name}“ wirklich entfernen? Index und gespeichertes App-Passwort werden gelöscht.`)) return;
     const sid = station();
@@ -366,7 +377,9 @@ export function mountMusicHub(root, ctx) {
                   h('button', { class: 'btn small', onclick: () => editCloudSource(source) }, 'Bearbeiten'),
                   h('button', { class: 'btn small danger', onclick: () => deleteCloudSource(source) }, 'Löschen')),
                 index ? h('ul', { class: 'plain-list' },
-                  ...index.slice(0, 50).map((entry) => h('li', { class: 'muted' }, `${entry.name} · ${Math.round((entry.size || 0) / 1024)} KB`)),
+                  ...index.slice(0, 50).map((entry) => h('li', { class: 'mh-entry' },
+                    h('span', { class: 'muted' }, `${entry.name} · ${Math.round((entry.size || 0) / 1024)} KB`),
+                    h('button', { class: 'btn small', onclick: () => retrieveCloudEntry(source, entry) }, 'In MusicHub'))),
                   index.length > 50 ? h('li', { class: 'muted' }, `… ${index.length - 50} weitere`) : null) : null);
             }))
           : h('p', { class: 'muted' }, 'Noch keine MusicHub-Cloudquelle eingerichtet.')),
