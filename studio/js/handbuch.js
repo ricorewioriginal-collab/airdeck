@@ -22,7 +22,7 @@ export function mountHandbuch(root) {
     for (const a of root.querySelectorAll('nav.toc a')) {
       const id = a.getAttribute('href')?.slice(1);
       const target = id ? root.querySelector(`#${CSS.escape(id)}`) : null;
-      /** @type {HTMLElement} */ (a).hidden = !!target && /** @type {HTMLElement} */ (target).hidden;
+      /** @type {HTMLElement} */ (a).hidden = Boolean(target && /** @type {HTMLElement} */ (target).hidden);
     }
   }
 
