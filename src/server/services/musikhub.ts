@@ -8,6 +8,8 @@ import { extname, join } from 'node:path';
 import { parseFileName } from '../../core/automation.ts';
 import type { AirDeckApp } from '../app.ts';
 import { AppError, canSee, newId, type Principal } from '../model.ts';
+import { UserStore } from '../users.ts';
+import type { MediaItem } from '../../core/automation.ts';
 
 export const HUB_ACTIONS = [
   'catalog.read', 'preview.play', 'broadcast.use', 'file.download', 'media.upload',
@@ -154,6 +156,96 @@ export class MusicHubService {
 
   private require(p: Principal, resource: HubResource, stationId: string, action: HubAction): void {
     if (!this.actions(p, resource, stationId).includes(action)) throw new AppError(404, 'not_found', 'MusikHub-Eintrag nicht gefunden');
+  }
+
+  private queuedRef(itemId: string, userId: string): string {
+    return `__hub__:${itemId}:${userId}`;
+  }
+
+  private queuedParts(mediaId: string): { itemId: string; userId: string } | null {
+    if (!mediaId.startsWith('__hub__:')) return null;
+    const rest = mediaId.slice('__hub__:'.length);
+    const split = rest.lastIndexOf(':');
+    if (split <= 0 || split === rest.length - 1) return null;
+    return { itemId: rest.slice(0, split), userId: rest.slice(split + 1) };
+  }
+
+  isQueuedBroadcastRef(mediaId: string): boolean {
+    return this.queuedParts(mediaId) !== null;
+  }
+
+  queueBroadcast(p: Principal, itemId: string, stationId: string): string {
+    this.require(p, { kind: 'item', id: itemId }, stationId, 'broadcast.use');
+    if (!p.user) throw new AppError(403, 'forbidden', 'MusicHub-Sendeberechtigung benötigt ein Benutzerkonto');
+    return this.queuedRef(itemId, p.user.id);
+  }
+
+  private principalForQueuedUser(userId: string): Principal {
+    const user = this.app.users.get(userId);
+    if (!user || user.disabled) throw new AppError(404, 'not_found', 'MusicHub-Sendeberechtigung nicht mehr gültig');
+    return {
+      id: user.id,
+      tokenId: `musikhub-queue:${user.id}`,
+      roles: user.roles,
+      stationIds: user.stationIds,
+      scopes: UserStore.scopesFor(user.roles),
+      user: { id: user.id, username: user.username, name: user.name },
+    };
+  }
+
+  resolveQueuedBroadcast(mediaId: string, stationId: string): MediaItem {
+    const parts = this.queuedParts(mediaId);
+    if (!parts) throw new AppError(404, 'not_found', 'Kein MusicHub-Queueeintrag');
+    const p = this.principalForQueuedUser(parts.userId);
+    this.require(p, { kind: 'item', id: parts.itemId }, stationId, 'broadcast.use');
+    const item = this.resource({ kind: 'item', id: parts.itemId }) as HubItem;
+    if (item.source.kind === 'personal') {
+      return {
+        id: mediaId,
+        title: item.title,
+        artist: item.artist,
+        category: 'music',
+        file: item.source.originalName,
+        originalName: item.source.originalName,
+        durationMs: null,
+        addedAt: item.createdAt,
+        linkedPath: join(this.personalDir(item.owner.id), item.source.file),
+        source: `musikhub:${item.id}`,
+      };
+    }
+    const source = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
+    if (source.url) throw new AppError(409, 'invalid_source', 'Stream-URLs können nicht über MusicHub-Broadcast verwendet werden');
+    return {
+      ...source,
+      id: mediaId,
+      title: item.title,
+      artist: item.artist,
+      file: source.originalName || source.file,
+      linkedPath: this.app.svc.media.mediaPath(item.source.stationId, source),
+      source: `musikhub:${item.id}`,
+      addedAt: item.createdAt,
+    };
+  }
+
+  queuedBroadcastView(p: Principal, mediaId: string, stationId: string): MediaItem | null {
+    const parts = this.queuedParts(mediaId);
+    if (!parts) return null;
+    try {
+      this.require(p, { kind: 'item', id: parts.itemId }, stationId, 'catalog.read');
+      const item = this.resource({ kind: 'item', id: parts.itemId }) as HubItem;
+      return {
+        id: mediaId,
+        title: item.title,
+        artist: item.artist,
+        category: 'music',
+        file: '',
+        durationMs: null,
+        addedAt: item.createdAt,
+        source: `musikhub:${item.id}`,
+      };
+    } catch {
+      return null;
+    }
   }
 
   resolveAudioFile(p: Principal, itemId: string, stationId: string, action: 'preview.play' | 'file.download') {
