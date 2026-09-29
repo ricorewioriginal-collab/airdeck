@@ -251,7 +251,7 @@ export class MusicHubService {
       this.require(p, { kind: 'item', id: parts.itemId }, stationId, 'catalog.read');
       const item = this.resource({ kind: 'item', id: parts.itemId }) as HubItem;
       return {
-        id: mediaId,
+        id: `musikhub:${item.id}`,
         title: item.title,
         artist: item.artist,
         category: 'music',
