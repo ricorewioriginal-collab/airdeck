@@ -217,6 +217,8 @@ export class MusicHubService {
     this.require(p, { kind: 'item', id: parts.itemId }, stationId, 'broadcast.use');
     const item = this.resource({ kind: 'item', id: parts.itemId }) as HubItem;
     if (item.source.kind === 'personal') {
+      const linkedPath = join(this.personalDir(item.owner.id), item.source.file);
+      if (!existsSync(linkedPath)) throw new AppError(409, 'source_unavailable', 'MusicHub-Quelldatei ist nicht verfügbar');
       return {
         id: `musikhub:${item.id}`,
         title: item.title,
@@ -226,19 +228,21 @@ export class MusicHubService {
         originalName: item.source.originalName,
         durationMs: null,
         addedAt: item.createdAt,
-        linkedPath: join(this.personalDir(item.owner.id), item.source.file),
+        linkedPath,
         source: `musikhub:${item.id}`,
       };
     }
     const source = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
     if (source.url) throw new AppError(409, 'invalid_source', 'Stream-URLs können nicht über MusicHub-Broadcast verwendet werden');
+    const linkedPath = this.app.svc.media.mediaPath(item.source.stationId, source);
+    if (!existsSync(linkedPath)) throw new AppError(409, 'source_unavailable', 'MusicHub-Quelldatei ist nicht verfügbar');
     return {
       ...source,
       id: `musikhub:${item.id}`,
       title: item.title,
       artist: item.artist,
       file: source.originalName || source.file,
-      linkedPath: this.app.svc.media.mediaPath(item.source.stationId, source),
+      linkedPath,
       source: `musikhub:${item.id}`,
       addedAt: item.createdAt,
     };
