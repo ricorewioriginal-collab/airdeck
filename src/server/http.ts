@@ -329,11 +329,17 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   });
   add('PATCH', '/api/v1/music-hub/items/:id', 'media:write', async (c) =>
     app.svc.musikhub.updateItemMetadata(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), await c.body()));
+  add('POST', '/api/v1/music-hub/items/:id/queue', 'queue:write', async (c) => {
+    const b = await c.body();
+    const stationId = String(b.stationId ?? '');
+    app.queueAddHub(c.p, stationId, c.params.id!, typeof b.index === 'number' ? b.index : undefined);
+    return app.queueView(stationId, 0, c.p);
+  });
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', (c) =>
     app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
 
   // --- Queue / Automation / Decks ---
-  add('GET', '/api/v1/stations/:sid/queue', 'queue:read', (c) => app.queueView(sid(c), Number(c.url.searchParams.get('remainingMs') ?? 0)));
+  add('GET', '/api/v1/stations/:sid/queue', 'queue:read', (c) => app.queueView(sid(c), Number(c.url.searchParams.get('remainingMs') ?? 0), c.p));
   add('POST', '/api/v1/stations/:sid/queue', 'queue:write', async (c) => {
     const b = await c.body();
     app.queueAdd(sid(c), String(b.mediaId ?? ''), typeof b.index === 'number' ? b.index : undefined);
