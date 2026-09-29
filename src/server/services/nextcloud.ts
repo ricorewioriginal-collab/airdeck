@@ -425,7 +425,7 @@ export class NextcloudService {
     const client = new Nextcloud({ url: source.url, user: source.user, root: source.root }, password, this.hubFetch(source));
 
     try {
-      const size = await this.ncCall(() => client.download(remotePath, target, 500 * 1024 * 1024));
+      const size = await this.ncCall(() => client.download(remotePath, target, source.syncMaxFileBytes));
       const item = await this.app.svc.musikhub.registerNextcloudFile(p, stationId, {
         owner: source.owner,
         sourceId,
@@ -453,6 +453,137 @@ export class NextcloudService {
       await this.app.docs.flush();
       this.app.audit.write({ kind: 'musikhub', event: 'cloud_retrieve_failed', actor: p.user?.id ?? p.id, sourceId });
       throw err;
+    }
+  }
+
+  async syncHubNextcloudSource(p: Principal, stationId: string, sourceId: string, automatic = false) {
+    const source = this.hubSource(p, stationId, sourceId, true);
+    const start = Date.now();
+    let state = this.hubState();
+    const job: HubNextcloudJob = {
+      id: newId('ncjob'), sourceId, kind: 'sync', status: 'running',
+      createdAt: start, updatedAt: start, files: 0, error: null,
+    };
+    state.jobs.push(job);
+    this.saveHubState(state);
+    await this.app.docs.flush();
+
+    let imported = 0;
+    let skippedUnchanged = 0;
+    let skippedQuota = 0;
+    let skippedTooLarge = 0;
+    try {
+      await this.scanHubNextcloudSource(p, stationId, sourceId);
+      const entries = this.hubNextcloudIndex(p, stationId, sourceId) as HubNextcloudEntry[];
+      const synced = this.app.svc.musikhub.nextcloudSyncState(sourceId);
+      let usedBytes = [...synced.values()].reduce((sum, x) => sum + x.size, 0);
+
+      for (const entry of entries) {
+        const current = synced.get(entry.path);
+        if (current && current.size === entry.size && current.modified === entry.modified) {
+          skippedUnchanged++;
+          continue;
+        }
+        if (entry.size > source.syncMaxFileBytes) {
+          skippedTooLarge++;
+          continue;
+        }
+        const projected = usedBytes - (current?.size ?? 0) + entry.size;
+        if (projected > source.syncQuotaBytes) {
+          skippedQuota++;
+          continue;
+        }
+        await this.retrieveHubNextcloudEntry(p, stationId, sourceId, entry.path);
+        usedBytes = projected;
+        synced.set(entry.path, { modified: entry.modified, size: entry.size });
+        imported++;
+      }
+
+      state = this.hubState();
+      const liveSource = state.sources.find((x) => x.id === sourceId);
+      const liveJob = state.jobs.find((x) => x.id === job.id);
+      const now = Date.now();
+      if (liveSource) {
+        liveSource.lastSyncAt = now;
+        liveSource.syncFailures = 0;
+        liveSource.offlineUntil = null;
+        liveSource.lastError = null;
+        liveSource.nextSyncAt = liveSource.syncEnabled ? now + liveSource.syncIntervalMinutes * 60_000 : null;
+        liveSource.updatedAt = now;
+      }
+      if (liveJob) {
+        liveJob.status = 'done';
+        liveJob.files = imported;
+        liveJob.updatedAt = now;
+        liveJob.error = skippedQuota || skippedTooLarge
+          ? `${skippedQuota} wegen Quote, ${skippedTooLarge} wegen Dateigröße übersprungen`
+          : null;
+      }
+      state.jobs = state.jobs.slice(-500);
+      this.saveHubState(state);
+      await this.app.docs.flush();
+      this.app.audit.write({
+        kind: 'musikhub', event: 'cloud_sync_done', actor: p.user?.id ?? p.id, sourceId,
+        imported, skippedUnchanged, skippedQuota, skippedTooLarge, automatic,
+      });
+      return { imported, skippedUnchanged, skippedQuota, skippedTooLarge, usedBytes, quotaBytes: source.syncQuotaBytes };
+    } catch (err) {
+      state = this.hubState();
+      const liveSource = state.sources.find((x) => x.id === sourceId);
+      const liveJob = state.jobs.find((x) => x.id === job.id);
+      const now = Date.now();
+      const message = (err as Error).message.slice(0, 300);
+      if (liveSource) {
+        liveSource.syncFailures = Math.min(10, (liveSource.syncFailures ?? 0) + 1);
+        const backoffMs = Math.min(60 * 60_000, Math.pow(2, liveSource.syncFailures - 1) * 60_000);
+        liveSource.offlineUntil = now + backoffMs;
+        liveSource.nextSyncAt = now + backoffMs;
+        liveSource.lastError = message;
+        liveSource.updatedAt = now;
+      }
+      if (liveJob) {
+        liveJob.status = 'failed';
+        liveJob.error = message;
+        liveJob.updatedAt = now;
+      }
+      state.jobs = state.jobs.slice(-500);
+      this.saveHubState(state);
+      await this.app.docs.flush();
+      this.app.audit.write({ kind: 'musikhub', event: 'cloud_sync_failed', actor: p.user?.id ?? p.id, sourceId, automatic });
+      throw err;
+    }
+  }
+
+  async tickHubNextcloudSync(now = Date.now()): Promise<void> {
+    if (this.syncRunning) return;
+    this.syncRunning = true;
+    try {
+      const due = this.hubState().sources
+        .filter((source) => source.syncEnabled && (source.offlineUntil === null || source.offlineUntil <= now) && (source.nextSyncAt === null || source.nextSyncAt <= now))
+        .sort((a, b) => (a.nextSyncAt ?? 0) - (b.nextSyncAt ?? 0))
+        .slice(0, 2);
+      for (const source of due) {
+        try {
+          const p = this.backgroundPrincipal(source);
+          const stationId = this.contextStation(source);
+          await this.syncHubNextcloudSource(p, stationId, source.id, true);
+        } catch (err) {
+          const state = this.hubState();
+          const live = state.sources.find((x) => x.id === source.id);
+          if (live && !live.lastError) {
+            live.syncFailures = Math.min(10, (live.syncFailures ?? 0) + 1);
+            const backoffMs = Math.min(60 * 60_000, Math.pow(2, live.syncFailures - 1) * 60_000);
+            live.offlineUntil = now + backoffMs;
+            live.nextSyncAt = now + backoffMs;
+            live.lastError = (err as Error).message.slice(0, 300);
+            live.updatedAt = now;
+            this.saveHubState(state);
+            await this.app.docs.flush();
+          }
+        }
+      }
+    } finally {
+      this.syncRunning = false;
     }
   }
 
