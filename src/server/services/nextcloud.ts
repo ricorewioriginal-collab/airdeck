@@ -144,7 +144,7 @@ export class NextcloudService {
   }
 
   private pushHubJob(state: HubNextcloudState, job: HubNextcloudJob): void {
-    this.pushHubJob(state, job);
+    state.jobs.push(job);
     if (state.jobs.length > HUB_NC_MAX_JOBS) state.jobs = state.jobs.slice(-HUB_NC_MAX_JOBS);
   }
 
