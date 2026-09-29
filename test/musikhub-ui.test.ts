@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const hub = readFileSync('studio/js/musikhub.js', 'utf8');
 const media = readFileSync('studio/js/mediamgmt.js', 'utf8');
+const css = readFileSync('studio/styles.css', 'utf8');
 
 test('Studio mountet den MusicHub als echten Medien-Reiter', () => {
   assert.match(media, /import \{ mountMusicHub \} from '\.\/musikhub\.js'/);
@@ -40,6 +41,8 @@ test('MusicHub-Studio deckt Nextcloud Sync, Limits und Konflikte ab', () => {
     'Index ansehen',
     'In MusicHub',
     'Cloud-Version laden',
+    'Letzte Cloud-Jobs',
+    'Synchronisierung',
     'Remote aktuell',
     'Remote geändert',
     'Remote gelöscht',
@@ -61,6 +64,16 @@ test('MusicHub-Freigabedialog trennt sensible Rechte sichtbar', () => {
     'Datei herunterladen erlauben',
     'Für Sendung verwenden erlauben',
     'Export/Transfer erlauben',
+    'Gültig ab (optional)',
     'Ablauf (optional)',
   ]) assert.ok(hub.includes(label), `Freigabeoption fehlt: ${label}`);
+});
+
+
+test('MusicHub ist für kleine Displays responsiv abgesichert', () => {
+  assert.match(css, /@media \(max-width: 700px\)/);
+  assert.match(css, /\.mh-grid \{ grid-template-columns: 1fr; \}/);
+  assert.match(css, /\.mh-toolbar input\[type="search"\]/);
+  assert.match(css, /\.mh-actions \.btn \{ flex: 1 1 140px; \}/);
+  assert.match(css, /\.mh-job-list/);
 });
