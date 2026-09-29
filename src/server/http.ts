@@ -321,6 +321,14 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     sendFile(c.req, c.res, file.path, file.contentType ?? AUDIO_EXT[extname(file.name).toLowerCase()] ?? 'application/octet-stream', 'private, no-store');
     return STREAMED;
   });
+  add('GET', '/api/v1/music-hub/items/:id/cover', 'media:read', async (c) => {
+    const file = await app.svc.musikhub.coverFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''));
+    if (!file) throw new AppError(404, 'no_cover', 'Kein Cover');
+    sendFile(c.req, c.res, file, 'image/jpeg', 'private, no-store');
+    return STREAMED;
+  });
+  add('PATCH', '/api/v1/music-hub/items/:id', 'media:write', async (c) =>
+    app.svc.musikhub.updateItemMetadata(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), await c.body()));
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', (c) =>
     app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
 
