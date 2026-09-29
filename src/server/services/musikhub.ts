@@ -143,6 +143,17 @@ export class MusicHubService {
     if (!this.actions(p, resource, stationId).includes(action)) throw new AppError(404, 'not_found', 'MusikHub-Eintrag nicht gefunden');
   }
 
+  resolveAudioFile(p: Principal, itemId: string, stationId: string, action: 'preview.play' | 'file.download') {
+    this.require(p, { kind: 'item', id: itemId }, stationId, action);
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    const media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
+    if (media.url) throw new AppError(409, 'invalid_source', 'Stream-URLs können nicht über den MusikHub abgerufen werden');
+    return {
+      path: this.app.svc.media.mediaPath(item.source.stationId, media),
+      name: media.originalName || media.file,
+    };
+  }
+
   listItems(p: Principal, stationId: string, search = '', offset = 0, limit = 50) {
     this.station(p, stationId);
     const q = search.trim().toLocaleLowerCase().slice(0, 100);
