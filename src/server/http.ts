@@ -575,6 +575,8 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     app.svc.nextcloud.deleteHubNextcloudSource(c.p, sid(c), c.params.id!));
   add('POST', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id/scan', 'media:write', (c) =>
     app.svc.nextcloud.scanHubNextcloudSource(c.p, sid(c), c.params.id!));
+  add('POST', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id/sync', 'media:write', (c) =>
+    app.svc.nextcloud.syncHubNextcloudSource(c.p, sid(c), c.params.id!, false));
   add('GET', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id/index', 'media:read', (c) =>
     app.svc.nextcloud.hubNextcloudIndex(c.p, sid(c), c.params.id!));
   add('POST', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id/retrieve', 'media:write', async (c) => {
