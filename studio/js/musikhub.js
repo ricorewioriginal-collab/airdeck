@@ -38,16 +38,68 @@ export function mountMusicHub(root, ctx) {
   }
 
   async function createCollection() {
-    const value = await formDialog('Sender-Sammlung anlegen', [{ name: 'name', label: 'Name', required: true }], 'Anlegen');
+    const value = await formDialog('Sammlung anlegen', [
+      { name: 'owner', label: 'Eigentum', options: [['station', 'Aktueller Sender'], ['user', 'Persönlich']] },
+      { name: 'name', label: 'Name', required: true },
+    ], 'Anlegen');
     if (!value) return;
-    const result = await run(() => ctx.api.post(url('/collections'), { owner: { kind: 'station', id: station() }, name: value.name }));
+    const me = await run(() => ctx.api.get('/me'));
+    if (!me) return;
+    if (value.owner === 'user' && !me.user?.id) return status('Persönliche Sammlungen benötigen eine Benutzeranmeldung.', true);
+    const owner = value.owner === 'user' ? { kind: 'user', id: me.user.id } : { kind: 'station', id: station() };
+    const result = await run(() => ctx.api.post(url('/collections'), { owner, name: value.name }));
     if (!result) return;
     status(`Sammlung „${result.name}“ angelegt`);
     await run(load);
   }
 
+  async function uploadPersonal(file) {
+    if (!file) return;
+    const result = await run(() => ctx.api.req(
+      'PUT',
+      url(`/personal?station=${encodeURIComponent(station())}&name=${encodeURIComponent(file.name)}`),
+      file,
+      { 'Content-Type': file.type || 'application/octet-stream' },
+    ));
+    if (!result) return;
+    status(`„${result.title}“ als persönliche Musik hochgeladen`);
+    await run(load);
+  }
+
+  async function preview(item) {
+    const blob = await run(() => ctx.api.blob(url(`/items/${encodeURIComponent(item.id)}/preview?station=${encodeURIComponent(station())}`)));
+    if (!blob) return;
+    const objectUrl = URL.createObjectURL(blob);
+    const audio = new Audio(objectUrl);
+    audio.addEventListener('ended', () => URL.revokeObjectURL(objectUrl), { once: true });
+    audio.addEventListener('error', () => URL.revokeObjectURL(objectUrl), { once: true });
+    await audio.play().catch(() => {
+      URL.revokeObjectURL(objectUrl);
+      status('Vorhören konnte vom Browser nicht gestartet werden.', true);
+    });
+  }
+
+  async function download(item) {
+    const blob = await run(() => ctx.api.blob(url(`/items/${encodeURIComponent(item.id)}/download?station=${encodeURIComponent(station())}`)));
+    if (!blob) return;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = item.source?.originalName || `${item.artist ? item.artist + ' - ' : ''}${item.title}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+
+  async function deleteItem(item) {
+    if (!confirm(`„${item.title}“ wirklich aus dem MusikHub löschen?`)) return;
+    const result = await run(() => ctx.api.del(url(`/items/${encodeURIComponent(item.id)}?station=${encodeURIComponent(station())}`)));
+    if (result === undefined) return;
+    status('Persönlicher MusikHub-Titel gelöscht');
+    await run(load);
+  }
+
   async function addToCollection(item) {
-    const own = collections.filter((c) => c.owner.kind === 'station' && c.owner.id === station() && c.actions.includes('media.upload'));
+    const own = collections.filter((c) => c.owner.kind === item.owner.kind && c.owner.id === item.owner.id && c.actions.includes('media.upload'));
     if (!own.length) return status('Lege zuerst eine Sender-Sammlung an.', true);
     const value = await formDialog('Titel in Sammlung aufnehmen', [
       { name: 'collection', label: 'Sammlung', options: own.map((c) => [c.id, c.name]) },
@@ -102,7 +154,12 @@ export function mountMusicHub(root, ctx) {
 
   function render() {
     const sid = station();
-    const visible = items.filter((item) => filter === 'all' || filter === 'station' && item.owner.kind === 'station' && item.owner.id === sid || filter === 'shared' && (item.owner.kind !== 'station' || item.owner.id !== sid));
+    const visible = items.filter((item) =>
+      filter === 'all'
+      || filter === 'station' && item.owner.kind === 'station' && item.owner.id === sid
+      || filter === 'personal' && item.owner.kind === 'user' && item.source?.kind === 'personal'
+      || filter === 'shared' && !(item.owner.kind === 'station' && item.owner.id === sid) && !item.source
+    );
     const ownCollections = collections.filter((c) => c.owner.kind === 'station' && c.owner.id === sid);
     const unregistered = ctx.library().filter((m) => !m.url && !items.some((item) => item.source?.stationId === sid && item.source?.mediaId === m.id));
     const first = total ? page * 50 + 1 : 0;
@@ -113,7 +170,7 @@ export function mountMusicHub(root, ctx) {
         h('button', { class: 'btn small', onclick: () => run(load) }, 'Suchen / Aktualisieren'),
         h('span', { class: 'muted', role: 'status' }, `${total} sichtbare Titel insgesamt`)),
       h('div', { class: 'row mh-filters' },
-        ...[['all', 'Alle'], ['station', 'Senderarchiv'], ['shared', 'Mit mir geteilt']].map(([id, label]) => h('button', { class: `btn small${filter === id ? ' primary' : ''}`, 'aria-pressed': String(filter === id), onclick: () => { filter = id; render(); } }, label))),
+        ...[['all', 'Alle'], ['station', 'Senderarchiv'], ['personal', 'Meine Musik'], ['shared', 'Mit mir geteilt']].map(([id, label]) => h('button', { class: `btn small${filter === id ? ' primary' : ''}`, 'aria-pressed': String(filter === id), onclick: () => { filter = id; render(); } }, label))),
       h('div', { class: 'mh-grid' },
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sammlungen'), h('button', { class: 'btn small', onclick: createCollection }, '＋ Neu')),
           collections.length ? h('ul', { class: 'plain-list' }, ...collections.map((c) => h('li', { class: 'mh-entry' },
@@ -126,10 +183,29 @@ export function mountMusicHub(root, ctx) {
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
             h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}`),
             h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : 'Persönlich'}`),
-            item.owner.kind === 'station' && item.owner.id === sid && item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null))) : h('p', { class: 'muted' }, total ? 'Auf dieser Seite entspricht kein Titel dem gewählten Filter.' : 'Keine freigegebenen Titel gefunden.'),
+            h('div', { class: 'row mh-actions' },
+              item.actions.includes('preview.play') ? h('button', { class: 'btn small', onclick: () => preview(item) }, '▶ Vorhören') : null,
+              item.actions.includes('file.download') ? h('button', { class: 'btn small', onclick: () => download(item) }, '↓ Download') : null,
+              item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null,
+              item.owner.kind === 'user' && item.source?.kind === 'personal' && item.actions.includes('media.delete')
+                ? h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen') : null
+            )))) : h('p', { class: 'muted' }, total ? 'Auf dieser Seite entspricht kein Titel dem gewählten Filter.' : 'Keine freigegebenen Titel gefunden.'),
           h('div', { class: 'row' },
             h('button', { class: 'btn small', disabled: page === 0, onclick: () => { page--; void run(load); } }, 'Zurück'),
             h('button', { class: 'btn small', disabled: (page + 1) * 50 >= total, onclick: () => { page++; void run(load); } }, 'Weiter')))),
+      h('section', { class: 'panel' },
+        h('div', { class: 'panel-head' }, h('h2', {}, 'Meine persönliche Musik')),
+        h('p', { class: 'muted' }, 'Persönliche Uploads liegen getrennt von den Senderbibliotheken. Ohne ausdrückliche Freigabe sieht kein anderer Nutzer diese Titel.'),
+        h('input', {
+          type: 'file',
+          accept: '.mp3,.ogg,.opus,.wav,.flac,.m4a,.aac,.webm,audio/*',
+          onchange: (e) => {
+            const input = /** @type {HTMLInputElement} */ (e.target);
+            const file = input.files?.[0];
+            if (file) void uploadPersonal(file);
+            input.value = '';
+          },
+        })),
       h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sender-Titel katalogisieren')),
         h('p', { class: 'muted' }, 'Die vorhandene Senderdatei bleibt an ihrem Speicherort. Eine Katalogfreigabe stellt noch keinen Dateiabruf und keine Sendebereitstellung für andere Sender bereit.'),
         unregistered.length ? h('ul', { class: 'plain-list' }, ...unregistered.slice(0, 100).map((m) => h('li', { class: 'mh-entry' }, `${m.artist ? m.artist + ' – ' : ''}${m.title} `, h('button', { class: 'btn small', onclick: () => register(m) }, 'Katalogisieren')))) : h('p', { class: 'muted' }, 'Keine weiteren Titel in der aktuellen Senderbibliothek.')));
