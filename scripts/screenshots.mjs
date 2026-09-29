@@ -49,6 +49,15 @@ for (const [name, file] of [
   ['handbuch','view-handbuch.png'],
 ]) await view(name, file);
 
+// MusicHub separat dokumentieren: die allgemeine Mediathek-Aufnahme zeigt standardmäßig den Senderbestand.
+await page.locator('[data-nav-section="media"]').evaluate((el) => { /** @type {HTMLDetailsElement} */ (el).open = true; });
+await page.locator('[data-view="mediathek"]').first().click();
+await page.waitForSelector('#view-mediathek:not([hidden])');
+await page.getByRole('button', { name: 'MusikHub', exact: true }).click();
+await page.getByRole('heading', { name: 'Cloud-Quellen', exact: true }).waitFor();
+await page.waitForTimeout(350);
+await page.screenshot({ path: new URL('view-musikhub.png', out).pathname, fullPage: false });
+
 for (const [win, file] of [
   ['decks','panel-decks.png'],
   ['carts','panel-carts.png'],
