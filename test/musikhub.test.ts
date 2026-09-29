@@ -100,6 +100,10 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
       stationId: 'main', recipient: { kind: 'user', id: b.id }, actions: ['broadcast.use'], targetStationIds: ['b'],
     });
     assert.equal(broadcastGrant.status, 200);
+    const hubEvents: unknown[] = [];
+    const unsubHubEvents = app.subscribe((event) => {
+      if (event.stationId === 'b' && (event.type === 'queue.changed' || event.type === 'playlists.changed')) hubEvents.push(event.payload);
+    });
     const queued = await call(tb, 'POST', `/music-hub/items/${itemId}/queue`, { stationId: 'b' });
     assert.equal(queued.status, 200, 'broadcast.use erlaubt MusicHub→Queue');
     assert.equal(queued.body.items.length, 1);
@@ -115,6 +119,10 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal(JSON.stringify(playlistAdd.body).includes(b.id), false, 'Playlist-Antwort verrät keine Grant-Akteur-ID');
     const playlists = await call(tb, 'GET', '/stations/b/playlists');
     assert.deepEqual(playlists.body[0].items, [`musikhub:${itemId}`], 'auch Playlist-Lesen sanitisiert interne Referenzen');
+    unsubHubEvents();
+    const eventJson = JSON.stringify(hubEvents);
+    assert.equal(eventJson.includes('__hub__:'), false, 'SSE-Quellen enthalten keine internen MusicHub-Queue-Referenzen');
+    assert.equal(eventJson.includes(b.id), false, 'SSE-Quellen enthalten keine Grant-Akteur-ID');
 
     app.queueClear('b');
     app.svc.planning.playPlaylist('b', playlist.id);
