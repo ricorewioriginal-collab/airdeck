@@ -151,7 +151,7 @@ test('MusikHub: persönliche Uploads bleiben privat und getrennt von Senderbibli
       body: Buffer.from('ID3-private-audio'),
     });
     assert.equal(upload.status, 200);
-    const item = await upload.json() as { id: string; owner: { kind: string; id: string }; source: { kind: string } };
+    const item = await upload.json() as { id: string; owner: { kind: string; id: string }; source: { kind: string; file?: string }; revision: number };
     assert.equal(item.owner.kind, 'user');
     assert.equal(item.owner.id, owner.id);
     assert.equal(item.source.kind, 'personal');
