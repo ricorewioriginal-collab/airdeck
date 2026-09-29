@@ -430,6 +430,25 @@ export class MusicHubService {
     this.app.audit.write({ kind: 'musikhub', event: 'item_deleted', actor: this.actor(p), itemId });
   }
 
+  private availability(item: HubItem): { state: 'ready' | 'missing'; sourceKind: 'personal' | 'station' } {
+    if (item.source.kind === 'personal') {
+      return {
+        state: existsSync(join(this.personalDir(item.owner.id), item.source.file)) ? 'ready' : 'missing',
+        sourceKind: 'personal',
+      };
+    }
+    try {
+      const media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
+      if (media.url) return { state: 'missing', sourceKind: 'station' };
+      return {
+        state: existsSync(this.app.svc.media.mediaPath(item.source.stationId, media)) ? 'ready' : 'missing',
+        sourceKind: 'station',
+      };
+    } catch {
+      return { state: 'missing', sourceKind: 'station' };
+    }
+  }
+
   listItems(p: Principal, stationId: string, search = '', offset = 0, limit = 50) {
     this.station(p, stationId);
     const q = search.trim().toLocaleLowerCase().slice(0, 100);
@@ -448,6 +467,7 @@ export class MusicHubService {
         version: item.version,
         revision: item.revision,
         owner: item.owner,
+        availability: this.availability(item),
         ...(this.ownerAccess(p, item.owner)
           ? { source: item.source.kind === 'personal'
             ? { kind: 'personal', originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size }
