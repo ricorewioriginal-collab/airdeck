@@ -71,22 +71,133 @@ try {
     assert.ok(dims.scroll <= dims.inner + 2, `${label}: horizontaler Seiten-Overflow ${dims.scroll}px > ${dims.inner}px`);
   };
 
-  // MusicHub ist ein echter Teil der Medienverwaltung und muss im Browser sichtbar/bedienbar sein.
+  // MusicHub braucht eine echte Benutzeridentität (nicht nur den Bootstrap-API-Token),
+  // damit Eigentum, Grants und Cloudquellen realistisch im Browser getestet werden.
+  const demoLogin = await fetch(base + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'demo', password: 'airdeck-demo' }),
+  });
+  assert.equal(demoLogin.ok, true, 'MusicHub: Demo-Benutzerlogin fehlgeschlagen');
+  const demoToken = (await demoLogin.json()).token;
+  assert.ok(demoToken, 'MusicHub: Demo-Benutzertoken fehlt');
+
+  // Zweiter Benutzer für den echten Freigabedialog.
+  await fetch(base + '/api/v1/users', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${demoToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: 'musikhub-recipient', name: 'MusicHub Empfänger', password: 'MusicHub-Smoke-Pass-1',
+      roles: ['dj'], stationIds: ['main'], mustChangePassword: false,
+    }),
+  });
+
+  await page.evaluate((t) => localStorage.setItem('airdeck.token', t), demoToken);
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('[data-nav-section="media"]').evaluate((el) => { /** @type {HTMLDetailsElement} */ (el).open = true; });
   await page.locator('[data-view="mediathek"]').first().click();
   await page.waitForSelector('#view-mediathek:not([hidden])');
   await page.getByRole('button', { name: 'MusikHub', exact: true }).click();
   await page.getByRole('heading', { name: 'Cloud-Quellen', exact: true }).waitFor();
   await page.getByRole('heading', { name: 'Meine persönliche Musik', exact: true }).waitFor();
+
   assert.equal(await page.getByRole('button', { name: '＋ Nextcloud', exact: true }).count(), 1, 'MusicHub: Nextcloud-Quelle anlegen fehlt');
   assert.equal(await page.getByRole('button', { name: '＋ Neu', exact: true }).count() >= 1, true, 'MusicHub: Sammlung anlegen fehlt');
-  assert.equal(await page.locator('#view-mediathek input[type="file"]').count() >= 1, true, 'MusicHub: persönlicher Upload fehlt');
+
+  // Nextcloud-Konfiguration ist nicht nur Text im Quellcode: Dialog öffnen und alle Sync-Felder prüfen.
+  await page.getByRole('button', { name: '＋ Nextcloud', exact: true }).click();
+  await page.getByRole('heading', { name: 'Nextcloud-Quelle anlegen', exact: true }).waitFor();
+  for (const label of [
+    'Eigentum', 'Name', 'Nextcloud-Adresse', 'Nextcloud-Benutzer', 'Startordner', 'App-Passwort',
+    'Privates/LAN-Netz erlauben (nur Admin)', 'Automatisch einweg in den MusicHub synchronisieren',
+    'Sync-Intervall (Minuten)', 'Gesamtquote dieser Quelle (MB)', 'Max. Dateigröße (MB)',
+  ]) assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, `MusicHub Nextcloud-Dialog: Feld fehlt: ${label}`);
+
+  // Testquelle absichtlich auf Loopback: Speichern muss funktionieren, der Sync selbst muss
+  // anschließend durch den SSRF-Schutz sofort fehlschlagen und als Job sichtbar werden.
+  await page.getByLabel('Name', { exact: true }).fill('UI Smoke Cloud');
+  await page.getByLabel('Nextcloud-Adresse', { exact: true }).fill('https://127.0.0.1:9');
+  await page.getByLabel('Nextcloud-Benutzer', { exact: true }).fill('smoke');
+  await page.getByLabel('Startordner', { exact: true }).fill('/Radio');
+  await page.getByLabel('App-Passwort', { exact: true }).fill('smoke-app-password');
+  await page.getByLabel('Sync-Intervall (Minuten)', { exact: true }).fill('15');
+  await page.getByLabel('Gesamtquote dieser Quelle (MB)', { exact: true }).fill('64');
+  await page.getByLabel('Max. Dateigröße (MB)', { exact: true }).fill('16');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByText('UI Smoke Cloud', { exact: true }).waitFor();
+  const cloudEntry = page.locator('.mh-entry').filter({ hasText: 'UI Smoke Cloud' }).first();
+  for (const action of ['Jetzt synchronisieren', 'Nur scannen', 'Index ansehen', 'Bearbeiten', 'Löschen']) {
+    assert.equal(await cloudEntry.getByRole('button', { name: action, exact: true }).count(), 1, `MusicHub Cloud-Aktion fehlt: ${action}`);
+  }
+  await cloudEntry.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#status-text')?.textContent?.includes('Private oder lokale Nextcloud-Adresse'), undefined, { timeout: 10_000 });
+
+  // Tab neu laden, damit der persistierte fehlgeschlagene Sync-Job sichtbar wird.
+  await page.getByRole('button', { name: 'Sender-Mediathek', exact: true }).click();
+  await page.getByRole('button', { name: 'MusikHub', exact: true }).click();
+  await page.getByRole('heading', { name: 'Letzte Cloud-Jobs', exact: true }).waitFor();
+  assert.equal(await page.getByText('Synchronisierung', { exact: true }).count() >= 1, true, 'MusicHub: Sync-Job fehlt in der UI');
+  assert.equal(await page.getByText(/fehlgeschlagen/).count() >= 1, true, 'MusicHub: fehlgeschlagener Jobstatus fehlt');
+
+  // Persönlicher Upload wird wirklich durch den Browser ausgelöst.
+  const personalUpload = page.locator('#view-mediathek input[type="file"]').first();
+  assert.equal(await personalUpload.count(), 1, 'MusicHub: persönlicher Upload fehlt');
+  await personalUpload.setInputFiles({
+    name: 'Smoke Artist - Smoke Song.mp3',
+    mimeType: 'audio/mpeg',
+    buffer: Buffer.from('ID3-music-hub-browser-smoke'),
+  });
+  await page.getByText(/Smoke Song/).first().waitFor();
+
+  const smokeEntry = page.locator('.mh-entry').filter({ hasText: 'Smoke Song' }).first();
+  for (const action of ['▶ Vorhören', '↓ Download', '＋ In Queue', '＋ Playlist', 'Metadaten', 'Freigeben', 'Freigaben', 'In Sammlung']) {
+    assert.equal(await smokeEntry.getByRole('button', { name: action, exact: true }).count(), 1, `MusicHub Titel-Aktion fehlt: ${action}`);
+  }
+
+  // Metadaten-Dialog tatsächlich bearbeiten.
+  await smokeEntry.getByRole('button', { name: 'Metadaten', exact: true }).click();
+  await page.getByRole('heading', { name: 'MusicHub-Metadaten', exact: true }).waitFor();
+  await page.getByLabel('Titel', { exact: true }).fill('Smoke Song UI');
+  await page.getByLabel('Version / Mix', { exact: true }).fill('Browser Test');
+  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByText(/Smoke Song UI \[Browser Test\]/).waitFor();
+
+  const editedEntry = page.locator('.mh-entry').filter({ hasText: 'Smoke Song UI' }).first();
+
+  // Broadcast- und Playlist-Aktion bis zum Backend ausführen.
+  await editedEntry.getByRole('button', { name: '＋ In Queue', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#status-text')?.textContent?.includes('Sender-Queue gelegt'), undefined, { timeout: 10_000 });
+  await editedEntry.getByRole('button', { name: '＋ Playlist', exact: true }).click();
+  await page.getByRole('heading', { name: 'MusicHub-Titel zur Playlist', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#status-text')?.textContent?.includes('zur Playlist'), undefined, { timeout: 10_000 });
+
+  // Zweistufigen Freigabedialog öffnen und sensible Rechte sichtbar prüfen.
+  await editedEntry.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  await page.getByRole('heading', { name: 'Empfänger suchen', exact: true }).waitFor();
+  await page.getByLabel('Nutzer- oder Sendername (mindestens 2 Zeichen)', { exact: true }).fill('musikhub-recipient');
+  await page.getByRole('button', { name: 'Suchen', exact: true }).click();
+  await page.getByRole('heading', { name: 'MusicHub-Freigabe', exact: true }).waitFor();
+  for (const label of [
+    'Empfänger', 'Gültig für Sender', 'Im Katalog sichtbar', 'Vorhören erlauben',
+    'Datei herunterladen erlauben', 'Für Sendung verwenden erlauben', 'Export/Transfer erlauben',
+    'Gültig ab (optional)', 'Ablauf (optional)',
+  ]) assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, `MusicHub Freigabedialog: Feld fehlt: ${label}`);
+  await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+
+  // Cloud-Testquelle wieder entfernen.
+  const cloudEntryAfter = page.locator('.mh-entry').filter({ hasText: 'UI Smoke Cloud' }).first();
+  page.once('dialog', (dialog) => dialog.accept());
+  await cloudEntryAfter.getByRole('button', { name: 'Löschen', exact: true }).click();
+  await page.waitForFunction(() => ![...document.querySelectorAll('.mh-entry')].some((el) => el.textContent?.includes('UI Smoke Cloud')));
+
   await noHorizontalOverflow('MusicHub Desktop');
 
   await page.setViewportSize({ width: 520, height: 900 });
   await page.waitForTimeout(100);
   await noHorizontalOverflow('MusicHub Handy 520');
   assert.equal(await page.getByRole('heading', { name: 'Cloud-Quellen', exact: true }).isVisible(), true, 'MusicHub: Cloud-Bereich mobil nicht sichtbar');
+  assert.equal(await page.getByText(/Smoke Song UI/).first().isVisible(), true, 'MusicHub: persönlicher Titel mobil nicht sichtbar');
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.locator('[data-view="studio"]').first().click();
