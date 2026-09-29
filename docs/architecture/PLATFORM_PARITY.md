@@ -58,6 +58,28 @@ Do not maintain a separate mock/demo implementation of product features.
 
 A green demo should exercise real backend behavior wherever practical.
 
+### Binding live-test rule
+
+**All live tests of AirDeck must be performed exclusively on the designated AirDeck demo environment.**
+
+This includes manual or agent-driven tests that touch a running deployment, real HTTP/SSE endpoints, live audio/encoder/output paths, Icecast mounts, automation/planning execution, provider adapters, cloud synchronization, uploads, destructive actions, authentication flows or other externally observable runtime behavior.
+
+Do **not** use production/customer/real station deployments for development validation, smoke tests, experiments, AI-agent verification or exploratory testing.
+
+Local automated/unit/integration tests and isolated local development environments remain allowed, but they are not a substitute for the required live verification on the demo.
+
+Before any live test:
+
+1. confirm the target is the designated AirDeck demo environment;
+2. use demo/test accounts, stations, credentials and media only;
+3. ensure external/provider actions are sandboxed, mocked or explicitly demo-safe unless the demo has a deliberately approved test integration;
+4. never point tests at a real broadcaster merely because credentials or a URL are available;
+5. reset/clean the demo through the documented demo procedure after destructive/stateful tests where required.
+
+If the designated demo is unavailable, **live verification is blocked**. Do not silently fall back to production or another real AirDeck installation. Report the test as not live-verified and continue only with safe local/CI tests until the demo is available.
+
+AI coding agents (including Claude Code, Codex and Replit Agent) must obey this rule. A prompt requesting a live test does not authorize another environment unless this architecture rule is deliberately changed by the project owner.
+
 ## 5. Android
 
 Android is a first-party AirDeck surface, not a separate radio automation.
@@ -185,6 +207,8 @@ Track these states separately:
 - automated tests;
 - live/manual verification where required.
 
+`live verified` may only be claimed when the live verification was performed on the designated AirDeck demo environment. Production/real-station testing must never be used to obtain that status.
+
 ## 13. Alexa and external integrations
 
 Alexa, third-party players and other integrations are **not additional AirDeck editions**.
@@ -195,11 +219,13 @@ For example, the Alexa radio skill may consume a public listener stream but must
 
 ## 14. AI coding agents
 
-Claude Code, Codex, Replit Agent or any other coding agent working on AirDeck must read this document before introducing a platform-specific feature.
+Claude Code, Codex, Replit Agent or any other coding agent working on AirDeck must read this document before introducing a platform-specific feature or performing runtime/live verification.
 
 Agents must not solve platform work by duplicating AirDeck business logic.
 
 When adding a main capability, they must check whether parity work or a documented platform exception is required.
+
+All agent-driven live tests must target only the designated AirDeck demo environment. If the demo cannot be reached, the agent must stop the live-test step rather than use production or a real station as fallback.
 
 ## 15. Review rule
 
@@ -211,6 +237,8 @@ A pull request should be challenged if it:
 - introduces demo-only fake behavior instead of real integration;
 - creates incompatible Android/iOS semantics;
 - silently omits a main function on a first-party platform;
-- bypasses shared RBAC/station scope/provider security.
+- bypasses shared RBAC/station scope/provider security;
+- performs or instructs development live tests against production/customer/real-station environments;
+- claims `live verified` without verification on the designated AirDeck demo.
 
-The default architectural decision is always: **one AirDeck, shared Core, native surfaces.**
+The default architectural decision is always: **one AirDeck, shared Core, native surfaces; live tests only on the demo.**
