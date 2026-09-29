@@ -37,7 +37,7 @@ export interface UpdateInfo {
   error?: string;
 }
 
-export const DEFAULT_SOURCE: UpdateSource = { repo: 'ricorewioriginal-collab/anmacha_control', tag: 'latest' };
+export const DEFAULT_SOURCE: UpdateSource = { repo: 'ricorewioriginal-collab/airdeck', tag: 'latest' };
 
 /** Releases sind unveränderlich: jeder Build hat ein eigenes Release, „latest“ zeigt auf das neueste.
  *  Der frühere Kanal „nightly“ wird nicht mehr aktualisiert und gilt deshalb ebenfalls als „latest“. */

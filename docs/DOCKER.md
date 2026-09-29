@@ -5,7 +5,7 @@ Der Container ist AirDeck als Server für den 24/7-Betrieb, zum Beispiel auf ein
 ## Start
 
 ```bash
-git clone https://github.com/ricorewioriginal-collab/anmacha_control.git airdeck
+git clone https://github.com/ricorewioriginal-collab/airdeck.git airdeck
 cd airdeck && git checkout "AirDeck-Radio-Automation-&-Broadcast"
 echo "AIRDECK_DB_PASSWORD=$(openssl rand -hex 24)" > .env   # Passwort der Datenbank, einmalig
 docker compose up -d
@@ -26,6 +26,12 @@ Danach das Studio unter `http://<server>:8750/#token=<Admin-Token>` öffnen. Die
 - Sicherung (bis Backup/Restore im Programm fertig ist):
   - Datenbank: `docker compose exec postgres pg_dump -U airdeck airdeck > airdeck-db.sql`
   - Dateien: `docker run --rm -v airdeck_airdeck-data:/data -v "$PWD":/backup busybox tar czf /backup/airdeck-data.tgz /data`
+
+## Demo-Stack
+
+Die kontinuierliche Test-Demo ist vom normalen AirDeck-Stack getrennt. Sie verwendet `packaging/demo/docker-compose.demo.yml`; auf dem Demo-Host ist AirDeck über `127.0.0.1:8751` und der interne Icecast-Teststream über `127.0.0.1:8752` angebunden. Diese Host-Bindings bleiben loopback-only und sind für einen vorgeschalteten Reverse Proxy bzw. lokale End-to-End-Tests gedacht.
+
+Die Demo ist kein Release-Kanal: Sie darf dem aktuellen freigegebenen Entwicklungsstand folgen, während Releases bewusst versionierte, stabile Veröffentlichungen bleiben. Ein erfolgreicher Demo-Test muss nicht nur den API-Status prüfen, sondern auch Encoder, Stream-Verbindung, Icecast-Mount und tatsächlich empfangene Audiodaten.
 
 ## Hinweise
 
