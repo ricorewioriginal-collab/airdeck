@@ -146,8 +146,8 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     await assert.rejects(app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, true), /Nextcloud/);
     const failedSource = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
     assert.equal(failedSource.syncFailures >= 1, true);
-    assert.equal(failedSource.offlineUntil > Date.now(), true, 'Fehler setzt Backoff/Offline-Zeit');
-    assert.equal(failedSource.nextSyncAt >= failedSource.offlineUntil, true);
+    assert.equal((failedSource.offlineUntil ?? 0) > Date.now(), true, 'Fehler setzt Backoff/Offline-Zeit');
+    assert.equal((failedSource.nextSyncAt ?? 0) >= (failedSource.offlineUntil ?? 0), true);
 
     await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
       revision: failedSource.revision,
