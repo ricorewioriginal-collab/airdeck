@@ -220,7 +220,7 @@ export class MusicHubService {
     return {
       id: item.id,
       owner: item.owner,
-      source: { kind: 'personal', originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size },
+      source: { kind: 'personal', originalName: draft.originalName, contentType: draft.contentType, size },
       title: item.title,
       artist: item.artist,
       version: item.version,
