@@ -1,6 +1,6 @@
 // @ts-check
-// MusikHub Phase 1: echter, serverseitig gefilterter Katalog mit Sammlungen und
-// expliziten Freigaben. Audio-Transfer und Cloud-Sync folgen in eigenen Phasen.
+// MusicHub Studio: geschützter Katalog, persönliche Medien, Freigaben, Broadcast
+// sowie owner-bezogene Cloudquellen mit Scan/Retrieve/Sync und Konfliktstatus.
 import { formDialog, h, run, status } from './ui.js';
 
 /** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[]}} Ctx */
@@ -13,6 +13,7 @@ export function mountMusicHub(root, ctx) {
   /** @type {any[]} */ let items = [];
   /** @type {any[]} */ let collections = [];
   /** @type {any[]} */ let cloudSources = [];
+  /** @type {any[]} */ let cloudJobs = [];
   /** @type {Map<string, any[]>} */ const cloudIndexes = new Map();
   let total = 0;
 
@@ -22,15 +23,17 @@ export function mountMusicHub(root, ctx) {
 
   async function load() {
     const sid = station();
-    const [catalog, groups, sources] = await Promise.all([
+    const [catalog, groups, sources, jobs] = await Promise.all([
       ctx.api.get(url(`/items?station=${encodeURIComponent(sid)}&q=${encodeURIComponent(query)}&offset=${page * 50}&limit=50`)),
       ctx.api.get(url(`/collections?station=${encodeURIComponent(sid)}`)),
       ctx.api.get(`/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources`),
+      ctx.api.get(`/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/jobs`),
     ]);
     items = catalog.items;
     total = catalog.total;
     collections = groups;
     cloudSources = sources;
+    cloudJobs = jobs;
     render();
   }
 
@@ -299,6 +302,7 @@ export function mountMusicHub(root, ctx) {
       { name: 'download', label: 'Datei herunterladen erlauben', type: 'checkbox', value: false },
       { name: 'broadcast', label: 'Für Sendung verwenden erlauben', type: 'checkbox', value: false },
       { name: 'export', label: 'Export/Transfer erlauben', type: 'checkbox', value: false },
+      { name: 'starts', label: 'Gültig ab (optional)', type: 'datetime-local', value: '' },
       { name: 'expires', label: 'Ablauf (optional)', type: 'datetime-local', value: '' },
     ], 'Freigeben');
     if (!choice) return;
@@ -311,12 +315,15 @@ export function mountMusicHub(root, ctx) {
     if (choice.broadcast) actions.push('broadcast.use');
     if (choice.export) actions.push('transfer.export');
     if (!actions.length) return status('Wähle mindestens ein Freigaberecht.', true);
+    const startsAt = choice.starts ? new Date(choice.starts).getTime() : null;
     const expiresAt = choice.expires ? new Date(choice.expires).getTime() : null;
+    if (startsAt !== null && expiresAt !== null && startsAt >= expiresAt) return status('Der Beginn muss vor dem Ablauf liegen.', true);
     const result = await run(() => ctx.api.post(url(`/${kind}/${encodeURIComponent(resource.id)}/grants`), {
       stationId: station(),
       recipient: { kind: recipientKind, id },
       targetStationIds: [target],
       actions: [...new Set(actions)],
+      startsAt,
       expiresAt,
     }));
     if (!result) return;
@@ -420,7 +427,15 @@ export function mountMusicHub(root, ctx) {
                     h('button', { class: 'btn small', onclick: () => retrieveCloudEntry(source, entry) }, 'In MusicHub'))),
                   index.length > 50 ? h('li', { class: 'muted' }, `… ${index.length - 50} weitere`) : null) : null);
             }))
-          : h('p', { class: 'muted' }, 'Noch keine MusicHub-Cloudquelle eingerichtet.')),
+          : h('p', { class: 'muted' }, 'Noch keine MusicHub-Cloudquelle eingerichtet.'),
+        cloudJobs.length
+          ? h('div', { class: 'mh-job-list' },
+              h('h3', {}, 'Letzte Cloud-Jobs'),
+              ...cloudJobs.slice(-8).reverse().map((job) => h('div', { class: `mh-job mh-job-${job.status}` },
+                h('strong', {}, job.kind === 'sync' ? 'Synchronisierung' : job.kind === 'scan' ? 'Scan' : 'Abruf'),
+                h('span', { class: 'muted' }, ` · ${job.status === 'done' ? 'fertig' : job.status === 'failed' ? 'fehlgeschlagen' : job.status === 'running' ? 'läuft' : 'wartet'} · ${new Date(job.updatedAt).toLocaleString('de-DE')}${job.files ? ` · ${job.files} Datei(en)` : ''}${job.error ? ` · ${job.error}` : ''}`)))
+            )
+          : null),
       h('section', { class: 'panel' },
         h('div', { class: 'panel-head' }, h('h2', {}, 'Meine persönliche Musik')),
         h('p', { class: 'muted' }, 'Persönliche Uploads liegen getrennt von den Senderbibliotheken. Ohne ausdrückliche Freigabe sieht kein anderer Nutzer diese Titel.'),
