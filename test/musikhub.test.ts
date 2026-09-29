@@ -109,6 +109,82 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
   }
 });
 
+
+test('MusikHub: persönliche Uploads bleiben privat und getrennt von Senderbibliotheken', async () => {
+  const dir = mkdtempSync(join(process.cwd(), '.musikhub-personal-test-'));
+  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
+  await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;
+  const json = async (token: string, method: string, path: string, body?: unknown) => {
+    const r = await fetch(base + path, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await r.text();
+    return { status: r.status, body: text ? JSON.parse(text) : null };
+  };
+  try {
+    app.svc.stations.createStation({ id: 'b', name: 'Sender B' });
+    const owner = await app.users.create({ username: 'personal-owner', password: 'Owner-Passwort1', roles: ['editor'], stationIds: ['main'], mustChangePassword: false });
+    const target = await app.users.create({ username: 'personal-target', password: 'Target-Passwort1', roles: ['dj'], stationIds: ['b'], mustChangePassword: false });
+    const login = async (name: string, pw: string) => (await json('', 'POST', '/auth/login', { username: name, password: pw })).body.token as string;
+    const ownerToken = await login('personal-owner', 'Owner-Passwort1');
+    const targetToken = await login('personal-target', 'Target-Passwort1');
+
+    const upload = await fetch(base + '/music-hub/personal?station=main&name=Privat%20-%20Song.mp3', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${ownerToken}`, 'Content-Type': 'audio/mpeg' },
+      body: Buffer.from('ID3-private-audio'),
+    });
+    assert.equal(upload.status, 200);
+    const item = await upload.json() as { id: string; owner: { kind: string; id: string }; source: { kind: string } };
+    assert.equal(item.owner.kind, 'user');
+    assert.equal(item.owner.id, owner.id);
+    assert.equal(item.source.kind, 'personal');
+    assert.equal(app.svc.media.library('main').length, 0, 'persönliche Datei landet nicht in der Senderbibliothek');
+
+    const ownerCatalog = await json(ownerToken, 'GET', '/music-hub/items?station=main&q=Song');
+    assert.equal(ownerCatalog.body.total, 1);
+    assert.equal(ownerCatalog.body.items[0].source.kind, 'personal');
+    assert.equal(ownerCatalog.body.items[0].source.file, undefined, 'interner Dateiname wird nicht über die API offengelegt');
+    assert.equal((await json(targetToken, 'GET', '/music-hub/items?station=b&q=Song')).body.total, 0, 'fremder Nutzer sieht weder Treffer noch Trefferzahl');
+
+    const grant = await json(ownerToken, 'POST', `/music-hub/item/${item.id}/grants`, {
+      stationId: 'main',
+      recipient: { kind: 'user', id: target.id },
+      actions: ['catalog.read', 'preview.play'],
+      targetStationIds: ['b'],
+    });
+    assert.equal(grant.status, 200);
+    assert.equal((await json(targetToken, 'GET', '/music-hub/items?station=b&q=Song')).body.total, 1);
+    const targetItem = (await json(targetToken, 'GET', '/music-hub/items?station=b&q=Song')).body.items[0];
+    assert.equal(targetItem.source, undefined, 'Empfänger erhält keine private Speicherquelle');
+
+    const preview = await fetch(base + `/music-hub/items/${item.id}/preview?station=b`, {
+      headers: { Authorization: `Bearer ${targetToken}`, Range: 'bytes=0-2' },
+    });
+    assert.equal(preview.status, 206);
+    assert.equal(await preview.text(), 'ID3');
+    assert.equal((await fetch(base + `/music-hub/items/${item.id}/download?station=b`, {
+      headers: { Authorization: `Bearer ${targetToken}` },
+    })).status, 404, 'Preview bleibt vom Download getrennt');
+
+    assert.equal((await json(ownerToken, 'DELETE', `/music-hub/items/${item.id}?station=main`)).status, 204);
+    assert.equal((await json(ownerToken, 'GET', '/music-hub/items?station=main&q=Song')).body.total, 0);
+    assert.equal((await json(targetToken, 'GET', '/music-hub/items?station=b&q=Song')).body.total, 0);
+    assert.equal((await fetch(base + `/music-hub/items/${item.id}/preview?station=b`, {
+      headers: { Authorization: `Bearer ${targetToken}` },
+    })).status, 404);
+  } finally {
+    app.shutdown();
+    server.closeAllConnections();
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('MusikHub-Migration verwendet alle Datenbankdialekte', () => {
   for (const dialect of ['sqlite', 'postgres', 'mysql'] as const) {
     for (const table of TABLES_V2) {
