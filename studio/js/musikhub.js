@@ -90,6 +90,42 @@ export function mountMusicHub(root, ctx) {
     setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   }
 
+  async function editMetadata(item) {
+    const value = await formDialog('MusicHub-Metadaten', [
+      { name: 'title', label: 'Titel', value: item.title, required: true },
+      { name: 'artist', label: 'Interpret', value: item.artist || '' },
+      { name: 'version', label: 'Version / Mix', value: item.version || '', hint: 'z. B. Radio Edit, Instrumental, 2026 Remaster' },
+    ], 'Speichern');
+    if (!value) return;
+    const result = await run(() => ctx.api.patch(
+      url(`/items/${encodeURIComponent(item.id)}?station=${encodeURIComponent(station())}`),
+      { title: value.title, artist: value.artist, version: value.version, revision: item.revision },
+    ));
+    if (!result) return;
+    status('MusicHub-Metadaten gespeichert');
+    await run(load);
+  }
+
+  async function showCover(item) {
+    const blob = await ctx.api.blob(url(`/items/${encodeURIComponent(item.id)}/cover?station=${encodeURIComponent(station())}`)).catch(() => null);
+    if (!blob) return status('Für diesen Titel ist kein eingebettetes Cover verfügbar.', true);
+    const objectUrl = URL.createObjectURL(blob);
+    const img = new Image();
+    img.src = objectUrl;
+    img.alt = `Cover: ${item.title}`;
+    img.style.maxWidth = 'min(420px, 80vw)';
+    img.style.maxHeight = '70vh';
+    img.style.borderRadius = '12px';
+    const win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) {
+      URL.revokeObjectURL(objectUrl);
+      return status('Cover-Fenster wurde vom Browser blockiert.', true);
+    }
+    win.document.body.style.cssText = 'margin:0;display:grid;place-items:center;min-height:100vh;background:#050b14';
+    win.document.body.append(img);
+    win.addEventListener('beforeunload', () => URL.revokeObjectURL(objectUrl), { once: true });
+  }
+
   async function deleteItem(item) {
     if (!confirm(`„${item.title}“ wirklich aus dem MusikHub löschen?`)) return;
     const result = await run(() => ctx.api.del(url(`/items/${encodeURIComponent(item.id)}?station=${encodeURIComponent(station())}`)));
@@ -115,27 +151,45 @@ export function mountMusicHub(root, ctx) {
     await run(load);
   }
 
-  async function shareCollection(collection) {
+  async function shareResource(kind, resource) {
     const search = await formDialog('Empfänger suchen', [{ name: 'q', label: 'Nutzer- oder Sendername (mindestens 2 Zeichen)', required: true }], 'Suchen');
     if (!search) return;
     const found = await run(() => ctx.api.get(url(`/recipients?q=${encodeURIComponent(search.q)}`)));
     if (!found) return;
-    const options = [...found.users.map((u) => [`user:${u.id}`, `${u.name} (@${u.username})`]), ...found.stations.map((s) => [`station:${s.id}`, `Sender: ${s.name}`])];
+    const options = [...found.users.map((u) => [`user:${u.id}`, `${u.name} (@${u.username})`]), ...found.stations.map((st) => [`station:${st.id}`, `Sender: ${st.name}`])];
     if (!options.length) return status('Kein bestehender Empfänger gefunden.', true);
     const directory = await run(() => ctx.api.get(url('/recipients')));
     if (!directory) return;
-    const choice = await formDialog('Katalogfreigabe', [
+    const choice = await formDialog('MusicHub-Freigabe', [
       { name: 'recipient', label: 'Empfänger', options },
-      { name: 'target', label: 'Gültig für Sender', options: directory.stations.map((s) => [s.id, s.name]), hint: 'Freigabe gilt nur in diesem Senderkontext. Neue Mitglieder einer Sender-Sammlung erben sie.' },
+      { name: 'target', label: 'Gültig für Sender', options: directory.stations.map((st) => [st.id, st.name]), hint: 'Jede Freigabe gilt nur im ausgewählten Senderkontext.' },
+      { name: 'catalog', label: 'Im Katalog sichtbar', type: 'checkbox', value: true },
+      { name: 'preview', label: 'Vorhören erlauben', type: 'checkbox', value: true },
+      { name: 'download', label: 'Datei herunterladen erlauben', type: 'checkbox', value: false },
+      { name: 'broadcast', label: 'Für Sendung verwenden erlauben', type: 'checkbox', value: false },
+      { name: 'export', label: 'Export/Transfer erlauben', type: 'checkbox', value: false },
+      { name: 'expires', label: 'Ablauf (optional)', type: 'datetime-local', value: '' },
     ], 'Freigeben');
     if (!choice) return;
-    const [kind, id] = choice.recipient.split(':');
-    const target = kind === 'station' ? id : choice.target;
-    const result = await run(() => ctx.api.post(url(`/collection/${encodeURIComponent(collection.id)}/grants`), {
-      stationId: station(), recipient: { kind, id }, targetStationIds: [target], actions: ['catalog.read'],
+    const [recipientKind, id] = choice.recipient.split(':');
+    const target = recipientKind === 'station' ? id : choice.target;
+    const actions = [];
+    if (choice.catalog || choice.preview || choice.download || choice.broadcast || choice.export) actions.push('catalog.read');
+    if (choice.preview) actions.push('preview.play');
+    if (choice.download) actions.push('file.download');
+    if (choice.broadcast) actions.push('broadcast.use');
+    if (choice.export) actions.push('transfer.export');
+    if (!actions.length) return status('Wähle mindestens ein Freigaberecht.', true);
+    const expiresAt = choice.expires ? new Date(choice.expires).getTime() : null;
+    const result = await run(() => ctx.api.post(url(`/${kind}/${encodeURIComponent(resource.id)}/grants`), {
+      stationId: station(),
+      recipient: { kind: recipientKind, id },
+      targetStationIds: [target],
+      actions: [...new Set(actions)],
+      expiresAt,
     }));
     if (!result) return;
-    status(`„${collection.name}“ für den Katalog freigegeben`);
+    status(`„${resource.name || resource.title}“ freigegeben`);
     await run(load);
   }
 
@@ -175,16 +229,19 @@ export function mountMusicHub(root, ctx) {
           collections.length ? h('ul', { class: 'plain-list' }, ...collections.map((c) => h('li', { class: 'mh-entry' },
             h('strong', {}, c.name), h('span', { class: 'muted' }, ` · ${c.itemIds.length} Titel`),
             c.actions.includes('shares.manage') ? h('div', { class: 'row mh-actions' },
-              h('button', { class: 'btn small', onclick: () => shareCollection(c) }, 'Freigeben'),
+              h('button', { class: 'btn small', onclick: () => shareResource('collection', c) }, 'Freigeben'),
               h('button', { class: 'btn small', onclick: () => manageGrants(c) }, 'Freigaben ansehen')) : null))) : h('p', { class: 'muted' }, 'Noch keine sichtbaren Sammlungen.')),
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Katalog')),
           h('p', { class: 'muted mh-page-info' }, `Titel ${first}–${last} von ${total} · ${visible.length} auf dieser Seite im gewählten Filter`),
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
-            h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}`),
+            h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}${item.version ? ` [${item.version}]` : ''}`),
             h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : 'Persönlich'}`),
             h('div', { class: 'row mh-actions' },
+              item.actions.includes('catalog.read') ? h('button', { class: 'btn small', onclick: () => showCover(item) }, 'Cover') : null,
               item.actions.includes('preview.play') ? h('button', { class: 'btn small', onclick: () => preview(item) }, '▶ Vorhören') : null,
               item.actions.includes('file.download') ? h('button', { class: 'btn small', onclick: () => download(item) }, '↓ Download') : null,
+              item.actions.includes('metadata.edit') ? h('button', { class: 'btn small', onclick: () => editMetadata(item) }, 'Metadaten') : null,
+              item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => shareResource('item', item) }, 'Freigeben') : null,
               item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null,
               item.owner.kind === 'user' && item.source?.kind === 'personal' && item.actions.includes('media.delete')
                 ? h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen') : null
