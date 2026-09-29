@@ -301,7 +301,9 @@ export class NextcloudService {
       source.syncIntervalMinutes = Math.min(HUB_NC_MAX_SYNC_MINUTES, Math.max(HUB_NC_MIN_SYNC_MINUTES, Number(input.syncIntervalMinutes ?? source.syncIntervalMinutes) || 60));
       source.syncQuotaBytes = Math.max(1, Math.floor(Number(input.syncQuotaBytes ?? source.syncQuotaBytes) || HUB_NC_DEFAULT_QUOTA));
       source.syncMaxFileBytes = Math.max(1, Math.min(HUB_NC_DEFAULT_MAX_FILE, Math.floor(Number(input.syncMaxFileBytes ?? source.syncMaxFileBytes) || HUB_NC_DEFAULT_MAX_FILE)));
-      source.nextSyncAt = source.syncEnabled ? (source.nextSyncAt ?? Date.now()) : null;
+      source.syncFailures = 0;
+      source.offlineUntil = null;
+      source.nextSyncAt = source.syncEnabled ? Date.now() : null;
       source.updatedAt = Date.now();
       source.revision++;
       source.lastError = null;
