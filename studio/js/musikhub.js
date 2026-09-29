@@ -261,10 +261,10 @@ export function mountMusicHub(root, ctx) {
   }
 
   async function deleteItem(item) {
-    if (!confirm(`„${item.title}“ wirklich aus dem MusikHub löschen?`)) return;
+    if (!confirm(`„${item.title}“ wirklich aus dem MusicHub entfernen? Die ursprüngliche Senderdatei wird bei Katalogreferenzen nicht gelöscht.`)) return;
     const result = await run(() => ctx.api.del(url(`/items/${encodeURIComponent(item.id)}?station=${encodeURIComponent(station())}`)));
     if (result === undefined) return;
-    status('Persönlicher MusikHub-Titel gelöscht');
+    status('MusicHub-Titel entfernt');
     await run(load);
   }
 
@@ -301,7 +301,6 @@ export function mountMusicHub(root, ctx) {
       { name: 'preview', label: 'Vorhören erlauben', type: 'checkbox', value: true },
       { name: 'download', label: 'Datei herunterladen erlauben', type: 'checkbox', value: false },
       { name: 'broadcast', label: 'Für Sendung verwenden erlauben', type: 'checkbox', value: false },
-      { name: 'export', label: 'Export/Transfer erlauben', type: 'checkbox', value: false },
       { name: 'starts', label: 'Gültig ab (optional)', type: 'datetime-local', value: '' },
       { name: 'expires', label: 'Ablauf (optional)', type: 'datetime-local', value: '' },
     ], 'Freigeben');
@@ -309,11 +308,10 @@ export function mountMusicHub(root, ctx) {
     const [recipientKind, id] = choice.recipient.split(':');
     const target = recipientKind === 'station' ? id : choice.target;
     const actions = [];
-    if (choice.catalog || choice.preview || choice.download || choice.broadcast || choice.export) actions.push('catalog.read');
+    if (choice.catalog || choice.preview || choice.download || choice.broadcast) actions.push('catalog.read');
     if (choice.preview) actions.push('preview.play');
     if (choice.download) actions.push('file.download');
     if (choice.broadcast) actions.push('broadcast.use');
-    if (choice.export) actions.push('transfer.export');
     if (!actions.length) return status('Wähle mindestens ein Freigaberecht.', true);
     const startsAt = choice.starts ? new Date(choice.starts).getTime() : null;
     const expiresAt = choice.expires ? new Date(choice.expires).getTime() : null;
@@ -398,8 +396,8 @@ export function mountMusicHub(root, ctx) {
               item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => shareResource('item', item) }, 'Freigeben') : null,
               item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => manageGrants('item', item) }, 'Freigaben') : null,
               item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null,
-              item.owner.kind === 'user' && item.source?.kind === 'personal' && item.actions.includes('media.delete')
-                ? h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen') : null
+              item.actions.includes('media.delete') && !!item.source
+                ? h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, item.source.kind === 'station' || item.source.stationId ? 'Aus MusicHub entfernen' : 'Löschen') : null
             )))) : h('p', { class: 'muted' }, total ? 'Auf dieser Seite entspricht kein Titel dem gewählten Filter.' : 'Keine freigegebenen Titel gefunden.'),
           h('div', { class: 'row' },
             h('button', { class: 'btn small', disabled: page === 0, onclick: () => { page--; void run(load); } }, 'Zurück'),
