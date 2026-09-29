@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AirDeckApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
@@ -22,6 +22,8 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
   try {
     app.svc.stations.createStation({ id: 'b', name: 'Sender B' });
     app.svc.media.addMedia('main', { id: 'song', title: 'Abendshow', artist: 'Test', category: 'music', file: 'song.mp3', durationMs: 3000, addedAt: Date.now() });
+    mkdirSync(join(app.mediaDir, 'main'), { recursive: true });
+    writeFileSync(join(app.mediaDir, 'main', 'song.mp3'), Buffer.from('ID3-test-audio'));
     const a = await app.users.create({ username: 'owner', password: 'Owner-Passwort1', roles: ['editor'], stationIds: ['main'], mustChangePassword: false });
     const b = await app.users.create({ username: 'target', password: 'Target-Passwort1', roles: ['dj'], stationIds: ['b'], mustChangePassword: false });
     const c = await app.users.create({ username: 'other', password: 'Other-Passwort1', roles: ['dj'], stationIds: ['b'], mustChangePassword: false });
@@ -57,6 +59,26 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal((await call(tb, 'GET', '/music-hub/items?station=b')).body.total, 1, 'MH02: nur Empfänger B');
     assert.equal((await call(tc, 'GET', '/music-hub/items?station=b')).body.total, 0);
     assert.deepEqual((await call(tb, 'GET', '/music-hub/items?station=b')).body.items[0].actions, ['catalog.read', 'preview.play']);
+    const preview = await fetch(base + `/music-hub/items/${itemId}/preview?station=b`, {
+      headers: { Authorization: `Bearer ${tb}`, Range: 'bytes=0-2' },
+    });
+    assert.equal(preview.status, 206, 'Preview-Grant erlaubt Range-Streaming');
+    assert.equal(await preview.text(), 'ID3');
+    assert.equal(preview.headers.get('cache-control'), 'private, no-store');
+    assert.equal((await fetch(base + `/music-hub/items/${itemId}/download?station=b`, {
+      headers: { Authorization: `Bearer ${tb}` },
+    })).status, 404, 'Preview-Grant erlaubt keinen Download');
+
+    const downloadGrant = await call(ta, 'POST', `/music-hub/item/${itemId}/grants`, {
+      stationId: 'main', recipient: { kind: 'user', id: b.id }, actions: ['file.download'], targetStationIds: ['b'],
+    });
+    assert.equal(downloadGrant.status, 200);
+    const download = await fetch(base + `/music-hub/items/${itemId}/download?station=b`, {
+      headers: { Authorization: `Bearer ${tb}` },
+    });
+    assert.equal(download.status, 200, 'Download benötigt ein eigenes Recht');
+    assert.match(download.headers.get('content-disposition') ?? '', /^attachment;/);
+    assert.equal(await download.text(), 'ID3-test-audio');
     assert.equal((await call(tb, 'POST', `/music-hub/item/${itemId}/grants`, { stationId: 'b', recipient: { kind: 'user', id: c.id }, actions: ['catalog.read'], targetStationIds: ['b'] })).status, 403, 'kein Delegieren ohne shares.manage');
 
     const stationGrant = await call(ta, 'POST', `/music-hub/collection/${collectionId}/grants`, {
@@ -76,7 +98,7 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
       const state = DbDocStore.openSync(db).get<{ items: { id: string }[]; collections: { id: string }[]; grants: { id: string }[] }>('musikhub', { items: [], collections: [], grants: [] });
       assert.equal(state.items[0]?.id, itemId);
       assert.equal(state.collections[0]?.id, collectionId);
-      assert.equal(state.grants.length, 2);
+      assert.equal(state.grants.length, 3);
     } finally { await db.close(); }
     assert.equal(a.id.length > 0, true);
   } finally {
