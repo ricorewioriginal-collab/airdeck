@@ -287,6 +287,17 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return app.svc.musikhub.createGrant(c.p, { kind: c.params.kind, id: c.params.id! }, b.recipient, b.actions, b.targetStationIds, String(b.stationId ?? ''), b.expiresAt);
   });
   add('DELETE', '/api/v1/music-hub/grants/:id', 'media:write', async (c) => app.svc.musikhub.revokeGrant(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  add('GET', '/api/v1/music-hub/items/:id/preview', 'media:read', (c) => {
+    const file = app.svc.musikhub.resolveAudioFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'preview.play');
+    sendFile(c.req, c.res, file.path, AUDIO_EXT[extname(file.name).toLowerCase()] ?? 'application/octet-stream', 'private, no-store');
+    return STREAMED;
+  });
+  add('GET', '/api/v1/music-hub/items/:id/download', 'media:read', (c) => {
+    const file = app.svc.musikhub.resolveAudioFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'file.download');
+    c.res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`);
+    sendFile(c.req, c.res, file.path, AUDIO_EXT[extname(file.name).toLowerCase()] ?? 'application/octet-stream', 'private, no-store');
+    return STREAMED;
+  });
 
   // --- Queue / Automation / Decks ---
   add('GET', '/api/v1/stations/:sid/queue', 'queue:read', (c) => app.queueView(sid(c), Number(c.url.searchParams.get('remainingMs') ?? 0)));
@@ -996,7 +1007,7 @@ function readRaw(req: IncomingMessage, limit: number): Promise<Buffer> {
   });
 }
 
-function sendFile(req: IncomingMessage, res: ServerResponse, file: string, type: string): void {
+function sendFile(req: IncomingMessage, res: ServerResponse, file: string, type: string, cacheControl = 'private, max-age=3600'): void {
   if (!existsSync(file)) return json(res, 404, { error: 'not_found' });
   const size = statSync(file).size;
   const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ''));
@@ -1009,11 +1020,11 @@ function sendFile(req: IncomingMessage, res: ServerResponse, file: string, type:
       res.writeHead(416, { 'Content-Range': `bytes */${size}` });
       return void res.end();
     }
-    res.writeHead(206, { 'Content-Type': type, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' });
+    res.writeHead(206, { 'Content-Type': type, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': cacheControl });
     createReadStream(file, { start, end }).pipe(res);
     return;
   }
-  res.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' });
+  res.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes', 'Cache-Control': cacheControl });
   createReadStream(file).pipe(res);
 }
 
