@@ -564,6 +564,22 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   });
   add('POST', '/api/v1/stations/:sid/recordings/:id/nextcloud', 'media:write', async (c) => app.svc.nextcloud.nextcloudUploadRecording(sid(c), c.params.id!, String((await c.body()).dir ?? '')));
 
+  // --- MusicHub: owner-bezogene Nextcloud-Quellen (parallel zur Legacy-Brücke) ---
+  add('GET', '/api/v1/stations/:sid/music-hub/nextcloud/sources', 'media:read', (c) =>
+    app.svc.nextcloud.hubNextcloudSources(c.p, sid(c)));
+  add('POST', '/api/v1/stations/:sid/music-hub/nextcloud/sources', 'media:write', async (c) =>
+    app.svc.nextcloud.saveHubNextcloudSource(c.p, sid(c), null, await c.body()));
+  add('PATCH', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id', 'media:write', async (c) =>
+    app.svc.nextcloud.saveHubNextcloudSource(c.p, sid(c), c.params.id!, await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id', 'media:write', (c) =>
+    app.svc.nextcloud.deleteHubNextcloudSource(c.p, sid(c), c.params.id!));
+  add('POST', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id/scan', 'media:write', (c) =>
+    app.svc.nextcloud.scanHubNextcloudSource(c.p, sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/music-hub/nextcloud/sources/:id/index', 'media:read', (c) =>
+    app.svc.nextcloud.hubNextcloudIndex(c.p, sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/music-hub/nextcloud/jobs', 'media:read', (c) =>
+    app.svc.nextcloud.hubNextcloudJobs(c.p, sid(c)));
+
   // --- Programm beenden (Windows-Hintergrundprozess, Tray, „AirDeck beenden“) ---
   add('POST', '/api/v1/system/shutdown', null, (c) => {
     globalAdmin(c);
