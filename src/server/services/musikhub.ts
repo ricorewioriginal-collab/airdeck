@@ -201,7 +201,7 @@ export class MusicHubService {
     const item = this.resource({ kind: 'item', id: parts.itemId }) as HubItem;
     if (item.source.kind === 'personal') {
       return {
-        id: mediaId,
+        id: `musikhub:${item.id}`,
         title: item.title,
         artist: item.artist,
         category: 'music',
@@ -217,7 +217,7 @@ export class MusicHubService {
     if (source.url) throw new AppError(409, 'invalid_source', 'Stream-URLs können nicht über MusicHub-Broadcast verwendet werden');
     return {
       ...source,
-      id: mediaId,
+      id: `musikhub:${item.id}`,
       title: item.title,
       artist: item.artist,
       file: source.originalName || source.file,
