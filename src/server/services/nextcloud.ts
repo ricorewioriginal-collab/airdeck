@@ -99,7 +99,7 @@ export class NextcloudService {
 
   private hubFetch(source: HubNextcloudSource): typeof fetch {
     const base = new URL(source.url);
-    return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    return (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
       let target = new URL(typeof input === 'string' || input instanceof URL ? input.toString() : input.url);
       for (let redirects = 0; redirects <= 3; redirects++) {
         if (target.origin !== base.origin) throw new NextcloudError(502, 'Nextcloud-Weiterleitung auf fremden Host blockiert');
