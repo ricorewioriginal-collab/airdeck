@@ -135,6 +135,19 @@ export class NextcloudService {
     this.app.docs.set('musikhub-nextcloud', state);
   }
 
+  private assertNoRunningJob(sourceId: string, kind: HubNextcloudJob['kind'], path?: string): void {
+    const running = this.hubState().jobs.find((job) =>
+      job.sourceId === sourceId
+      && job.kind === kind
+      && job.status === 'running'
+      && (path === undefined || job.path === path));
+    if (running) throw new AppError(409, 'job_running', kind === 'sync'
+      ? 'Für diese Cloudquelle läuft bereits eine Synchronisierung'
+      : kind === 'scan'
+        ? 'Für diese Cloudquelle läuft bereits ein Scan'
+        : 'Diese Cloud-Datei wird bereits abgerufen');
+  }
+
   private backgroundPrincipal(source: HubNextcloudSource): Principal {
     const userId = source.owner.kind === 'user' ? source.owner.id : source.createdByUserId;
     const user = userId ? this.app.users.get(userId) : null;
@@ -359,6 +372,7 @@ export class NextcloudService {
   }
 
   async scanHubNextcloudSource(p: Principal, stationId: string, sourceId: string) {
+    this.assertNoRunningJob(sourceId, 'scan');
     const source = this.hubSource(p, stationId, sourceId, true);
     const password = this.app.secrets.get(source.secretRef);
     if (!password) throw new AppError(409, 'no_password', 'Nextcloud-App-Passwort fehlt');
@@ -419,10 +433,11 @@ export class NextcloudService {
   }
 
   async retrieveHubNextcloudEntry(p: Principal, stationId: string, sourceId: string, remotePathInput: string) {
+    const remotePath = cleanPath(remotePathInput);
+    this.assertNoRunningJob(sourceId, 'retrieve', remotePath);
     const source = this.hubSource(p, stationId, sourceId, true);
     const password = this.app.secrets.get(source.secretRef);
     if (!password) throw new AppError(409, 'no_password', 'Nextcloud-App-Passwort fehlt');
-    const remotePath = cleanPath(remotePathInput);
     const state = this.hubState();
     const entry = state.entries.find((x) => x.sourceId === sourceId && x.path === remotePath);
     if (!entry) throw new AppError(404, 'not_indexed', 'Datei ist nicht im aktuellen Cloud-Index');
@@ -487,6 +502,7 @@ export class NextcloudService {
   }
 
   async syncHubNextcloudSource(p: Principal, stationId: string, sourceId: string, automatic = false) {
+    this.assertNoRunningJob(sourceId, 'sync');
     const source = this.hubSource(p, stationId, sourceId, true);
     const start = Date.now();
     let state = this.hubState();
