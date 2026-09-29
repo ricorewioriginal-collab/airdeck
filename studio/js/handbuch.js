@@ -16,7 +16,7 @@ export function mountHandbuch(root) {
   function filter(/** @type {string} */ q) {
     const term = q.trim().toLowerCase();
     for (const section of root.querySelectorAll('main section')) {
-      const match = !term || /** @type {HTMLElement} */ (section).textContent?.toLowerCase().includes(term);
+      const match = !term || Boolean(/** @type {HTMLElement} */ (section).textContent?.toLowerCase().includes(term));
       /** @type {HTMLElement} */ (section).hidden = !match;
     }
     for (const a of root.querySelectorAll('nav.toc a')) {
