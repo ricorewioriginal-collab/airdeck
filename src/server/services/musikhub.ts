@@ -198,7 +198,7 @@ export class MusicHubService {
     stationId: string,
     draft: { id: string; userId: string; originalName: string; contentType: string; file: string },
     size: number,
-  ): Promise<HubItem> {
+  ): Promise<unknown> {
     this.actor(p);
     this.station(p, stationId);
     if (!p.user || p.user.id !== draft.userId || !hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Upload-Eigentümer stimmt nicht');
@@ -217,7 +217,16 @@ export class MusicHubService {
     this.state.items.push(item);
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'personal_uploaded', actor: this.actor(p), itemId: item.id, size });
-    return item;
+    return {
+      id: item.id,
+      owner: item.owner,
+      source: { kind: 'personal', originalName: item.source.originalName, contentType: item.source.contentType, size: item.source.size },
+      title: item.title,
+      artist: item.artist,
+      version: item.version,
+      createdAt: item.createdAt,
+      revision: item.revision,
+    };
   }
 
   async updateItemMetadata(
