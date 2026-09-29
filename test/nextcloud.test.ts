@@ -85,6 +85,21 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.equal(hubSource.syncIntervalMinutes, 5);
     assert.equal(hubSource.secretRef, undefined, 'Secret-Referenz wird nie über die API geliefert');
     assert.equal(app.svc.nextcloud.hubNextcloudSources(otherP, 'main').length, 0, 'fremder Nutzer sieht persönliche Cloudquelle nicht');
+    const dedupeState = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    dedupeState.jobs.push({
+      id: 'running-scan', sourceId: hubSource.id, kind: 'scan', status: 'running',
+      createdAt: Date.now(), updatedAt: Date.now(), files: 0, error: null,
+    });
+    app.docs.set('musikhub-nextcloud', dedupeState);
+    await app.docs.flush();
+    await assert.rejects(
+      app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id),
+      /bereits ein Scan/,
+      'doppelter Scan wird serverseitig abgefangen',
+    );
+    dedupeState.jobs = dedupeState.jobs.filter((j: any) => j.id !== 'running-scan');
+    app.docs.set('musikhub-nextcloud', dedupeState);
+    await app.docs.flush();
     const scan = await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id) as { status: string; files: number };
     assert.equal(scan.status, 'done');
     assert.equal(scan.files, 2);
@@ -93,6 +108,21 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').some((j) => j.kind === 'scan' && j.status === 'done' && j.files === 2), true);
 
     const firestonePath = index.find((e) => e.name === 'Kygo - Firestone.mp3')!.path;
+    const retrieveDedupe = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    retrieveDedupe.jobs.push({
+      id: 'running-retrieve', sourceId: hubSource.id, kind: 'retrieve', status: 'running',
+      path: firestonePath, createdAt: Date.now(), updatedAt: Date.now(), files: 0, error: null,
+    });
+    app.docs.set('musikhub-nextcloud', retrieveDedupe);
+    await app.docs.flush();
+    await assert.rejects(
+      app.svc.nextcloud.retrieveHubNextcloudEntry(ownerP, 'main', hubSource.id, firestonePath),
+      /bereits abgerufen/,
+      'doppelter Abruf derselben Datei wird abgefangen',
+    );
+    retrieveDedupe.jobs = retrieveDedupe.jobs.filter((j: any) => j.id !== 'running-retrieve');
+    app.docs.set('musikhub-nextcloud', retrieveDedupe);
+    await app.docs.flush();
     const retrieved = await app.svc.nextcloud.retrieveHubNextcloudEntry(ownerP, 'main', hubSource.id, firestonePath) as { item: { id: string; title: string } };
     assert.equal(retrieved.item.title, 'Firestone');
     const hubCatalog = app.svc.musikhub.listItems(ownerP, 'main') as { items: Array<{ id: string; source?: { kind: string; file?: string }; availability: { state: string; sourceKind: string }; revision: number }> };
@@ -141,6 +171,21 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id);
 
     FILES['/Radio/Hits/New Artist - New Song.mp3'] = Buffer.from('ID3-new-song');
+    const syncDedupe = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    syncDedupe.jobs.push({
+      id: 'running-sync', sourceId: hubSource.id, kind: 'sync', status: 'running',
+      createdAt: Date.now(), updatedAt: Date.now(), files: 0, error: null,
+    });
+    app.docs.set('musikhub-nextcloud', syncDedupe);
+    await app.docs.flush();
+    await assert.rejects(
+      app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false),
+      /bereits eine Synchronisierung/,
+      'doppelter Quellen-Sync wird abgefangen',
+    );
+    syncDedupe.jobs = syncDedupe.jobs.filter((j: any) => j.id !== 'running-sync');
+    app.docs.set('musikhub-nextcloud', syncDedupe);
+    await app.docs.flush();
     const autoSync = await app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false) as {
       imported: number; skippedUnchanged: number; skippedQuota: number; skippedTooLarge: number;
     };
