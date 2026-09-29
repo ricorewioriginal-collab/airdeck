@@ -91,6 +91,21 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal(download.status, 200, 'Download benötigt ein eigenes Recht');
     assert.match(download.headers.get('content-disposition') ?? '', /^attachment;/);
     assert.equal(await download.text(), 'ID3-test-audio');
+
+    const broadcastGrant = await call(ta, 'POST', `/music-hub/item/${itemId}/grants`, {
+      stationId: 'main', recipient: { kind: 'user', id: b.id }, actions: ['broadcast.use'], targetStationIds: ['b'],
+    });
+    assert.equal(broadcastGrant.status, 200);
+    const queued = await call(tb, 'POST', `/music-hub/items/${itemId}/queue`, { stationId: 'b' });
+    assert.equal(queued.status, 200, 'broadcast.use erlaubt MusicHub→Queue');
+    assert.equal(queued.body.items.length, 1);
+    assert.equal(queued.body.items[0].media.title, 'Abendshow');
+    assert.equal(app.svc.media.library('b').length, 0, 'Broadcast-Freigabe kopiert nichts in die Senderbibliothek');
+
+    assert.equal((await call(ta, 'DELETE', `/music-hub/grants/${broadcastGrant.body.id}?station=main`)).status, 204);
+    assert.equal(app.queueNext('b'), null, 'Widerruf vor Playout blockiert bereits eingereihten MusicHub-Titel erneut');
+    assert.equal(app.rt('b').queue.list().length, 0, 'gesperrter Hub-Eintrag wird aus der Queue entfernt');
+
     assert.equal((await call(tb, 'POST', `/music-hub/item/${itemId}/grants`, { stationId: 'b', recipient: { kind: 'user', id: c.id }, actions: ['catalog.read'], targetStationIds: ['b'] })).status, 403, 'kein Delegieren ohne shares.manage');
 
     const stationGrant = await call(ta, 'POST', `/music-hub/collection/${collectionId}/grants`, {
@@ -110,7 +125,7 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
       const state = DbDocStore.openSync(db).get<{ items: { id: string }[]; collections: { id: string }[]; grants: { id: string }[] }>('musikhub', { items: [], collections: [], grants: [] });
       assert.equal(state.items[0]?.id, itemId);
       assert.equal(state.collections[0]?.id, collectionId);
-      assert.equal(state.grants.length, 3);
+      assert.equal(state.grants.length, 4);
     } finally { await db.close(); }
     assert.equal(a.id.length > 0, true);
   } finally {
