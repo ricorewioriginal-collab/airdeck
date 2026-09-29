@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { AirDeckApp } from '../src/server/app.ts';
 import { cleanPath, parseMultistatus } from '../src/server/nextcloud.ts';
 import { storedText } from './helpers.ts';
+import { UserStore } from '../src/server/users.ts';
 
 const FILES: Record<string, Buffer> = {
   '/Radio/Hits/Kygo - Firestone.mp3': Buffer.from('ID3-firestone'),
@@ -65,6 +66,36 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     app.svc.nextcloud.setNextcloud({ url: `http://127.0.0.1:${(srv.address() as { port: number }).port}/`, user: 'rico r', password: 'app-pw', root: '/Radio' });
     assert.ok(!storedText(app).includes('app-pw'), 'Passwort nie im Klartext');
 
+    const ownerUser = await app.users.create({ username: 'cloud-owner', password: ['Cloud', 'Owner', 'Pass', '1'].join('-'), roles: ['admin'], stationIds: ['main'], mustChangePassword: false });
+    const otherUser = await app.users.create({ username: 'cloud-other', password: ['Cloud', 'Other', 'Pass', '1'].join('-'), roles: ['admin'], stationIds: ['main'], mustChangePassword: false });
+    const principal = (u: typeof ownerUser) => ({
+      id: u.id, tokenId: `test:${u.id}`, roles: u.roles, stationIds: u.stationIds, scopes: UserStore.scopesFor(u.roles),
+      user: { id: u.id, username: u.username, name: u.name },
+    });
+    const ownerP = principal(ownerUser);
+    const otherP = principal(otherUser);
+
+    const hubSource = await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', null, {
+      ownerKind: 'user', name: 'Private Cloud', url: `http://127.0.0.1:${(srv.address() as { port: number }).port}`,
+      user: 'rico r', password: 'app-pw', root: '/Radio', allowPrivateNetwork: true,
+    }) as { id: string; revision: number; hasPassword: boolean; secretRef?: string };
+    assert.equal(hubSource.hasPassword, true);
+    assert.equal(hubSource.secretRef, undefined, 'Secret-Referenz wird nie über die API geliefert');
+    assert.equal(app.svc.nextcloud.hubNextcloudSources(otherP, 'main').length, 0, 'fremder Nutzer sieht persönliche Cloudquelle nicht');
+    const scan = await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id) as { status: string; files: number };
+    assert.equal(scan.status, 'done');
+    assert.equal(scan.files, 2);
+    const index = app.svc.nextcloud.hubNextcloudIndex(ownerP, 'main', hubSource.id) as Array<{ name: string }>;
+    assert.deepEqual(index.map((e) => e.name).sort(), ['Avicii - Levels.mp3', 'Kygo - Firestone.mp3']);
+    assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').some((j) => j.status === 'done' && j.files === 2), true);
+    await assert.rejects(
+      app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
+        revision: 0, ownerKind: 'user', name: 'Alt', url: `http://127.0.0.1:${(srv.address() as { port: number }).port}`,
+        user: 'rico r', root: '/Radio', allowPrivateNetwork: true,
+      }),
+      /inzwischen geändert/,
+    );
+
     const top = (await app.svc.nextcloud.nextcloudList('/Hits')) as { entries: { name: string; path: string; dir: boolean; audio: boolean }[] };
     assert.deepEqual(top.entries.map((e) => [e.name, e.dir, e.audio]), [['Deep', true, false], ['Cover.jpg', false, false], ['Kygo - Firestone.mp3', false, true]]);
     assert.equal(top.entries[2]!.path, '/Hits/Kygo - Firestone.mp3');
@@ -87,6 +118,10 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     const up = (await app.svc.nextcloud.nextcloudUploadRecording('main', 'r1', 'Replays')) as { uploaded: string };
     assert.equal(up.uploaded, '/Radio/Replays/2026-09-24-07-00 Morning Show.mp3');
     assert.equal(uploads['/Radio/Replays/2026-09-24-07-00 Morning Show.mp3'], 'DATA');
+    await app.svc.nextcloud.deleteHubNextcloudSource(ownerP, 'main', hubSource.id);
+    assert.equal(app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').length, 0);
+    assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').length, 0);
+
     // Entfernen wirkt (auch nach Neustart): Einstellung und Passwort sind weg
     assert.deepEqual(app.svc.nextcloud.setNextcloud({ remove: true }), { configured: false });
     assert.deepEqual(app.svc.nextcloud.nextcloudConfig(), { configured: false });
