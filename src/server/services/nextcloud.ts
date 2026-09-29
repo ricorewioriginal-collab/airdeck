@@ -56,7 +56,6 @@ interface HubNextcloudState {
   jobs: HubNextcloudJob[];
 }
 
-const HUB_NC_DEFAULT: HubNextcloudState = { version: 1, sources: [], entries: [], jobs: [] };
 const HUB_NC_MAX_FILES = 1000;
 const HUB_NC_MAX_DEPTH = 5;
 const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
@@ -100,7 +99,7 @@ export class NextcloudService {
   }
 
   private hubState(): HubNextcloudState {
-    return this.app.docs.get<HubNextcloudState>('musikhub-nextcloud', HUB_NC_DEFAULT);
+    return this.app.docs.get<HubNextcloudState>('musikhub-nextcloud', { version: 1, sources: [], entries: [], jobs: [] });
   }
 
   private saveHubState(state: HubNextcloudState): void {
@@ -122,8 +121,21 @@ export class NextcloudService {
   }
 
   private publicHubSource(source: HubNextcloudSource) {
-    const { secretRef: _secretRef, ...safe } = source;
-    return { ...safe, hasPassword: this.app.secrets.has(source.secretRef) };
+    return {
+      id: source.id,
+      owner: source.owner,
+      name: source.name,
+      url: source.url,
+      user: source.user,
+      root: source.root,
+      allowPrivateNetwork: source.allowPrivateNetwork,
+      createdAt: source.createdAt,
+      updatedAt: source.updatedAt,
+      revision: source.revision,
+      lastScanAt: source.lastScanAt,
+      lastError: source.lastError,
+      hasPassword: this.app.secrets.has(source.secretRef),
+    };
   }
 
   private hubSource(p: Principal, stationId: string, id: string, write = false): HubNextcloudSource {
