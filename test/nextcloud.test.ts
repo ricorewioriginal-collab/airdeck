@@ -85,9 +85,25 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     const scan = await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id) as { status: string; files: number };
     assert.equal(scan.status, 'done');
     assert.equal(scan.files, 2);
-    const index = app.svc.nextcloud.hubNextcloudIndex(ownerP, 'main', hubSource.id) as Array<{ name: string }>;
+    const index = app.svc.nextcloud.hubNextcloudIndex(ownerP, 'main', hubSource.id) as Array<{ name: string; path: string }>;
     assert.deepEqual(index.map((e) => e.name).sort(), ['Avicii - Levels.mp3', 'Kygo - Firestone.mp3']);
-    assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').some((j) => j.status === 'done' && j.files === 2), true);
+    assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').some((j) => j.kind === 'scan' && j.status === 'done' && j.files === 2), true);
+
+    const firestonePath = index.find((e) => e.name === 'Kygo - Firestone.mp3')!.path;
+    const retrieved = await app.svc.nextcloud.retrieveHubNextcloudEntry(ownerP, 'main', hubSource.id, firestonePath) as { item: { id: string; title: string } };
+    assert.equal(retrieved.item.title, 'Firestone');
+    const hubCatalog = app.svc.musikhub.listItems(ownerP, 'main') as { items: Array<{ id: string; source?: { kind: string; file?: string }; availability: { state: string; sourceKind: string }; revision: number }> };
+    const cloudItem = hubCatalog.items.find((x) => x.id === retrieved.item.id)!;
+    assert.equal(cloudItem.source?.kind, 'nextcloud');
+    assert.equal(cloudItem.source?.file, undefined, 'interner Cloud-Cache-Dateiname wird nicht an das Studio gegeben');
+    assert.deepEqual(cloudItem.availability, { state: 'ready', sourceKind: 'nextcloud' });
+    assert.equal((app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main')).some((j) => j.kind === 'retrieve' && j.itemId === retrieved.item.id), true);
+
+    FILES['/Radio/Hits/Kygo - Firestone.mp3'] = Buffer.from('ID3-firestone-updated');
+    const refreshed = await app.svc.nextcloud.retrieveHubNextcloudEntry(ownerP, 'main', hubSource.id, firestonePath) as { item: { id: string } };
+    assert.equal(refreshed.item.id, retrieved.item.id, 'gleicher Remote-Pfad aktualisiert denselben MusicHub-Eintrag');
+    const refreshedItem = (app.svc.musikhub.listItems(ownerP, 'main') as { items: Array<{ id: string; revision: number }> }).items.find((x) => x.id === retrieved.item.id)!;
+    assert.equal(refreshedItem.revision > cloudItem.revision, true);
     await assert.rejects(
       app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
         revision: 0, ownerKind: 'user', name: 'Alt', url: `http://127.0.0.1:${(srv.address() as { port: number }).port}`,
