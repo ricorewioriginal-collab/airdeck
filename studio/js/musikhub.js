@@ -1,6 +1,7 @@
 // @ts-check
 // MusicHub Studio: geschützter Katalog, persönliche Medien, Freigaben, Broadcast
 // sowie owner-bezogene Cloudquellen mit Scan/Retrieve/Sync und Konfliktstatus.
+// Sichtbare Aktionen werden im Browser-Smoke gegen die tatsächlich implementierten API-Pfade geprüft.
 import { formDialog, h, run, status } from './ui.js';
 
 /** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[]}} Ctx */
