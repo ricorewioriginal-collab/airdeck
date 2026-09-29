@@ -84,6 +84,11 @@ export class MusicHubService {
     return null;
   }
 
+  private stationSource(item: HubItem): Extract<HubItemSource, { stationId: string; mediaId: string }> {
+    if (item.source.kind === 'personal' || item.source.kind === 'nextcloud') throw new AppError(409, 'invalid_source', 'Keine Senderquelle');
+    return item.source;
+  }
+
   private get state(): HubState {
     return (this.loaded ??= this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [] }));
   }
@@ -244,9 +249,10 @@ export class MusicHubService {
         source: `musikhub:${item.id}`,
       };
     }
-    const source = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
+    const stationSource = this.stationSource(item);
+    const source = this.app.svc.media.media(stationSource.stationId, stationSource.mediaId);
     if (source.url) throw new AppError(409, 'invalid_source', 'Stream-URLs können nicht über MusicHub-Broadcast verwendet werden');
-    const linkedPath = this.app.svc.media.mediaPath(item.source.stationId, source);
+    const linkedPath = this.app.svc.media.mediaPath(stationSource.stationId, source);
     if (!existsSync(linkedPath)) throw new AppError(409, 'source_unavailable', 'MusicHub-Quelldatei ist nicht verfügbar');
     return {
       ...source,
@@ -293,10 +299,11 @@ export class MusicHubService {
         contentType: localSource.contentType,
       };
     }
-    const media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
+    const stationSource = this.stationSource(item);
+    const media = this.app.svc.media.media(stationSource.stationId, stationSource.mediaId);
     if (media.url) throw new AppError(409, 'invalid_source', 'Stream-URLs können nicht über den MusikHub abgerufen werden');
     return {
-      path: this.app.svc.media.mediaPath(item.source.stationId, media),
+      path: this.app.svc.media.mediaPath(stationSource.stationId, media),
       name: media.originalName || media.file,
       contentType: null,
     };
@@ -377,6 +384,7 @@ export class MusicHubService {
     const existing = this.state.items.find((x) =>
       x.source.kind === 'nextcloud' && x.source.sourceId === input.sourceId && x.source.remotePath === input.remotePath);
     if (existing) {
+      if (existing.source.kind !== 'nextcloud') throw new AppError(409, 'invalid_source', 'Cloud-Quelle stimmt nicht');
       const previousFile = existing.source.file;
       existing.source.file = input.file;
       existing.source.originalName = input.originalName;
@@ -442,7 +450,10 @@ export class MusicHubService {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'catalog.read');
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
     const localPath = this.localSourcePath(item);
-    if (!localPath) return this.app.svc.media.cover(item.source.stationId, item.source.mediaId);
+    if (!localPath) {
+      const stationSource = this.stationSource(item);
+      return this.app.svc.media.cover(stationSource.stationId, stationSource.mediaId);
+    }
     if (!this.app.ffmpeg) return null;
     const dir = join(this.app.dataDir, 'covers', 'musikhub', item.owner.id);
     const file = join(dir, `${item.id}.jpg`);
@@ -517,10 +528,11 @@ export class MusicHubService {
       };
     }
     try {
-      const media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
+      const stationSource = this.stationSource(item);
+      const media = this.app.svc.media.media(stationSource.stationId, stationSource.mediaId);
       if (media.url) return { state: 'missing', sourceKind: 'station' };
       return {
-        state: existsSync(this.app.svc.media.mediaPath(item.source.stationId, media)) ? 'ready' : 'missing',
+        state: existsSync(this.app.svc.media.mediaPath(stationSource.stationId, media)) ? 'ready' : 'missing',
         sourceKind: 'station',
       };
     } catch {
