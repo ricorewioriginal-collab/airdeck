@@ -2,7 +2,8 @@
 // ein vorhandenes Sendermedium; Dateiabruf und Sendebereitstellung folgen in
 // eigenen, erneut autorisierten Phasen.
 
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { extname, join } from 'node:path';
 import { parseFileName } from '../../core/automation.ts';
 import type { AirDeckApp } from '../app.ts';
@@ -219,11 +220,68 @@ export class MusicHubService {
     return item;
   }
 
+  async updateItemMetadata(
+    p: Principal,
+    itemId: string,
+    stationId: string,
+    input: Record<string, unknown>,
+  ): Promise<HubItem> {
+    this.require(p, { kind: 'item', id: itemId }, stationId, 'metadata.edit');
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur Eigentümer können Metadaten ändern');
+    const revision = Number(input.revision);
+    if (!Number.isInteger(revision) || revision !== item.revision) throw new AppError(409, 'revision_conflict', 'Titel wurde inzwischen geändert');
+    const title = String(input.title ?? item.title).trim().slice(0, 200);
+    const artist = String(input.artist ?? item.artist).trim().slice(0, 200);
+    const versionText = String(input.version ?? '').trim().slice(0, 120);
+    if (!title) throw new AppError(400, 'invalid_title', 'Titel darf nicht leer sein');
+    item.title = title;
+    item.artist = artist;
+    item.version = versionText || null;
+    item.revision++;
+    await this.save();
+    this.app.audit.write({ kind: 'musikhub', event: 'metadata_changed', actor: this.actor(p), itemId, revision: item.revision });
+    return item;
+  }
+
+  async coverFile(p: Principal, itemId: string, stationId: string): Promise<string | null> {
+    this.require(p, { kind: 'item', id: itemId }, stationId, 'catalog.read');
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    if (item.source.kind !== 'personal') return this.app.svc.media.cover(item.source.stationId, item.source.mediaId);
+    if (!this.app.ffmpeg) return null;
+    const dir = join(this.app.dataDir, 'covers', 'musikhub', item.owner.id);
+    const file = join(dir, `${item.id}.jpg`);
+    const none = `${file}.none`;
+    if (existsSync(file)) return file;
+    if (existsSync(none)) return null;
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const audio = join(this.personalDir(item.owner.id), item.source.file);
+    const ok = await new Promise<boolean>((resolve) => {
+      const proc = spawn(this.app.ffmpeg!.ffmpeg, [
+        '-hide_banner', '-loglevel', 'error', '-y', '-i', audio, '-an', '-frames:v', '1',
+        '-vf', 'scale=300:300:force_original_aspect_ratio=increase,crop=300:300', file,
+      ], { windowsHide: true });
+      proc.on('error', () => resolve(false));
+      proc.on('close', (code) => resolve(code === 0 && existsSync(file)));
+      setTimeout(() => proc.kill(), 15_000).unref();
+    });
+    if (!ok) {
+      rmSync(file, { force: true });
+      writeFileSync(none, '');
+      return null;
+    }
+    return file;
+  }
+
   async deleteItem(p: Principal, itemId: string, stationId: string): Promise<void> {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'media.delete');
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
     if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur Eigentümer können MusikHub-Medien löschen');
-    if (item.source.kind === 'personal') rmSync(join(this.personalDir(item.owner.id), item.source.file), { force: true });
+    if (item.source.kind === 'personal') {
+      rmSync(join(this.personalDir(item.owner.id), item.source.file), { force: true });
+      rmSync(join(this.app.dataDir, 'covers', 'musikhub', item.owner.id, `${item.id}.jpg`), { force: true });
+      rmSync(join(this.app.dataDir, 'covers', 'musikhub', item.owner.id, `${item.id}.jpg.none`), { force: true });
+    }
     this.state.items = this.state.items.filter((x) => x.id !== itemId);
     for (const collection of this.state.collections) {
       if (collection.itemIds.includes(itemId)) {
@@ -252,6 +310,7 @@ export class MusicHubService {
         title: item.title,
         artist: item.artist,
         version: item.version,
+        revision: item.revision,
         owner: item.owner,
         ...(this.ownerAccess(p, item.owner)
           ? { source: item.source.kind === 'personal'
