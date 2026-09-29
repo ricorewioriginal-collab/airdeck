@@ -78,8 +78,11 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     const hubSource = await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', null, {
       ownerKind: 'user', name: 'Private Cloud', url: `http://127.0.0.1:${(srv.address() as { port: number }).port}`,
       user: 'rico r', password: 'app-pw', root: '/Radio', allowPrivateNetwork: true,
-    }) as { id: string; revision: number; hasPassword: boolean; secretRef?: string };
+      syncEnabled: true, syncIntervalMinutes: 5, syncQuotaBytes: 64 * 1024 * 1024, syncMaxFileBytes: 16 * 1024 * 1024,
+    }) as { id: string; revision: number; hasPassword: boolean; secretRef?: string; syncEnabled: boolean; syncIntervalMinutes: number };
     assert.equal(hubSource.hasPassword, true);
+    assert.equal(hubSource.syncEnabled, true);
+    assert.equal(hubSource.syncIntervalMinutes, 5);
     assert.equal(hubSource.secretRef, undefined, 'Secret-Referenz wird nie über die API geliefert');
     assert.equal(app.svc.nextcloud.hubNextcloudSources(otherP, 'main').length, 0, 'fremder Nutzer sieht persönliche Cloudquelle nicht');
     const scan = await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id) as { status: string; files: number };
@@ -104,6 +107,62 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.equal(refreshed.item.id, retrieved.item.id, 'gleicher Remote-Pfad aktualisiert denselben MusicHub-Eintrag');
     const refreshedItem = (app.svc.musikhub.listItems(ownerP, 'main') as { items: Array<{ id: string; revision: number }> }).items.find((x) => x.id === retrieved.item.id)!;
     assert.equal(refreshedItem.revision > cloudItem.revision, true);
+
+    FILES['/Radio/Hits/New Artist - New Song.mp3'] = Buffer.from('ID3-new-song');
+    const autoSync = await app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false) as {
+      imported: number; skippedUnchanged: number; skippedQuota: number; skippedTooLarge: number;
+    };
+    assert.equal(autoSync.imported, 2, 'Auto-Sync holt fehlende/geänderte Indexdateien');
+    assert.equal(autoSync.skippedUnchanged >= 1, true, 'unveränderte bereits synchronisierte Datei wird nicht erneut geladen');
+    const afterSync = app.svc.musikhub.listItems(ownerP, 'main') as { items: Array<{ title: string; availability: { sourceKind: string } }> };
+    assert.equal(afterSync.items.some((x) => x.title === 'New Song' && x.availability.sourceKind === 'nextcloud'), true);
+
+    const currentSource = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
+    const tinyLimit = await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
+      revision: currentSource.revision,
+      ownerKind: 'user', name: currentSource.name, url: currentSource.url, user: currentSource.user, root: currentSource.root,
+      allowPrivateNetwork: true, syncEnabled: true, syncIntervalMinutes: 5,
+      syncQuotaBytes: currentSource.syncQuotaBytes, syncMaxFileBytes: 4,
+    }) as { revision: number };
+    FILES['/Radio/Hits/Too Large.mp3'] = Buffer.from('ID3-too-large-for-limit');
+    const limitedSync = await app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false) as { skippedTooLarge: number };
+    assert.equal(limitedSync.skippedTooLarge >= 1, true, 'Dateien über Quelllimit werden übersprungen');
+
+    const sourceBeforeFailure = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
+    await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
+      revision: sourceBeforeFailure.revision,
+      ownerKind: 'user', name: sourceBeforeFailure.name, url: sourceBeforeFailure.url, user: sourceBeforeFailure.user, root: sourceBeforeFailure.root,
+      allowPrivateNetwork: true, syncEnabled: true, syncIntervalMinutes: 5,
+      syncQuotaBytes: sourceBeforeFailure.syncQuotaBytes, syncMaxFileBytes: 16 * 1024 * 1024,
+      password: 'wrong-app-password',
+    });
+    await assert.rejects(app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, true), /Nextcloud/);
+    const failedSource = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
+    assert.equal(failedSource.syncFailures >= 1, true);
+    assert.equal(failedSource.offlineUntil > Date.now(), true, 'Fehler setzt Backoff/Offline-Zeit');
+    assert.equal(failedSource.nextSyncAt >= failedSource.offlineUntil, true);
+
+    const recoverSource = await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
+      revision: failedSource.revision,
+      ownerKind: 'user', name: failedSource.name, url: failedSource.url, user: failedSource.user, root: failedSource.root,
+      allowPrivateNetwork: true, syncEnabled: true, syncIntervalMinutes: 5,
+      syncQuotaBytes: failedSource.syncQuotaBytes, syncMaxFileBytes: 16 * 1024 * 1024,
+      password: 'app-pw',
+    }) as { revision: number };
+    const syncState = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    syncState.jobs.push({
+      id: 'restart-job', sourceId: hubSource.id, kind: 'sync', status: 'running',
+      createdAt: Date.now(), updatedAt: Date.now(), files: 0, error: null,
+    });
+    app.docs.set('musikhub-nextcloud', syncState);
+    await app.docs.flush();
+    await app.svc.nextcloud.resumeHubNextcloudSync();
+    const resumedState = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    const interrupted = resumedState.jobs.find((j: any) => j.id === 'restart-job');
+    assert.equal(interrupted.status, 'failed');
+    assert.match(interrupted.error, /Neustart/);
+    assert.equal(resumedState.sources.find((x: any) => x.id === hubSource.id).nextSyncAt <= Date.now() + 1000, true, 'unterbrochener Auto-Sync wird neu eingeplant');
+
     await assert.rejects(
       app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
         revision: 0, ownerKind: 'user', name: 'Alt', url: `http://127.0.0.1:${(srv.address() as { port: number }).port}`,
