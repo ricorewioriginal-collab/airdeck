@@ -8,498 +8,347 @@ A **Syndication** in AirDeck is a radio programme made available by its producer
 
 Typical forms:
 
-1. **Prerecorded programme** — one or more uploaded audio files/episodes with metadata and timing information.
+1. **Prerecorded programme** — one or more audio episodes hosted in publisher-controlled storage and exchanged directly/provider-to-provider.
 2. **Live/linear programme feed** — a stream URL plus programme metadata and an availability/broadcast schedule.
 
 A syndication may be produced neutrally for broad carriage, or according to a defined format/template. It is not automatically public merely because it exists in MusikHub; the owner explicitly controls sharing and carriage permissions.
 
-## 2. Product goal
+## 2. Binding storage principle: AirDeck is not the media host
 
-MusikHub should become more than a shared music pool. It should also support programme exchange between stations.
+**Cross-station Syndication audio files must not be stored on central AirDeck-operated servers.**
 
-Example flow:
+AirDeck infrastructure may coordinate identity, discovery, grants, metadata, manifests, checksums, availability, notifications and transfer authorization, but the large programme media remains on infrastructure chosen/controlled by the publisher or participating station.
+
+Supported source/storage adapters should include, in phases:
+
+- publisher's local AirDeck storage;
+- publisher's Nextcloud/WebDAV storage;
+- S3-compatible object storage configured by the publisher;
+- other explicitly supported cloud/storage adapters;
+- publisher-controlled HTTPS media endpoint;
+- live Icecast/compatible stream URL for linear syndication.
+
+The architecture must not require RicoReWi/AirDeck central storage for a station to publish or receive a Syndication.
+
+If AirDeck later offers an optional hosted storage product, it must be an explicit optional provider, not the mandatory transport or canonical media store.
+
+## 3. Control plane vs media plane
+
+Separate coordination from file transfer.
 
 ```text
-Producer / Station A
-   |
-   +-- creates "Weekend Mix"
-   +-- uploads episode audio OR provides approved stream URL
-   +-- metadata / duration / availability / usage terms
-   +-- shares to selected stations/users OR publishes to allowed catalogue
-                         |
-                         v
-                 MusikHub Syndication
-                         |
-              discovery + permissions
-                         |
-                         v
-Station B                           Station C
-   |                                  |
-   +-- follows/adopts                 +-- follows/adopts
-   +-- maps to local schedule         +-- maps to local schedule
-   +-- local fallback                 +-- different local airtime
-   +-- broadcast history              +-- broadcast history
+                    AIRDECK CONTROL PLANE
+       metadata · discovery · grants · manifests · events
+                  NO central programme media
+                             |
+                authorization / source descriptor
+                             |
+ Publisher storage -------------------------- Receiver AirDeck
+ Nextcloud / S3 / HTTPS / local node          local station storage/cache
+          |                                            ^
+          +---------- direct media transfer -----------+
+
+Live Syndication:
+Publisher stream --------------------------------> Receiver AirDeck
+       direct stream path; AirDeck central service is not a relay
 ```
+
+Central AirDeck services must not proxy/relay full programme audio merely to make cross-station exchange work. Metadata/API responses must use stable asset IDs/descriptors rather than pretending a central AirDeck media URL owns the file.
+
+## 4. Product goal
+
+MusikHub should become more than a shared music pool. It should support programme exchange between stations while avoiding a central bandwidth/storage dependency.
 
 The receiving station does not receive ownership of the syndication. It receives a permission/grant to use it according to the publisher's terms.
 
-## 3. Syndication entity
+## 5. Syndication entity
 
 Introduce a first-class MusikHub `Syndication` domain entity rather than pretending a complete programme is an ordinary music track.
 
+Conceptual fields include stable syndication id, publisher, title/series, description/artwork, categories/tags, language, credits, source type, duration, timezone, publication state, sharing policy, usage terms, attribution, allowed stations/users/groups, availability and revision information.
+
+Do not expose owner-private station data through the shared record.
+
+## 6. Media asset descriptor
+
+Prerecorded episodes reference a provider-neutral `SyndicationAssetDescriptor`, not a central AirDeck file.
+
 Conceptual fields:
 
-- stable syndication id;
-- owner/publisher user or organization/station;
-- title;
-- subtitle/series name;
-- description;
-- cover/artwork;
-- categories/genres/tags;
-- language;
-- content/advisory flags where relevant;
-- explicit/clean indicator where relevant;
-- producer/host/presenter credits;
-- contact/support URL;
-- source type: `prerecorded`, `live_stream`, optionally `hybrid` later;
-- default programme duration;
-- timezone for live schedules;
-- publication state;
-- visibility/sharing policy;
-- usage/license declaration;
-- attribution requirements;
-- allowed stations/users/groups;
-- availability window;
-- created/updated timestamps;
-- version/revision information.
-
-Do not expose owner-private station data through the public/shared syndication record.
-
-## 4. Prerecorded episodes
-
-A prerecorded syndication should support a series with individual episodes/releases.
-
-`SyndicationEpisode` conceptual fields:
-
-- episode id;
-- syndication id;
-- title;
-- episode number/date/season where applicable;
-- description;
-- audio asset reference;
+- asset id;
+- owner/publisher id;
+- storage adapter/provider type;
+- opaque provider-side object reference;
+- media filename/display name;
+- byte size;
+- MIME/container/codec information;
 - duration;
-- publish/available-from timestamp;
-- available-until/expiry timestamp where applicable;
-- intended air date/time where supplied;
-- replay/embargo rules;
-- metadata/cue points;
-- optional chapter/segment metadata;
-- optional local-break markers;
-- checksum/media technical metadata;
+- checksum/hash;
 - revision/version;
-- withdrawn state/reason.
+- availability/expiry;
+- whether receiver-side caching is permitted;
+- whether range/resumable transfer is supported;
+- encryption/transport requirements;
+- authorization mode reference;
+- health/last-verified metadata.
 
-The audio file uses MusikHub's controlled media/storage/download mechanisms. It must not become an untracked public file URL by default.
+Provider credentials, raw filesystem paths and private permanent URLs must not be distributed as catalogue metadata.
 
-## 5. Stream syndications
+## 7. Prerecorded transfer flow
 
-A stream-based syndication describes a programme source and when it is valid/on air.
+Target flow:
 
-Conceptual fields:
+1. publisher creates/updates an episode;
+2. media stays in publisher-selected storage;
+3. AirDeck creates a provider-neutral asset descriptor and checksum;
+4. publisher grants another station permission;
+5. receiving AirDeck requests transfer authorization;
+6. Core verifies user, destination station, grant, terms and asset revision;
+7. receiver obtains a short-lived/direct transfer mechanism appropriate to the adapter;
+8. receiver downloads directly from publisher storage to receiver-controlled local/cache storage;
+9. receiver verifies size/checksum/format;
+10. AirDeck records the cached revision and readiness for playout.
 
-- stream source id;
-- protected source URL/reference;
-- format/codec information when known;
-- programme timezone;
-- recurring or explicit transmission windows;
-- expected duration;
-- connection lead time;
-- reconnect policy;
-- metadata policy;
-- fallback behavior;
-- health/preflight status;
-- optional backup stream URL/reference;
-- source authentication stored only in AirDeck secret storage.
+The AirDeck control service is not in the audio byte path.
 
-Receiving users must not be given raw credentials simply because they can schedule the feed. AirDeck should resolve protected stream credentials Core-side.
+## 8. Transfer authorization patterns
 
-## 6. Metadata
+Adapters may implement different secure transfer mechanisms, for example:
 
-Syndication metadata is distinct from ordinary song metadata.
+- short-lived signed download URL;
+- scoped WebDAV/Nextcloud share/token;
+- S3-compatible presigned GET;
+- mutually authenticated AirDeck-node transfer;
+- one-time transfer token resolved by the publisher node;
+- authenticated HTTPS endpoint with expiring capability token.
 
-At minimum support:
+Requirements:
 
-- programme/series title;
-- episode title;
-- presenter/host;
-- producer/publisher;
-- description;
-- category/genre;
-- language;
-- duration;
-- artwork;
-- original/expected air time;
-- usage/attribution text;
-- website/contact;
-- content flags.
+- least privilege;
+- short expiry;
+- asset/revision binding;
+- destination/grant binding where feasible;
+- revocation support;
+- TLS;
+- no permanent provider credentials handed to receivers;
+- no credential in normal logs/history;
+- retry/resume without broadening permission.
 
-For stream syndications, the publisher may also provide dynamic now-playing/programme metadata. The receiving station chooses how allowed upstream metadata maps to its own public output according to AirDeck policy.
+## 9. Publisher node transfer
 
-## 7. Sharing / grants
+For users who do not use Nextcloud/S3, AirDeck should support a publisher-node model: the publisher's own AirDeck server/Windows standalone installation can expose an explicitly enabled, authenticated transfer endpoint.
 
-Reuse and extend MusikHub's grant/visibility concepts instead of creating an unrelated sharing system.
+This endpoint must be opt-in and should support:
 
-Target sharing modes:
+- only assets explicitly shared for Syndication;
+- expiring capability tokens;
+- bandwidth/concurrency limits;
+- optional allowed transfer windows;
+- resumable/range requests where practical;
+- audit logs;
+- revocation;
+- no directory browsing;
+- no arbitrary filesystem paths;
+- TLS/reverse-proxy guidance;
+- safe behavior behind NAT/firewalls.
 
-- private draft;
-- selected users;
-- selected stations;
-- selected organization/team/group where supported;
-- all eligible users within the private AirDeck deployment/community;
-- public catalogue only when explicitly enabled and legally appropriate.
+A publisher that cannot/will not expose its AirDeck node can choose Nextcloud/S3/another supported provider instead.
 
-A grant can specify capabilities such as:
+## 10. NAT/offline constraints
 
-- discover/view metadata;
-- preview/listen;
-- schedule/broadcast;
-- download/cache episode media;
-- rebroadcast/replay;
-- access live stream during authorized window.
+Pure direct node-to-node transfer is not always possible because a publisher may be offline or behind NAT/CGNAT.
 
-A receiving user must have both the syndication grant and sufficient rights on the destination station.
+AirDeck must therefore support multiple provider adapters rather than silently falling back to central AirDeck storage.
 
-## 8. Usage terms / rights
+If a source is unreachable:
+
+- receiver preflight reports the asset unavailable;
+- previously authorized local cache may be used if still valid;
+- configured fallback content is selected for airtime;
+- AirDeck does not upload the file to a central server as an implicit workaround.
+
+Optional future peer-assisted transport may be evaluated, but central relay is not the default architecture.
+
+## 11. Receiver-side caching
+
+A receiving station may cache a Syndication episode locally when the grant permits it. This is strongly recommended before airtime for prerecorded shows.
+
+The cache belongs to the receiving station's own AirDeck storage, not central AirDeck infrastructure.
+
+Cache records include asset/revision/checksum, source provider, grant/terms revision, downloaded timestamp, validity and last verification.
+
+On withdrawal/expiry/revocation, AirDeck applies the configured rights policy. A cached Syndication must not silently become a permanently owned library track.
+
+## 12. Stream syndications
+
+A live/linear Syndication is also decentralized.
+
+The publisher supplies a protected stream descriptor; at airtime the receiving AirDeck connects directly to the publisher/provider stream. Central AirDeck services must not relay the audio.
+
+Source credentials remain protected Core-side. Receiving UI/API consumers do not receive raw passwords merely because they can schedule the programme.
+
+Support expected transmission windows, timezone, codec/format, connection lead time, reconnect policy, metadata policy, fallback and optional backup source.
+
+## 13. Metadata and discovery
+
+Syndication metadata is distinct from ordinary song metadata and may be coordinated through AirDeck's control plane because it is comparatively small.
+
+Support programme/series title, episode title, presenter/host, publisher, description, category, language, duration, artwork reference, original/expected air time, attribution/usage text, website/contact and content flags.
+
+Artwork may be stored/provider-hosted using the same adapter principle; central metadata services should not become an accidental unbounded media CDN.
+
+## 14. Sharing / grants
+
+Reuse and extend MusikHub's grant/visibility concepts.
+
+Target sharing modes include private draft, selected users, selected stations, organization/team/group, eligible users in a deployment/community and explicitly enabled catalogue publication.
+
+Capabilities may include discover metadata, preview, schedule/broadcast, download/cache, replay and live-window access.
+
+A receiving user needs both the Syndication grant and sufficient rights on the destination station.
+
+## 15. Usage terms / rights
 
 AirDeck must not assume that uploaded audio or a stream may legally be redistributed.
 
-The publisher must explicitly declare the usage basis/terms before making a syndication available to others.
+The publisher explicitly declares usage terms such as permitted stations, territory/time window, replay, editing, attribution, metadata, local-break policy and cache/download permission. AirDeck records the applicable revision where required.
 
-Possible policy fields:
+This is operational rights metadata, not a substitute for actual rights ownership or legal advice.
 
-- permission to carry on authorized stations;
-- territory restrictions where applicable;
-- valid-from / valid-until;
-- number/frequency of permitted broadcasts if required;
-- replay/catch-up permission;
-- editing permission;
-- required attribution/credits;
-- required programme title/metadata;
-- advertising/local-break policy;
-- download/cache permission;
-- custom terms/reference.
+## 16. Discovery UI
 
-AirDeck should record acceptance/version of applicable terms for the receiving station where needed.
+Add `MusikHub > Syndications` with views such as Discover, Available to my stations, Following/Subscribed, Scheduled, My Syndications, Drafts, Expiring/Withdrawn and Categories.
 
-This is operational rights metadata, not a substitute for legal advice or actual rights ownership.
+Details must show source type, series/episode, duration, next availability/live window, publisher, rights summary, compatible destination stations, schedule state and update state. The UI should also show source readiness/provider status without exposing provider secrets.
 
-## 9. Discovery UI in MusikHub
+## 17. Adoption/subscription
 
-Add a first-class MusikHub section such as:
+Receiving stations adopt/follow a Syndication without copying ownership.
 
-`MusikHub > Syndications`
+A local subscription stores destination station, schedule mapping, episode selection rule, timezone conversion, metadata mapping, cache preference, fallback, preflight lead time, notifications, local notes, last/next broadcast and terms revision.
 
-Suggested views:
+## 18. Scheduling prerecorded programmes
 
-- Discover;
-- Available to my stations;
-- Following/Subscribed;
-- Scheduled;
-- My Syndications;
-- Drafts;
-- Expiring/Withdrawn;
-- Categories.
+Examples include a specific episode once, newest episode every Saturday, or explicitly dated episodes.
 
-Cards/detail pages should make clear:
+Before airtime AirDeck verifies grant, terms, withdrawal/expiry, local permission, cached/source asset revision/checksum, duration and fallback.
 
-- prerecorded vs live stream;
-- series/episode;
-- duration;
-- next availability/live window;
-- publisher;
-- rights/usage summary;
-- compatible destination stations;
-- already scheduled status;
-- update/new episode status.
+The programme then enters the normal authoritative AirDeck automation/playout path. There is no separate Syndication playout engine.
 
-## 10. Adoption/subscription
+## 19. Scheduling live streams
 
-Receiving stations should be able to **adopt/follow** a syndication without copying its ownership record.
+At preflight AirDeck verifies grant/window, resolves credentials Core-side, tests source safely, prepares the remote source, switches through normal automation, monitors health, uses fallback if needed and returns to local automation afterward.
 
-A local `SyndicationSubscription` may contain:
+Apply SSRF/network policy, protocol allowlists, timeout controls and secret handling to publisher-supplied URLs.
 
-- destination station id;
-- syndication id;
-- enabled state;
-- schedule mapping;
-- episode selection rule;
-- timezone/local-time conversion;
-- metadata mapping;
-- download/cache preference;
-- fallback item/playlist/source;
-- preflight lead time;
-- notification preferences;
-- local notes;
-- last/next planned broadcast;
-- terms acceptance revision.
+## 20. Local breaks / affiliate windows
 
-## 11. Scheduling prerecorded programmes
+Plan optional future local-break markers for local news, ads/sponsorship, station IDs, weather/traffic and other affiliate inserts. Receiving stations map approved markers to local content while preserving programme timing.
 
-A receiving user can add a prerecorded syndication to the normal AirDeck planning/scheduling system.
+## 21. Updates and withdrawal
 
-Examples:
+Publishers can publish/revise/withdraw episodes or sources, update metadata/terms and end a Syndication. Receivers are notified of material changes.
 
-- schedule a specific episode once;
-- schedule newest available episode every Saturday at 18:00;
-- schedule an explicitly dated episode at a local time;
-- repeat an episode only when publisher terms permit;
-- automatically fetch/cache before airtime when allowed.
+Define a freeze/lock window so already prepared broadcasts are not silently replaced immediately before airtime.
 
-Before airtime AirDeck should verify:
+## 22. Broadcast history and reporting
 
-- grant still valid;
-- episode not withdrawn/expired;
-- media available and valid;
-- duration known;
-- local station permission;
-- terms still compatible;
-- fallback available.
+Record Syndication/episode, destination station, scheduled/actual times, completion/fallback status, source type, asset revision, terms revision and failure reason. Optional publisher reporting must not expose unrelated private station analytics.
 
-The programme must then enter the same authoritative AirDeck automation/playout path as other scheduled content. Do not create a separate syndication playout engine.
+## 23. Notifications
 
-## 12. Scheduling live streams
+Integrate new episode, update, withdrawal, terms change, live-start, preflight failure, cache failure, scheduled/aired, stream loss/fallback and grant expiry/revocation into AirDeck's common notification/community surface.
 
-For a stream syndication, a receiving station can map the upstream programme window into its schedule.
+## 24. API and developer API
 
-At preflight:
+The complete AirDeck API includes Syndication resources/events. Conceptual families include `/api/v1/musikhub/syndications`, episodes, grants, station subscriptions/schedule and transfer-authorization/preflight operations.
 
-1. verify grant and transmission window;
-2. resolve stream credentials Core-side;
-3. test source reachability/format safely;
-4. prepare the live/remote source;
-5. switch according to the normal AirDeck automation rules at scheduled time;
-6. monitor stream health;
-7. use configured fallback on failure;
-8. return to normal local automation after the programme window.
+Implementation must reconcile exact paths with current MusikHub/API conventions.
 
-A stream must never be trusted merely because the publisher supplied a URL. Apply SSRF/network policy, protocol allowlists, timeout/size controls and secret handling.
+Developer API responses must expose stable asset descriptors/status, not raw storage credentials/private URLs. Transfer authorization endpoints require narrow scopes and Core-side grant/station validation.
 
-## 13. Local breaks / affiliate windows
-
-Design for optional future affiliate/local-break markers without requiring them for v1.
-
-A syndicated show may define windows such as:
-
-- local news;
-- local ads/sponsorship;
-- station ID/jingle;
-- weather/traffic;
-- optional local insert.
-
-The receiving station can map approved break markers to local content while preserving the programme timeline. This must be deterministic and tested before broad rollout.
-
-## 14. Updates and withdrawal
-
-Publishers need lifecycle controls:
-
-- publish new episode;
-- replace/revise before deadline;
-- deprecate episode;
-- withdraw episode/source;
-- update metadata/terms;
-- end syndication.
-
-Receiving stations must be notified when a scheduled item is materially changed or withdrawn.
-
-Do not silently replace already scheduled media close to airtime without policy. Define a configurable lock/freeze window and require operator attention for high-impact changes.
-
-## 15. Caching / storage
-
-For prerecorded syndications, allow controlled local caching when the grant permits it.
-
-Benefits:
-
-- reliable playout even if the source server is unavailable at airtime;
-- reduced repeated transfer;
-- checksum verification.
-
-Cache ownership remains tied to the syndication grant. On withdrawal/expiry, AirDeck applies the configured rights/cache policy and must not treat the file as a permanently owned local library track.
-
-Nextcloud/MusikHub storage adapters may be used as underlying storage, but the syndication domain model remains independent of one storage provider.
-
-## 16. Broadcast history and reporting
-
-Record carriage/broadcast events:
-
-- syndication/episode;
-- destination station;
-- scheduled start;
-- actual start/end;
-- completed/interrupted/fallback status;
-- source type;
-- relevant revision/terms version;
-- failure reason;
-- optional reporting acknowledgement to publisher where allowed.
-
-This supports both station operations and publisher/affiliate reporting without exposing unrelated private analytics.
-
-## 17. Notifications
-
-Useful events include:
-
-- new episode available;
-- episode updated;
-- episode/source withdrawn;
-- terms changed;
-- live programme starts soon;
-- preflight failed;
-- media cache failed;
-- syndication scheduled;
-- syndication successfully aired;
-- upstream stream lost/fallback used;
-- grant expiring/revoked.
-
-Integrate with AirDeck's planned notification/community surface rather than creating a separate notification center.
-
-## 18. API
-
-The complete AirDeck API must include Syndication endpoints/events when implemented.
-
-Conceptual resource families:
-
-- `/api/v1/musikhub/syndications`
-- `/api/v1/musikhub/syndications/:id`
-- `/api/v1/musikhub/syndications/:id/episodes`
-- `/api/v1/musikhub/syndications/:id/grants`
-- `/api/v1/stations/:sid/syndications/subscriptions`
-- `/api/v1/stations/:sid/syndications/schedule`
-- preflight/health operations where appropriate.
-
-These are conceptual paths only; implementation must first reconcile them with the current MusikHub/API router conventions and avoid duplicate resources.
-
-Developer API access uses explicit scopes/capabilities and must not reveal protected source URLs/credentials.
-
-## 19. Events
-
-Candidate realtime events:
-
-- `syndication.created`
-- `syndication.updated`
-- `syndication.withdrawn`
-- `syndication.episode.available`
-- `syndication.episode.updated`
-- `syndication.grant.changed`
-- `syndication.subscription.changed`
-- `syndication.preflight.failed`
-- `syndication.broadcast.started`
-- `syndication.broadcast.completed`
-- `syndication.broadcast.failed`
-
-Names/schemas must be aligned with AirDeck's actual event conventions and added to the common realtime contract.
-
-## 20. Security
+## 25. Security
 
 Required:
 
-- Core-side RBAC and station scoping;
-- grants checked at discovery, scheduling, download and playout;
-- protected stream credentials in secret storage;
-- SSRF protection for stream URLs;
-- no private source URL leakage through client/API logs;
-- upload/media validation;
-- checksum/integrity validation;
-- audit sensitive share/grant/withdraw actions;
-- rate limits where needed;
-- publisher cannot control receiving station outside the explicit syndication contract;
-- receiver cannot mutate publisher master metadata unless explicitly collaborative functionality is introduced later.
+- Core-side RBAC/station scoping;
+- grant checks at discovery/schedule/transfer/playout;
+- provider credentials in secret storage;
+- short-lived transfer authorization;
+- SSRF protection;
+- no private source URL/path/credential leakage;
+- upload/media validation at publisher and receiving boundaries;
+- checksum/integrity verification;
+- audit share/grant/transfer/withdraw actions;
+- rate/bandwidth/concurrency limits;
+- publisher cannot control receiver outside the explicit contract;
+- receiver cannot mutate publisher master metadata;
+- central AirDeck services must not become an implicit file relay.
 
-## 21. Platform parity
+## 26. Platform parity
 
-Syndication is one MusikHub/Core capability.
+Syndication is one MusikHub/Core capability. Windows Standalone, Server/Web/Docker, Demo, Android and iOS/iPadOS use the same domain/API contract. UX is platform-adapted; no separate mobile database/scheduler/transfer model.
 
-Windows Standalone, Server/Web/Docker, Demo, Android and iOS/iPadOS use the same domain/API contract. UX may be adapted to the platform.
+## 27. Demo-only live tests
 
-Main user flows should be available where technically meaningful:
+All runtime/live Syndication tests occur exclusively on the designated AirDeck Demo using test media, test provider storage and test streams.
 
-- discover;
-- preview/details;
-- adopt/follow;
-- choose destination station;
-- schedule;
-- view upcoming/status;
-- receive change/failure notifications.
+Test at least provider-to-receiver direct transfer, checksum/cache, publisher-node transfer where supported, Nextcloud/S3 adapter where available, revoked transfer token, source offline/fallback, live direct stream, withdrawal, timezone/DST, two receivers and credential non-disclosure.
 
-Do not implement a separate mobile syndication database or scheduler.
+Never use a production/customer/real station as a development test target.
 
-## 22. Demo-only live tests
+## 28. Implementation phases
 
-All runtime/live tests of Syndication must be performed exclusively on the designated AirDeck Demo.
-
-Use demo/test media and demo stream sources. Never use a production/customer/real station as a development test target.
-
-Test at least:
-
-- prerecorded upload -> share -> adopt -> schedule -> real demo playout;
-- live test stream -> share -> schedule -> source switch -> return;
-- revoked grant before airtime;
-- withdrawn episode;
-- source unavailable -> fallback;
-- changed terms;
-- timezone/DST handling;
-- two receiving demo stations scheduling the same syndication independently;
-- unauthorized user/station denied;
-- protected stream credential not exposed.
-
-## 23. Implementation phases
-
-### Phase A — reconcile with current MusikHub
-- inspect current MusikHub entities/grants/storage/jobs;
-- reuse existing IDs/grants/audit patterns;
-- define Syndication/Episode/Subscription models;
-- threat model and rights model.
+### Phase A — storage/transport architecture
+- inspect current MusikHub storage/grants/jobs;
+- define provider-neutral asset descriptor;
+- storage adapter interface;
+- transfer authorization contract;
+- cache model;
+- threat model;
+- prove no central media dependency.
 
 ### Phase B — prerecorded MVP
-- create/edit syndication;
-- episode upload/reference;
+- publisher-selected storage;
+- episode asset descriptor;
 - sharing/grants;
-- discovery/details;
-- adopt/subscription;
-- schedule specific episode;
-- cache/preflight/fallback;
-- broadcast history.
+- direct authorized transfer;
+- receiver cache/checksum;
+- discovery/adoption/scheduling;
+- fallback and history.
 
-### Phase C — recurring episode rules
-- newest episode scheduling;
+### Phase C — storage adapters
+- Nextcloud/WebDAV;
+- S3-compatible storage;
+- publisher AirDeck-node transfer;
+- HTTPS provider adapter;
+- resume/retry/health.
+
+### Phase D — recurring episode workflow
+- newest-episode scheduling;
 - availability/expiry;
-- update/withdraw workflow;
+- update/withdraw;
 - notifications;
-- lock/freeze behavior.
+- freeze window.
 
-### Phase D — stream syndication
-- protected stream source;
-- recurring live windows/timezones;
+### Phase E — live stream Syndication
+- protected direct stream descriptor;
+- recurring windows/timezones;
 - preflight/health;
-- automation source switching;
+- automation switching;
 - fallback/reconnect;
-- dynamic metadata policy.
+- dynamic metadata.
 
-### Phase E — affiliate features
+### Phase F — affiliate/API/platform work
 - local break markers;
-- publisher reporting;
-- richer templates/requirements;
-- community/catalog discovery where approved.
+- reporting;
+- OpenAPI/events/Developer API;
+- platform parity and SDK models.
 
-### Phase F — API/SDK/platform parity
-- OpenAPI/event schemas;
-- Developer API scopes;
-- Windows/Web/Docker/Demo UI parity;
-- Android/iOS native surfaces;
-- SDK models/examples.
-
-## 24. Completion rule
+## 29. Completion rule
 
 Do not call Syndication complete when it merely accepts an upload or URL.
 
-Completion requires a real end-to-end path:
+Completion requires:
 
-**publisher creates -> rights/share -> receiver discovers -> adopts -> schedules -> preflight -> AirDeck playout -> fallback/error handling -> broadcast history**, with RBAC, API/events, tests and platform parity accounted for.
+**publisher storage -> metadata/rights/share -> receiver discovers -> direct authorized transfer or direct stream -> local cache/preflight -> schedule -> AirDeck playout -> fallback/error handling -> broadcast history**, without central AirDeck programme-media storage or mandatory relay.
