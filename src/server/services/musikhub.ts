@@ -377,12 +377,14 @@ export class MusicHubService {
     const existing = this.state.items.find((x) =>
       x.source.kind === 'nextcloud' && x.source.sourceId === input.sourceId && x.source.remotePath === input.remotePath);
     if (existing) {
+      const previousFile = existing.source.file;
       existing.source.file = input.file;
       existing.source.originalName = input.originalName;
       existing.source.contentType = input.contentType;
       existing.source.size = input.size;
       existing.source.modified = input.modified;
       existing.revision++;
+      if (previousFile !== input.file) rmSync(join(this.cloudDir(input.sourceId), previousFile), { force: true });
       await this.save();
       return existing;
     }
