@@ -68,6 +68,7 @@ interface HubNextcloudState {
 }
 
 const HUB_NC_MAX_FILES = 1000;
+const HUB_NC_MAX_JOBS = 500;
 const HUB_NC_MAX_DEPTH = 5;
 const HUB_NC_DEFAULT_QUOTA = 2 * 1024 * 1024 * 1024;
 const HUB_NC_DEFAULT_MAX_FILE = 500 * 1024 * 1024;
@@ -133,6 +134,11 @@ export class NextcloudService {
 
   private saveHubState(state: HubNextcloudState): void {
     this.app.docs.set('musikhub-nextcloud', state);
+  }
+
+  private pushHubJob(state: HubNextcloudState, job: HubNextcloudJob): void {
+    this.pushHubJob(state, job);
+    if (state.jobs.length > HUB_NC_MAX_JOBS) state.jobs = state.jobs.slice(-HUB_NC_MAX_JOBS);
   }
 
   private assertNoRunningJob(sourceId: string, kind: HubNextcloudJob['kind'], path?: string): void {
@@ -378,7 +384,7 @@ export class NextcloudService {
     if (!password) throw new AppError(409, 'no_password', 'Nextcloud-App-Passwort fehlt');
     const state = this.hubState();
     const job: HubNextcloudJob = { id: newId('ncjob'), sourceId, kind: 'scan', status: 'running', createdAt: Date.now(), updatedAt: Date.now(), files: 0, error: null };
-    state.jobs.push(job);
+    this.pushHubJob(state, job);
     this.saveHubState(state);
     await this.app.docs.flush();
 
@@ -454,7 +460,7 @@ export class NextcloudService {
       id: newId('ncjob'), sourceId, kind: 'retrieve', status: 'running',
       createdAt: Date.now(), updatedAt: Date.now(), files: 0, path: remotePath, error: null,
     };
-    state.jobs.push(job);
+    this.pushHubJob(state, job);
     this.saveHubState(state);
     await this.app.docs.flush();
 
@@ -510,7 +516,7 @@ export class NextcloudService {
       id: newId('ncjob'), sourceId, kind: 'sync', status: 'running',
       createdAt: start, updatedAt: start, files: 0, error: null,
     };
-    state.jobs.push(job);
+    this.pushHubJob(state, job);
     this.saveHubState(state);
     await this.app.docs.flush();
 
@@ -565,7 +571,7 @@ export class NextcloudService {
           ? `${skippedQuota} wegen Quote, ${skippedTooLarge} wegen Dateigröße übersprungen`
           : null;
       }
-      state.jobs = state.jobs.slice(-500);
+      state.jobs = state.jobs.slice(-HUB_NC_MAX_JOBS);
       this.saveHubState(state);
       await this.app.docs.flush();
       this.app.audit.write({
@@ -592,7 +598,7 @@ export class NextcloudService {
         liveJob.error = message;
         liveJob.updatedAt = now;
       }
-      state.jobs = state.jobs.slice(-500);
+      state.jobs = state.jobs.slice(-HUB_NC_MAX_JOBS);
       this.saveHubState(state);
       await this.app.docs.flush();
       this.app.audit.write({ kind: 'musikhub', event: 'cloud_sync_failed', actor: p.user?.id ?? p.id, sourceId, automatic });
