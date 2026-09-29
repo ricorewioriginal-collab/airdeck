@@ -956,7 +956,7 @@ export class AirDeckApp {
           this.transientMedia.set(this.transientKey(stationId, media.id), media);
           break;
         } catch (err) {
-          // interne Queue-Referenz wird nicht als öffentliche Media-ID gespiegelt
+          this.transientMedia.delete(this.transientKey(stationId, this.svc.musikhub.publicBroadcastRef(e.mediaId)))
           this.audit.write({ kind: 'musikhub', event: 'broadcast_preflight_denied', stationId, mediaId: e.mediaId, message: (err as Error).message });
           e = rt.queue.shift();
           continue;
@@ -1499,15 +1499,17 @@ export class AirDeckApp {
     // Sendeplan: im aktiven Zeitfenster kommt die Musik aus der zugeordneten Playlist
     const plan = activeWindow(rt.data.plans ?? [], new Date());
     const pl = plan ? rt.data.playlists?.find((x) => x.id === plan.playlistId) : undefined;
-    const items = pl?.items.filter((id) => rt.data.library.some((m) => m.id === id)) ?? [];
+    const items = pl?.items.filter((id) => rt.data.library.some((m) => m.id === id) || this.svc.musikhub.isQueuedBroadcastRef(id)) ?? [];
     if (plan && items.length) {
       const cursors = (rt.data.planCursor ??= {});
       let guard = rt.data.minQueue * 2;
       while (rt.queue.length < rt.data.minQueue && guard-- > 0) {
         let next: string;
         if (plan.shuffle) {
-          const lib = rt.data.library.filter((m) => items.includes(m.id));
-          next = (pickFromPool(lib.map((m) => ({ ...m, category: 'music' as const })), 'music', [...rt.queue.list().map((q) => q.mediaId).reverse(), ...rt.data.history], rt.data.rotation) ?? lib[0]!).id;
+          const local = rt.data.library.filter((m) => items.includes(m.id));
+          const hub = items.filter((id) => this.svc.musikhub.isQueuedBroadcastRef(id));
+          if (hub.length && Math.random() < hub.length / items.length) next = hub[Math.floor(Math.random() * hub.length)]!;
+          else next = (pickFromPool(local.map((m) => ({ ...m, category: 'music' as const })), 'music', [...rt.queue.list().map((q) => q.mediaId).reverse(), ...rt.data.history], rt.data.rotation) ?? local[0])?.id ?? hub[0]!;
         } else {
           const c = (cursors[plan.id] ?? 0) % items.length;
           next = items[c]!;
