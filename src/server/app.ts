@@ -1499,7 +1499,16 @@ export class AirDeckApp {
     // Sendeplan: im aktiven Zeitfenster kommt die Musik aus der zugeordneten Playlist
     const plan = activeWindow(rt.data.plans ?? [], new Date());
     const pl = plan ? rt.data.playlists?.find((x) => x.id === plan.playlistId) : undefined;
-    const items = pl?.items.filter((id) => rt.data.library.some((m) => m.id === id) || this.svc.musikhub.isQueuedBroadcastRef(id)) ?? [];
+    const items = pl?.items.filter((id) => {
+      if (rt.data.library.some((m) => m.id === id)) return true;
+      if (!this.svc.musikhub.isQueuedBroadcastRef(id)) return false;
+      try {
+        this.svc.musikhub.resolveQueuedBroadcast(id, rt.station.id);
+        return true;
+      } catch {
+        return false;
+      }
+    }) ?? [];
     if (plan && items.length) {
       const cursors = (rt.data.planCursor ??= {});
       let guard = rt.data.minQueue * 2;
