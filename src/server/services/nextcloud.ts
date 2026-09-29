@@ -211,6 +211,7 @@ export class NextcloudService {
       syncEnabled: source.syncEnabled,
       syncIntervalMinutes: source.syncIntervalMinutes,
       syncQuotaBytes: source.syncQuotaBytes,
+      syncUsedBytes: [...this.app.svc.musikhub.nextcloudSyncState(source.id).values()].reduce((sum, x) => sum + x.size, 0),
       syncMaxFileBytes: source.syncMaxFileBytes,
       nextSyncAt: source.nextSyncAt,
       lastSyncAt: source.lastSyncAt,
@@ -410,6 +411,13 @@ export class NextcloudService {
     const entry = state.entries.find((x) => x.sourceId === sourceId && x.path === remotePath);
     if (!entry) throw new AppError(404, 'not_indexed', 'Datei ist nicht im aktuellen Cloud-Index');
     if (!AUDIO_FILE_RE.test(entry.name)) throw new AppError(415, 'unsupported_media', 'Indexeintrag ist keine unterstützte Audiodatei');
+    if (entry.size > source.syncMaxFileBytes) throw new AppError(413, 'file_too_large', 'Datei überschreitet das Limit dieser Cloudquelle');
+    const synced = this.app.svc.musikhub.nextcloudSyncState(sourceId);
+    const previous = synced.get(remotePath);
+    const usedBefore = [...synced.values()].reduce((sum, x) => sum + x.size, 0);
+    if (usedBefore - (previous?.size ?? 0) + entry.size > source.syncQuotaBytes) {
+      throw new AppError(413, 'quota_exceeded', 'Gesamtquote dieser Cloudquelle wäre überschritten');
+    }
 
     const job: HubNextcloudJob = {
       id: newId('ncjob'), sourceId, kind: 'retrieve', status: 'running',
@@ -428,6 +436,10 @@ export class NextcloudService {
 
     try {
       const size = await this.ncCall(() => client.download(remotePath, target, source.syncMaxFileBytes));
+      if (usedBefore - (previous?.size ?? 0) + size > source.syncQuotaBytes) {
+        rmSync(target, { force: true });
+        throw new AppError(413, 'quota_exceeded', 'Tatsächliche Dateigröße überschreitet die Gesamtquote dieser Cloudquelle');
+      }
       const item = await this.app.svc.musikhub.registerNextcloudFile(p, stationId, {
         owner: source.owner,
         sourceId,
