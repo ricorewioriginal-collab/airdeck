@@ -185,12 +185,21 @@ export function mountMusicHub(root, ctx) {
     await run(load);
   }
 
-  async function manageGrants(collection) {
-    const grants = await run(() => ctx.api.get(url(`/collection/${encodeURIComponent(collection.id)}/grants?station=${encodeURIComponent(station())}`)));
+  async function manageGrants(kind, resource) {
+    const grants = await run(() => ctx.api.get(url(`/${kind}/${encodeURIComponent(resource.id)}/grants?station=${encodeURIComponent(station())}`)));
     if (!grants) return;
-    const active = grants.filter((g) => g.revokedAt === null);
-    if (!active.length) return status('Diese Sammlung hat keine aktiven Freigaben.');
-    const value = await formDialog('Freigabe widerrufen', [{ name: 'grant', label: 'Aktive Freigabe', options: active.map((g) => [g.id, `${g.recipient.kind === 'station' ? 'Sender' : 'Nutzer'} ${g.recipient.id} · ${g.targetStationIds.join(', ')}`]) }], 'Widerrufen');
+    const active = grants.filter((g) => g.revokedAt === null && (g.expiresAt === null || g.expiresAt > Date.now()));
+    if (!active.length) return status('Diese Ressource hat keine aktiven Freigaben.');
+    const value = await formDialog('Freigabe widerrufen', [{
+      name: 'grant',
+      label: 'Aktive Freigabe',
+      options: active.map((g) => {
+        const who = `${g.recipient.kind === 'station' ? 'Sender' : 'Nutzer'} ${g.recipient.id}`;
+        const rights = g.actions.join(', ');
+        const expiry = g.expiresAt ? ` · bis ${new Date(g.expiresAt).toLocaleString('de-DE')}` : '';
+        return [g.id, `${who} · ${rights}${expiry}`];
+      }),
+    }], 'Widerrufen');
     if (!value || !confirm('Neue Zugriffe über diese Freigabe sofort beenden? Bereits exportierte Dateien bleiben beim Empfänger.')) return;
     const result = await run(() => ctx.api.del(url(`/grants/${encodeURIComponent(value.grant)}?station=${encodeURIComponent(station())}`)));
     if (result === undefined) return;
@@ -222,7 +231,7 @@ export function mountMusicHub(root, ctx) {
             h('strong', {}, c.name), h('span', { class: 'muted' }, ` · ${c.itemIds.length} Titel`),
             c.actions.includes('shares.manage') ? h('div', { class: 'row mh-actions' },
               h('button', { class: 'btn small', onclick: () => shareResource('collection', c) }, 'Freigeben'),
-              h('button', { class: 'btn small', onclick: () => manageGrants(c) }, 'Freigaben ansehen')) : null))) : h('p', { class: 'muted' }, 'Noch keine sichtbaren Sammlungen.')),
+              h('button', { class: 'btn small', onclick: () => manageGrants('collection', c) }, 'Freigaben ansehen')) : null))) : h('p', { class: 'muted' }, 'Noch keine sichtbaren Sammlungen.')),
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Katalog')),
           h('p', { class: 'muted mh-page-info' }, `Titel ${first}–${last} von ${total} · ${visible.length} auf dieser Seite im gewählten Filter`),
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
@@ -234,6 +243,7 @@ export function mountMusicHub(root, ctx) {
               item.actions.includes('file.download') ? h('button', { class: 'btn small', onclick: () => download(item) }, '↓ Download') : null,
               item.actions.includes('metadata.edit') ? h('button', { class: 'btn small', onclick: () => editMetadata(item) }, 'Metadaten') : null,
               item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => shareResource('item', item) }, 'Freigeben') : null,
+              item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => manageGrants('item', item) }, 'Freigaben') : null,
               item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null,
               item.owner.kind === 'user' && item.source?.kind === 'personal' && item.actions.includes('media.delete')
                 ? h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen') : null
