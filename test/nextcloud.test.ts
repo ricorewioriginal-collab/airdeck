@@ -102,11 +102,43 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.deepEqual(cloudItem.availability, { state: 'ready', sourceKind: 'nextcloud' });
     assert.equal((app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main')).some((j) => j.kind === 'retrieve' && j.itemId === retrieved.item.id), true);
 
-    FILES['/Radio/Hits/Kygo - Firestone.mp3'] = Buffer.from('ID3-firestone-updated');
+    const edited = await app.svc.musikhub.updateItemMetadata(ownerP, retrieved.item.id, 'main', {
+      revision: cloudItem.revision, title: 'Firestone Lokal', artist: 'Kygo', version: 'Studio Edit',
+    });
+    assert.equal(edited.title, 'Firestone Lokal');
+
+    FILES['/Radio/Hits/Kygo - Firestone.mp3'] = Buffer.from('ID3-firestone-updated-and-longer');
+    await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id);
+    const changedCatalog = app.svc.musikhub.listItems(ownerP, 'main') as {
+      items: Array<{ id: string; title: string; availability: { state: string }; source?: { kind: string; localMetadataDirty?: boolean; remoteStatus?: { state: string } }; revision: number }>
+    };
+    const changedItem = changedCatalog.items.find((x) => x.id === retrieved.item.id)!;
+    assert.equal(changedItem.source?.remoteStatus?.state, 'remote_changed');
+    assert.equal(changedItem.source?.localMetadataDirty, true);
+    assert.equal(changedItem.title, 'Firestone Lokal');
+
     const refreshed = await app.svc.nextcloud.retrieveHubNextcloudEntry(ownerP, 'main', hubSource.id, firestonePath) as { item: { id: string } };
     assert.equal(refreshed.item.id, retrieved.item.id, 'gleicher Remote-Pfad aktualisiert denselben MusicHub-Eintrag');
-    const refreshedItem = (app.svc.musikhub.listItems(ownerP, 'main') as { items: Array<{ id: string; revision: number }> }).items.find((x) => x.id === retrieved.item.id)!;
-    assert.equal(refreshedItem.revision > cloudItem.revision, true);
+    const refreshedCatalog = app.svc.musikhub.listItems(ownerP, 'main') as {
+      items: Array<{ id: string; title: string; version: string | null; availability: { state: string }; source?: { localMetadataDirty?: boolean; remoteStatus?: { state: string } }; revision: number }>
+    };
+    const refreshedItem = refreshedCatalog.items.find((x) => x.id === retrieved.item.id)!;
+    assert.equal(refreshedItem.revision > changedItem.revision, true);
+    assert.equal(refreshedItem.title, 'Firestone Lokal', 'Cloud-Audio-Refresh überschreibt lokale Metadaten nicht');
+    assert.equal(refreshedItem.version, 'Studio Edit');
+    assert.equal(refreshedItem.source?.localMetadataDirty, true);
+    assert.equal(refreshedItem.source?.remoteStatus?.state, 'current');
+
+    delete FILES['/Radio/Hits/Kygo - Firestone.mp3'];
+    await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id);
+    const missingRemoteCatalog = app.svc.musikhub.listItems(ownerP, 'main') as {
+      items: Array<{ id: string; availability: { state: string }; source?: { remoteStatus?: { state: string } } }>
+    };
+    const missingRemoteItem = missingRemoteCatalog.items.find((x) => x.id === retrieved.item.id)!;
+    assert.equal(missingRemoteItem.source?.remoteStatus?.state, 'remote_missing');
+    assert.equal(missingRemoteItem.availability.state, 'ready', 'Remote-Löschung lässt lokalen MusicHub-Cache bewusst bestehen');
+    FILES['/Radio/Hits/Kygo - Firestone.mp3'] = Buffer.from('ID3-firestone-updated-and-longer');
+    await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id);
 
     FILES['/Radio/Hits/New Artist - New Song.mp3'] = Buffer.from('ID3-new-song');
     const autoSync = await app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false) as {
