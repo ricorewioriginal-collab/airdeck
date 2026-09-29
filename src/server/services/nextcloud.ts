@@ -6,6 +6,7 @@ import { lookup } from 'node:dns/promises';
 import { extname, join } from 'node:path';
 import { MEDIA_CATEGORIES, parseFileName, type MediaItem } from '../../core/automation.ts';
 import { AUDIO_FILE_RE, AppError, canSee, newId, type Principal } from '../model.ts';
+import { UserStore } from '../users.ts';
 import { Nextcloud, NextcloudError, cleanPath, type NextcloudConfig } from '../nextcloud.ts';
 
 type CloudOwner = { kind: 'user' | 'station'; id: string };
@@ -24,6 +25,15 @@ interface HubNextcloudSource {
   revision: number;
   lastScanAt: number | null;
   lastError: string | null;
+  createdByUserId: string;
+  syncEnabled: boolean;
+  syncIntervalMinutes: number;
+  syncQuotaBytes: number;
+  syncMaxFileBytes: number;
+  nextSyncAt: number | null;
+  lastSyncAt: number | null;
+  syncFailures: number;
+  offlineUntil: number | null;
 }
 
 interface HubNextcloudEntry {
@@ -39,7 +49,7 @@ interface HubNextcloudEntry {
 interface HubNextcloudJob {
   id: string;
   sourceId: string;
-  kind: 'scan' | 'retrieve';
+  kind: 'scan' | 'retrieve' | 'sync';
   status: 'queued' | 'running' | 'done' | 'failed';
   createdAt: number;
   updatedAt: number;
@@ -58,6 +68,10 @@ interface HubNextcloudState {
 
 const HUB_NC_MAX_FILES = 1000;
 const HUB_NC_MAX_DEPTH = 5;
+const HUB_NC_DEFAULT_QUOTA = 2 * 1024 * 1024 * 1024;
+const HUB_NC_DEFAULT_MAX_FILE = 500 * 1024 * 1024;
+const HUB_NC_MIN_SYNC_MINUTES = 5;
+const HUB_NC_MAX_SYNC_MINUTES = 24 * 60;
 const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
 
 export class NextcloudService {
@@ -134,6 +148,14 @@ export class NextcloudService {
       revision: source.revision,
       lastScanAt: source.lastScanAt,
       lastError: source.lastError,
+      syncEnabled: source.syncEnabled,
+      syncIntervalMinutes: source.syncIntervalMinutes,
+      syncQuotaBytes: source.syncQuotaBytes,
+      syncMaxFileBytes: source.syncMaxFileBytes,
+      nextSyncAt: source.nextSyncAt,
+      lastSyncAt: source.lastSyncAt,
+      syncFailures: source.syncFailures,
+      offlineUntil: source.offlineUntil,
       hasPassword: this.app.secrets.has(source.secretRef),
     };
   }
@@ -193,6 +215,15 @@ export class NextcloudService {
         revision: 1,
         lastScanAt: null,
         lastError: null,
+        createdByUserId: p.user.id,
+        syncEnabled: input.syncEnabled === true,
+        syncIntervalMinutes: Math.min(HUB_NC_MAX_SYNC_MINUTES, Math.max(HUB_NC_MIN_SYNC_MINUTES, Number(input.syncIntervalMinutes) || 60)),
+        syncQuotaBytes: Math.max(1, Math.floor(Number(input.syncQuotaBytes) || HUB_NC_DEFAULT_QUOTA)),
+        syncMaxFileBytes: Math.max(1, Math.min(HUB_NC_DEFAULT_MAX_FILE, Math.floor(Number(input.syncMaxFileBytes) || HUB_NC_DEFAULT_MAX_FILE))),
+        nextSyncAt: input.syncEnabled === true ? Date.now() : null,
+        lastSyncAt: null,
+        syncFailures: 0,
+        offlineUntil: null,
       };
       state.sources.push(source);
     } else {
@@ -204,6 +235,11 @@ export class NextcloudService {
       source.user = user;
       source.root = root;
       source.allowPrivateNetwork = allowPrivateNetwork;
+      source.syncEnabled = input.syncEnabled === undefined ? source.syncEnabled : input.syncEnabled === true;
+      source.syncIntervalMinutes = Math.min(HUB_NC_MAX_SYNC_MINUTES, Math.max(HUB_NC_MIN_SYNC_MINUTES, Number(input.syncIntervalMinutes ?? source.syncIntervalMinutes) || 60));
+      source.syncQuotaBytes = Math.max(1, Math.floor(Number(input.syncQuotaBytes ?? source.syncQuotaBytes) || HUB_NC_DEFAULT_QUOTA));
+      source.syncMaxFileBytes = Math.max(1, Math.min(HUB_NC_DEFAULT_MAX_FILE, Math.floor(Number(input.syncMaxFileBytes ?? source.syncMaxFileBytes) || HUB_NC_DEFAULT_MAX_FILE)));
+      source.nextSyncAt = source.syncEnabled ? (source.nextSyncAt ?? Date.now()) : null;
       source.updatedAt = Date.now();
       source.revision++;
       source.lastError = null;
