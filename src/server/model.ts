@@ -93,6 +93,8 @@ export interface StreamProfileConfig {
   bitrateKbps: number;
   mp3Mode?: 'cbr' | 'vbr';
   mp3Quality?: number;
+  /** Encoder unabhängig von den Stream-Ausgängen aktivieren/deaktivieren (Standard: aktiv). */
+  enabled?: boolean;
 }
 
 export interface LinkedFolder {

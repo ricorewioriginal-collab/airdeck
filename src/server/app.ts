@@ -834,6 +834,7 @@ export class AirDeckApp {
       bitrateKbps: Math.round(bitrateKbps),
       mp3Mode,
       mp3Quality,
+      enabled: Boolean(input.enabled ?? prev?.enabled ?? true),
     };
     if (prev) Object.assign(prev, cfg);
     else list.push(cfg);
@@ -861,9 +862,10 @@ export class AirDeckApp {
     const po = this.playouts.get(stationId);
     if (!po) return;
     const list = this.rt(stationId).data.streamProfiles ?? [];
-    const neededIds = new Set(
-      [...this.outputs.values()].filter((o) => o.cfg.stationId === stationId && o.cfg.enabled && o.cfg.profileId).map((o) => o.cfg.profileId!),
-    );
+    // Encoder und Stream-Ausgang sind getrennte Schalter: Ein Profil kann laufen,
+    // auch wenn gerade kein Ausgang verbunden ist. Die Source-Priority entscheidet
+    // davor, welche Quelle den Programmbus speist; der Encoder folgt diesem Bus.
+    const neededIds = new Set(list.filter((sp) => sp.enabled !== false).map((sp) => sp.id));
     for (const id of po.playout.listProfiles()) if (!neededIds.has(id)) po.playout.removeProfile(id);
     for (const id of neededIds) {
       const sp = list.find((s) => s.id === id);

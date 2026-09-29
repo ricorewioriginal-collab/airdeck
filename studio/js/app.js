@@ -1705,6 +1705,7 @@ async function editStreamProfile(sp) {
     { name: 'name', label: 'Name', value: sp?.name ?? 'Mobile AAC', required: true },
     { name: 'format', label: 'Format', value: sp?.format ?? 'aac', options: [['mp3', 'MP3'], ['aac', 'AAC'], ['opus', 'Opus']] },
     { name: 'bitrateKbps', label: 'Bitrate (kbit/s)', type: 'number', value: sp?.bitrateKbps ?? 64 },
+    { name: 'enabled', label: 'Encoder aktiv', type: 'checkbox', value: sp?.enabled !== false, hint: 'Unabhängig vom Stream-Ausgang: Encoder kann laufen, während der Stream-Ausgang aus ist.' },
     ...(isNew ? [] : [{ name: 'remove', label: 'Profil löschen', type: 'checkbox', value: false }]),
   ]);
   if (!v) return;
