@@ -1,6 +1,8 @@
 // Nextcloud-Brücke: Medien per WebDAV durchsuchen und übernehmen, Mitschnitte hochladen.
 
 import type { AirDeckApp } from '../app.ts';
+import { mkdirSync, rmSync } from 'node:fs';
+import { lookup } from 'node:dns/promises';
 import { extname, join } from 'node:path';
 import { MEDIA_CATEGORIES, parseFileName, type MediaItem } from '../../core/automation.ts';
 import { AUDIO_FILE_RE, AppError, canSee, newId, type Principal } from '../model.ts';
@@ -37,11 +39,13 @@ interface HubNextcloudEntry {
 interface HubNextcloudJob {
   id: string;
   sourceId: string;
-  kind: 'scan';
+  kind: 'scan' | 'retrieve';
   status: 'queued' | 'running' | 'done' | 'failed';
   createdAt: number;
   updatedAt: number;
   files: number;
+  path?: string;
+  itemId?: string;
   error: string | null;
 }
 
@@ -62,6 +66,37 @@ export class NextcloudService {
 
   constructor(app: AirDeckApp) {
     this.app = app;
+  }
+
+  private privateAddress(address: string): boolean {
+    const a = address.toLowerCase();
+    if (a === '::1' || a.startsWith('fc') || a.startsWith('fd') || a.startsWith('fe80:')) return true;
+    const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(a);
+    if (!m) return false;
+    const x = Number(m[1]), y = Number(m[2]);
+    return x === 0 || x === 10 || x === 127 || x === 169 && y === 254 || x === 172 && y >= 16 && y <= 31
+      || x === 192 && y === 168 || x === 100 && y >= 64 && y <= 127 || x >= 224;
+  }
+
+  private hubFetch(source: HubNextcloudSource): typeof fetch {
+    const base = new URL(source.url);
+    return (async (input: RequestInfo | URL, init?: RequestInit) => {
+      let target = new URL(typeof input === 'string' || input instanceof URL ? input.toString() : input.url);
+      for (let redirects = 0; redirects <= 3; redirects++) {
+        if (target.origin !== base.origin) throw new NextcloudError(502, 'Nextcloud-Weiterleitung auf fremden Host blockiert');
+        if (!source.allowPrivateNetwork) {
+          const addresses = await lookup(target.hostname, { all: true }).catch(() => []);
+          if (!addresses.length) throw new NextcloudError(502, 'Nextcloud-Host konnte nicht aufgelöst werden');
+          if (addresses.some((x) => this.privateAddress(x.address))) throw new NextcloudError(502, 'Private oder lokale Nextcloud-Adresse ist für diese Quelle nicht freigegeben');
+        }
+        const response = await fetch(target, { ...init, redirect: 'manual' });
+        if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+        const location = response.headers.get('location');
+        if (!location) return response;
+        target = new URL(location, target);
+      }
+      throw new NextcloudError(502, 'Zu viele Nextcloud-Weiterleitungen');
+    }) as typeof fetch;
   }
 
   private hubState(): HubNextcloudState {
@@ -204,7 +239,7 @@ export class NextcloudService {
     this.saveHubState(state);
     await this.app.docs.flush();
 
-    const client = new Nextcloud({ url: source.url, user: source.user, root: source.root }, password);
+    const client = new Nextcloud({ url: source.url, user: source.user, root: source.root }, password, this.hubFetch(source));
     const found: HubNextcloudEntry[] = [];
     const walk = async (path: string, depth: number): Promise<void> => {
       if (depth > HUB_NC_MAX_DEPTH || found.length >= HUB_NC_MAX_FILES) return;
@@ -250,6 +285,63 @@ export class NextcloudService {
       this.saveHubState(state);
       await this.app.docs.flush();
       this.app.audit.write({ kind: 'musikhub', event: 'cloud_scan_failed', actor: p.user?.id ?? p.id, sourceId });
+      throw err;
+    }
+  }
+
+  async retrieveHubNextcloudEntry(p: Principal, stationId: string, sourceId: string, remotePathInput: string) {
+    const source = this.hubSource(p, stationId, sourceId, true);
+    const password = this.app.secrets.get(source.secretRef);
+    if (!password) throw new AppError(409, 'no_password', 'Nextcloud-App-Passwort fehlt');
+    const remotePath = cleanPath(remotePathInput);
+    const state = this.hubState();
+    const entry = state.entries.find((x) => x.sourceId === sourceId && x.path === remotePath);
+    if (!entry) throw new AppError(404, 'not_indexed', 'Datei ist nicht im aktuellen Cloud-Index');
+    if (!AUDIO_FILE_RE.test(entry.name)) throw new AppError(415, 'unsupported_media', 'Indexeintrag ist keine unterstützte Audiodatei');
+
+    const job: HubNextcloudJob = {
+      id: newId('ncjob'), sourceId, kind: 'retrieve', status: 'running',
+      createdAt: Date.now(), updatedAt: Date.now(), files: 0, path: remotePath, error: null,
+    };
+    state.jobs.push(job);
+    this.saveHubState(state);
+    await this.app.docs.flush();
+
+    const ext = extname(entry.name).toLowerCase();
+    const file = `${newId('cloud')}${ext}`;
+    const dir = join(this.app.dataDir, 'musikhub', 'cloud', sourceId);
+    const target = join(dir, file);
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const client = new Nextcloud({ url: source.url, user: source.user, root: source.root }, password, this.hubFetch(source));
+
+    try {
+      const size = await this.ncCall(() => client.download(remotePath, target, 500 * 1024 * 1024));
+      const item = await this.app.svc.musikhub.registerNextcloudFile(p, stationId, {
+        owner: source.owner,
+        sourceId,
+        remotePath,
+        file,
+        originalName: entry.name,
+        contentType: entry.type || 'application/octet-stream',
+        size,
+        modified: entry.modified,
+      });
+      job.status = 'done';
+      job.files = 1;
+      job.itemId = item.id;
+      job.updatedAt = Date.now();
+      this.saveHubState(state);
+      await this.app.docs.flush();
+      this.app.audit.write({ kind: 'musikhub', event: 'cloud_retrieve_done', actor: p.user?.id ?? p.id, sourceId, itemId: item.id });
+      return { job: { ...job }, item: { id: item.id, title: item.title, artist: item.artist, version: item.version, owner: item.owner } };
+    } catch (err) {
+      rmSync(target, { force: true });
+      job.status = 'failed';
+      job.error = (err as Error).message.slice(0, 300);
+      job.updatedAt = Date.now();
+      this.saveHubState(state);
+      await this.app.docs.flush();
+      this.app.audit.write({ kind: 'musikhub', event: 'cloud_retrieve_failed', actor: p.user?.id ?? p.id, sourceId });
       throw err;
     }
   }
