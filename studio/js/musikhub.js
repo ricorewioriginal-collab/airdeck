@@ -129,7 +129,7 @@ export function mountMusicHub(root, ctx) {
     const playlists = await run(() => ctx.api.get(`/stations/${encodeURIComponent(sid)}/playlists`));
     if (!playlists?.length) return status('Lege zuerst eine Sender-Playlist an.', true);
     const value = await formDialog('MusicHub-Titel zur Playlist', [
-      { name: 'playlistId', label: 'Playlist', options: playlists.map((pl) => [pl.id, pl.name]) },
+      { name: 'playlistId', label: 'Playlist', options: playlists.map((/** @type {any} */ pl) => [pl.id, pl.name]) },
     ], 'Hinzufügen');
     if (!value) return;
     const result = await run(() => ctx.api.post(
