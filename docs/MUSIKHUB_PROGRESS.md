@@ -38,6 +38,6 @@ Wichtige Rücknahmegrenze: Ein alter AirDeck-Build kennt Schema 2 nicht und star
 ## Nächste konkrete Arbeit
 
 1. UI im Browser mit Demo-Nutzer auf Desktop/Handy prüfen; keine Produktionstitel als Testdaten verwenden.
-2. Phase 2 abschließen: Broadcast-/Sendebus-Nutzung für `broadcast.use`, klare Quell-/Verfügbarkeitsanzeige für kommende Cloudquellen, Mobile-Abnahme sowie verbleibende Rechte-/Widerruf-/SSE-Szenarien. Private Speicherung, Upload, Metadaten/Revision, Preview, separater Download und geschützte Cover sind im Arbeits-PR umgesetzt.
+2. Phase 2 abschließen: klare Quell-/Verfügbarkeitsanzeige für kommende Cloudquellen, Mobile-Abnahme sowie verbleibende Rechte-/Widerruf-/SSE-Szenarien. Private Speicherung, Upload, Metadaten/Revision, Preview, separater Download, geschützte Cover und `broadcast.use` für Queue/Playlist/Sendeplan mit erneutem Playout-Preflight sind im Arbeits-PR umgesetzt.
 3. Erst dann Phase 3 gemäß Paket 09: pro Eigentümer getrennte Nextcloud-Quelle und Secret, sichere URL-/Redirect-Prüfung, begrenzter Katalogscan und persistente Einweg-Importjobs mit Restart/Offline/Conflict/Quota-Tests.
 4. Danach AirDeckCast-Preflight und lautCast-Capabilities in dieser Reihenfolge. Jede Phase nach Tests committen, Build abwarten, auf der bestehenden Demo prüfen und den Rücknahmeweg dokumentieren.
