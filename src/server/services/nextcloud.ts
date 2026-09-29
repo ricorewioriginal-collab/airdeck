@@ -68,7 +68,10 @@ interface HubNextcloudState {
 }
 
 const HUB_NC_MAX_FILES = 1000;
+const HUB_NC_MAX_DIRS = 500;
 const HUB_NC_MAX_JOBS = 500;
+const HUB_NC_REQUEST_TIMEOUT_MS = 30_000;
+const HUB_NC_SCAN_TIMEOUT_MS = 60_000;
 const HUB_NC_MAX_DEPTH = 5;
 const HUB_NC_DEFAULT_QUOTA = 2 * 1024 * 1024 * 1024;
 const HUB_NC_DEFAULT_MAX_FILE = 500 * 1024 * 1024;
@@ -105,7 +108,11 @@ export class NextcloudService {
           if (!addresses.length) throw new NextcloudError(502, 'Nextcloud-Host konnte nicht aufgelöst werden');
           if (addresses.some((x) => this.privateAddress(x.address))) throw new NextcloudError(502, 'Private oder lokale Nextcloud-Adresse ist für diese Quelle nicht freigegeben');
         }
-        const response = await fetch(target, { ...init, redirect: 'manual' });
+        const response = await fetch(target, {
+          ...init,
+          redirect: 'manual',
+          signal: init?.signal ?? AbortSignal.timeout(HUB_NC_REQUEST_TIMEOUT_MS),
+        });
         if (![301, 302, 303, 307, 308].includes(response.status)) return response;
         const location = response.headers.get('location');
         if (!location) return response;
@@ -390,8 +397,12 @@ export class NextcloudService {
 
     const client = new Nextcloud({ url: source.url, user: source.user, root: source.root }, password, this.hubFetch(source));
     const found: HubNextcloudEntry[] = [];
+    let visitedDirs = 0;
+    const deadline = Date.now() + HUB_NC_SCAN_TIMEOUT_MS;
     const walk = async (path: string, depth: number): Promise<void> => {
-      if (depth > HUB_NC_MAX_DEPTH || found.length >= HUB_NC_MAX_FILES) return;
+      if (Date.now() > deadline) throw new AppError(504, 'scan_timeout', 'Nextcloud-Scan hat das Zeitlimit überschritten');
+      if (depth > HUB_NC_MAX_DEPTH || found.length >= HUB_NC_MAX_FILES || visitedDirs >= HUB_NC_MAX_DIRS) return;
+      visitedDirs++;
       const entries = await this.ncCall(() => client.list(path));
       for (const entry of entries) {
         if (found.length >= HUB_NC_MAX_FILES) break;
