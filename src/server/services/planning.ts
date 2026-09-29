@@ -275,13 +275,23 @@ export class PlanningService {
       } else if (t.kind === 'playlist') {
         const pl = rt.data.playlists?.find((p) => p.id === t.playlistId);
         if (!pl) { items.push({ source, id, label, status: 'missing', message: 'Playlist wurde gelöscht' }); return; }
-        const valid = pl.items.filter((mid) => { const m = lib.find((x) => x.id === mid); return m && available(m); });
-        if (!valid.length) { items.push({ source, id, label, status: 'empty', message: `Playlist „${pl.name}“ ist leer oder alle Titel fehlen` }); return; }
+        const valid = pl.items.filter((mid) => {
+          const local = lib.find((x) => x.id === mid);
+          if (local) return available(local);
+          if (!this.app.svc.musikhub.isQueuedBroadcastRef(mid)) return false;
+          try {
+            const hub = this.app.svc.musikhub.resolveQueuedBroadcast(mid, stationId);
+            return hub.linkedPath ? existsSync(hub.linkedPath) : !!hub.url || !!hub.file;
+          } catch {
+            return false;
+          }
+        });
+        if (!valid.length) { items.push({ source, id, label, status: 'empty', message: `Playlist „${pl.name}“ ist leer, Dateien fehlen oder MusicHub-Senderechte sind nicht mehr gültig` }); return; }
         if (valid.length < pl.items.length) {
-          items.push({ source, id, label, status: 'warning', message: `Playlist „${pl.name}“: ${pl.items.length - valid.length} von ${pl.items.length} Titeln fehlen` });
+          items.push({ source, id, label, status: 'warning', message: `Playlist „${pl.name}“: ${pl.items.length - valid.length} von ${pl.items.length} Titeln fehlen oder haben keine gültige MusicHub-Sendefreigabe` });
           return;
         }
-        items.push({ source, id, label, status: 'ok', message: `Playlist „${pl.name}“ (${valid.length} Titel)` });
+        items.push({ source, id, label, status: 'ok', message: `Playlist „${pl.name}“ (${valid.length} Titel, MusicHub-Rechte aktuell geprüft)` });
       }
     };
 
