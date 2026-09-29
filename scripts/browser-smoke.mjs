@@ -124,8 +124,11 @@ try {
   await page.getByLabel('Gesamtquote dieser Quelle (MB)', { exact: true }).fill('64');
   await page.getByLabel('Max. Dateigröße (MB)', { exact: true }).fill('16');
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await page.getByText('UI Smoke Cloud', { exact: true }).waitFor();
+  await page.waitForFunction(() => !document.querySelector('#dialog')?.hasAttribute('open'), undefined, { timeout: 10_000 });
+  const cloudSaveStatus = await page.locator('#status-text').textContent();
+  assert.match(cloudSaveStatus || '', /Cloud-Quelle .*UI Smoke Cloud.* gespeichert/, `MusicHub: Nextcloud-Quelle wurde nicht gespeichert: ${cloudSaveStatus}`);
   const cloudEntry = page.locator('.mh-entry').filter({ hasText: 'UI Smoke Cloud' }).first();
+  await cloudEntry.waitFor({ state: 'visible', timeout: 10_000 });
   for (const action of ['Jetzt synchronisieren', 'Nur scannen', 'Index ansehen', 'Bearbeiten', 'Löschen']) {
     assert.equal(await cloudEntry.getByRole('button', { name: action, exact: true }).count(), 1, `MusicHub Cloud-Aktion fehlt: ${action}`);
   }
