@@ -363,6 +363,15 @@ export class MusicHubService {
     };
   }
 
+  nextcloudSyncState(sourceId: string): Map<string, { modified: string | null; size: number }> {
+    const out = new Map<string, { modified: string | null; size: number }>();
+    for (const item of this.state.items) {
+      if (item.source.kind !== 'nextcloud' || item.source.sourceId !== sourceId) continue;
+      out.set(item.source.remotePath, { modified: item.source.modified, size: item.source.size });
+    }
+    return out;
+  }
+
   async registerNextcloudFile(
     p: Principal,
     stationId: string,
