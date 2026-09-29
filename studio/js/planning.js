@@ -114,8 +114,8 @@ export function mountPlanning(root, ctx) {
 
   function render() {
     const byId = new Map(ctx.library().map((m) => [m.id, m]));
-  const playlistMediaTitle = (id) => id.startsWith('musikhub:') ? 'MusicHub-Titel' : mediaTitle(byId.get(id));
-  const playlistDuration = (id) => id.startsWith('musikhub:') ? null : byId.get(id)?.durationMs ?? null;
+  const playlistMediaTitle = (/** @type {string} */ id) => id.startsWith('musikhub:') ? 'MusicHub-Titel' : mediaTitle(byId.get(id));
+  const playlistDuration = (/** @type {string} */ id) => id.startsWith('musikhub:') ? null : byId.get(id)?.durationMs ?? null;
     // --- Zeitplan ---
     const jobs = panel('Zeitplan', [h('button', { class: 'btn small primary', onclick: addJob }, '＋ Einplanen')],
       table(['Zeitpunkt', 'Wiederholung', 'Was', ''], plan.jobs.map((/** @type {any} */ j) => h('tr', {},
