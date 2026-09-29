@@ -412,13 +412,16 @@ export function mountMusicHub(root, ctx) {
         cloudSources.length
           ? h('ul', { class: 'plain-list' }, ...cloudSources.map((source) => {
               const index = cloudIndexes.get(source.id);
+              const running = cloudJobs.filter((job) => job.sourceId === source.id && (job.status === 'running' || job.status === 'queued'));
+              const syncing = running.some((job) => job.kind === 'sync');
+              const scanning = running.some((job) => job.kind === 'scan');
               return h('li', { class: 'mh-entry' },
                 h('strong', {}, source.name),
                 h('span', { class: 'muted' }, ` · ${source.owner.kind === 'station' ? 'Sender' : 'Persönlich'} · ${source.syncEnabled ? `Auto-Sync alle ${source.syncIntervalMinutes} Min.` : 'Auto-Sync aus'} · ${Math.round((source.syncUsedBytes || 0) / 1048576)} / ${Math.round((source.syncQuotaBytes || 0) / 1048576)} MB · ${source.lastSyncAt ? `letzter Sync ${new Date(source.lastSyncAt).toLocaleString('de-DE')}` : source.lastScanAt ? `letzter Scan ${new Date(source.lastScanAt).toLocaleString('de-DE')}` : 'noch nicht synchronisiert'}${source.offlineUntil && source.offlineUntil > Date.now() ? ` · offline bis ${new Date(source.offlineUntil).toLocaleTimeString('de-DE')}` : ''}${source.lastError ? ` · Fehler: ${source.lastError}` : ''}`),
                 h('div', { class: 'row mh-actions' },
-                  h('button', { class: 'btn small primary', onclick: () => syncCloudSource(source) }, 'Jetzt synchronisieren'),
-                  h('button', { class: 'btn small', onclick: () => scanCloudSource(source) }, 'Nur scannen'),
-                  h('button', { class: 'btn small', onclick: () => toggleCloudIndex(source) }, index ? 'Index schließen' : 'Index ansehen'),
+                  h('button', { class: 'btn small primary', disabled: syncing || scanning, onclick: () => syncCloudSource(source) }, syncing ? 'Synchronisierung läuft…' : scanning ? 'Scan läuft…' : 'Jetzt synchronisieren'),
+                  h('button', { class: 'btn small', disabled: syncing || scanning, onclick: () => scanCloudSource(source) }, scanning ? 'Scan läuft…' : syncing ? 'Synchronisierung läuft…' : 'Nur scannen'),
+                  h('button', { class: 'btn small', disabled: syncing, onclick: () => toggleCloudIndex(source) }, index ? 'Index schließen' : 'Index ansehen'),
                   h('button', { class: 'btn small', onclick: () => editCloudSource(source) }, 'Bearbeiten'),
                   h('button', { class: 'btn small danger', onclick: () => deleteCloudSource(source) }, 'Löschen')),
                 index ? h('ul', { class: 'plain-list' },
