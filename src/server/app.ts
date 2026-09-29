@@ -217,6 +217,7 @@ export class AirDeckApp {
     this.levelTimer.unref();
     // Brücken: Relays zu bestehenden Systemen wieder aufnehmen
     this.svc.bridges.startBridges();
+    void this.svc.nextcloud.resumeHubNextcloudSync().then(() => this.svc.nextcloud.tickHubNextcloudSync());
     this.autostartPlayouts();
     if (!this.ffmpeg && !this.ffmpegDisabled) this.scheduleFfmpegRetry(0);
   }
@@ -334,6 +335,8 @@ export class AirDeckApp {
     if (this.tickCount % 20 === 0) for (const id of this.stations.keys()) this.director.tick(id);
     // Eingebundene Musikordner jede Minute abgleichen (asynchron, nie parallel)
     if (this.tickCount % 120 === 60) void this.svc.media.scanLinked();
+    // MusicHub-Cloudquellen regelmäßig prüfen; Service verhindert parallele Sync-Läufe.
+    if (this.tickCount % 120 === 30) void this.svc.nextcloud.tickHubNextcloudSync();
     // Status-Spiegel der Brücken (je Anbindung höchstens alle 15 s)
     if (this.tickCount % 30 === 0) this.svc.bridges.tickBridges();
     if (++this.tickCount % 2 === 0) {
