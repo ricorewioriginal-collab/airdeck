@@ -114,6 +114,8 @@ export function mountPlanning(root, ctx) {
 
   function render() {
     const byId = new Map(ctx.library().map((m) => [m.id, m]));
+  const playlistMediaTitle = (id) => id.startsWith('musikhub:') ? 'MusicHub-Titel' : mediaTitle(byId.get(id));
+  const playlistDuration = (id) => id.startsWith('musikhub:') ? null : byId.get(id)?.durationMs ?? null;
     // --- Zeitplan ---
     const jobs = panel('Zeitplan', [h('button', { class: 'btn small primary', onclick: addJob }, '＋ Einplanen')],
       table(['Zeitpunkt', 'Wiederholung', 'Was', ''], plan.jobs.map((/** @type {any} */ j) => h('tr', {},
@@ -211,7 +213,7 @@ export function mountPlanning(root, ctx) {
             iconBtn('Umbenennen/Farbe', '✎', () => editPl(p)),
             iconBtn('Löschen', '✕', () => confirm(`Playlist „${p.name}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/playlists/${p.id}`)); await load(); })))),
         open ? h('ol', { class: 'pl-items' }, ...p.items.map((/** @type {string} */ id, /** @type {number} */ i) => h('li', {},
-          h('span', {}, mediaTitle(byId.get(id))), h('span', { class: 'muted num' }, fmt(byId.get(id)?.durationMs)),
+          h('span', {}, playlistMediaTitle(id)), h('span', { class: 'muted num' }, fmt(playlistDuration(id))),
           h('span', { class: 'act' },
             i > 0 ? iconBtn('Nach oben', '↑', () => savePlItems(p, move(p.items, i, i - 1))) : null,
             iconBtn('Entfernen', '✕', () => savePlItems(p, p.items.filter((/** @type {string} */ _, /** @type {number} */ k) => k !== i))))))) : null);
