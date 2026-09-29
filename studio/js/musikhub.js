@@ -43,6 +43,10 @@ export function mountMusicHub(root, ctx) {
       { name: 'root', label: 'Startordner', value: source?.root || '/', required: true },
       { name: 'password', label: source?.hasPassword ? 'Neues App-Passwort (leer = behalten)' : 'App-Passwort', type: 'password', value: '' },
       { name: 'allowPrivateNetwork', label: 'Privates/LAN-Netz erlauben (nur Admin)', type: 'checkbox', value: source?.allowPrivateNetwork === true },
+      { name: 'syncEnabled', label: 'Automatisch einweg in den MusicHub synchronisieren', type: 'checkbox', value: source?.syncEnabled === true },
+      { name: 'syncIntervalMinutes', label: 'Sync-Intervall (Minuten)', type: 'number', value: source?.syncIntervalMinutes ?? 60, min: 5, max: 1440 },
+      { name: 'syncQuotaMb', label: 'Gesamtquote dieser Quelle (MB)', type: 'number', value: Math.round((source?.syncQuotaBytes ?? 2147483648) / 1048576), min: 1 },
+      { name: 'syncMaxFileMb', label: 'Max. Dateigröße (MB)', type: 'number', value: Math.round((source?.syncMaxFileBytes ?? 524288000) / 1048576), min: 1, max: 500 },
     ], 'Speichern');
     if (!value) return;
     const sid = station();
@@ -53,6 +57,10 @@ export function mountMusicHub(root, ctx) {
       user: value.user,
       root: value.root,
       allowPrivateNetwork: value.allowPrivateNetwork === true,
+      syncEnabled: value.syncEnabled === true,
+      syncIntervalMinutes: Number(value.syncIntervalMinutes) || 60,
+      syncQuotaBytes: Math.max(1, Number(value.syncQuotaMb) || 2048) * 1048576,
+      syncMaxFileBytes: Math.max(1, Number(value.syncMaxFileMb) || 500) * 1048576,
       ...(value.password ? { password: value.password } : {}),
       ...(source ? { revision: source.revision } : {}),
     };
@@ -62,6 +70,18 @@ export function mountMusicHub(root, ctx) {
     if (!result) return;
     status(`Cloud-Quelle „${result.name}“ gespeichert`);
     cloudIndexes.delete(result.id);
+    await run(load);
+  }
+
+  async function syncCloudSource(source) {
+    const sid = station();
+    const result = await run(() => ctx.api.post(
+      `/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources/${encodeURIComponent(source.id)}/sync`,
+      {},
+    ));
+    if (!result) return;
+    status(`Sync abgeschlossen: ${result.imported} aktualisiert, ${result.skippedUnchanged} unverändert, ${result.skippedQuota} wegen Quote übersprungen`);
+    cloudIndexes.delete(source.id);
     await run(load);
   }
 
@@ -370,9 +390,10 @@ export function mountMusicHub(root, ctx) {
               const index = cloudIndexes.get(source.id);
               return h('li', { class: 'mh-entry' },
                 h('strong', {}, source.name),
-                h('span', { class: 'muted' }, ` · ${source.owner.kind === 'station' ? 'Sender' : 'Persönlich'} · ${source.lastScanAt ? `zuletzt ${new Date(source.lastScanAt).toLocaleString('de-DE')}` : 'noch nicht gescannt'}${source.lastError ? ` · Fehler: ${source.lastError}` : ''}`),
+                h('span', { class: 'muted' }, ` · ${source.owner.kind === 'station' ? 'Sender' : 'Persönlich'} · ${source.syncEnabled ? `Auto-Sync alle ${source.syncIntervalMinutes} Min.` : 'Auto-Sync aus'} · ${source.lastSyncAt ? `letzter Sync ${new Date(source.lastSyncAt).toLocaleString('de-DE')}` : source.lastScanAt ? `letzter Scan ${new Date(source.lastScanAt).toLocaleString('de-DE')}` : 'noch nicht synchronisiert'}${source.offlineUntil && source.offlineUntil > Date.now() ? ` · offline bis ${new Date(source.offlineUntil).toLocaleTimeString('de-DE')}` : ''}${source.lastError ? ` · Fehler: ${source.lastError}` : ''}`),
                 h('div', { class: 'row mh-actions' },
-                  h('button', { class: 'btn small primary', onclick: () => scanCloudSource(source) }, 'Scannen'),
+                  h('button', { class: 'btn small primary', onclick: () => syncCloudSource(source) }, 'Jetzt synchronisieren'),
+                  h('button', { class: 'btn small', onclick: () => scanCloudSource(source) }, 'Nur scannen'),
                   h('button', { class: 'btn small', onclick: () => toggleCloudIndex(source) }, index ? 'Index schließen' : 'Index ansehen'),
                   h('button', { class: 'btn small', onclick: () => editCloudSource(source) }, 'Bearbeiten'),
                   h('button', { class: 'btn small danger', onclick: () => deleteCloudSource(source) }, 'Löschen')),
