@@ -18,7 +18,7 @@
     "build:linux-deb": "node scripts/build.mjs --sea && node scripts/build-deb.mjs"
   },
   "devDependencies": {
-    "@types/node": "^22.18.0",
+    "@types/node": "^26.6.3",
     "@types/omggif": "^1.0.5",
     "@types/pg": "^8.23.1",
     "esbuild": "^0.25.12",
