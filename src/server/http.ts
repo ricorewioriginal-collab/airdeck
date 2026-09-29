@@ -267,6 +267,29 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     const b = await c.body();
     return app.svc.musikhub.registerStationMedia(c.p, String(b.stationId ?? ''), String(b.mediaId ?? ''));
   });
+  add('PUT', '/api/v1/music-hub/personal', 'media:write', async (c) => {
+    const stationId = String(c.url.searchParams.get('station') ?? '');
+    const name = String(c.url.searchParams.get('name') ?? '').slice(0, 200);
+    const ext = extname(name).toLowerCase();
+    const contentType = AUDIO_EXT[ext];
+    if (!contentType) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${Object.keys(AUDIO_EXT).join(', ')})`);
+    const draft = app.svc.musikhub.preparePersonalUpload(c.p, stationId, name, contentType);
+    const len = Number(c.req.headers['content-length'] ?? 0);
+    if (len > draft.maxBytes) throw new AppError(413, 'too_large', 'Datei zu groß');
+    let size = 0;
+    c.req.on('data', (d: Buffer) => {
+      size += d.length;
+      if (size > draft.maxBytes) c.req.destroy(new Error('too_large'));
+    });
+    try {
+      await pipeline(c.req, createWriteStream(draft.path, { mode: 0o600 }));
+      return await app.svc.musikhub.commitPersonalUpload(c.p, stationId, draft, size);
+    } catch (err) {
+      app.svc.musikhub.discardPersonalUpload(draft);
+      if (err instanceof AppError) throw err;
+      throw new AppError(413, 'upload_failed', 'Upload abgebrochen oder zu groß');
+    }
+  });
   add('GET', '/api/v1/music-hub/collections', 'media:read', (c) => app.svc.musikhub.listCollections(c.p, String(c.url.searchParams.get('station') ?? '')));
   add('GET', '/api/v1/music-hub/recipients', 'media:write', (c) => app.svc.musikhub.recipients(c.p, String(c.url.searchParams.get('q') ?? '')));
   add('POST', '/api/v1/music-hub/collections', 'media:write', async (c) => {
@@ -287,6 +310,27 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return app.svc.musikhub.createGrant(c.p, { kind: c.params.kind, id: c.params.id! }, b.recipient, b.actions, b.targetStationIds, String(b.stationId ?? ''), b.expiresAt);
   });
   add('DELETE', '/api/v1/music-hub/grants/:id', 'media:write', async (c) => app.svc.musikhub.revokeGrant(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  add('GET', '/api/v1/music-hub/items/:id/preview', 'media:read', (c) => {
+    const file = app.svc.musikhub.resolveAudioFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'preview.play');
+    sendFile(c.req, c.res, file.path, file.contentType ?? AUDIO_EXT[extname(file.name).toLowerCase()] ?? 'application/octet-stream', 'private, no-store');
+    return STREAMED;
+  });
+  add('GET', '/api/v1/music-hub/items/:id/download', 'media:read', (c) => {
+    const file = app.svc.musikhub.resolveAudioFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'file.download');
+    c.res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`);
+    sendFile(c.req, c.res, file.path, file.contentType ?? AUDIO_EXT[extname(file.name).toLowerCase()] ?? 'application/octet-stream', 'private, no-store');
+    return STREAMED;
+  });
+  add('GET', '/api/v1/music-hub/items/:id/cover', 'media:read', async (c) => {
+    const file = await app.svc.musikhub.coverFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''));
+    if (!file) throw new AppError(404, 'no_cover', 'Kein Cover');
+    sendFile(c.req, c.res, file, 'image/jpeg', 'private, no-store');
+    return STREAMED;
+  });
+  add('PATCH', '/api/v1/music-hub/items/:id', 'media:write', async (c) =>
+    app.svc.musikhub.updateItemMetadata(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), await c.body()));
+  add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', (c) =>
+    app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
 
   // --- Queue / Automation / Decks ---
   add('GET', '/api/v1/stations/:sid/queue', 'queue:read', (c) => app.queueView(sid(c), Number(c.url.searchParams.get('remainingMs') ?? 0)));
@@ -996,7 +1040,7 @@ function readRaw(req: IncomingMessage, limit: number): Promise<Buffer> {
   });
 }
 
-function sendFile(req: IncomingMessage, res: ServerResponse, file: string, type: string): void {
+function sendFile(req: IncomingMessage, res: ServerResponse, file: string, type: string, cacheControl = 'private, max-age=3600'): void {
   if (!existsSync(file)) return json(res, 404, { error: 'not_found' });
   const size = statSync(file).size;
   const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ''));
@@ -1009,11 +1053,11 @@ function sendFile(req: IncomingMessage, res: ServerResponse, file: string, type:
       res.writeHead(416, { 'Content-Range': `bytes */${size}` });
       return void res.end();
     }
-    res.writeHead(206, { 'Content-Type': type, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' });
+    res.writeHead(206, { 'Content-Type': type, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': cacheControl });
     createReadStream(file, { start, end }).pipe(res);
     return;
   }
-  res.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' });
+  res.writeHead(200, { 'Content-Type': type, 'Content-Length': size, 'Accept-Ranges': 'bytes', 'Cache-Control': cacheControl });
   createReadStream(file).pipe(res);
 }
 
