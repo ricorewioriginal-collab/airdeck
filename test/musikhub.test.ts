@@ -105,6 +105,24 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal(String(queued.body.items[0].mediaId).includes(b.id), false, 'interne Grant-Akteur-ID bleibt verborgen');
     assert.equal(app.svc.media.library('b').length, 0, 'Broadcast-Freigabe kopiert nichts in die Senderbibliothek');
 
+    const playlist = app.svc.planning.savePlaylist('b', null, { name: 'Hub-Sendung', items: [] });
+    const playlistAdd = await call(tb, 'POST', `/music-hub/items/${itemId}/playlists/${playlist.id}`, { stationId: 'b' });
+    assert.equal(playlistAdd.status, 200, 'broadcast.use erlaubt das Speichern in einer Sender-Playlist');
+    assert.deepEqual(playlistAdd.body.items, [`musikhub:${itemId}`], 'Playlist-API gibt nur öffentliche Hub-Referenz zurück');
+    assert.equal(JSON.stringify(playlistAdd.body).includes(b.id), false, 'Playlist-Antwort verrät keine Grant-Akteur-ID');
+    const playlists = await call(tb, 'GET', '/stations/b/playlists');
+    assert.deepEqual(playlists.body[0].items, [`musikhub:${itemId}`], 'auch Playlist-Lesen sanitisiert interne Referenzen');
+
+    app.queueClear('b');
+    app.svc.planning.playPlaylist('b', playlist.id);
+    assert.equal(app.rt('b').queue.list().length, 1, 'MusicHub-Titel aus Playlist wird in die Queue übernommen');
+    assert.equal(app.svc.musikhub.isQueuedBroadcastRef(app.rt('b').queue.list()[0]!.mediaId), true);
+
+    app.queueClear('b');
+    app.svc.planning.savePlan('b', null, { label: 'Hub-Zeitfenster', days: [], from: '00:00', to: '00:00', playlistId: playlist.id, shuffle: false });
+    app.queueFill('b');
+    assert.equal(app.rt('b').queue.list().some((q) => app.svc.musikhub.isQueuedBroadcastRef(q.mediaId)), true, 'aktiver Sendeplan füllt MusicHub-Referenzen in die Queue');
+
     assert.equal((await call(ta, 'DELETE', `/music-hub/grants/${broadcastGrant.body.id}?station=main`)).status, 204);
     assert.equal(app.queueNext('b'), null, 'Widerruf vor Playout blockiert bereits eingereihten MusicHub-Titel erneut');
     assert.equal(app.rt('b').queue.list().length, 0, 'gesperrter Hub-Eintrag wird aus der Queue entfernt');
