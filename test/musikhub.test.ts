@@ -80,6 +80,7 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal((await fetch(base + `/music-hub/items/${itemId}/download?station=b`, {
       headers: { Authorization: `Bearer ${tb}` },
     })).status, 404, 'Preview-Grant erlaubt keinen Download');
+    assert.equal((await call(tb, 'POST', `/music-hub/items/${itemId}/queue`, { stationId: 'b' })).status, 404, 'Preview-Grant erlaubt kein Einreihen zur Sendung');
 
     const downloadGrant = await call(ta, 'POST', `/music-hub/item/${itemId}/grants`, {
       stationId: 'main', recipient: { kind: 'user', id: b.id }, actions: ['file.download'], targetStationIds: ['b'],
