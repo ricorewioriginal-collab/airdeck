@@ -223,6 +223,18 @@ export function mountMusicHub(root, ctx) {
     setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
   }
 
+  async function refreshCloudItem(item) {
+    if (item.source?.kind !== 'nextcloud') return;
+    const sid = station();
+    const result = await run(() => ctx.api.post(
+      `/stations/${encodeURIComponent(sid)}/music-hub/nextcloud/sources/${encodeURIComponent(item.source.sourceId)}/retrieve`,
+      { path: item.source.remotePath },
+    ));
+    if (!result) return;
+    status(`„${item.title}“ aus der Cloud aktualisiert; lokale Metadaten wurden beibehalten`);
+    await run(load);
+  }
+
   async function queueForBroadcast(item) {
     const result = await run(() => ctx.api.post(url(`/items/${encodeURIComponent(item.id)}/queue`), { stationId: station() }));
     if (!result) return;
@@ -363,13 +375,18 @@ export function mountMusicHub(root, ctx) {
           h('p', { class: 'muted mh-page-info' }, `Titel ${first}–${last} von ${total} · ${visible.length} auf dieser Seite im gewählten Filter`),
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
             h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}${item.version ? ` [${item.version}]` : ''}`),
-            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? 'Senderarchiv' : 'Persönlich'} · ${item.availability?.state === 'ready' ? 'verfügbar' : 'nicht verfügbar'}`),
+            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? 'Senderarchiv' : item.source?.kind === 'nextcloud' ? 'Nextcloud' : 'Persönlich'} · ${item.availability?.state === 'ready' ? 'lokal verfügbar' : 'lokal nicht verfügbar'}`),
+            item.source?.kind === 'nextcloud'
+              ? h('span', { class: 'muted' }, ` · ${item.source.remoteStatus?.state === 'current' ? 'Remote aktuell' : item.source.remoteStatus?.state === 'remote_changed' ? 'Remote geändert' : item.source.remoteStatus?.state === 'remote_missing' ? 'Remote gelöscht' : 'Remote-Status unbekannt'}${item.source.localMetadataDirty ? ' · lokale Metadaten geändert' : ''}`)
+              : null,
             h('div', { class: 'row mh-actions' },
               item.actions.includes('catalog.read') ? h('button', { class: 'btn small', onclick: () => showCover(item) }, 'Cover') : null,
               item.actions.includes('preview.play') ? h('button', { class: 'btn small', onclick: () => preview(item) }, '▶ Vorhören') : null,
               item.actions.includes('file.download') ? h('button', { class: 'btn small', onclick: () => download(item) }, '↓ Download') : null,
               item.actions.includes('broadcast.use') ? h('button', { class: 'btn small primary', onclick: () => queueForBroadcast(item) }, '＋ In Queue') : null,
               item.actions.includes('broadcast.use') ? h('button', { class: 'btn small', onclick: () => addToStationPlaylist(item) }, '＋ Playlist') : null,
+              item.source?.kind === 'nextcloud' && item.source.remoteStatus?.state === 'remote_changed' && item.actions.includes('source.write')
+                ? h('button', { class: 'btn small', onclick: () => refreshCloudItem(item) }, 'Cloud-Version laden') : null,
               item.actions.includes('metadata.edit') ? h('button', { class: 'btn small', onclick: () => editMetadata(item) }, 'Metadaten') : null,
               item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => shareResource('item', item) }, 'Freigeben') : null,
               item.actions.includes('shares.manage') ? h('button', { class: 'btn small', onclick: () => manageGrants('item', item) }, 'Freigaben') : null,
