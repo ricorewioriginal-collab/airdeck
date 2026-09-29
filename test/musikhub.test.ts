@@ -126,6 +126,8 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal((await call(ta, 'DELETE', `/music-hub/grants/${broadcastGrant.body.id}?station=main`)).status, 204);
     assert.equal(app.queueNext('b'), null, 'Widerruf vor Playout blockiert bereits eingereihten MusicHub-Titel erneut');
     assert.equal(app.rt('b').queue.list().length, 0, 'gesperrter Hub-Eintrag wird aus der Queue entfernt');
+    const preflightAfterRevoke = app.svc.planning.preflight('b');
+    assert.equal(preflightAfterRevoke.summary.problems > 0 || preflightAfterRevoke.summary.warnings > 0, true, 'Sendeplan-Preflight meldet entzogene MusicHub-Senderechte');
 
     assert.equal((await call(tb, 'POST', `/music-hub/item/${itemId}/grants`, { stationId: 'b', recipient: { kind: 'user', id: c.id }, actions: ['catalog.read'], targetStationIds: ['b'] })).status, 403, 'kein Delegieren ohne shares.manage');
 
