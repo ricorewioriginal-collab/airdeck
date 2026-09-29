@@ -334,6 +334,22 @@ export class NextcloudService {
     return this.hubState().entries.filter((x) => x.sourceId === sourceId).map((x) => ({ ...x }));
   }
 
+  hubNextcloudRemoteState(sourceId: string, remotePath: string, modified: string | null, size: number) {
+    const state = this.hubState();
+    const source = state.sources.find((x) => x.id === sourceId);
+    if (!source || source.lastScanAt === null) return { state: 'unknown' as const, checkedAt: source?.lastScanAt ?? null };
+    const entry = state.entries.find((x) => x.sourceId === sourceId && x.path === remotePath);
+    if (!entry) return { state: 'remote_missing' as const, checkedAt: source.lastScanAt };
+    if (entry.size !== size || entry.modified !== modified) {
+      return {
+        state: 'remote_changed' as const,
+        checkedAt: source.lastScanAt,
+        remote: { size: entry.size, modified: entry.modified, name: entry.name },
+      };
+    }
+    return { state: 'current' as const, checkedAt: source.lastScanAt };
+  }
+
   hubNextcloudJobs(p: Principal, stationId: string) {
     this.stationContext(p, stationId);
     if (!hasScope(p, 'media:read')) throw new AppError(403, 'forbidden', 'Medien-Leserecht fehlt');
