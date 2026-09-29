@@ -384,8 +384,9 @@ export class NextcloudService {
     return state.jobs.filter((job) => allowed.has(job.sourceId)).map((job) => ({ ...job }));
   }
 
-  async scanHubNextcloudSource(p: Principal, stationId: string, sourceId: string) {
+  async scanHubNextcloudSource(p: Principal, stationId: string, sourceId: string, insideSync = false) {
     this.assertNoRunningJob(sourceId, 'scan');
+    if (!insideSync) this.assertNoRunningJob(sourceId, 'sync');
     const source = this.hubSource(p, stationId, sourceId, true);
     const password = this.app.secrets.get(source.secretRef);
     if (!password) throw new AppError(409, 'no_password', 'Nextcloud-App-Passwort fehlt');
@@ -449,9 +450,10 @@ export class NextcloudService {
     }
   }
 
-  async retrieveHubNextcloudEntry(p: Principal, stationId: string, sourceId: string, remotePathInput: string) {
+  async retrieveHubNextcloudEntry(p: Principal, stationId: string, sourceId: string, remotePathInput: string, insideSync = false) {
     const remotePath = cleanPath(remotePathInput);
     this.assertNoRunningJob(sourceId, 'retrieve', remotePath);
+    if (!insideSync) this.assertNoRunningJob(sourceId, 'sync');
     const source = this.hubSource(p, stationId, sourceId, true);
     const password = this.app.secrets.get(source.secretRef);
     if (!password) throw new AppError(409, 'no_password', 'Nextcloud-App-Passwort fehlt');
@@ -536,7 +538,7 @@ export class NextcloudService {
     let skippedQuota = 0;
     let skippedTooLarge = 0;
     try {
-      await this.scanHubNextcloudSource(p, stationId, sourceId);
+      await this.scanHubNextcloudSource(p, stationId, sourceId, true);
       const entries = this.hubNextcloudIndex(p, stationId, sourceId) as HubNextcloudEntry[];
       const synced = this.app.svc.musikhub.nextcloudSyncState(sourceId);
       let usedBytes = [...synced.values()].reduce((sum, x) => sum + x.size, 0);
@@ -556,7 +558,7 @@ export class NextcloudService {
           skippedQuota++;
           continue;
         }
-        await this.retrieveHubNextcloudEntry(p, stationId, sourceId, entry.path);
+        await this.retrieveHubNextcloudEntry(p, stationId, sourceId, entry.path, true);
         usedBytes = projected;
         synced.set(entry.path, { modified: entry.modified, size: entry.size });
         imported++;
