@@ -67,9 +67,10 @@ if (sea) {
   if (!win) chmodSync(exe, 0o755);
   if (win) {
     // Programm-Icon und Versionsinfos in die .exe schreiben (vor dem Einbetten des Programms)
-    const { default: rcedit } = await import('rcedit');
-    const rc = /** @type {any} */ (rcedit);
-    await (typeof rc === 'function' ? rc : rc.rcedit)(exe, {
+    const rceditModule = await import('rcedit');
+    const rcedit = /** @type {any} */ (rceditModule).rcedit ?? /** @type {any} */ (rceditModule).default;
+    if (typeof rcedit !== 'function') throw new TypeError('rcedit export not found');
+    await rcedit(exe, {
       icon: join(root, 'assets', 'icons', 'airdeck-windows.ico'),
       'file-version': version, 'product-version': version,
       'version-string': { ProductName: 'AirDeck', FileDescription: 'AirDeck Engine', CompanyName: 'AnMaCha Radioproduktion & RicoReWi', LegalCopyright: 'AirDeck – Powered by AnMaCha Radioproduktion & RicoReWi – für Broadcast, Automation, Live und laut.fm', OriginalFilename: 'airdeck-engine.exe' },
