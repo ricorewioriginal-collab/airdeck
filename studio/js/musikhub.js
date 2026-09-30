@@ -171,8 +171,8 @@ export function mountMusicHub(root, ctx) {
       { 'Content-Type': file.type || 'application/octet-stream' },
     ));
     if (!result) return;
-    status(`„${result.title}“ als persönliche Musik hochgeladen`);
     await run(load);
+    status(`„${result.title}“ als persönliche Musik hochgeladen`);
   }
 
   async function preview(item) {
