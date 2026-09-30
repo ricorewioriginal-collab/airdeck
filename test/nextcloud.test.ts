@@ -107,6 +107,16 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.deepEqual(index.map((e) => e.name).sort(), ['Avicii - Levels.mp3', 'Kygo - Firestone.mp3']);
     assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').some((j) => j.kind === 'scan' && j.status === 'done' && j.files === 2), true);
 
+    const cappedState = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    cappedState.jobs = Array.from({ length: 505 }, (_, i) => ({
+      id: `history-${i}`, sourceId: hubSource.id, kind: 'scan', status: 'done',
+      createdAt: Date.now() - 10_000 + i, updatedAt: Date.now() - 10_000 + i, files: 0, error: null,
+    }));
+    app.docs.set('musikhub-nextcloud', cappedState);
+    await app.docs.flush();
+    await app.svc.nextcloud.scanHubNextcloudSource(ownerP, 'main', hubSource.id);
+    assert.equal(app.svc.nextcloud.hubNextcloudJobs(ownerP, 'main').length <= 500, true, 'Cloud-Job-Historie bleibt hart auf 500 begrenzt');
+
     const firestonePath = index.find((e) => e.name === 'Kygo - Firestone.mp3')!.path;
     const sourceBusy = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
     sourceBusy.jobs.push({
@@ -267,6 +277,38 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.equal(interrupted.status, 'failed');
     assert.match(interrupted.error, /Neustart/);
     assert.equal(resumedState.sources.find((x: any) => x.id === hubSource.id).nextSyncAt <= Date.now() + 1000, true, 'unterbrochener Auto-Sync wird neu eingeplant');
+
+    const schedulerSource = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
+    const schedulerState = app.docs.get<any>('musikhub-nextcloud', { sources: [], entries: [], jobs: [] });
+    const liveSchedulerSource = schedulerState.sources.find((x: any) => x.id === hubSource.id);
+    liveSchedulerSource.syncEnabled = true;
+    liveSchedulerSource.offlineUntil = null;
+    liveSchedulerSource.nextSyncAt = 0;
+    app.docs.set('musikhub-nextcloud', schedulerState);
+    await app.docs.flush();
+    const serviceAny = app.svc.nextcloud as any;
+    const originalSync = serviceAny.syncHubNextcloudSource.bind(app.svc.nextcloud);
+    let schedulerCalls = 0;
+    let concurrent = 0;
+    let maxConcurrent = 0;
+    serviceAny.syncHubNextcloudSource = async () => {
+      schedulerCalls++;
+      concurrent++;
+      maxConcurrent = Math.max(maxConcurrent, concurrent);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      concurrent--;
+      return { imported: 0, skippedUnchanged: 0, skippedQuota: 0, skippedTooLarge: 0, usedBytes: 0, quotaBytes: schedulerSource.syncQuotaBytes };
+    };
+    try {
+      await Promise.all([
+        app.svc.nextcloud.tickHubNextcloudSync(Date.now()),
+        app.svc.nextcloud.tickHubNextcloudSync(Date.now()),
+      ]);
+    } finally {
+      serviceAny.syncHubNextcloudSource = originalSync;
+    }
+    assert.equal(schedulerCalls, 1, 'gleichzeitige Scheduler-Ticks starten denselben Auto-Sync nicht doppelt');
+    assert.equal(maxConcurrent, 1, 'Auto-Sync-Scheduler bleibt seriell und belastet die Quelle nicht parallel');
 
     await assert.rejects(
       app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
