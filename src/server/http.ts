@@ -307,7 +307,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/music-hub/:kind/:id/grants', 'media:write', async (c) => {
     if (c.params.kind !== 'item' && c.params.kind !== 'collection') throw new AppError(404, 'not_found', 'Ressource nicht gefunden');
     const b = await c.body();
-    return app.svc.musikhub.createGrant(c.p, { kind: c.params.kind, id: c.params.id! }, b.recipient, b.actions, b.targetStationIds, String(b.stationId ?? ''), b.expiresAt);
+    return app.svc.musikhub.createGrant(c.p, { kind: c.params.kind, id: c.params.id! }, b.recipient, b.actions, b.targetStationIds, String(b.stationId ?? ''), b.startsAt, b.expiresAt);
   });
   add('DELETE', '/api/v1/music-hub/grants/:id', 'media:write', async (c) => app.svc.musikhub.revokeGrant(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
   add('GET', '/api/v1/music-hub/items/:id/preview', 'media:read', (c) => {
