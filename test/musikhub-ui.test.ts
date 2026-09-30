@@ -63,10 +63,10 @@ test('MusicHub-Freigabedialog trennt sensible Rechte sichtbar', () => {
     'Vorhören erlauben',
     'Datei herunterladen erlauben',
     'Für Sendung verwenden erlauben',
-    'Export/Transfer erlauben',
     'Gültig ab (optional)',
     'Ablauf (optional)',
   ]) assert.ok(hub.includes(label), `Freigabeoption fehlt: ${label}`);
+  assert.equal(hub.includes('Export/Transfer erlauben'), false, 'nicht implementierter Export darf nicht als nutzbares Recht angeboten werden');
 });
 
 
