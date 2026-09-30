@@ -1,8 +1,9 @@
 // @ts-check
-// MusikHub Phase 1+2: echter, serverseitig gefilterter Katalog mit Sammlungen, expliziten
-// Freigaben sowie eigenem privaten Audio-Upload mit getrenntem Vorhören/Download-Recht.
-// Cloud-Sync (Phase 3) und Sendebus-Anbindung (Phase 4) folgen in eigenen Phasen - deshalb
-// bietet diese Ansicht bewusst keine Buttons dafür an.
+// MusikHub Phase 1+2+3(Beginn): echter, serverseitig gefilterter Katalog mit Sammlungen, expliziten
+// Freigaben, eigenem privaten Audio-Upload mit getrenntem Vorhören/Download-Recht sowie einer eigenen
+// Nextcloud-Quelle je Nutzerkonto (Ordneransicht + Einzeldatei-Übernahme, kein rekursiver Vollscan,
+// kein Job-/Sync-System). Sendebus-Anbindung (Phase 4) folgt in einer eigenen Phase - deshalb bietet
+// diese Ansicht dafür bewusst keine Buttons an.
 import { formDialog, h, run, status } from './ui.js';
 
 /** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[], me: () => any}} Ctx */
@@ -16,6 +17,8 @@ export function mountMusicHub(root, ctx) {
   /** @type {any[]} */ let collections = [];
   let total = 0;
   /** @type {{usedBytes: number, quotaBytes: number} | null} */ let quota = null;
+  /** @type {any} */ let ncSource = null;
+  /** @type {{path: string, entries: any[]} | null} */ let ncBrowse = null;
 
   const station = () => ctx.stationId();
   const myId = () => ctx.me()?.user?.id ?? null;
@@ -26,17 +29,61 @@ export function mountMusicHub(root, ctx) {
 
   async function load() {
     const sid = station();
-    const loadQuota = myId() ? ctx.api.get(url('/uploads/quota')).catch(() => null) : Promise.resolve(null);
-    const [catalog, groups, quotaResult] = await Promise.all([
+    const loggedIn = !!myId();
+    const [catalog, groups, quotaResult, ncResult] = await Promise.all([
       ctx.api.get(url(`/items?station=${encodeURIComponent(sid)}&q=${encodeURIComponent(query)}&offset=${page * 50}&limit=50`)),
       ctx.api.get(url(`/collections?station=${encodeURIComponent(sid)}`)),
-      loadQuota,
+      loggedIn ? ctx.api.get(url('/uploads/quota')).catch(() => null) : Promise.resolve(null),
+      loggedIn ? ctx.api.get(url('/nextcloud')).catch(() => null) : Promise.resolve(null),
     ]);
     items = catalog.items;
     total = catalog.total;
     collections = groups;
     quota = quotaResult;
+    ncSource = ncResult;
     render();
+  }
+
+  async function setupNextcloud() {
+    const value = await formDialog('Eigene Nextcloud-Quelle einrichten', [
+      { name: 'url', label: 'Nextcloud-Adresse (https://…)', required: true },
+      { name: 'user', label: 'Benutzername', required: true },
+      { name: 'password', label: 'App-Passwort', type: 'password', hint: 'Nextcloud → Einstellungen → Sicherheit → App-Passwort erzeugen. Wird verschlüsselt gespeichert.', required: !ncSource?.hasPassword },
+      { name: 'root', label: 'Startordner', value: ncSource?.root ?? '/' },
+    ], 'Speichern');
+    if (!value) return;
+    const result = await run(() => ctx.api.put(url('/nextcloud'), value));
+    if (!result) return;
+    status('Eigene Nextcloud-Quelle gespeichert');
+    ncBrowse = null;
+    await run(load);
+  }
+
+  async function removeNextcloud() {
+    if (!confirm('Eigene Nextcloud-Verbindung entfernen? Bereits übernommene Titel in „Mein Archiv“ bleiben erhalten.')) return;
+    const result = await run(() => ctx.api.put(url('/nextcloud'), { remove: true }));
+    if (!result) return;
+    status('Nextcloud-Quelle entfernt');
+    ncBrowse = null;
+    await run(load);
+  }
+
+  /** @param {string} path */
+  async function browseNextcloud(path) {
+    const result = await run(() => ctx.api.get(url(`/nextcloud/list?path=${encodeURIComponent(path)}`)));
+    if (!result) return;
+    ncBrowse = result;
+    render();
+  }
+
+  /** @param {string} path @param {string} name */
+  async function importFromNextcloud(path, name) {
+    status(`„${name}“ wird aus der Cloud übernommen …`);
+    const result = await run(() => ctx.api.post(url('/nextcloud/import'), { paths: [path] }));
+    if (!result) return;
+    if (result.imported.length) { status(`„${name}“ zu „Mein Archiv“ hinzugefügt`); filter = 'mine'; }
+    else status(result.errors[0] ?? `„${name}“ konnte nicht übernommen werden`, true);
+    await run(load);
   }
 
   async function register(media) {
@@ -215,7 +262,36 @@ export function mountMusicHub(root, ctx) {
             h('button', { class: 'btn small', disabled: (page + 1) * 50 >= total, onclick: () => { page++; void run(load); } }, 'Weiter')))),
       h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sender-Titel katalogisieren')),
         h('p', { class: 'muted' }, 'Die vorhandene Senderdatei bleibt an ihrem Speicherort. Eine Katalogfreigabe stellt noch keinen Dateiabruf und keine Sendebereitstellung für andere Sender bereit.'),
-        unregistered.length ? h('ul', { class: 'plain-list' }, ...unregistered.slice(0, 100).map((m) => h('li', { class: 'mh-entry' }, `${m.artist ? m.artist + ' – ' : ''}${m.title} `, h('button', { class: 'btn small', onclick: () => register(m) }, 'Katalogisieren')))) : h('p', { class: 'muted' }, 'Keine weiteren Titel in der aktuellen Senderbibliothek.')));
+        unregistered.length ? h('ul', { class: 'plain-list' }, ...unregistered.slice(0, 100).map((m) => h('li', { class: 'mh-entry' }, `${m.artist ? m.artist + ' – ' : ''}${m.title} `, h('button', { class: 'btn small', onclick: () => register(m) }, 'Katalogisieren')))) : h('p', { class: 'muted' }, 'Keine weiteren Titel in der aktuellen Senderbibliothek.')),
+      myId() ? nextcloudPanel() : null);
+  }
+
+  /** Eigene (persönliche) Nextcloud-Quelle für "Mein Archiv" - getrennt von jeder Sender-Cloud-Anbindung.
+   * Nur Ordneransicht (kein rekursiver Scan) und Einzeldatei-Übernahme; ein Job-/Sync-System folgt später. */
+  function nextcloudPanel() {
+    const configured = ncSource && ncSource.configured !== false;
+    return h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Cloud-Quelle (eigene Nextcloud)')),
+      !configured
+        ? h('div', {},
+            h('p', { class: 'muted' }, 'Eigene Nextcloud als Quelle für „Mein Archiv“ verbinden - unabhängig von jeder Sender-Cloud-Anbindung.'),
+            h('button', { class: 'btn small', onclick: setupNextcloud }, 'Cloud-Quelle einrichten'))
+        : h('div', {},
+            h('p', { class: 'muted' }, `Verbunden: ${ncSource.user}@${ncSource.url} · Startordner ${ncSource.root}`),
+            h('div', { class: 'row' },
+              h('button', { class: 'btn small', onclick: setupNextcloud }, 'Bearbeiten'),
+              h('button', { class: 'btn small', onclick: () => browseNextcloud(ncBrowse?.path ?? ncSource.root) }, 'Durchsuchen'),
+              h('button', { class: 'btn small danger', onclick: removeNextcloud }, 'Entfernen')),
+            ncBrowse ? h('div', {},
+              h('div', { class: 'row' },
+                h('input', { type: 'text', value: ncBrowse.path, 'aria-label': 'Cloud-Ordnerpfad', onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); void run(() => browseNextcloud(/** @type {HTMLInputElement} */ (e.target).value)); } } }),
+                ncBrowse.path !== '/' ? h('button', { class: 'btn small', onclick: () => browseNextcloud(ncBrowse.path.split('/').slice(0, -1).join('/') || '/') }, '⬆ Ebene hoch') : null),
+              ncBrowse.entries.length
+                ? h('ul', { class: 'plain-list' }, ...ncBrowse.entries.map((e) => h('li', { class: 'mh-entry' },
+                    e.dir
+                      ? h('button', { class: 'btn small', onclick: () => browseNextcloud(e.path) }, `📁 ${e.name}`)
+                      : h('span', {}, `${e.audio ? '🎵' : '·'} ${e.name}`),
+                    e.audio ? h('button', { class: 'btn small', onclick: () => importFromNextcloud(e.path, e.name) }, 'Übernehmen') : null)))
+                : h('p', { class: 'muted' }, 'Ordner ist leer.')) : null));
   }
 
   async function show() { await run(load); }
