@@ -19,7 +19,7 @@ jobs:
     name: Release-Konsistenz
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: AirDeck-Radio-Automation-&-Broadcast
       - name: Aktuelles Release und Versionen prüfen
