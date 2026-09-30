@@ -20,7 +20,7 @@ jobs:
     name: NPM-Abhängigkeiten
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -44,7 +44,7 @@ jobs:
     name: Secret- und Schlüsselprüfung
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Gitleaks
@@ -56,7 +56,7 @@ jobs:
     name: Versehentlich eingecheckte Geheimdateien
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Private Schlüssel, Keystores und Umgebungsdateien blockieren
         shell: bash
         run: |

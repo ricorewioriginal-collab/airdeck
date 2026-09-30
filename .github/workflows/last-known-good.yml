@@ -59,7 +59,7 @@ jobs:
       !startsWith(github.event.workflow_run.head_commit.message, 'revert: rollback')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: AirDeck-Radio-Automation-&-Broadcast
           fetch-depth: 0
@@ -136,7 +136,7 @@ jobs:
         shell: bash
         run: |
           test "${{ inputs.confirm }}" = "ROLLBACK" || { echo "::error::Im Feld confirm muss exakt ROLLBACK stehen."; exit 1; }
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: AirDeck-Radio-Automation-&-Broadcast
           fetch-depth: 0
