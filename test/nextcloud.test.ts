@@ -225,6 +225,19 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     const afterSync = app.svc.musikhub.listItems(ownerP, 'main') as { items: Array<{ title: string; availability: { sourceKind: string } }> };
     assert.equal(afterSync.items.some((x) => x.title === 'New Song' && x.availability.sourceKind === 'nextcloud'), true);
 
+    for (let i = 0; i < 105; i++) FILES[`/Radio/Bulk/Bulk Artist - Track ${String(i).padStart(3, '0')}.mp3`] = Buffer.from(`ID3-bulk-${i}`);
+    const boundedSync = await app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false) as {
+      imported: number; deferred: number;
+    };
+    assert.equal(boundedSync.imported, 100, 'ein Sync-Lauf verarbeitet höchstens 100 geänderte Dateien');
+    assert.equal(boundedSync.deferred >= 5, true, 'Rest eines großen Archivs wird für den nächsten Lauf vorgemerkt');
+    const boundedFollowup = await app.svc.nextcloud.syncHubNextcloudSource(ownerP, 'main', hubSource.id, false) as {
+      imported: number; deferred: number;
+    };
+    assert.equal(boundedFollowup.imported, 5, 'Folgelauf übernimmt die verbliebenen Änderungen');
+    assert.equal(boundedFollowup.deferred, 0);
+    for (let i = 0; i < 105; i++) delete FILES[`/Radio/Bulk/Bulk Artist - Track ${String(i).padStart(3, '0')}.mp3`];
+
     const currentSource = app.svc.nextcloud.hubNextcloudSources(ownerP, 'main').find((x) => x.id === hubSource.id)!;
     await app.svc.nextcloud.saveHubNextcloudSource(ownerP, 'main', hubSource.id, {
       revision: currentSource.revision,
