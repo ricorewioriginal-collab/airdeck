@@ -376,6 +376,10 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/music-hub/nextcloud/import', 'media:write', async (c) => app.svc.musikhub.nextcloudImportFiles(c.p, (await c.body()).paths));
   // Rekursiver Ordner-Import, begrenzt auf MAX_FOLDER_IMPORT_FILES/-Tiefe - kein unbegrenzter Vollscan.
   add('POST', '/api/v1/music-hub/nextcloud/import-folder', 'media:write', async (c) => app.svc.musikhub.nextcloudImportFolder(c.p, (await c.body()).path));
+  // Derselbe Ordner-Import als Hintergrundjob (Status/Neustart statt blockierender Antwort) - Paket 09, erster Schritt.
+  add('POST', '/api/v1/music-hub/nextcloud/import-folder-job', 'media:write', async (c) => app.svc.musikhub.startNextcloudImportJob(c.p, (await c.body()).path));
+  add('GET', '/api/v1/music-hub/nextcloud/jobs', 'media:write', (c) => app.svc.musikhub.listImportJobs(c.p));
+  add('POST', '/api/v1/music-hub/nextcloud/jobs/:id/restart', 'media:write', async (c) => app.svc.musikhub.restartImportJob(c.p, c.params.id!));
   add('GET', '/api/v1/music-hub/items/:id/preview', 'media:read', (c) => {
     const { path, mimeType, title } = app.svc.musikhub.resolveFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'preview.play');
     void title;
