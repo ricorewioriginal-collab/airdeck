@@ -396,7 +396,7 @@ async function loadStation() {
   if (autoSourceTimer) clearInterval(autoSourceTimer);
   void refreshAutomationSource();
   autoSourceTimer = setInterval(refreshAutomationSource, 15_000);
-  const ctx = { api, url, library: () => S.library, folders: () => api.get(url('/folders')), mediaUrl: (/** @type {string} */ id) => api.mediaUrl(S.station.id, id) };
+  const ctx = { api, url, library: () => S.library, folders: () => api.get(url('/folders')), mediaUrl: (/** @type {string} */ id) => api.mediaUrl(S.station.id, id), me: () => S.me };
   views = {
     planning: mountPlanning($('view-planning'), ctx),
     mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, stationId: () => S.station.id, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),

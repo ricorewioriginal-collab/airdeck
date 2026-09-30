@@ -28,7 +28,7 @@ const SORTS = /** @type {Record<string, (a: any, b: any) => number>} */ ({
 
 /**
  * @typedef {{ api: import('./api.js').Api, url: (p: string) => string, library: () => any[], folders: () => Promise<string[]>,
- *   stationId: () => string, mediaUrl: (id: string) => string, sendToDeck: (deckId: string, media: any) => void, upload: (files: File[]) => Promise<any[]> }} Ctx
+ *   stationId: () => string, mediaUrl: (id: string) => string, sendToDeck: (deckId: string, media: any) => void, upload: (files: File[]) => Promise<any[]>, me: () => any }} Ctx
  */
 
 /** @param {HTMLElement} root @param {Ctx} ctx */

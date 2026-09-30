@@ -1,9 +1,11 @@
 // @ts-check
-// MusikHub Phase 1: echter, serverseitig gefilterter Katalog mit Sammlungen und
-// expliziten Freigaben. Audio-Transfer und Cloud-Sync folgen in eigenen Phasen.
+// MusikHub Phase 1+2: echter, serverseitig gefilterter Katalog mit Sammlungen, expliziten
+// Freigaben sowie eigenem privaten Audio-Upload mit getrenntem Vorhören/Download-Recht.
+// Cloud-Sync (Phase 3) und Sendebus-Anbindung (Phase 4) folgen in eigenen Phasen - deshalb
+// bietet diese Ansicht bewusst keine Buttons dafür an.
 import { formDialog, h, run, status } from './ui.js';
 
-/** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[]}} Ctx */
+/** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[], me: () => any}} Ctx */
 
 /** @param {HTMLElement} root @param {Ctx} ctx */
 export function mountMusicHub(root, ctx) {
@@ -15,6 +17,7 @@ export function mountMusicHub(root, ctx) {
   let total = 0;
 
   const station = () => ctx.stationId();
+  const myId = () => ctx.me()?.user?.id ?? null;
   /** @param {string} p */
   const url = (p) => `/music-hub${p}`;
 
@@ -34,6 +37,25 @@ export function mountMusicHub(root, ctx) {
     const result = await run(() => ctx.api.post(url('/items'), { stationId: station(), mediaId: media.id }));
     if (!result) return;
     status(`„${media.title}“ im MusikHub katalogisiert`);
+    await run(load);
+  }
+
+  /** Persönlicher Upload: landet nie in einem Senderarchiv, geschlossener Standardzugriff bis der Eigentümer selbst freigibt. @param {File} file */
+  async function uploadPrivate(file) {
+    status(`„${file.name}“ wird hochgeladen …`);
+    const result = await run(() => ctx.api.put(`${url('/uploads')}?name=${encodeURIComponent(file.name)}`, file));
+    if (!result) return;
+    status(`„${result.title}“ zu „Mein Archiv“ hinzugefügt`);
+    filter = 'mine';
+    await run(load);
+  }
+
+  /** @param {any} item */
+  async function deleteItem(item) {
+    if (!confirm(`„${item.title}“ endgültig aus dem MusikHub entfernen? Freigaben und Sammlungseinträge gehen dabei ebenfalls verloren.`)) return;
+    const result = await run(() => ctx.api.del(`${url(`/items/${encodeURIComponent(item.id)}`)}?station=${encodeURIComponent(station())}`));
+    if (result === undefined) return;
+    status(`„${item.title}“ gelöscht`);
     await run(load);
   }
 
@@ -100,20 +122,45 @@ export function mountMusicHub(root, ctx) {
     await run(load);
   }
 
+  /** @param {File[]} files */
+  async function uploadFiles(files) {
+    for (const file of files) await uploadPrivate(file);
+  }
+  const uploadInput = /** @type {HTMLInputElement} */ (h('input', {
+    type: 'file', accept: 'audio/*', multiple: true, hidden: true,
+    onchange: (/** @type {Event} */ e) => {
+      const inp = /** @type {HTMLInputElement} */ (e.target);
+      if (inp.files?.length) uploadFiles([...inp.files]).finally(() => { inp.value = ''; });
+    },
+  }));
+
   function render() {
     const sid = station();
-    const visible = items.filter((item) => filter === 'all' || filter === 'station' && item.owner.kind === 'station' && item.owner.id === sid || filter === 'shared' && (item.owner.kind !== 'station' || item.owner.id !== sid));
+    const mine = (/** @type {any} */ item) => item.owner.kind === 'user' && item.owner.id === myId();
+    const isStationOwn = (/** @type {any} */ item) => item.owner.kind === 'station' && item.owner.id === sid;
+    const visible = items.filter((item) => filter === 'all' || filter === 'station' && isStationOwn(item) || filter === 'mine' && mine(item) || filter === 'shared' && !isStationOwn(item) && !mine(item));
     const ownCollections = collections.filter((c) => c.owner.kind === 'station' && c.owner.id === sid);
-    const unregistered = ctx.library().filter((m) => !m.url && !items.some((item) => item.source?.stationId === sid && item.source?.mediaId === m.id));
+    const unregistered = ctx.library().filter((m) => !m.url && !items.some((item) => item.source?.kind === 'station' && item.source.stationId === sid && item.source.mediaId === m.id));
     const first = total ? page * 50 + 1 : 0;
     const last = Math.min((page + 1) * 50, total);
+    /** @param {any} item */
+    function itemActions(item) {
+      const row = h('div', { class: 'row mh-actions' });
+      if (item.actions.includes('preview.play')) row.append(h('audio', { controls: true, preload: 'none', style: 'height:28px;vertical-align:middle', src: ctx.api.musicHubUrl(item.id, 'preview', sid) }));
+      if (item.actions.includes('file.download')) row.append(h('a', { class: 'btn small', href: ctx.api.musicHubUrl(item.id, 'download', sid), download: true }, 'Herunterladen'));
+      if (isStationOwn(item) && item.actions.includes('media.upload')) row.append(h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung'));
+      if ((mine(item) || isStationOwn(item)) && item.actions.includes('media.delete')) row.append(h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen'));
+      return row.childNodes.length ? row : null;
+    }
     root.replaceChildren(
       h('div', { class: 'row mh-toolbar' },
         h('input', { type: 'search', value: query, placeholder: 'Titel oder Interpret suchen', 'aria-label': 'MusikHub durchsuchen', oninput: (e) => { query = /** @type {HTMLInputElement} */ (e.target).value; page = 0; }, onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); void run(load); } } }),
         h('button', { class: 'btn small', onclick: () => run(load) }, 'Suchen / Aktualisieren'),
+        h('button', { class: 'btn small primary', onclick: () => uploadInput.click() }, '＋ Eigenen Titel hochladen'),
+        uploadInput,
         h('span', { class: 'muted', role: 'status' }, `${total} sichtbare Titel insgesamt`)),
       h('div', { class: 'row mh-filters' },
-        ...[['all', 'Alle'], ['station', 'Senderarchiv'], ['shared', 'Mit mir geteilt']].map(([id, label]) => h('button', { class: `btn small${filter === id ? ' primary' : ''}`, 'aria-pressed': String(filter === id), onclick: () => { filter = id; render(); } }, label))),
+        ...[['all', 'Alle'], ['station', 'Senderarchiv'], ['mine', 'Mein Archiv'], ['shared', 'Mit mir geteilt']].map(([id, label]) => h('button', { class: `btn small${filter === id ? ' primary' : ''}`, 'aria-pressed': String(filter === id), onclick: () => { filter = id; render(); } }, label))),
       h('div', { class: 'mh-grid' },
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sammlungen'), h('button', { class: 'btn small', onclick: createCollection }, '＋ Neu')),
           collections.length ? h('ul', { class: 'plain-list' }, ...collections.map((c) => h('li', { class: 'mh-entry' },
@@ -125,8 +172,8 @@ export function mountMusicHub(root, ctx) {
           h('p', { class: 'muted mh-page-info' }, `Titel ${first}–${last} von ${total} · ${visible.length} auf dieser Seite im gewählten Filter`),
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
             h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}`),
-            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : 'Persönlich'}`),
-            item.owner.kind === 'station' && item.owner.id === sid && item.actions.includes('media.upload') ? h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung') : null))) : h('p', { class: 'muted' }, total ? 'Auf dieser Seite entspricht kein Titel dem gewählten Filter.' : 'Keine freigegebenen Titel gefunden.'),
+            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : mine(item) ? 'Persönlich (meins)' : 'Persönlich'}`),
+            itemActions(item)))) : h('p', { class: 'muted' }, total ? 'Auf dieser Seite entspricht kein Titel dem gewählten Filter.' : 'Keine freigegebenen Titel gefunden.'),
           h('div', { class: 'row' },
             h('button', { class: 'btn small', disabled: page === 0, onclick: () => { page--; void run(load); } }, 'Zurück'),
             h('button', { class: 'btn small', disabled: (page + 1) * 50 >= total, onclick: () => { page++; void run(load); } }, 'Weiter')))),

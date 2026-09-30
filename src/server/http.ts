@@ -287,6 +287,50 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return app.svc.musikhub.createGrant(c.p, { kind: c.params.kind, id: c.params.id! }, b.recipient, b.actions, b.targetStationIds, String(b.stationId ?? ''), b.expiresAt);
   });
   add('DELETE', '/api/v1/music-hub/grants/:id', 'media:write', async (c) => app.svc.musikhub.revokeGrant(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  // Privater Upload: landet nie in einem Senderarchiv, Eigentümer ist ausschließlich der hochladende
+  // Nutzer. Direkt an den vorgesehenen Zielpfad streamen (keine Zwischenkopie im Speicher).
+  add('PUT', '/api/v1/music-hub/uploads', 'media:write', async (c) => {
+    const name = String(c.url.searchParams.get('name') ?? '').slice(0, 200);
+    const ext = extname(name).toLowerCase();
+    if (!AUDIO_EXT[ext]) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${Object.keys(AUDIO_EXT).join(', ')})`);
+    const len = Number(c.req.headers['content-length'] ?? 0);
+    if (len > MAX_UPLOAD) throw new AppError(413, 'too_large', 'Datei zu groß');
+    const { id, file, absolutePath } = app.svc.musikhub.preparePrivateUpload(c.p, ext);
+    let size = 0;
+    c.req.on('data', (d: Buffer) => {
+      size += d.length;
+      if (size > MAX_UPLOAD) c.req.destroy(new Error('too_large'));
+    });
+    try {
+      await pipeline(c.req, createWriteStream(absolutePath, { mode: 0o600 }));
+    } catch {
+      app.svc.musikhub.discardUpload(c.p.user?.id ?? c.p.id, file);
+      throw new AppError(413, 'upload_failed', 'Upload abgebrochen oder zu groß');
+    }
+    const meta = parseFileName(name);
+    return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, meta.title || name, meta.artist);
+  });
+  add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', async (c) => app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  add('GET', '/api/v1/music-hub/items/:id/preview', 'media:read', (c) => {
+    const { path, mimeType, title } = app.svc.musikhub.resolveFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'preview.play');
+    void title;
+    c.res.setHeader('Content-Disposition', 'inline');
+    sendFile(c.req, c.res, path, mimeType || AUDIO_EXT[extname(path)] || 'application/octet-stream');
+    return STREAMED;
+  });
+  add('GET', '/api/v1/music-hub/items/:id/download', 'media:read', (c) => {
+    const { path, mimeType, title } = app.svc.musikhub.resolveFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'file.download');
+    c.res.setHeader('Content-Disposition', `attachment; filename="${title.replace(/["\r\n]/g, '_')}${extname(path)}"`);
+    sendFile(c.req, c.res, path, mimeType || AUDIO_EXT[extname(path)] || 'application/octet-stream');
+    return STREAMED;
+  });
+  add('GET', '/api/v1/music-hub/items/:id/cover', 'media:read', async (c) => {
+    const file = await app.svc.musikhub.cover(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''));
+    if (!file) throw new AppError(404, 'no_cover', 'Kein Cover');
+    c.res.setHeader('Cache-Control', 'private, max-age=86400');
+    sendFile(c.req, c.res, file, 'image/jpeg');
+    return STREAMED;
+  });
 
   // --- Queue / Automation / Decks ---
   add('GET', '/api/v1/stations/:sid/queue', 'queue:read', (c) => app.queueView(sid(c), Number(c.url.searchParams.get('remainingMs') ?? 0)));
