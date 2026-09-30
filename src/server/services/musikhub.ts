@@ -4,7 +4,8 @@
 
 import type { AirDeckApp } from '../app.ts';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createReadStream, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { parseFileName } from '../../core/automation.ts';
 import { AUDIO_FILE_RE, AppError, canSee, newId, type Principal } from '../model.ts';
@@ -25,7 +26,9 @@ export type HubResource = { kind: 'item' | 'collection'; id: string };
  */
 export type HubSource =
   | { kind: 'station'; stationId: string; mediaId: string }
-  | { kind: 'upload'; file: string; mimeType: string; sizeBytes: number };
+  // contentHash (sha256, hex) ist optional: bereits vor der Dublettenerkennung angelegte Uploads
+  // kennen ihn noch nicht und werden beim erneuten Ersetzen nachgezogen, aber nicht rückwirkend gehasht.
+  | { kind: 'upload'; file: string; mimeType: string; sizeBytes: number; contentHash?: string };
 export interface HubItem {
   id: string;
   owner: HubSubject;
@@ -241,12 +244,17 @@ export class MusicHubService {
     return join(this.uploadDir(item.owner.id), item.source.file);
   }
 
+  /** Bereits vorhandener eigener Upload mit identischem Inhalt (Byte-für-Byte, per sha256) - erspart doppelten Speicherverbrauch. */
+  private findDuplicate(userId: string, contentHash: string, excludeItemId?: string): HubItem | null {
+    return this.state.items.find((x) => x.id !== excludeItemId && x.owner.kind === 'user' && x.owner.id === userId && x.source.kind === 'upload' && x.source.contentHash === contentHash) ?? null;
+  }
+
   /**
    * Registriert eine bereits auf die vorgesehene Zielposition geschriebene Upload-Datei (HTTP-Schicht
    * streamt direkt dorthin, damit keine unautorisierte Kopie im Speicher entsteht). Eigentum liegt
    * geschlossen beim hochladenden Nutzer, bis dieser selbst freigibt.
    */
-  async registerUpload(p: Principal, id: string, file: string, mimeType: string, sizeBytes: number, titleInput: unknown, artistInput: unknown): Promise<HubItem> {
+  async registerUpload(p: Principal, id: string, file: string, mimeType: string, sizeBytes: number, contentHash: string, titleInput: unknown, artistInput: unknown): Promise<HubItem> {
     const userId = this.requireUserId(p);
     if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
     // Maßgebliche Prüfung anhand der tatsächlich geschriebenen Bytes - der Content-Length-Vorabcheck
@@ -256,9 +264,14 @@ export class MusicHubService {
       rmSync(join(this.uploadDir(userId), file), { force: true });
       throw new AppError(413, 'quota_exceeded', `Speicherkontingent überschritten (${Math.round(quotaBytes / 1024 / 1024)} MB)`);
     }
+    const duplicate = this.findDuplicate(userId, contentHash);
+    if (duplicate) {
+      rmSync(join(this.uploadDir(userId), file), { force: true });
+      throw new AppError(409, 'duplicate_content', `Identischer Inhalt bereits im eigenen Archiv vorhanden: „${duplicate.title}“`);
+    }
     const title = String(titleInput ?? '').trim().slice(0, 200) || file;
     const artist = String(artistInput ?? '').trim().slice(0, 200);
-    const item: HubItem = { id, owner: { kind: 'user', id: userId }, source: { kind: 'upload', file, mimeType, sizeBytes }, title, artist, version: null, createdAt: Date.now(), revision: 1 };
+    const item: HubItem = { id, owner: { kind: 'user', id: userId }, source: { kind: 'upload', file, mimeType, sizeBytes, contentHash }, title, artist, version: null, createdAt: Date.now(), revision: 1 };
     this.state.items.push(item);
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'item_uploaded', actor: userId, itemId: item.id, sizeBytes });
@@ -294,7 +307,7 @@ export class MusicHubService {
    * Quelle, Version und Revision wechseln. Die alte Datei wird erst nach erfolgreicher Umstellung
    * entfernt, damit ein Fehlschlag zwischen Schreiben und Registrieren nicht zu Datenverlust führt.
    */
-  async replaceUpload(p: Principal, id: string, stationId: string, file: string, mimeType: string, sizeBytes: number): Promise<HubItem> {
+  async replaceUpload(p: Principal, id: string, stationId: string, file: string, mimeType: string, sizeBytes: number, contentHash: string): Promise<HubItem> {
     this.require(p, { kind: 'item', id }, stationId, 'source.write');
     const item = this.resource({ kind: 'item', id }) as HubItem;
     if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur der Eigentümer kann die Quelldatei ersetzen');
@@ -306,8 +319,16 @@ export class MusicHubService {
       rmSync(join(this.uploadDir(userId), file), { force: true });
       throw new AppError(413, 'quota_exceeded', `Speicherkontingent überschritten (${Math.round(quotaBytes / 1024 / 1024)} MB)`);
     }
+    // Sich selbst von der Dublettenprüfung ausnehmen: dieses Item trägt den alten Hash noch, bis
+    // gleich unten überschrieben wird - sonst würde jedes Ersetzen fälschlich als Duplikat seiner
+    // eigenen vorherigen Version erscheinen.
+    const duplicate = this.findDuplicate(userId, contentHash, id);
+    if (duplicate) {
+      rmSync(join(this.uploadDir(userId), file), { force: true });
+      throw new AppError(409, 'duplicate_content', `Identischer Inhalt bereits im eigenen Archiv vorhanden: „${duplicate.title}“`);
+    }
     const oldFile = item.source.file;
-    item.source = { kind: 'upload', file, mimeType, sizeBytes };
+    item.source = { kind: 'upload', file, mimeType, sizeBytes, contentHash };
     item.version = String(Number(item.version ?? '1') + 1);
     item.revision++;
     await this.save();
@@ -551,8 +572,12 @@ export class MusicHubService {
       const target = join(dir, file);
       try {
         const size = await this.ncCall(() => client.download(cleanPath(`${root}/${rel}`), target, Math.max(0, quotaBytes - usedBytes)));
+        const contentHash = await new Promise<string>((resolveHash, rejectHash) => {
+          const hash = createHash('sha256');
+          createReadStream(target).on('data', (d) => hash.update(d)).on('error', rejectHash).on('end', () => resolveHash(hash.digest('hex')));
+        });
         const meta = parseFileName(name);
-        imported.push(await this.registerUpload(p, id, file, '', size, meta.title || name, meta.artist));
+        imported.push(await this.registerUpload(p, id, file, '', size, contentHash, meta.title || name, meta.artist));
       } catch (err) {
         rmSync(target, { force: true });
         errors.push(`${name}: ${(err as Error).message}`);
