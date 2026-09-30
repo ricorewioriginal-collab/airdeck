@@ -78,7 +78,7 @@ try {
   const ownerCredential = ['ui', 'owner', 'fixture', '1'].join('-');
   const recipientCredential = ['ui', 'recipient', 'fixture', '1'].join('-');
   for (const user of [
-    { username: 'musikhub-owner', name: 'MusicHub Owner', credential: ownerCredential, roles: ['admin'] },
+    { username: 'musikhub-owner', name: 'MusicHub Owner', credential: ownerCredential, roles: ['editor'] },
     { username: 'musikhub-recipient', name: 'MusicHub Empfänger', credential: recipientCredential, roles: ['dj'] },
   ]) {
     const created = await fetch(base + '/api/v1/users', {
