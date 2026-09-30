@@ -2,10 +2,11 @@
 // Ohne Framework (node:http), um Ressourcen und Abhängigkeiten minimal zu halten.
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
+import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, statSync, rmSync } from 'node:fs';
 import path, { extname, join, normalize, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { AirDeckApp, AppError, canSee, newId, type Principal } from './app.ts';
 import { AiError } from './ai/providers.ts';
 import { AuthError, ROLES, ROLE_LABEL, ROLE_SCOPES } from './users.ts';
@@ -45,6 +46,13 @@ const STATIC_TYPES: Record<string, string> = {
 const MAX_UPLOAD = 300 * 1024 * 1024;
 const MAX_JSON = 1024 * 1024;
 const MAX_CHUNK = 2 * 1024 * 1024;
+
+/** Berechnet sha256 während des Schreibens mit, statt die Datei danach ein zweites Mal zu lesen. */
+function hashingPassthrough(): { stream: Transform; digest: () => string } {
+  const hash = createHash('sha256');
+  const stream = new Transform({ transform(chunk: Buffer, _enc, cb) { hash.update(chunk); cb(null, chunk); } });
+  return { stream, digest: () => hash.digest('hex') };
+}
 
 /**
  * Erlaubte Fremd-Origins (Android-App, eigene Frontends). Standard: Capacitor-WebView.
@@ -306,14 +314,15 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
       size += d.length;
       if (size > MAX_UPLOAD || quota.usedBytes + size > quota.quotaBytes) c.req.destroy(new Error('too_large'));
     });
+    const hasher = hashingPassthrough();
     try {
-      await pipeline(c.req, createWriteStream(absolutePath, { mode: 0o600 }));
+      await pipeline(c.req, hasher.stream, createWriteStream(absolutePath, { mode: 0o600 }));
     } catch {
       app.svc.musikhub.discardUpload(c.p.user?.id ?? c.p.id, file);
       throw new AppError(413, 'upload_failed', 'Upload abgebrochen, Kontingent überschritten oder zu groß');
     }
     const meta = parseFileName(name);
-    return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, meta.title || name, meta.artist);
+    return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, hasher.digest(), meta.title || name, meta.artist);
   });
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', async (c) => app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
   // Neue Version einer bestehenden privaten Upload-Datei: Item-ID, Eigentümer, Sammlungsmitgliedschaften
@@ -336,13 +345,14 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
       size += d.length;
       if (size > MAX_UPLOAD || size > budget) c.req.destroy(new Error('too_large'));
     });
+    const hasher = hashingPassthrough();
     try {
-      await pipeline(c.req, createWriteStream(absolutePath, { mode: 0o600 }));
+      await pipeline(c.req, hasher.stream, createWriteStream(absolutePath, { mode: 0o600 }));
     } catch {
       app.svc.musikhub.discardUpload(c.p.user?.id ?? c.p.id, file);
       throw new AppError(413, 'upload_failed', 'Upload abgebrochen, Kontingent überschritten oder zu groß');
     }
-    return app.svc.musikhub.replaceUpload(c.p, c.params.id!, stationId, file, AUDIO_EXT[ext]!, size);
+    return app.svc.musikhub.replaceUpload(c.p, c.params.id!, stationId, file, AUDIO_EXT[ext]!, size, hasher.digest());
   });
   // Eigene (persönliche) Nextcloud-Quelle für "Mein Archiv" - getrennt vom bestehenden globalen
   // Sender-Nextcloud-Import (/api/v1/nextcloud). Kein geteiltes Konto, keine rekursiven Vollscans.
