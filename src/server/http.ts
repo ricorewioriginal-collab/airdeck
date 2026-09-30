@@ -327,6 +327,9 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, hasher.digest(), meta.title || name, meta.artist);
   });
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', async (c) => app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  // AirDeckCast-Preflight (Phase 4, erster Schritt): reine Prüfung, ob ein Hub-Titel für den Sender
+  // sendefähig ist - noch kein Wiring in Queue/Planung/Cardwall, das folgt separat.
+  add('GET', '/api/v1/music-hub/items/:id/preflight', 'media:read', (c) => app.svc.musikhub.broadcastPreflight(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
   // Neue Version einer bestehenden privaten Upload-Datei: Item-ID, Eigentümer, Sammlungsmitgliedschaften
   // und Freigaben bleiben erhalten, nur die Quelldatei wird ausgetauscht (Quellen-/Versionsmodell).
   add('PUT', '/api/v1/music-hub/items/:id/replace', 'media:write', async (c) => {

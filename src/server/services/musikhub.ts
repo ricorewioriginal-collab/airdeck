@@ -5,7 +5,7 @@
 import type { AirDeckApp } from '../app.ts';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { createReadStream, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { parseFileName } from '../../core/automation.ts';
 import { AUDIO_FILE_RE, AppError, canSee, newId, type Principal } from '../model.ts';
@@ -657,5 +657,36 @@ export class MusicHubService {
     return this.app.audit.tail(500)
       .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && (e as Record<string, unknown>).kind === 'musikhub' && (e as Record<string, unknown>).actor === userId)
       .reverse();
+  }
+
+  /**
+   * AirDeckCast-Preflight (Phase 4, erster Schritt): prüft vor einer geplanten Aufnahme in
+   * Queue/Planung/Cardwall, ob ein Hub-Titel für den angegebenen Sender tatsächlich sendefähig ist -
+   * Berechtigung (`broadcast.use`), Senderzugehörigkeit der Quelldatei, tatsächliches Vorhandensein
+   * und unterstütztes Format. `require()` liefert dieselbe existenzleck-freie 404-Antwort wie überall
+   * sonst in MusikHub; das eigentliche Wiring in Queue/Planung/Cardwall sowie die Wiedergabeleasing-Regel
+   * bei Widerruf (laufender Titel darf zu Ende spielen) folgen als eigener, separater Schritt.
+   *
+   * Private Uploads (`source.kind === 'upload'`) liegen bewusst außerhalb jedes Senderarchivs und sind
+   * daher nie ohne eine noch fehlende, separate Bereitstellungsfunktion sendefähig - kein implizites
+   * Kopieren in ein Senderarchiv aus dieser Prüfung heraus.
+   */
+  broadcastPreflight(p: Principal, itemId: string, stationId: string): { ok: boolean; reason?: string; itemId: string; stationId: string } {
+    this.require(p, { kind: 'item', id: itemId }, stationId, 'broadcast.use');
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    if (item.source.kind === 'upload') return { ok: false, reason: 'not_staged', itemId, stationId };
+    if (item.source.stationId !== stationId) return { ok: false, reason: 'other_station', itemId, stationId };
+    let media: ReturnType<AirDeckApp['svc']['media']['media']>;
+    try {
+      media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
+    } catch {
+      return { ok: false, reason: 'missing', itemId, stationId };
+    }
+    if (media.url) return { ok: false, reason: 'unsupported_source', itemId, stationId };
+    const path = this.filePath(item);
+    if (!existsSync(path)) return { ok: false, reason: 'missing', itemId, stationId };
+    if (statSync(path).size === 0) return { ok: false, reason: 'empty', itemId, stationId };
+    if (!AUDIO_FILE_RE.test(path)) return { ok: false, reason: 'unsupported_format', itemId, stationId };
+    return { ok: true, itemId, stationId };
   }
 }
