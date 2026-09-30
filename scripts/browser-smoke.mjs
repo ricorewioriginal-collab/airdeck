@@ -195,7 +195,7 @@ try {
   // Metadaten-Dialog tatsächlich bearbeiten.
   await smokeEntry.getByRole('button', { name: 'Metadaten', exact: true }).click();
   await page.getByRole('heading', { name: 'MusicHub-Metadaten', exact: true }).waitFor();
-  await page.getByLabel('Titel', { exact: true }).fill('Smoke Song UI');
+  await page.getByLabel('MusicHub-Titel', { exact: true }).fill('Smoke Song UI');
   await page.getByLabel('Version / Mix', { exact: true }).fill('Browser Test');
   await page.getByRole('button', { name: 'Speichern', exact: true }).click();
   await page.getByText(/Smoke Song UI \[Browser Test\]/).waitFor();
