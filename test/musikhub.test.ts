@@ -218,6 +218,9 @@ test('MusikHub: persönliche Uploads bleiben privat und getrennt von Senderbibli
     assert.equal(ownerCatalog.body.total, 1);
     assert.equal(ownerCatalog.body.items[0].source.kind, 'personal');
     assert.deepEqual(ownerCatalog.body.items[0].availability, { state: 'ready', sourceKind: 'personal' });
+    for (const action of ['catalog.read', 'preview.play', 'file.download', 'broadcast.use', 'metadata.edit', 'shares.manage', 'media.delete']) {
+      assert.equal(ownerCatalog.body.items[0].actions.includes(action), true, `Owner-Aktion fehlt: ${action}`);
+    }
     assert.equal(ownerCatalog.body.items[0].source.file, undefined, 'interner Dateiname wird nicht über die API offengelegt');
     assert.equal(item.source.file, undefined, 'auch die Upload-Antwort verrät keinen internen Dateinamen');
     const metadata = await json(ownerToken, 'PATCH', `/music-hub/items/${item.id}?station=main`, {
