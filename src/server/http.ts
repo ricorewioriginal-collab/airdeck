@@ -334,6 +334,9 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   // laut.fm für den Zielsender überhaupt möglich wäre (Berechtigung + laut.fm-Verbindung) - noch kein
   // Trackmapping/Upload, siehe Kommentar an lautcastCapability().
   add('GET', '/api/v1/music-hub/items/:id/lautcast-capability', 'media:read', (c) => app.svc.musikhub.lautcastCapability(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  // Bereitstellung (Phase 4, zweiter Schritt): kontrolliertes Kopieren eines eigenen privaten Uploads in
+  // ein Senderarchiv, als neuer sendergebundener Hub-Eintrag - siehe Kommentar an stageToStation().
+  add('POST', '/api/v1/music-hub/items/:id/stage', 'media:write', async (c) => app.svc.musikhub.stageToStation(c.p, c.params.id!, String((await c.body()).station ?? '')));
   // Neue Version einer bestehenden privaten Upload-Datei: Item-ID, Eigentümer, Sammlungsmitgliedschaften
   // und Freigaben bleiben erhalten, nur die Quelldatei wird ausgetauscht (Quellen-/Versionsmodell).
   add('PUT', '/api/v1/music-hub/items/:id/replace', 'media:write', async (c) => {
