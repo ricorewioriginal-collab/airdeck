@@ -357,11 +357,13 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return app.svc.musikhub.replaceUpload(c.p, c.params.id!, stationId, file, AUDIO_EXT[ext]!, size, hasher.digest());
   });
   // Eigene (persönliche) Nextcloud-Quelle für "Mein Archiv" - getrennt vom bestehenden globalen
-  // Sender-Nextcloud-Import (/api/v1/nextcloud). Kein geteiltes Konto, keine rekursiven Vollscans.
+  // Sender-Nextcloud-Import (/api/v1/nextcloud). Kein geteiltes Konto, keine unbegrenzten Vollscans.
   add('GET', '/api/v1/music-hub/nextcloud', 'media:write', (c) => app.svc.musikhub.nextcloudSource(c.p));
   add('PUT', '/api/v1/music-hub/nextcloud', 'media:write', async (c) => app.svc.musikhub.setNextcloudSource(c.p, await c.body()));
   add('GET', '/api/v1/music-hub/nextcloud/list', 'media:write', (c) => app.svc.musikhub.nextcloudList(c.p, c.url.searchParams.get('path') ?? '/'));
   add('POST', '/api/v1/music-hub/nextcloud/import', 'media:write', async (c) => app.svc.musikhub.nextcloudImportFiles(c.p, (await c.body()).paths));
+  // Rekursiver Ordner-Import, begrenzt auf MAX_FOLDER_IMPORT_FILES/-Tiefe - kein unbegrenzter Vollscan.
+  add('POST', '/api/v1/music-hub/nextcloud/import-folder', 'media:write', async (c) => app.svc.musikhub.nextcloudImportFolder(c.p, (await c.body()).path));
   add('GET', '/api/v1/music-hub/items/:id/preview', 'media:read', (c) => {
     const { path, mimeType, title } = app.svc.musikhub.resolveFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'preview.play');
     void title;

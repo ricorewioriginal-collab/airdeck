@@ -67,6 +67,9 @@ const BROADCAST_ACTIONS = new Set<HubAction>(['broadcast.use']);
 const MAX_COLLECTION_ITEMS = 5000;
 /** Gesamtkontingent privater Uploads je Nutzerkonto (nicht je Datei) - schützt Plattenspeicher vor unbegrenztem persönlichem Archiv. */
 export const MAX_USER_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+/** Obergrenzen für den rekursiven Nextcloud-Ordner-Import - verhindert einen unbegrenzten Vollscan im Anfragethread. */
+export const MAX_FOLDER_IMPORT_FILES = 50;
+const MAX_FOLDER_IMPORT_DEPTH = 4;
 const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
 const validAction = (value: unknown): value is HubAction => typeof value === 'string' && (HUB_ACTIONS as readonly string[]).includes(value);
 const same = (a: HubSubject, b: HubSubject) => a.kind === b.kind && a.id === b.id;
@@ -572,10 +575,7 @@ export class MusicHubService {
       const target = join(dir, file);
       try {
         const size = await this.ncCall(() => client.download(cleanPath(`${root}/${rel}`), target, Math.max(0, quotaBytes - usedBytes)));
-        const contentHash = await new Promise<string>((resolveHash, rejectHash) => {
-          const hash = createHash('sha256');
-          createReadStream(target).on('data', (d) => hash.update(d)).on('error', rejectHash).on('end', () => resolveHash(hash.digest('hex')));
-        });
+        const contentHash = await this.hashFile(target);
         const meta = parseFileName(name);
         imported.push(await this.registerUpload(p, id, file, '', size, contentHash, meta.title || name, meta.artist));
       } catch (err) {
@@ -584,6 +584,65 @@ export class MusicHubService {
       }
     }
     return { imported, errors };
+  }
+
+  /** sha256 einer bereits geschriebenen Datei - für den Nextcloud-Import, der (anders als der Direkt-Upload/Ersetzen-Stream) nicht während des Schreibens mithashen kann. */
+  private hashFile(path: string): Promise<string> {
+    return new Promise((resolveHash, rejectHash) => {
+      const hash = createHash('sha256');
+      createReadStream(path).on('data', (d) => hash.update(d)).on('error', rejectHash).on('end', () => resolveHash(hash.digest('hex')));
+    });
+  }
+
+  /**
+   * Rekursiver Ordner-Import aus der eigenen Nextcloud-Quelle in "Mein Archiv" - begrenzt auf
+   * MAX_FOLDER_IMPORT_FILES Dateien und MAX_FOLDER_IMPORT_DEPTH Verzeichnisebenen, damit kein
+   * unbegrenzter Vollscan im Anfragethread entstehen kann. Folgt demselben begrenzten Rekursionsmuster
+   * wie der bestehende globale, sendergebundene Import (`NextcloudService.nextcloudImport()`), nur mit
+   * kleineren, für ein persönliches Archiv passenden Grenzen. Ein bereits im Archiv vorhandener Inhalt
+   * (Dublettenerkennung) zählt als übersprungen, nicht als Fehler - bei einem erneuten Lauf über
+   * denselben Ordner ist das der Normalfall, kein Ausnahmezustand.
+   */
+  async nextcloudImportFolder(p: Principal, pathInput: unknown): Promise<{ imported: HubItem[]; skipped: number; errors: string[] }> {
+    const userId = this.requireUserId(p);
+    if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    const { client, root } = this.ncClient(p);
+    let startRel: string;
+    try { startRel = cleanPath(typeof pathInput === 'string' ? pathInput : '/'); } catch { throw new AppError(400, 'invalid_path', 'Ungültiger Pfad'); }
+    const files: { path: string; name: string }[] = [];
+    const walk = async (rel: string, depth: number): Promise<void> => {
+      const list = await this.ncCall(() => client.list(cleanPath(`${root}/${rel}`)));
+      for (const e of list) {
+        if (files.length >= MAX_FOLDER_IMPORT_FILES) return;
+        const r = cleanPath(`${rel}/${e.name}`);
+        if (e.dir && depth < MAX_FOLDER_IMPORT_DEPTH) await walk(r, depth + 1);
+        else if (!e.dir && AUDIO_FILE_RE.test(e.name)) files.push({ path: r, name: e.name });
+      }
+    };
+    await walk(startRel, 0);
+    const imported: HubItem[] = [];
+    const errors: string[] = [];
+    let skipped = 0;
+    for (const f of files) {
+      const { usedBytes, quotaBytes } = this.uploadQuota(p);
+      if (usedBytes >= quotaBytes) { errors.push(`${f.name}: Speicherkontingent bereits ausgeschöpft`); continue; }
+      const dir = this.uploadDir(userId);
+      mkdirSync(dir, { recursive: true });
+      const id = newId('hub');
+      const file = `${id}${extname(f.name).toLowerCase()}`;
+      const target = join(dir, file);
+      try {
+        const size = await this.ncCall(() => client.download(cleanPath(`${root}/${f.path}`), target, Math.max(0, quotaBytes - usedBytes)));
+        const contentHash = await this.hashFile(target);
+        const meta = parseFileName(f.name);
+        imported.push(await this.registerUpload(p, id, file, '', size, contentHash, meta.title || f.name, meta.artist));
+      } catch (err) {
+        rmSync(target, { force: true });
+        if (err instanceof AppError && err.code === 'duplicate_content') skipped++;
+        else errors.push(`${f.name}: ${(err as Error).message}`);
+      }
+    }
+    return { imported, skipped, errors };
   }
 
   /**
