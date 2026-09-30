@@ -86,6 +86,21 @@ export function mountMusicHub(root, ctx) {
     await run(load);
   }
 
+  /** Rekursiver Ordner-Import (begrenzt, siehe Server) - für gelegentliche Bestandsübernahme, nicht als
+   * dauerhafte Synchronisation gedacht. @param {string} path */
+  async function importFolderFromNextcloud(path) {
+    status(`Ordner „${path}“ wird durchsucht und übernommen …`);
+    const result = await run(() => ctx.api.post(url('/nextcloud/import-folder'), { path }));
+    if (!result) return;
+    const parts = [];
+    if (result.imported.length) parts.push(`${result.imported.length} übernommen`);
+    if (result.skipped) parts.push(`${result.skipped} bereits vorhanden`);
+    if (result.errors.length) parts.push(`${result.errors.length} fehlgeschlagen`);
+    status(parts.length ? parts.join(', ') : 'Keine Audiodateien gefunden', !result.imported.length && !!result.errors.length);
+    if (result.imported.length) filter = 'mine';
+    await run(load);
+  }
+
   async function register(media) {
     const result = await run(() => ctx.api.post(url('/items'), { stationId: station(), mediaId: media.id }));
     if (!result) return;
@@ -284,7 +299,8 @@ export function mountMusicHub(root, ctx) {
             ncBrowse ? h('div', {},
               h('div', { class: 'row' },
                 h('input', { type: 'text', value: ncBrowse.path, 'aria-label': 'Cloud-Ordnerpfad', onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); void run(() => browseNextcloud(/** @type {HTMLInputElement} */ (e.target).value)); } } }),
-                ncBrowse.path !== '/' ? h('button', { class: 'btn small', onclick: () => browseNextcloud(ncBrowse.path.split('/').slice(0, -1).join('/') || '/') }, '⬆ Ebene hoch') : null),
+                ncBrowse.path !== '/' ? h('button', { class: 'btn small', onclick: () => browseNextcloud(ncBrowse.path.split('/').slice(0, -1).join('/') || '/') }, '⬆ Ebene hoch') : null,
+                h('button', { class: 'btn small', onclick: () => importFolderFromNextcloud(ncBrowse.path), title: 'Bis zu einer festen Obergrenze Audiodateien aus diesem Ordner und Unterordnern übernehmen' }, '⬇ Ordner übernehmen')),
               ncBrowse.entries.length
                 ? h('ul', { class: 'plain-list' }, ...ncBrowse.entries.map((e) => h('li', { class: 'mh-entry' },
                     e.dir
