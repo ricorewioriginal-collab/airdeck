@@ -43,6 +43,17 @@ const mock = createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ tracks: [{ id: resolved }] }));
     }
+    const playlistMatch = req.method === 'POST' && req.url?.match(/^\/stations\/42\/playlists\/(\d+)$/);
+    if (playlistMatch) {
+      const playlistId = Number(playlistMatch[1]);
+      if (playlistId === 8) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'forbidden' }));
+      }
+      const payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ id: playlistId, name: 'Rotation', track_ids: [payload.track_id] }));
+    }
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end('{}');
   });
@@ -112,6 +123,34 @@ test('MusikHub: lautCast-Übertragung - Upload, Polling, Zwei-Treffer-Wiederverw
     assert.equal(stuckAgain.status, 200);
     assert.equal(stuckAgain.body.reason, 'processing');
     assert.equal(uploadCount, uploadCountBefore, 'kein erneuter Upload für einen bereits laufenden, noch nicht abgeschlossenen Transfer');
+
+    // Dritter Titel: Übertragung MIT Playlist-Wiring - erfolgreiches Hinzufuegen zur laut.fm-Playlist 7.
+    // nextUploadId zuruecksetzen (der vorige Testfall hat sie dauerhaft auf den Never-never-Sonderfall gesetzt).
+    nextUploadId = -701;
+    app.svc.media.addMedia('main', { id: 'song3', title: 'Morgenmagazin', artist: 'Test', category: 'music', file: 'song3.mp3', durationMs: 3000, addedAt: Date.now() });
+    writeFileSync(join(app.mediaDir, 'main', 'song3.mp3'), Buffer.from('dritter-inhalt'));
+    const item3 = (await call(to, 'POST', '/music-hub/items', { stationId: 'main', mediaId: 'song3' })).body as { id: string };
+    const withPlaylist = await call(to, 'POST', `/music-hub/items/${item3.id}/lautcast-transfer`, { station: 'main', playlistId: 7 });
+    assert.equal(withPlaylist.status, 200);
+    assert.equal(withPlaylist.body.ok, true);
+    assert.equal(withPlaylist.body.playlistId, 7);
+    assert.equal(withPlaylist.body.playlistOk, true);
+    assert.ok(withPlaylist.body.trackId > 0);
+
+    // Erneuter Aufruf mit derselben Playlist: laut.fm lehnt bereits enthaltene Tracks ohne Fehler ab
+    // (Mock antwortet unveraendert mit 200) - bleibt idempotent, kein zweiter Upload.
+    const uploadCountBeforePlaylist = uploadCount;
+    const withPlaylistAgain = await call(to, 'POST', `/music-hub/items/${item3.id}/lautcast-transfer`, { station: 'main', playlistId: 7 });
+    assert.equal(withPlaylistAgain.status, 200);
+    assert.equal(withPlaylistAgain.body.playlistOk, true);
+    assert.equal(uploadCount, uploadCountBeforePlaylist, 'kein erneuter Upload beim erneuten Playlist-Hinzufuegen');
+
+    // Playlist-Fehler (Mock: Playlist 8 lehnt ab) maskiert den erfolgreichen Upload NICHT als Fehlschlag.
+    const withBadPlaylist = await call(to, 'POST', `/music-hub/items/${item3.id}/lautcast-transfer`, { station: 'main', playlistId: 8 });
+    assert.equal(withBadPlaylist.status, 200);
+    assert.equal(withBadPlaylist.body.ok, true, 'Upload selbst bleibt erfolgreich');
+    assert.equal(withBadPlaylist.body.playlistOk, false);
+    assert.equal(withBadPlaylist.body.playlistReason, 'playlist_add_failed');
   } finally {
     app.shutdown();
     server.closeAllConnections();

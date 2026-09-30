@@ -758,12 +758,18 @@ export class MusicHubService {
    * negative ID wird trotzdem gespeichert, damit ein erneuter Aufruf dieselbe laut.fm-Track-ID erneut
    * abfragt, statt eine zweite Datei hochzuladen (Idempotenz ohne eigenen Job-Scheduler).
    *
-   * Bewusst kein Wiring in eine laut.fm-Playlist - das bleibt laut Spezifikation ein eigener,
-   * separater Schritt, ebenso wie ein persistenter, im Hintergrund laufender Übertragungs-Job mit dem
-   * vollen Zustandsautomaten (queued→running→verifying→succeeded/blocked/…) aus Paket 10; diese
-   * Implementierung ist eine synchrone, aber idempotente Einzelübertragung je Aufruf.
+   * Optionales Wiring in eine laut.fm-Playlist (Phase 5, dritter Schritt): wird eine `playlistId`
+   * angegeben, hängt der Endpunkt den aufgelösten Track zusätzlich über `POST
+   * /stations/{station_id}/playlists/{playlist_id}` (nicht deprecated, Paket 10) an diese laut.fm-
+   * Playlist an - laut Spezifikation lehnt laut.fm bereits enthaltene Tracks selbst ohne Fehler ab, das
+   * ist daher ebenfalls idempotent. Der Playlist-Schritt ist bewusst vom Upload-Erfolg getrennt
+   * (`playlistOk`/`playlistReason` statt eines gemeinsamen `ok`) - ein fehlgeschlagener Playlist-Eintrag
+   * darf einen sonst erfolgreichen Upload nicht als Fehlschlag maskieren. Kein persistenter, im
+   * Hintergrund laufender Übertragungs-Job mit dem vollen Zustandsautomaten (queued→running→verifying→
+   * succeeded/blocked/…) aus Paket 10; diese Implementierung ist eine synchrone, aber idempotente
+   * Einzelübertragung je Aufruf.
    */
-  async lautcastTransfer(p: Principal, itemId: string, stationId: string): Promise<{ ok: boolean; reason?: string; itemId: string; stationId: string; trackId?: number }> {
+  async lautcastTransfer(p: Principal, itemId: string, stationId: string, playlistId?: number): Promise<{ ok: boolean; reason?: string; itemId: string; stationId: string; trackId?: number; playlistId?: number; playlistOk?: boolean; playlistReason?: string }> {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'transfer.export');
     const cfg = this.app.svc.lautfm.lautfmConfig(stationId);
     if (!cfg.hasToken || cfg.stationId === undefined) return { ok: false, reason: 'lautcast_not_connected', itemId, stationId };
@@ -782,22 +788,26 @@ export class MusicHubService {
       const data = res.data as { id?: unknown };
       if (typeof data.id !== 'number') return { ok: false, reason: 'upload_failed', itemId, stationId };
       trackId = data.id;
-    } else if (trackId > 0) {
-      return { ok: true, itemId, stationId, trackId };
     }
 
-    for (let i = 0; i < LAUTCAST_POLL_ATTEMPTS && trackId < 0; i++) {
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, LAUTCAST_POLL_DELAY_MS));
-      const res = await this.app.svc.lautfm.radioadmin(stationId, 'GET', `/stations/${cfg.stationId}/tracks/${trackId}`);
-      const data = res.data as { tracks?: { id?: unknown }[] };
-      const found = data.tracks?.[0];
-      if (found && typeof found.id === 'number' && found.id > 0) trackId = found.id;
+    if (trackId < 0) {
+      for (let i = 0; i < LAUTCAST_POLL_ATTEMPTS && trackId < 0; i++) {
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, LAUTCAST_POLL_DELAY_MS));
+        const res = await this.app.svc.lautfm.radioadmin(stationId, 'GET', `/stations/${cfg.stationId}/tracks/${trackId}`);
+        const data = res.data as { tracks?: { id?: unknown }[] };
+        const found = data.tracks?.[0];
+        if (found && typeof found.id === 'number' && found.id > 0) trackId = found.id;
+      }
+      await this.saveLautcastMapping(itemId, stationId, trackId);
+      if (trackId < 0) return { ok: false, reason: 'processing', itemId, stationId, trackId };
+      this.app.audit.write({ kind: 'musikhub', event: 'lautcast_transferred', actor: this.actor(p), itemId, stationId, trackId });
     }
 
-    await this.saveLautcastMapping(itemId, stationId, trackId);
-    if (trackId < 0) return { ok: false, reason: 'processing', itemId, stationId, trackId };
-    this.app.audit.write({ kind: 'musikhub', event: 'lautcast_transferred', actor: this.actor(p), itemId, stationId, trackId });
-    return { ok: true, itemId, stationId, trackId };
+    if (!playlistId) return { ok: true, itemId, stationId, trackId };
+    const plRes = await this.app.svc.lautfm.radioadmin(stationId, 'POST', `/stations/${cfg.stationId}/playlists/${playlistId}`, { track_id: trackId });
+    if (plRes.status !== 200) return { ok: true, itemId, stationId, trackId, playlistId, playlistOk: false, playlistReason: 'playlist_add_failed' };
+    this.app.audit.write({ kind: 'musikhub', event: 'lautcast_playlist_added', actor: this.actor(p), itemId, stationId, trackId, playlistId });
+    return { ok: true, itemId, stationId, trackId, playlistId, playlistOk: true };
   }
 
   /**
