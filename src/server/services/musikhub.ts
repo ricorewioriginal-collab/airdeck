@@ -664,7 +664,16 @@ export class MusicHubService {
     return { users, stations };
   }
 
-  async createGrant(p: Principal, resource: HubResource, recipientInput: unknown, actionsInput: unknown, targetsInput: unknown, stationId: string, expiresAtInput?: unknown): Promise<HubGrant> {
+  async createGrant(
+    p: Principal,
+    resource: HubResource,
+    recipientInput: unknown,
+    actionsInput: unknown,
+    targetsInput: unknown,
+    stationId: string,
+    startsAtInput?: unknown,
+    expiresAtInput?: unknown,
+  ): Promise<HubGrant> {
     this.require(p, resource, stationId, 'shares.manage');
     const recipient = this.subject(recipientInput);
     if (!Array.isArray(actionsInput) || !actionsInput.length || actionsInput.some((x) => !validAction(x))) throw new AppError(400, 'invalid_actions', 'Ungültige Freigaberechte');
@@ -679,9 +688,12 @@ export class MusicHubService {
         if (actions.some((a) => !held.includes(a))) throw new AppError(403, 'forbidden', 'Freigabe überschreitet delegierte Rechte');
       }
     }
+    const startsAt = startsAtInput === undefined || startsAtInput === null ? null : Number(startsAtInput);
     const expiresAt = expiresAtInput === undefined || expiresAtInput === null ? null : Number(expiresAtInput);
+    if (startsAt !== null && (!Number.isFinite(startsAt) || startsAt <= Date.now())) throw new AppError(400, 'invalid_start', 'Startzeit muss in der Zukunft liegen');
     if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= Date.now())) throw new AppError(400, 'invalid_expiry', 'Ablaufzeit muss in der Zukunft liegen');
-    const grant: HubGrant = { id: newId('grant'), resource, recipient, actions, targetStationIds, startsAt: null, expiresAt, revokedAt: null, createdBy: this.actor(p), createdAt: Date.now(), revision: 1 };
+    if (startsAt !== null && expiresAt !== null && startsAt >= expiresAt) throw new AppError(400, 'invalid_window', 'Startzeit muss vor der Ablaufzeit liegen');
+    const grant: HubGrant = { id: newId('grant'), resource, recipient, actions, targetStationIds, startsAt, expiresAt, revokedAt: null, createdBy: this.actor(p), createdAt: Date.now(), revision: 1 };
     this.state.grants.push(grant);
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'grant_created', actor: this.actor(p), grantId: grant.id, resourceId: resource.id, recipientKind: recipient.kind, recipientId: recipient.id });
