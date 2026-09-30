@@ -333,16 +333,17 @@ export function mountMusicHub(root, ctx) {
   async function manageGrants(kind, resource) {
     const grants = await run(() => ctx.api.get(url(`/${kind}/${encodeURIComponent(resource.id)}/grants?station=${encodeURIComponent(station())}`)));
     if (!grants) return;
-    const active = grants.filter((g) => g.revokedAt === null && (g.expiresAt === null || g.expiresAt > Date.now()));
-    if (!active.length) return status('Diese Ressource hat keine aktiven Freigaben.');
+    const available = grants.filter((g) => g.revokedAt === null && (g.expiresAt === null || g.expiresAt > Date.now()));
+    if (!available.length) return status('Diese Ressource hat keine aktiven oder geplanten Freigaben.');
     const value = await formDialog('Freigabe widerrufen', [{
       name: 'grant',
-      label: 'Aktive Freigabe',
-      options: active.map((g) => {
+      label: 'Aktive / geplante Freigabe',
+      options: available.map((g) => {
         const who = `${g.recipient.kind === 'station' ? 'Sender' : 'Nutzer'} ${g.recipient.id}`;
         const rights = g.actions.join(', ');
+        const start = g.startsAt && g.startsAt > Date.now() ? ` · ab ${new Date(g.startsAt).toLocaleString('de-DE')}` : '';
         const expiry = g.expiresAt ? ` · bis ${new Date(g.expiresAt).toLocaleString('de-DE')}` : '';
-        return [g.id, `${who} · ${rights}${expiry}`];
+        return [g.id, `${who} · ${rights}${start}${expiry}`];
       }),
     }], 'Widerrufen');
     if (!value || !confirm('Neue Zugriffe über diese Freigabe sofort beenden? Bereits exportierte Dateien bleiben beim Empfänger.')) return;
