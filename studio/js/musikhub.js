@@ -1,11 +1,14 @@
 // @ts-check
-// MusikHub Phase 1+2+3(Beginn)+4(Bereitstellung): echter, serverseitig gefilterter Katalog mit
-// Sammlungen, expliziten Freigaben, eigenem privaten Audio-Upload mit getrenntem Vorhören/Download-Recht
-// sowie einer eigenen Nextcloud-Quelle je Nutzerkonto (Ordneransicht + Einzeldatei-Übernahme, kein
-// rekursiver Vollscan, kein Job-/Sync-System). "Für Sender bereitstellen" kopiert einen eigenen privaten
-// Upload kontrolliert in das Archiv des aktuell gewählten Senders (stage-Endpunkt) - macht ihn danach laut
-// AirDeckCast-Preflight sendefähig, ist aber selbst noch kein Wiring in Queue/Planung/Cardwall; dafür
-// bietet diese Ansicht weiterhin bewusst keine Buttons an.
+// MusikHub Phase 1+2+3(Beginn)+4(Bereitstellung)+5(lautCast-Upload): echter, serverseitig gefilterter
+// Katalog mit Sammlungen, expliziten Freigaben, eigenem privaten Audio-Upload mit getrenntem
+// Vorhören/Download-Recht sowie einer eigenen Nextcloud-Quelle je Nutzerkonto (Ordneransicht +
+// Einzeldatei-Übernahme, kein rekursiver Vollscan, kein Job-/Sync-System). "Für Sender bereitstellen"
+// kopiert einen eigenen privaten Upload kontrolliert in das Archiv des aktuell gewählten Senders
+// (stage-Endpunkt) - macht ihn danach laut AirDeckCast-Preflight sendefähig. "An laut.fm übertragen"
+// lädt einen Titel über den verifiziert nicht deprecateten laut.fm-Upload-Endpunkt hoch (Zwei-Treffer-
+// Wiederverwendung, ehrliches "in Bearbeitung" statt erfundenem Erfolg). Beides ist noch kein Wiring in
+// Queue/Planung/Cardwall oder eine laut.fm-Playlist; dafür bietet diese Ansicht weiterhin bewusst keine
+// Buttons an.
 import { formDialog, h, run, status } from './ui.js';
 
 /** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[], me: () => any}} Ctx */
@@ -154,6 +157,26 @@ export function mountMusicHub(root, ctx) {
     await run(load);
   }
 
+  /** Tatsächlicher Upload eines Hub-Titels zu laut.fm (Zwei-Treffer-Modell: eine bereits erfolgreich
+   * zugeordnete laut.fm-Track-ID wird serverseitig wiederverwendet statt erneut hochgeladen). Kein
+   * Wiring in eine laut.fm-Playlist - das bleibt ein eigener, separater Schritt. @param {any} item */
+  async function lautcastTransfer(item) {
+    const sid = station();
+    status(`„${item.title}“ wird an laut.fm übertragen …`);
+    const result = await run(() => ctx.api.post(url(`/items/${encodeURIComponent(item.id)}/lautcast-transfer`), { station: sid }));
+    if (!result) return;
+    if (result.ok) { status(`„${item.title}“ an laut.fm übertragen (Track-ID ${result.trackId})`); return; }
+    /** @type {Record<string, string>} */
+    const reasons = {
+      lautcast_not_connected: 'Sender ist nicht mit laut.fm verbunden.',
+      missing: 'Datei nicht mehr vorhanden.',
+      unsupported_format: 'Dateiformat wird nicht unterstützt.',
+      upload_failed: 'laut.fm hat den Upload abgelehnt.',
+      processing: 'laut.fm verarbeitet den Upload noch - in Kürze erneut versuchen.',
+    };
+    status(reasons[result.reason] ?? `Übertragung fehlgeschlagen (${result.reason})`, true);
+  }
+
   /** @param {any} item */
   async function deleteItem(item) {
     if (!confirm(`„${item.title}“ endgültig aus dem MusikHub entfernen? Freigaben und Sammlungseinträge gehen dabei ebenfalls verloren.`)) return;
@@ -264,6 +287,7 @@ export function mountMusicHub(root, ctx) {
       if (isStationOwn(item) && item.actions.includes('media.upload')) row.append(h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung'));
       if (mine(item) && item.source?.kind === 'upload' && item.actions.includes('source.write')) row.append(h('button', { class: 'btn small', onclick: () => { replaceTarget = item; replaceInput.click(); } }, 'Ersetzen'));
       if (mine(item) && item.source?.kind === 'upload' && item.actions.includes('broadcast.use')) row.append(h('button', { class: 'btn small', onclick: () => stageItem(item) }, `Für „${sid}“ bereitstellen`));
+      if ((mine(item) || isStationOwn(item)) && item.actions.includes('transfer.export')) row.append(h('button', { class: 'btn small', onclick: () => lautcastTransfer(item) }, 'An laut.fm übertragen'));
       if ((mine(item) || isStationOwn(item)) && item.actions.includes('media.delete')) row.append(h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen'));
       return row.childNodes.length ? row : null;
     }

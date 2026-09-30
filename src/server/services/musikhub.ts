@@ -5,7 +5,7 @@
 import type { AirDeckApp } from '../app.ts';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import { createReadStream, existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { parseFileName } from '../../core/automation.ts';
@@ -61,7 +61,13 @@ export interface HubGrant {
   createdAt: number;
   revision: number;
 }
-interface HubState { version: 1; items: HubItem[]; collections: HubCollection[]; grants: HubGrant[] }
+/**
+ * Zwei-Treffer-Modell (Phase 5): eine bereits erfolgreich zugeordnete laut.fm-Track-ID für denselben
+ * Hub-Titel und Zielsender wird wiederverwendet statt erneut hochgeladen. `lautfmTrackId` ist negativ,
+ * solange laut.fm den Upload noch verarbeitet (siehe lautcastTransfer()).
+ */
+export interface LautcastMapping { id: string; itemId: string; stationId: string; lautfmTrackId: number; createdAt: number; updatedAt: number }
+interface HubState { version: 1; items: HubItem[]; collections: HubCollection[]; grants: HubGrant[]; lautcastMappings: LautcastMapping[] }
 
 const READ_ACTIONS = new Set<HubAction>(['catalog.read', 'preview.play', 'file.download']);
 const BROADCAST_ACTIONS = new Set<HubAction>(['broadcast.use']);
@@ -71,6 +77,9 @@ export const MAX_USER_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 /** Obergrenzen für den rekursiven Nextcloud-Ordner-Import - verhindert einen unbegrenzten Vollscan im Anfragethread. */
 export const MAX_FOLDER_IMPORT_FILES = 50;
 const MAX_FOLDER_IMPORT_DEPTH = 4;
+/** lautCast-Upload: wie oft/wie lange auf eine noch negative (in Bearbeitung befindliche) Track-ID gewartet wird, bevor ehrlich "processing" statt eines erfundenen Erfolgs gemeldet wird. */
+const LAUTCAST_POLL_ATTEMPTS = 5;
+const LAUTCAST_POLL_DELAY_MS = 1000;
 const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
 const validAction = (value: unknown): value is HubAction => typeof value === 'string' && (HUB_ACTIONS as readonly string[]).includes(value);
 const same = (a: HubSubject, b: HubSubject) => a.kind === b.kind && a.id === b.id;
@@ -83,13 +92,15 @@ export class MusicHubService {
 
   private get state(): HubState {
     if (!this.loaded) {
-      this.loaded = this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [] });
+      this.loaded = this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [], lautcastMappings: [] });
       // Ältere Bestandsdaten (Phase 1, vor der Upload-Erweiterung) kannten nur sendergebundene Quellen
       // ohne "kind"-Unterscheidung - beim Laden einmalig auf die aktuelle Form heben.
       for (const item of this.loaded.items) {
         const s = item.source as unknown as Record<string, unknown>;
         if (!s.kind) item.source = { kind: 'station', stationId: String(s.stationId ?? ''), mediaId: String(s.mediaId ?? '') };
       }
+      // Ältere Bestandsdaten (vor Phase 5 lautCast-Trackmapping) kannten dieses Feld noch nicht.
+      this.loaded.lautcastMappings ??= [];
     }
     return this.loaded;
   }
@@ -694,19 +705,99 @@ export class MusicHubService {
   /**
    * lautCast-Capability-Prüfung (Phase 5, erster Schritt): stellt fest, ob eine Übertragung eines
    * Hub-Titels an laut.fm Radioadmin für den Zielsender überhaupt in Frage kommt - `transfer.export`-
-   * Berechtigung (existenzleck-frei) und ob der Zielsender tatsächlich mit laut.fm verbunden ist
-   * (Token hinterlegt, laut.fm-Stations-ID gewählt). Klare Capability-Grenze aus der Spezifikation
-   * (Paket 08, Abschnitt 6): dieser Endpunkt behauptet nie, laut.fm unterstütze eine Funktion, die nur
-   * AirDeck intern plant. Absichtlich noch **kein** Trackmapping, kein Upload, kein persistenter
-   * Übertragungs-Job - die mitgelieferte Radioadmin-Spezifikation markiert die Track-Suche bereits als
-   * deprecated und verlangt eine erneute Prüfung der dann aktuellen offiziellen API vor jeder
-   * tatsächlichen Implementierung (Paket 10); ohne diese Prüfung wird hier bewusst nichts erfunden.
+   * Berechtigung (existenzleck-frei), ob der Zielsender tatsächlich mit laut.fm verbunden ist (Token
+   * hinterlegt, laut.fm-Stations-ID gewählt) und ob die zugrundeliegende Datei tatsächlich vorhanden
+   * und in einem unterstützten Format vorliegt. Reine Prüfung ohne Seiteneffekt - der tatsächliche
+   * Upload passiert erst in lautcastTransfer() (Phase 5, zweiter Schritt), demselben Aufbau wie
+   * broadcastPreflight()/stageToStation() bei AirDeckCast.
    */
   lautcastCapability(p: Principal, itemId: string, stationId: string): { ok: boolean; reason?: string; itemId: string; stationId: string } {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'transfer.export');
     const cfg = this.app.svc.lautfm.lautfmConfig(stationId);
     if (!cfg.hasToken || cfg.stationId === undefined) return { ok: false, reason: 'lautcast_not_connected', itemId, stationId };
-    return { ok: false, reason: 'not_implemented', itemId, stationId };
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    const path = this.filePath(item);
+    if (!existsSync(path)) return { ok: false, reason: 'missing', itemId, stationId };
+    if (!AUDIO_FILE_RE.test(path)) return { ok: false, reason: 'unsupported_format', itemId, stationId };
+    return { ok: true, itemId, stationId };
+  }
+
+  /** Bereits zugeordnete laut.fm-Track-ID für denselben Hub-Titel und Zielsender, falls vorhanden. */
+  private lautcastMapping(itemId: string, stationId: string): LautcastMapping | undefined {
+    return this.state.lautcastMappings.find((m) => m.itemId === itemId && m.stationId === stationId);
+  }
+
+  private async saveLautcastMapping(itemId: string, stationId: string, lautfmTrackId: number): Promise<LautcastMapping> {
+    const now = Date.now();
+    const existing = this.lautcastMapping(itemId, stationId);
+    if (existing) {
+      existing.lautfmTrackId = lautfmTrackId;
+      existing.updatedAt = now;
+      await this.save();
+      return existing;
+    }
+    const mapping: LautcastMapping = { id: newId('lcm'), itemId, stationId, lautfmTrackId, createdAt: now, updatedAt: now };
+    this.state.lautcastMappings.push(mapping);
+    await this.save();
+    return mapping;
+  }
+
+  /**
+   * lautCast-Übertragung (Phase 5, zweiter Schritt): lädt die Datei eines Hub-Titels tatsächlich zu
+   * laut.fm hoch, sobald lautcastCapability() grünes Licht gibt - über den verifiziert nicht
+   * deprecateten `POST /stations/{station_id}/tracks`-Endpunkt (Upload MP3) der offiziellen laut.fm-
+   * Radioadmin-Spezifikation (Paket 10, Version 1.0.1). Die parallel dokumentierte Track-Suche
+   * (`GET /stations/{station_id}/tracks`) bleibt bewusst ungenutzt, da als deprecated markiert.
+   *
+   * Zwei-Treffer-Modell: eine bereits erfolgreich zugeordnete laut.fm-Track-ID für denselben Hub-Titel
+   * und Zielsender wird wiederverwendet statt erneut hochgeladen (`saveLautcastMapping`/
+   * `lautcastMapping`). laut.fm liefert beim Hochladen zunächst eine negative "in Bearbeitung"-ID
+   * zurück; diese wird hier bis zu LAUTCAST_POLL_ATTEMPTS mal kurz abgefragt (Spezifikation:
+   * "Verarbeitungsstatus pollbar/idempotent behandeln"). Bleibt sie danach negativ, wird ehrlich
+   * `reason: 'processing'` gemeldet statt eine unfertige Zuordnung als Erfolg zu verkaufen - die
+   * negative ID wird trotzdem gespeichert, damit ein erneuter Aufruf dieselbe laut.fm-Track-ID erneut
+   * abfragt, statt eine zweite Datei hochzuladen (Idempotenz ohne eigenen Job-Scheduler).
+   *
+   * Bewusst kein Wiring in eine laut.fm-Playlist - das bleibt laut Spezifikation ein eigener,
+   * separater Schritt, ebenso wie ein persistenter, im Hintergrund laufender Übertragungs-Job mit dem
+   * vollen Zustandsautomaten (queued→running→verifying→succeeded/blocked/…) aus Paket 10; diese
+   * Implementierung ist eine synchrone, aber idempotente Einzelübertragung je Aufruf.
+   */
+  async lautcastTransfer(p: Principal, itemId: string, stationId: string): Promise<{ ok: boolean; reason?: string; itemId: string; stationId: string; trackId?: number }> {
+    this.require(p, { kind: 'item', id: itemId }, stationId, 'transfer.export');
+    const cfg = this.app.svc.lautfm.lautfmConfig(stationId);
+    if (!cfg.hasToken || cfg.stationId === undefined) return { ok: false, reason: 'lautcast_not_connected', itemId, stationId };
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    const path = this.filePath(item);
+    if (!existsSync(path)) return { ok: false, reason: 'missing', itemId, stationId };
+    if (!AUDIO_FILE_RE.test(path)) return { ok: false, reason: 'unsupported_format', itemId, stationId };
+
+    let trackId = this.lautcastMapping(itemId, stationId)?.lautfmTrackId;
+    if (trackId === undefined) {
+      const buf = await readFile(path);
+      const form = new FormData();
+      form.set('track', new Blob([buf]), `${item.title.slice(0, 120) || 'track'}${extname(path)}`);
+      const res = await this.app.svc.lautfm.radioadminMultipart(stationId, `/stations/${cfg.stationId}/tracks`, form);
+      if (res.status !== 201) return { ok: false, reason: 'upload_failed', itemId, stationId };
+      const data = res.data as { id?: unknown };
+      if (typeof data.id !== 'number') return { ok: false, reason: 'upload_failed', itemId, stationId };
+      trackId = data.id;
+    } else if (trackId > 0) {
+      return { ok: true, itemId, stationId, trackId };
+    }
+
+    for (let i = 0; i < LAUTCAST_POLL_ATTEMPTS && trackId < 0; i++) {
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, LAUTCAST_POLL_DELAY_MS));
+      const res = await this.app.svc.lautfm.radioadmin(stationId, 'GET', `/stations/${cfg.stationId}/tracks/${trackId}`);
+      const data = res.data as { tracks?: { id?: unknown }[] };
+      const found = data.tracks?.[0];
+      if (found && typeof found.id === 'number' && found.id > 0) trackId = found.id;
+    }
+
+    await this.saveLautcastMapping(itemId, stationId, trackId);
+    if (trackId < 0) return { ok: false, reason: 'processing', itemId, stationId, trackId };
+    this.app.audit.write({ kind: 'musikhub', event: 'lautcast_transferred', actor: this.actor(p), itemId, stationId, trackId });
+    return { ok: true, itemId, stationId, trackId };
   }
 
   /**

@@ -1,6 +1,8 @@
-// lautCast-Capability-Prüfung (Phase 5, erster Schritt): stellt nur fest, ob eine Übertragung eines
-// Hub-Titels an laut.fm für den Zielsender überhaupt in Frage kommt - noch kein Trackmapping/Upload,
-// siehe Kommentar an lautcastCapability() in src/server/services/musikhub.ts.
+// lautCast-Capability-Prüfung (Phase 5, erster Schritt): stellt fest, ob eine Übertragung eines
+// Hub-Titels an laut.fm für den Zielsender überhaupt in Frage kommt (Berechtigung, laut.fm-Verbindung,
+// Datei vorhanden/unterstütztes Format) - reine Prüfung ohne Upload, siehe Kommentar an
+// lautcastCapability() in src/server/services/musikhub.ts. Der tatsächliche Upload wird in
+// test/musikhub-lautcast-transfer.test.ts geprüft.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -44,11 +46,17 @@ test('MusikHub: lautCast-Capability - Berechtigung und laut.fm-Verbindung des Zi
     app.secrets.set('lautfm:main', 'fake-token-fuer-test');
     app.rt('main').data.lautfm = { stationId: 42, stationName: 'testsender' };
 
-    // Verbunden, aber noch keine echte Übertragung möglich - ehrlich als "not_implemented" markiert,
-    // keine Behauptung, laut.fm unterstütze etwas, das nur AirDeck intern plant.
+    // Verbunden, Datei vorhanden, unterstütztes Format -> tatsächlich übertragbar.
     const connected = await call(to, 'GET', `/music-hub/items/${item.id}/lautcast-capability?station=main`);
     assert.equal(connected.status, 200);
-    assert.deepEqual(connected.body, { ok: false, reason: 'not_implemented', itemId: item.id, stationId: 'main' });
+    assert.deepEqual(connected.body, { ok: true, itemId: item.id, stationId: 'main' });
+
+    // Registrierter Titel ohne tatsächlich vorhandene Datei (nie geschrieben).
+    app.svc.media.addMedia('main', { id: 'ghost', title: 'Geisterspur', artist: 'Test', category: 'music', file: 'ghost.mp3', durationMs: 3000, addedAt: Date.now() });
+    const ghost = (await call(to, 'POST', '/music-hub/items', { stationId: 'main', mediaId: 'ghost' })).body as { id: string };
+    const missing = await call(to, 'GET', `/music-hub/items/${ghost.id}/lautcast-capability?station=main`);
+    assert.equal(missing.status, 200);
+    assert.deepEqual(missing.body, { ok: false, reason: 'missing', itemId: ghost.id, stationId: 'main' });
   } finally {
     app.shutdown();
     server.closeAllConnections();
