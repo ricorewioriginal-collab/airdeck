@@ -101,7 +101,9 @@ Aufbauend auf dem gemergten Hauptbranch. Neuer `GET /api/v1/music-hub/items/:id/
 
 Aufbauend auf dem gemergten Hauptbranch. Neuer `POST /api/v1/music-hub/items/:id/stage`-Endpunkt, siehe Phase-4-Tabellenzeile oben für Details. Server-Typecheck und Studio-Typecheck erfolgreich; `test/musikhub-stage.test.ts` sowie die gesamte MusikHub-Suite gemeinsam grün (10 Tests, 0 fehlgeschlagen).
 
-**Noch nicht geschehen:** Commit, PR, Merge, Demo-Rollout, Live-Verifikation dieses konkreten Blocks.
+Zusätzlich (zweiter Commit desselben Blocks): Studio-UI-Anbindung - neuer „Für „&lt;Sender&gt;" bereitstellen"-Button je eigenem privaten Upload in „Mein Archiv" (`studio/js/musikhub.js`), ruft den neuen `stage`-Endpunkt für den aktuell gewählten Sender auf, mit Bestätigungsdialog vor dem Kopieren. Studio-Typecheck nach dieser Ergänzung erneut erfolgreich.
+
+Commit gepusht, PR [#49](https://github.com/ricorewioriginal-collab/airdeck/pull/49) offen. **Noch nicht geschehen:** CI-Ergebnis, Merge, Demo-Rollout, Live-Verifikation dieses konkreten Blocks (weder Server-Endpunkt noch Studio-Button wurden bisher gegen die Demo durchgeklickt).
 
 ## Nächste konkrete Arbeit
 
