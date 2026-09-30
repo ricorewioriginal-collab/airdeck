@@ -330,6 +330,10 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   // AirDeckCast-Preflight (Phase 4, erster Schritt): reine Prüfung, ob ein Hub-Titel für den Sender
   // sendefähig ist - noch kein Wiring in Queue/Planung/Cardwall, das folgt separat.
   add('GET', '/api/v1/music-hub/items/:id/preflight', 'media:read', (c) => app.svc.musikhub.broadcastPreflight(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  // lautCast-Capability-Prüfung (Phase 5, erster Schritt): stellt nur fest, ob eine Übertragung an
+  // laut.fm für den Zielsender überhaupt möglich wäre (Berechtigung + laut.fm-Verbindung) - noch kein
+  // Trackmapping/Upload, siehe Kommentar an lautcastCapability().
+  add('GET', '/api/v1/music-hub/items/:id/lautcast-capability', 'media:read', (c) => app.svc.musikhub.lautcastCapability(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
   // Neue Version einer bestehenden privaten Upload-Datei: Item-ID, Eigentümer, Sammlungsmitgliedschaften
   // und Freigaben bleiben erhalten, nur die Quelldatei wird ausgetauscht (Quellen-/Versionsmodell).
   add('PUT', '/api/v1/music-hub/items/:id/replace', 'media:write', async (c) => {
