@@ -61,6 +61,19 @@ export function mountMusicHub(root, ctx) {
     await run(load);
   }
 
+  /** Neue Version einer bestehenden privaten Upload-Datei: Item-ID, Sammlungsmitgliedschaften und
+   * Freigaben bleiben erhalten, nur die Quelldatei wird ausgetauscht. @param {any} item @param {File} file */
+  async function replaceUpload(item, file) {
+    if (quota && quota.usedBytes - (item.source?.sizeBytes ?? 0) + file.size > quota.quotaBytes) {
+      return status(`„${file.name}“ überschreitet das verbleibende Speicherkontingent nach dem Ersetzen.`, true);
+    }
+    status(`„${item.title}“ wird ersetzt …`);
+    const result = await run(() => ctx.api.put(`${url(`/items/${encodeURIComponent(item.id)}/replace`)}?station=${encodeURIComponent(station())}&name=${encodeURIComponent(file.name)}`, file));
+    if (!result) return;
+    status(`„${item.title}“ auf Version ${result.version} aktualisiert`);
+    await run(load);
+  }
+
   /** @param {any} item */
   async function deleteItem(item) {
     if (!confirm(`„${item.title}“ endgültig aus dem MusikHub entfernen? Freigaben und Sammlungseinträge gehen dabei ebenfalls verloren.`)) return;
@@ -144,6 +157,15 @@ export function mountMusicHub(root, ctx) {
       if (inp.files?.length) uploadFiles([...inp.files]).finally(() => { inp.value = ''; });
     },
   }));
+  /** @type {any} */ let replaceTarget = null;
+  const replaceInput = /** @type {HTMLInputElement} */ (h('input', {
+    type: 'file', accept: 'audio/*', hidden: true,
+    onchange: (/** @type {Event} */ e) => {
+      const inp = /** @type {HTMLInputElement} */ (e.target);
+      const target = replaceTarget;
+      if (inp.files?.length && target) replaceUpload(target, inp.files[0]).finally(() => { inp.value = ''; });
+    },
+  }));
 
   function render() {
     const sid = station();
@@ -160,6 +182,7 @@ export function mountMusicHub(root, ctx) {
       if (item.actions.includes('preview.play')) row.append(h('audio', { controls: true, preload: 'none', style: 'height:28px;vertical-align:middle', src: ctx.api.musicHubUrl(item.id, 'preview', sid) }));
       if (item.actions.includes('file.download')) row.append(h('a', { class: 'btn small', href: ctx.api.musicHubUrl(item.id, 'download', sid), download: true }, 'Herunterladen'));
       if (isStationOwn(item) && item.actions.includes('media.upload')) row.append(h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung'));
+      if (mine(item) && item.source?.kind === 'upload' && item.actions.includes('source.write')) row.append(h('button', { class: 'btn small', onclick: () => { replaceTarget = item; replaceInput.click(); } }, 'Ersetzen'));
       if ((mine(item) || isStationOwn(item)) && item.actions.includes('media.delete')) row.append(h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen'));
       return row.childNodes.length ? row : null;
     }
@@ -169,6 +192,7 @@ export function mountMusicHub(root, ctx) {
         h('button', { class: 'btn small', onclick: () => run(load) }, 'Suchen / Aktualisieren'),
         h('button', { class: 'btn small primary', onclick: () => uploadInput.click() }, '＋ Eigenen Titel hochladen'),
         uploadInput,
+        replaceInput,
         h('span', { class: 'muted', role: 'status' }, `${total} sichtbare Titel insgesamt`),
         quota ? h('span', { class: 'muted', role: 'status' }, ` · Eigenes Archiv: ${mb(quota.usedBytes)} von ${mb(quota.quotaBytes)} belegt`) : null),
       h('div', { class: 'row mh-filters' },
@@ -184,7 +208,7 @@ export function mountMusicHub(root, ctx) {
           h('p', { class: 'muted mh-page-info' }, `Titel ${first}–${last} von ${total} · ${visible.length} auf dieser Seite im gewählten Filter`),
           visible.length ? h('ul', { class: 'plain-list' }, ...visible.map((item) => h('li', { class: 'mh-entry' },
             h('strong', {}, `${item.artist ? item.artist + ' – ' : ''}${item.title}`),
-            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : mine(item) ? 'Persönlich (meins)' : 'Persönlich'}`),
+            h('span', { class: 'muted' }, ` · ${item.owner.kind === 'station' ? `Sender ${item.owner.id}` : mine(item) ? 'Persönlich (meins)' : 'Persönlich'}${item.version ? ` · v${item.version}` : ''}`),
             itemActions(item)))) : h('p', { class: 'muted' }, total ? 'Auf dieser Seite entspricht kein Titel dem gewählten Filter.' : 'Keine freigegebenen Titel gefunden.'),
           h('div', { class: 'row' },
             h('button', { class: 'btn small', disabled: page === 0, onclick: () => { page--; void run(load); } }, 'Zurück'),

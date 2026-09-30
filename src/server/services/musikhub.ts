@@ -268,6 +268,52 @@ export class MusicHubService {
     rmSync(join(this.uploadDir(ownerUserId), file), { force: true });
   }
 
+  /**
+   * Zielpfad für eine neue Version einer bestehenden privaten Upload-Datei festlegen. Die Item-ID,
+   * ihr Eigentümer, ihre Sammlungsmitgliedschaften und alle bestehenden Freigaben bleiben unverändert -
+   * nur die zugrundeliegende Datei wird ausgetauscht. Nur der Eigentümer selbst darf ersetzen (dieselbe
+   * Regel wie beim Löschen), nicht nur jeder mit delegiertem `source.write`.
+   */
+  prepareReplaceUpload(p: Principal, id: string, stationId: string, ext: string): { file: string; absolutePath: string; oldSizeBytes: number } {
+    this.require(p, { kind: 'item', id }, stationId, 'source.write');
+    const item = this.resource({ kind: 'item', id }) as HubItem;
+    if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur der Eigentümer kann die Quelldatei ersetzen');
+    if (item.source.kind !== 'upload') throw new AppError(400, 'invalid_source', 'Nur eigene Uploads lassen sich ersetzen, keine Senderreferenzen');
+    const userId = this.requireUserId(p);
+    const dir = this.uploadDir(userId);
+    mkdirSync(dir, { recursive: true });
+    const file = `${newId('hub')}${ext}`;
+    return { file, absolutePath: join(dir, file), oldSizeBytes: item.source.sizeBytes };
+  }
+
+  /**
+   * Registriert eine bereits an den in prepareReplaceUpload() vergebenen Zielpfad geschriebene neue
+   * Version. Item-ID, Eigentümer, Sammlungsmitgliedschaften und Freigaben bleiben unangetastet - nur
+   * Quelle, Version und Revision wechseln. Die alte Datei wird erst nach erfolgreicher Umstellung
+   * entfernt, damit ein Fehlschlag zwischen Schreiben und Registrieren nicht zu Datenverlust führt.
+   */
+  async replaceUpload(p: Principal, id: string, stationId: string, file: string, mimeType: string, sizeBytes: number): Promise<HubItem> {
+    this.require(p, { kind: 'item', id }, stationId, 'source.write');
+    const item = this.resource({ kind: 'item', id }) as HubItem;
+    if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur der Eigentümer kann die Quelldatei ersetzen');
+    if (item.source.kind !== 'upload') throw new AppError(400, 'invalid_source', 'Nur eigene Uploads lassen sich ersetzen, keine Senderreferenzen');
+    const userId = this.requireUserId(p);
+    // Maßgebliche Kontingentprüfung: die alte Dateigröße dieses Items zählt nicht doppelt mit.
+    const { usedBytes, quotaBytes } = this.uploadQuota(p);
+    if (usedBytes - item.source.sizeBytes + sizeBytes > quotaBytes) {
+      rmSync(join(this.uploadDir(userId), file), { force: true });
+      throw new AppError(413, 'quota_exceeded', `Speicherkontingent überschritten (${Math.round(quotaBytes / 1024 / 1024)} MB)`);
+    }
+    const oldFile = item.source.file;
+    item.source = { kind: 'upload', file, mimeType, sizeBytes };
+    item.version = String(Number(item.version ?? '1') + 1);
+    item.revision++;
+    await this.save();
+    rmSync(join(this.uploadDir(userId), oldFile), { force: true });
+    this.app.audit.write({ kind: 'musikhub', event: 'item_source_replaced', actor: userId, itemId: id, sizeBytes, version: item.version });
+    return item;
+  }
+
   async deleteItem(p: Principal, id: string, stationId: string): Promise<void> {
     this.require(p, { kind: 'item', id }, stationId, 'media.delete');
     const item = this.resource({ kind: 'item', id }) as HubItem;

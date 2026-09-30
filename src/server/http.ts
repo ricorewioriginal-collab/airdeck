@@ -316,6 +316,34 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, meta.title || name, meta.artist);
   });
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', async (c) => app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
+  // Neue Version einer bestehenden privaten Upload-Datei: Item-ID, Eigentümer, Sammlungsmitgliedschaften
+  // und Freigaben bleiben erhalten, nur die Quelldatei wird ausgetauscht (Quellen-/Versionsmodell).
+  add('PUT', '/api/v1/music-hub/items/:id/replace', 'media:write', async (c) => {
+    const stationId = String(c.url.searchParams.get('station') ?? '');
+    const name = String(c.url.searchParams.get('name') ?? '').slice(0, 200);
+    const ext = extname(name).toLowerCase();
+    if (!AUDIO_EXT[ext]) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${Object.keys(AUDIO_EXT).join(', ')})`);
+    const len = Number(c.req.headers['content-length'] ?? 0);
+    if (len > MAX_UPLOAD) throw new AppError(413, 'too_large', 'Datei zu groß');
+    const { file, absolutePath, oldSizeBytes } = app.svc.musikhub.prepareReplaceUpload(c.p, c.params.id!, stationId, ext);
+    // Vorabprüfung wie beim Erst-Upload, aber um die durch das Ersetzen freiwerdende alte Größe bereinigt -
+    // die maßgebliche Prüfung folgt weiterhin in replaceUpload().
+    const quota = app.svc.musikhub.uploadQuota(c.p);
+    const budget = quota.quotaBytes - (quota.usedBytes - oldSizeBytes);
+    if (len > 0 && len > budget) throw new AppError(413, 'quota_exceeded', `Speicherkontingent überschritten (${Math.round(quota.quotaBytes / 1024 / 1024)} MB)`);
+    let size = 0;
+    c.req.on('data', (d: Buffer) => {
+      size += d.length;
+      if (size > MAX_UPLOAD || size > budget) c.req.destroy(new Error('too_large'));
+    });
+    try {
+      await pipeline(c.req, createWriteStream(absolutePath, { mode: 0o600 }));
+    } catch {
+      app.svc.musikhub.discardUpload(c.p.user?.id ?? c.p.id, file);
+      throw new AppError(413, 'upload_failed', 'Upload abgebrochen, Kontingent überschritten oder zu groß');
+    }
+    return app.svc.musikhub.replaceUpload(c.p, c.params.id!, stationId, file, AUDIO_EXT[ext]!, size);
+  });
   add('GET', '/api/v1/music-hub/items/:id/preview', 'media:read', (c) => {
     const { path, mimeType, title } = app.svc.musikhub.resolveFile(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? ''), 'preview.play');
     void title;
