@@ -57,6 +57,11 @@ await page.getByRole('button', { name: 'MusikHub', exact: true }).click();
 await page.getByRole('heading', { name: 'Cloud-Quellen', exact: true }).waitFor();
 await page.waitForTimeout(350);
 await page.screenshot({ path: new URL('view-musikhub.png', out).pathname, fullPage: false });
+await page.setViewportSize({ width: 520, height: 900 });
+await page.waitForTimeout(250);
+await page.screenshot({ path: new URL('view-musikhub-mobile.png', out).pathname, fullPage: true });
+await page.setViewportSize({ width: 1600, height: 1050 });
+await page.waitForTimeout(250);
 
 for (const [win, file] of [
   ['decks','panel-decks.png'],
