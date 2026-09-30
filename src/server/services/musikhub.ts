@@ -67,7 +67,20 @@ export interface HubGrant {
  * solange laut.fm den Upload noch verarbeitet (siehe lautcastTransfer()).
  */
 export interface LautcastMapping { id: string; itemId: string; stationId: string; lautfmTrackId: number; createdAt: number; updatedAt: number }
-interface HubState { version: 1; items: HubItem[]; collections: HubCollection[]; grants: HubGrant[]; lautcastMappings: LautcastMapping[] }
+/**
+ * Persistenter Ordner-Importjob (Paket 09, erster Schritt): löst den rein synchronen Aufruf von
+ * nextcloudImportFolder() ab, wenn der Aufrufer Status abfragen statt auf die volle Antwort warten
+ * möchte. Läuft im selben Prozess asynchron (kein separater Worker-Prozess). Deckt vorerst nur
+ * queued/running/succeeded/failed plus Neustart eines fehlgeschlagenen Jobs ab - der volle, in
+ * docs/MUSIKHUB_PROGRESS.md skizzierte Zustandsautomat (inkl. verifying/blocked/conflict/cancelling)
+ * folgt erst mit echtem Bedarf.
+ */
+export interface ImportJob {
+  id: string; userId: string; path: string; status: 'queued' | 'running' | 'succeeded' | 'failed';
+  attempts: number; createdAt: number; updatedAt: number;
+  result?: { imported: number; skipped: number; errors: string[] }; error?: string;
+}
+interface HubState { version: 1; items: HubItem[]; collections: HubCollection[]; grants: HubGrant[]; lautcastMappings: LautcastMapping[]; importJobs: ImportJob[] }
 
 const READ_ACTIONS = new Set<HubAction>(['catalog.read', 'preview.play', 'file.download']);
 const BROADCAST_ACTIONS = new Set<HubAction>(['broadcast.use']);
@@ -80,6 +93,8 @@ const MAX_FOLDER_IMPORT_DEPTH = 4;
 /** lautCast-Upload: wie oft/wie lange auf eine noch negative (in Bearbeitung befindliche) Track-ID gewartet wird, bevor ehrlich "processing" statt eines erfundenen Erfolgs gemeldet wird. */
 const LAUTCAST_POLL_ATTEMPTS = 5;
 const LAUTCAST_POLL_DELAY_MS = 1000;
+/** Je Nutzerkonto nur die letzten MAX_IMPORT_JOBS_PER_USER Importjobs behalten (wie die Audit-Log-Begrenzung) - kein unbegrenzt wachsender Verlauf. */
+const MAX_IMPORT_JOBS_PER_USER = 20;
 const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
 const validAction = (value: unknown): value is HubAction => typeof value === 'string' && (HUB_ACTIONS as readonly string[]).includes(value);
 const same = (a: HubSubject, b: HubSubject) => a.kind === b.kind && a.id === b.id;
@@ -92,7 +107,7 @@ export class MusicHubService {
 
   private get state(): HubState {
     if (!this.loaded) {
-      this.loaded = this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [], lautcastMappings: [] });
+      this.loaded = this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [], lautcastMappings: [], importJobs: [] });
       // Ältere Bestandsdaten (Phase 1, vor der Upload-Erweiterung) kannten nur sendergebundene Quellen
       // ohne "kind"-Unterscheidung - beim Laden einmalig auf die aktuelle Form heben.
       for (const item of this.loaded.items) {
@@ -101,6 +116,8 @@ export class MusicHubService {
       }
       // Ältere Bestandsdaten (vor Phase 5 lautCast-Trackmapping) kannten dieses Feld noch nicht.
       this.loaded.lautcastMappings ??= [];
+      // Ältere Bestandsdaten (vor den persistenten Importjobs) kannten dieses Feld noch nicht.
+      this.loaded.importJobs ??= [];
     }
     return this.loaded;
   }
@@ -655,6 +672,78 @@ export class MusicHubService {
       }
     }
     return { imported, skipped, errors };
+  }
+
+  /** Minimaler, nicht persistierter Stellvertreter-Principal für den Hintergrundlauf eines Importjobs - nur für ncClient()/registerUpload() intern verwendet, nie nach außen gegeben. */
+  private importJobPrincipal(userId: string): Principal {
+    return { id: userId, roles: [], stationIds: [], scopes: ['media:write'], tokenId: 'musikhub-import-job', user: { id: userId, username: '', name: '' } };
+  }
+
+  /** Eigene Importjobs, neueste zuerst. */
+  listImportJobs(p: Principal): ImportJob[] {
+    const userId = this.requireUserId(p);
+    return this.state.importJobs.filter((j) => j.userId === userId).sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  /**
+   * Ordner-Import als Hintergrundjob starten statt die Antwort auf den vollständigen (ggf. langsamen)
+   * Ordnerdurchlauf warten zu lassen. Dieselben Vorabprüfungen wie beim synchronen
+   * nextcloudImportFolder() (Konto, Schreibrecht, konfigurierte Quelle, gültiger Pfad) laufen sofort,
+   * damit ein ungültiger Aufruf nicht erst als spät fehlschlagender Job sichtbar wird - nur der
+   * eigentliche Download-/Importlauf selbst ist asynchron.
+   */
+  async startNextcloudImportJob(p: Principal, pathInput: unknown): Promise<ImportJob> {
+    const userId = this.requireUserId(p);
+    if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    this.ncClient(p);
+    let rel: string;
+    try { rel = cleanPath(typeof pathInput === 'string' ? pathInput : '/'); } catch { throw new AppError(400, 'invalid_path', 'Ungültiger Pfad'); }
+    const job: ImportJob = { id: newId('job'), userId, path: rel, status: 'queued', attempts: 0, createdAt: Date.now(), updatedAt: Date.now() };
+    this.state.importJobs.unshift(job);
+    const own = this.state.importJobs.filter((j) => j.userId === userId);
+    if (own.length > MAX_IMPORT_JOBS_PER_USER) {
+      const drop = new Set(own.slice(MAX_IMPORT_JOBS_PER_USER).map((j) => j.id));
+      this.state.importJobs = this.state.importJobs.filter((j) => !drop.has(j.id));
+    }
+    await this.save();
+    this.runImportJob(job.id);
+    return job;
+  }
+
+  /** Einen eigenen, nicht mehr laufenden Job erneut anstoßen - dieselbe Job-ID bleibt bestehen, kein Neuanlegen. */
+  async restartImportJob(p: Principal, jobId: string): Promise<ImportJob> {
+    const userId = this.requireUserId(p);
+    const job = this.state.importJobs.find((j) => j.id === jobId && j.userId === userId);
+    if (!job) throw new AppError(404, 'not_found', 'Importjob nicht gefunden');
+    if (job.status === 'queued' || job.status === 'running') throw new AppError(409, 'already_running', 'Importjob läuft bereits');
+    job.status = 'queued';
+    job.error = undefined;
+    job.updatedAt = Date.now();
+    await this.save();
+    this.runImportJob(job.id);
+    return job;
+  }
+
+  /** Läuft außerhalb des Anfragethreads - ein Fehlschlag wird ehrlich als job.status='failed' festgehalten, nie stillschweigend verschluckt oder als Erfolg gemeldet. */
+  private runImportJob(jobId: string): void {
+    setImmediate(async () => {
+      const job = this.state.importJobs.find((j) => j.id === jobId);
+      if (!job) return;
+      job.status = 'running';
+      job.attempts++;
+      job.updatedAt = Date.now();
+      await this.save();
+      try {
+        const result = await this.nextcloudImportFolder(this.importJobPrincipal(job.userId), job.path);
+        job.status = 'succeeded';
+        job.result = { imported: result.imported.length, skipped: result.skipped, errors: result.errors };
+      } catch (err) {
+        job.status = 'failed';
+        job.error = err instanceof AppError ? err.message : (err as Error).message;
+      }
+      job.updatedAt = Date.now();
+      await this.save();
+    });
   }
 
   /**
