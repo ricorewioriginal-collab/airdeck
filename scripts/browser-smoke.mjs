@@ -173,7 +173,21 @@ try {
   });
   await page.getByText(/Smoke Song/).first().waitFor();
 
-  const smokeEntry = page.locator('.mh-entry').filter({ hasText: 'Smoke Song' }).first();
+  const catalogAfterUpload = await page.evaluate(async () => {
+    const token = localStorage.getItem('airdeck.token');
+    const r = await fetch('/api/v1/music-hub/items?station=main&q=Smoke%20Song&offset=0&limit=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) throw new Error(`MusicHub-Katalog HTTP ${r.status}`);
+    return r.json();
+  });
+  const smokeItem = catalogAfterUpload.items.find((item) => item.title === 'Smoke Song');
+  assert.ok(smokeItem, 'MusicHub: hochgeladener Titel fehlt im Katalog');
+  for (const required of ['catalog.read','preview.play','file.download','broadcast.use','metadata.edit','shares.manage','media.upload','media.delete']) {
+    assert.equal(smokeItem.actions.includes(required), true, `MusicHub: Backend-Recht fehlt: ${required}`);
+  }
+  const smokeEntry = page.locator(`[data-hub-item-id="${smokeItem.id}"]`);
+  await smokeEntry.waitFor({ state: 'visible', timeout: 10_000 });
   for (const action of ['Cover', 'Vorhören', 'Download', 'In Queue', 'Playlist', 'Metadaten', 'Freigeben', 'Freigaben', 'In Sammlung', 'Löschen']) {
     assert.equal(await smokeEntry.getByRole('button', { name: new RegExp(action) }).count(), 1, `MusicHub Titel-Aktion fehlt: ${action}`);
   }
