@@ -689,4 +689,22 @@ export class MusicHubService {
     if (!AUDIO_FILE_RE.test(path)) return { ok: false, reason: 'unsupported_format', itemId, stationId };
     return { ok: true, itemId, stationId };
   }
+
+  /**
+   * lautCast-Capability-Prüfung (Phase 5, erster Schritt): stellt fest, ob eine Übertragung eines
+   * Hub-Titels an laut.fm Radioadmin für den Zielsender überhaupt in Frage kommt - `transfer.export`-
+   * Berechtigung (existenzleck-frei) und ob der Zielsender tatsächlich mit laut.fm verbunden ist
+   * (Token hinterlegt, laut.fm-Stations-ID gewählt). Klare Capability-Grenze aus der Spezifikation
+   * (Paket 08, Abschnitt 6): dieser Endpunkt behauptet nie, laut.fm unterstütze eine Funktion, die nur
+   * AirDeck intern plant. Absichtlich noch **kein** Trackmapping, kein Upload, kein persistenter
+   * Übertragungs-Job - die mitgelieferte Radioadmin-Spezifikation markiert die Track-Suche bereits als
+   * deprecated und verlangt eine erneute Prüfung der dann aktuellen offiziellen API vor jeder
+   * tatsächlichen Implementierung (Paket 10); ohne diese Prüfung wird hier bewusst nichts erfunden.
+   */
+  lautcastCapability(p: Principal, itemId: string, stationId: string): { ok: boolean; reason?: string; itemId: string; stationId: string } {
+    this.require(p, { kind: 'item', id: itemId }, stationId, 'transfer.export');
+    const cfg = this.app.svc.lautfm.lautfmConfig(stationId);
+    if (!cfg.hasToken || cfg.stationId === undefined) return { ok: false, reason: 'lautcast_not_connected', itemId, stationId };
+    return { ok: false, reason: 'not_implemented', itemId, stationId };
+  }
 }
