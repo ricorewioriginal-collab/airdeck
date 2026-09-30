@@ -5,8 +5,10 @@
 import type { AirDeckApp } from '../app.ts';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { AppError, canSee, newId, type Principal } from '../model.ts';
+import { extname, join } from 'node:path';
+import { parseFileName } from '../../core/automation.ts';
+import { AUDIO_FILE_RE, AppError, canSee, newId, type Principal } from '../model.ts';
+import { Nextcloud, NextcloudError, cleanPath, type NextcloudConfig } from '../nextcloud.ts';
 import { writeFileAtomic } from '../store.ts';
 
 export const HUB_ACTIONS = [
@@ -452,5 +454,110 @@ export class MusicHubService {
     grant.revision++;
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'grant_revoked', actor: this.actor(p), grantId: id });
+  }
+
+  // --- Phase 3 (Beginn): eigene Nextcloud-Quelle je Nutzerkonto -----------------------------------
+  // Getrennt vom bestehenden, senderweiten globalen Nextcloud-Import (src/server/services/nextcloud.ts,
+  // eine gemeinsame Konfiguration für den ganzen Server). Jeder Nutzer verwaltet Adresse, Zugang und
+  // Startordner für "Mein Archiv" unabhängig - kein geteiltes Konto, kein Zugriff auf fremde Bestände
+  // über diesen Weg. Der bestehende WebDAV-Adapter (Nextcloud-Klasse) wird unverändert wiederverwendet.
+  // Nur ein einzelner, nicht rekursiver Ordnerabruf und Einzeldatei-Import sind hier umgesetzt - ein
+  // persistentes Job-/Retry-/Hash-/Quoten-/Konfliktsystem für rekursive Ordnerübernahmen folgt in
+  // einem eigenen, separat zu prüfenden Block (siehe docs/MUSIKHUB_PROGRESS.md).
+
+  private ncKey(userId: string): string {
+    return `musikhub:nextcloud:${userId}`;
+  }
+
+  nextcloudSource(p: Principal): (NextcloudConfig & { hasPassword: boolean }) | { configured: false } {
+    const userId = this.requireUserId(p);
+    const key = this.ncKey(userId);
+    const c = this.app.docs.get<NextcloudConfig | null>(key, null);
+    return c ? { ...c, hasPassword: this.app.secrets.has(`${key}:password`) } : { configured: false };
+  }
+
+  setNextcloudSource(p: Principal, input: Record<string, unknown>): unknown {
+    const userId = this.requireUserId(p);
+    const key = this.ncKey(userId);
+    if (input.remove === true) {
+      this.app.docs.set(key, null);
+      this.app.secrets.delete(`${key}:password`);
+      return { configured: false };
+    }
+    const url = String(input.url ?? '').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\/[^\s/]+/.test(url)) throw new AppError(400, 'invalid_url', 'Nextcloud-Adresse mit https:// angeben');
+    const user = String(input.user ?? '').trim();
+    if (!user) throw new AppError(400, 'invalid_user', 'Benutzername fehlt');
+    let root: string;
+    try { root = cleanPath(String(input.root ?? '/')); } catch { throw new AppError(400, 'invalid_path', 'Ungültiger Startordner'); }
+    if (typeof input.password === 'string' && input.password) this.app.secrets.set(`${key}:password`, input.password.trim());
+    if (!this.app.secrets.has(`${key}:password`)) throw new AppError(400, 'no_password', 'App-Passwort fehlt (Nextcloud → Einstellungen → Sicherheit → App-Passwort)');
+    this.app.docs.set(key, { url, user, root });
+    this.app.audit.write({ kind: 'musikhub', event: 'nextcloud_source_configured', actor: userId });
+    return this.nextcloudSource(p);
+  }
+
+  private ncClient(p: Principal): { client: Nextcloud; root: string } {
+    const userId = this.requireUserId(p);
+    const key = this.ncKey(userId);
+    const c = this.app.docs.get<NextcloudConfig | null>(key, null);
+    const pw = this.app.secrets.get(`${key}:password`);
+    if (!c || !pw) throw new AppError(409, 'not_configured', 'Eigene Nextcloud-Quelle ist noch nicht eingerichtet');
+    return { client: new Nextcloud(c, pw), root: c.root };
+  }
+
+  private ncCall<T>(fn: () => Promise<T>): Promise<T> {
+    return fn().catch((err) => {
+      if (err instanceof NextcloudError) throw new AppError(err.status === 401 ? 502 : err.status, 'nextcloud', err.message);
+      throw err;
+    });
+  }
+
+  /** Ordnerinhalt der eigenen Nextcloud-Quelle (Depth 1, ein PROPFIND) - kein rekursiver Vollscan. */
+  async nextcloudList(p: Principal, path: string): Promise<unknown> {
+    const { client, root } = this.ncClient(p);
+    let rel: string;
+    try { rel = cleanPath(path); } catch (err) { throw new AppError(400, 'invalid_path', err instanceof NextcloudError ? err.message : 'Ungültiger Pfad'); }
+    const entries = await this.ncCall(() => client.list(cleanPath(`${root}/${rel}`)));
+    return { path: rel, entries: entries.map((e) => ({ ...e, path: cleanPath(e.path.slice(root === '/' ? 0 : root.length)), audio: !e.dir && AUDIO_FILE_RE.test(e.name) })) };
+  }
+
+  /**
+   * Bis zu 10 einzelne Dateien direkt aus der eigenen Nextcloud in "Mein Archiv" übernehmen - bewusst
+   * kein rekursiver Ordner-Import (das wäre ein blockierender Vollscan im Anfragethread). Dieselbe
+   * Kontingentprüfung wie bei jedem anderen privaten Upload gilt unverändert und maßgeblich in
+   * registerUpload() - der Vorabcheck hier spart nur unnötige Downloads.
+   */
+  async nextcloudImportFiles(p: Principal, pathsInput: unknown): Promise<{ imported: HubItem[]; errors: string[] }> {
+    const userId = this.requireUserId(p);
+    if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    if (!Array.isArray(pathsInput) || !pathsInput.length || pathsInput.length > 10 || pathsInput.some((x) => typeof x !== 'string')) {
+      throw new AppError(400, 'invalid_paths', 'Höchstens 10 Dateipfade je Aufruf');
+    }
+    const { client, root } = this.ncClient(p);
+    const imported: HubItem[] = [];
+    const errors: string[] = [];
+    for (const raw of pathsInput as string[]) {
+      let rel: string;
+      try { rel = cleanPath(raw); } catch { errors.push(`${raw}: ungültiger Pfad`); continue; }
+      const name = rel.split('/').pop() ?? '';
+      if (!AUDIO_FILE_RE.test(name)) { errors.push(`${name}: kein unterstützter Audiotyp`); continue; }
+      const { usedBytes, quotaBytes } = this.uploadQuota(p);
+      if (usedBytes >= quotaBytes) { errors.push(`${name}: Speicherkontingent bereits ausgeschöpft`); continue; }
+      const dir = this.uploadDir(userId);
+      mkdirSync(dir, { recursive: true });
+      const id = newId('hub');
+      const file = `${id}${extname(name).toLowerCase()}`;
+      const target = join(dir, file);
+      try {
+        const size = await this.ncCall(() => client.download(cleanPath(`${root}/${rel}`), target, Math.max(0, quotaBytes - usedBytes)));
+        const meta = parseFileName(name);
+        imported.push(await this.registerUpload(p, id, file, '', size, meta.title || name, meta.artist));
+      } catch (err) {
+        rmSync(target, { force: true });
+        errors.push(`${name}: ${(err as Error).message}`);
+      }
+    }
+    return { imported, errors };
   }
 }
