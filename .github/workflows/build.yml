@@ -372,7 +372,10 @@ jobs:
               echo "Screenshots bereits aktuell."
             else
               git commit -m "README: aktuelle UI-Screenshots [screenshots]"
-              git push
+              # Direkter Push auf den Hauptbranch kann an einer Repository-Regel ("Changes must be
+              # made through a pull request") scheitern. Veraltete Screenshots sind reine Doku und
+              # duerfen Build/Deploy nicht blockieren - bei Ablehnung nur warnen, nicht fehlschlagen.
+              git push || echo "::warning::Screenshot-Commit konnte nicht gepusht werden (z. B. Repository-Regel) - Build laeuft trotzdem weiter."
             fi
           fi
           docker compose -f packaging/demo/docker-compose.demo.yml down -v
