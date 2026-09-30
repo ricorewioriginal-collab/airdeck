@@ -5,6 +5,7 @@
 import type { AirDeckApp } from '../app.ts';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { copyFile, mkdir } from 'node:fs/promises';
 import { createReadStream, existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { parseFileName } from '../../core/automation.ts';
@@ -706,5 +707,47 @@ export class MusicHubService {
     const cfg = this.app.svc.lautfm.lautfmConfig(stationId);
     if (!cfg.hasToken || cfg.stationId === undefined) return { ok: false, reason: 'lautcast_not_connected', itemId, stationId };
     return { ok: false, reason: 'not_implemented', itemId, stationId };
+  }
+
+  /**
+   * Bereitstellung eines privaten Uploads in ein Senderarchiv (Phase 4, zweiter Schritt): kontrolliertes
+   * Kopieren statt impliziten Zugriffs - ein Kataloggrant oder eine gemeinsame Sammlung gibt niemals
+   * automatisch Sendefähigkeit (siehe Kommentar an broadcastPreflight()). Nur der Eigentümer des privaten
+   * Uploads darf ihn bereitstellen (dieselbe engere Regel wie Ersetzen/Löschen - ein delegiertes
+   * `source.write` genügt dafür ausdrücklich nicht), und nur in einen Sender, dem er selbst ausdrücklich
+   * zugeordnet ist und an dem er Medien-Schreibrecht besitzt. Erstellt eine physische Kopie der Datei im
+   * Senderarchiv und registriert sie dort als gewöhnliches Sendermedium (derselbe Weg wie jeder normale
+   * Medien-Upload), danach als neuen, sendergebundenen Hub-Eintrag per registerStationMedia() -
+   * der ursprüngliche private Upload und sein Hub-Item bleiben davon unverändert und unabhängig bestehen.
+   * Erst danach liefert broadcastPreflight() für diesen neuen Eintrag `ok: true` statt `not_staged`.
+   */
+  async stageToStation(p: Principal, itemId: string, stationId: string): Promise<HubItem> {
+    this.requireUserId(p);
+    const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
+    if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur der Eigentümer kann bereitstellen');
+    if (item.source.kind !== 'upload') throw new AppError(400, 'invalid_source', 'Nur eigene Uploads lassen sich bereitstellen, keine Senderreferenzen');
+    this.station(p, stationId);
+    if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    if (!this.explicitMember(p, stationId)) throw new AppError(403, 'forbidden', 'Ausdrückliche Senderzuordnung erforderlich');
+    const srcPath = this.filePath(item);
+    if (!existsSync(srcPath)) throw new AppError(404, 'not_found', 'Datei nicht mehr vorhanden');
+    const mediaId = newId('media');
+    const fileName = `${mediaId}${extname(item.source.file)}`;
+    const destDir = join(this.app.mediaDir, stationId);
+    await mkdir(destDir, { recursive: true });
+    const destPath = join(destDir, fileName);
+    await copyFile(srcPath, destPath);
+    try {
+      this.app.svc.media.addMedia(stationId, {
+        id: mediaId, title: item.title, artist: item.artist, category: 'music', file: fileName,
+        durationMs: null, addedAt: Date.now(), originalName: item.source.file,
+      });
+    } catch (err) {
+      rmSync(destPath, { force: true });
+      throw err;
+    }
+    const staged = await this.registerStationMedia(p, stationId, mediaId);
+    this.app.audit.write({ kind: 'musikhub', event: 'item_staged', actor: this.actor(p), sourceItemId: itemId, stagedItemId: staged.id, stationId });
+    return staged;
   }
 }
