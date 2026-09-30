@@ -3,7 +3,7 @@
 // Alle Aufrufe laufen über den lokalen AirDeck-Server (Token bleibt verschlüsselt dort), nur dokumentierte
 // Endpunkte der Radioadmin-API. Kein eigener PHP-Server nötig.
 
-import { DAYS, clockTime, fmt, formDialog, h, run, status } from './ui.js';
+import { DAYS, clockTime, fmt, formDialog, h, icon, run, status } from './ui.js';
 import { ALGO_TEMPLATES } from './lautfm-algos.js';
 import { LAUTFM_PENDING } from './api.js';
 
@@ -488,7 +488,7 @@ export function mountLautfm(root, ctx) {
 
   // ---------- Station ----------
   async function station() {
-    const s = await ra('GET', st());
+    const [s, state] = await Promise.all([ra('GET', st()), ra('GET', `${st()}/state`).catch(() => null)]);
     const fields = /** @type {const} */ ([['description', 'Beschreibung'], ['format', 'Format'], ['djs', 'DJs'], ['location', 'Ort'], ['website', 'Website'], ['twitter_name', 'X/Twitter'], ['facebook_page', 'Facebook'], ['instagram_name', 'Instagram']]);
     const form = h('form', { class: 'lf-form', onsubmit: (/** @type {Event} */ e) => {
       e.preventDefault();
@@ -504,14 +504,28 @@ export function mountLautfm(root, ctx) {
       ...fields.map(([k, l]) => h('div', { class: 'field' }, h('label', {}, l), h('input', { name: k, value: s[k] ?? '' }))),
       h('div', { class: 'field' }, h('label', {}, 'Genres (max. 3, kommagetrennt)'), h('input', { name: 'genres', value: (s.genres ?? []).join(', ') })),
       h('button', { class: 'btn primary' }, 'Speichern'));
-    const logo = h('label', { class: 'btn' }, 'Logo hochladen', h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif', hidden: true, onchange: (/** @type {Event} */ e) => {
+    const logo = h('label', { class: 'btn small' }, 'Logo hochladen', h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif', hidden: true, onchange: (/** @type {Event} */ e) => {
       const f = /** @type {HTMLInputElement} */ (e.target).files?.[0];
       if (!f) return;
       const fd = new FormData();
       fd.append('image', f);
-      run(async () => { await ra('PUT', `${st()}/images/logo`, fd); status('Logo hochgeladen'); });
+      run(async () => { await ra('PUT', `${st()}/images/logo`, fd); status('Logo hochgeladen'); renderTab(); });
     } }));
-    return [h('div', { class: 'view-grid' }, card(`Station ${s.name}`, form), card('Bilder', s.logo_image_url ? h('img', { src: s.logo_image_url, alt: 'Logo', class: 'lf-logo' }) : null, logo))];
+    // Quick Actions im Stil des laut.fm-Radioadmin-Vorbilds (farblich getönte Aktionsboxen), aber mit
+    // AirDecks eigener Optik (--qa-card, dieselbe --c-Farblogik wie Schnellzugriff/Cardwall/Decks).
+    const quickActions = card('Quick Actions',
+      h('div', { class: 'qa-stack' },
+        h('div', { class: `qa-card ${state?.active ? 'qa-success' : 'qa-warning'}` },
+          h('div', { class: 'qa-card-head' }, icon('play', 14), 'Sender-Status'),
+          h('p', { class: 'qa-card-desc' }, state?.active ? 'Streaming-Server aktiv' : 'Streaming-Server inaktiv'),
+          !state?.active ? h('div', { class: 'qa-card-actions' },
+            h('button', { class: 'btn small', onclick: () => run(async () => { await ra('POST', `${st()}/state`); status('Station aktiviert'); renderTab(); }) }, 'Aktivieren')) : null),
+        h('div', { class: 'qa-card' },
+          h('div', { class: 'qa-card-head' }, icon('grid', 14), 'Sender-Logo aktualisieren'),
+          h('p', { class: 'qa-card-desc' }, 'JPG, PNG oder GIF'),
+          s.logo_image_url ? h('img', { src: s.logo_image_url, alt: 'Logo', class: 'lf-logo' }) : null,
+          h('div', { class: 'qa-card-actions' }, logo))));
+    return [h('div', { class: 'view-grid' }, card(`Station ${s.name}`, form), quickActions)];
   }
 
   // ---------- Live ----------
