@@ -157,7 +157,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#status-text')?.textContent?.includes('Private oder lokale Nextcloud-Adresse'), undefined, { timeout: 10_000 });
 
   // Tab neu laden, damit der persistierte fehlgeschlagene Sync-Job sichtbar wird.
-  await page.getByRole('button', { name: 'Sender-Mediathek', exact: true }).click();
+  await page.getByRole('button', { name: 'AirDeck-Bibliothek', exact: true }).click();
   await page.getByRole('button', { name: 'MusikHub', exact: true }).click();
   await page.getByRole('heading', { name: 'Letzte Cloud-Jobs', exact: true }).waitFor();
   assert.equal(await page.getByText('Synchronisierung', { exact: true }).count() >= 1, true, 'MusicHub: Sync-Job fehlt in der UI');
@@ -187,6 +187,49 @@ try {
   await page.getByText(/Smoke Song UI \[Browser Test\]/).waitFor();
 
   const editedEntry = page.locator('.mh-entry').filter({ hasText: 'Smoke Song UI' }).first();
+
+  // Remote-/Conflict-Status muss nicht nur Backend-Daten sein, sondern im MusicHub sichtbar werden.
+  await page.route(/\/api\/v1\/music-hub\/items\?/, async (route) => {
+    const reqUrl = new URL(route.request().url());
+    if (!reqUrl.searchParams.has('station')) return route.continue();
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total: 1,
+        items: [{
+          id: 'hub-ui-conflict',
+          title: 'Cloud Conflict Song',
+          artist: 'UI Artist',
+          version: 'Remote Mix',
+          revision: 3,
+          owner: { kind: 'user', id: ownerIdentity.user.id },
+          availability: { state: 'ready', sourceKind: 'nextcloud' },
+          source: {
+            kind: 'nextcloud',
+            sourceId: 'ncsrc-ui',
+            remotePath: '/Radio/Cloud Conflict Song.mp3',
+            originalName: 'Cloud Conflict Song.mp3',
+            contentType: 'audio/mpeg',
+            size: 123456,
+            modified: 'Wed, 30 Sep 2026 00:00:00 GMT',
+            localMetadataDirty: true,
+            remoteStatus: { state: 'remote_changed', checkedAt: Date.now(), remote: { size: 123999, modified: 'Wed, 30 Sep 2026 00:10:00 GMT', name: 'Cloud Conflict Song.mp3' } },
+          },
+          actions: ['catalog.read', 'preview.play', 'file.download', 'broadcast.use', 'metadata.edit', 'source.write', 'shares.manage', 'media.delete'],
+        }],
+      }),
+    });
+  });
+  await page.getByRole('button', { name: 'Suchen / Aktualisieren', exact: true }).click();
+  const conflictEntry = page.locator('.mh-entry').filter({ hasText: 'Cloud Conflict Song' }).first();
+  await conflictEntry.waitFor({ state: 'visible', timeout: 10_000 });
+  assert.equal(await conflictEntry.getByText('Remote geändert', { exact: false }).count() >= 1, true, 'MusicHub: Remote-geändert-Status fehlt in der UI');
+  assert.equal(await conflictEntry.getByText('lokale Metadaten geändert', { exact: false }).count() >= 1, true, 'MusicHub: lokaler Metadatenkonflikt fehlt in der UI');
+  assert.equal(await conflictEntry.getByRole('button', { name: 'Cloud-Version laden', exact: true }).count(), 1, 'MusicHub: kontrollierter Cloud-Refresh fehlt in der UI');
+  await page.unroute(/\/api\/v1\/music-hub\/items\?/);
+  await page.getByRole('button', { name: 'Suchen / Aktualisieren', exact: true }).click();
+  await page.getByText(/Smoke Song UI/).first().waitFor();
 
   // Broadcast- und Playlist-Aktion bis zum Backend ausführen.
   await editedEntry.getByRole('button', { name: '＋ In Queue', exact: true }).click();
