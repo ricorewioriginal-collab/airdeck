@@ -59,6 +59,23 @@ demo_user="${AIRDECK_DEMO_USER:-demo}"
 demo_pass="${AIRDECK_DEMO_PASSWORD:-airdeck-demo}"
 curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"username\":\"$demo_user\",\"name\":\"Demo\",\"password\":\"$demo_pass\",\"roles\":[\"admin\"],\"stationIds\":[\"main\"],\"mustChangePassword\":false}" "http://127.0.0.1:8751/api/v1/users" >/dev/null
 
+# MusicHub in der öffentlichen Demo mit echten vorhandenen Demo-Medien befüllen.
+# Keine Fake-Cloudquelle und keine externen Zugangsdaten: der Demo-Nutzer kann die Cloud-Dialoge selbst öffnen.
+demo_login=$(curl -fs -X POST -H "Content-Type: application/json"   -d "{\"username\":\"$demo_user\",\"password\":\"$demo_pass\"}"   "http://127.0.0.1:8751/api/v1/auth/login")
+demo_token=$(printf '%s' "$demo_login" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).token||''))")
+if [ -n "$demo_token" ]; then
+  demo_auth="Authorization: Bearer $demo_token"
+  hub_item_json=$(curl -fs -X POST -H "$demo_auth" -H "Content-Type: application/json"     -d "{\"stationId\":\"main\",\"mediaId\":\"$track_a\"}"     "http://127.0.0.1:8751/api/v1/music-hub/items")
+  hub_item_id=$(printf '%s' "$hub_item_json" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).id||''))")
+  hub_collection_json=$(curl -fs -X POST -H "$demo_auth" -H "Content-Type: application/json"     -d '{"owner":{"kind":"station","id":"main"},"name":"MusicHub Demo"}'     "http://127.0.0.1:8751/api/v1/music-hub/collections")
+  hub_collection_id=$(printf '%s' "$hub_collection_json" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).id||''))")
+  hub_collection_revision=$(printf '%s' "$hub_collection_json" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(String(JSON.parse(s).revision||1)))")
+  if [ -n "$hub_item_id" ] && [ -n "$hub_collection_id" ]; then
+    curl -fs -X PUT -H "$demo_auth" -H "Content-Type: application/json"       -d "{\"stationId\":\"main\",\"revision\":$hub_collection_revision,\"itemIds\":[\"$hub_item_id\"]}"       "http://127.0.0.1:8751/api/v1/music-hub/collections/$hub_collection_id/items" >/dev/null
+    echo "MusicHub-Demo seeded: DemoTrack-A + MusicHub Demo"
+  fi
+fi
+
 # Lokalen Icecast-Mount prüfen. Ein Fehler beendet den Reset nicht, wird aber deutlich geloggt.
 stream_ok=""
 for i in $(seq 1 20); do
