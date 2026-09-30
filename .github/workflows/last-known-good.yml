@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: airdeck-last-known-good
@@ -98,6 +99,8 @@ jobs:
 
       - name: Fehlgeschlagene Änderungen als Revert-Commit zurücknehmen
         if: env.SKIP == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -108,9 +111,23 @@ jobs:
             echo "Keine rücknehmbaren Änderungen."
             exit 0
           fi
-          git commit -m "revert: automatic rollback to last known good $GOOD [skip ci]"
-          git push origin HEAD:AirDeck-Radio-Automation-&-Broadcast
-          echo "Fehlgeschlagener Stand wurde automatisch als nachvollziehbarer Revert-Commit zurückgenommen."
+          # Direkter Push auf den geschuetzten Hauptbranch scheitert an der Repository-Regel
+          # "Changes must be made through a pull request" (GH013) - wie beim frueheren
+          # Screenshots-Job (siehe build.yml). Daher wie die anderen Automations-Workflows
+          # (changelog.yml, release-badge.yml, release-screenshots.yml) ueber einen eigenen
+          # Branch + PR einreichen, statt den Branch-Schutz zu unterlaufen. Kein "[skip ci]" mehr:
+          # der PR braucht gruene Pflicht-Checks, bevor er (auto-)gemergt werden kann. Commit- und
+          # PR-Titel bleiben identisch zur bisherigen Commit-Nachricht, damit die obige
+          # startsWith(...)-Schleifenbremse beim spaeteren Squash-Merge weiterhin greift.
+          TITLE="revert: automatic rollback to last known good $GOOD"
+          BRANCH="automation/rollback-${GOOD}-${GITHUB_RUN_ID}"
+          git switch -c "$BRANCH"
+          git commit -m "$TITLE"
+          git push origin "$BRANCH"
+          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "$TITLE" --body "Der zuletzt gebaute Stand ist fehlgeschlagen. Dieser PR nimmt die seit dem letzten erfolgreichen Build ($GOOD) hinzugekommenen Aenderungen als nachvollziehbaren Revert-Commit zurueck. Branch-Schutz und CI bleiben aktiv - bitte zeitnah pruefen und mergen.")"
+          PR_NUMBER="${PR_URL##*/}"
+          gh pr merge "$PR_NUMBER" --auto --squash || true
+          echo "::warning::Automatischer Rollback auf $GOOD als PR #${PR_NUMBER} eingereicht (Auto-Merge angefordert, greift erst nach gruenen Pflicht-Checks) - Branch-Schutz verlangt das, daher kein direkter Push."
 
   show:
     name: Last Known Good anzeigen
@@ -153,5 +170,14 @@ jobs:
           git config user.name 'AirDeck Rollback'
           git config user.email 'actions@users.noreply.github.com'
           git revert --no-commit "$GOOD..$CURRENT"
-          git commit -m "revert: rollback to last known good $GOOD [skip ci]"
-          git push origin HEAD:AirDeck-Radio-Automation-&-Broadcast
+          # Wie beim automatischen Rollback: Branch-Schutz (GH013) verbietet den direkten Push,
+          # also ueber einen eigenen Branch + PR einreichen statt den Schutz zu unterlaufen.
+          TITLE="revert: rollback to last known good $GOOD"
+          BRANCH="automation/manual-rollback-${GOOD}-${GITHUB_RUN_ID}"
+          git switch -c "$BRANCH"
+          git commit -m "$TITLE"
+          git push origin "$BRANCH"
+          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "$TITLE" --body "Manuell angeforderter Rollback auf $GOOD. Branch-Schutz und CI bleiben aktiv - bitte pruefen und mergen.")"
+          PR_NUMBER="${PR_URL##*/}"
+          gh pr merge "$PR_NUMBER" --auto --squash || true
+          echo "::warning::Manueller Rollback auf $GOOD als PR #${PR_NUMBER} eingereicht (Auto-Merge angefordert) - Branch-Schutz verlangt das, daher kein direkter Push."
