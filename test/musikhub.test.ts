@@ -231,6 +231,20 @@ test('MusikHub: persönliche Uploads bleiben privat und getrennt von Senderbibli
     })).status, 409, 'veraltete Metadatenrevision wird abgewiesen');
     assert.equal((await json(targetToken, 'GET', '/music-hub/items?station=b&q=Song')).body.total, 0, 'fremder Nutzer sieht weder Treffer noch Trefferzahl');
 
+    const futureStart = Date.now() + 60_000;
+    const delayedGrant = await json(ownerToken, 'POST', `/music-hub/item/${item.id}/grants`, {
+      stationId: 'main',
+      recipient: { kind: 'user', id: target.id },
+      actions: ['catalog.read'],
+      targetStationIds: ['b'],
+      startsAt: futureStart,
+      expiresAt: futureStart + 60_000,
+    });
+    assert.equal(delayedGrant.status, 200);
+    assert.equal(delayedGrant.body.startsAt, futureStart);
+    assert.equal((await json(targetToken, 'GET', '/music-hub/items?station=b&q=Song')).body.total, 0, 'geplanter Grant ist vor startsAt noch nicht wirksam');
+    assert.equal((await json(ownerToken, 'DELETE', `/music-hub/grants/${delayedGrant.body.id}?station=main`)).status, 204);
+
     const grant = await json(ownerToken, 'POST', `/music-hub/item/${item.id}/grants`, {
       stationId: 'main',
       recipient: { kind: 'user', id: target.id },
