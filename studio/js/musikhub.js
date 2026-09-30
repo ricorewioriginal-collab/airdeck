@@ -6,9 +6,9 @@
 // kopiert einen eigenen privaten Upload kontrolliert in das Archiv des aktuell gewählten Senders
 // (stage-Endpunkt) - macht ihn danach laut AirDeckCast-Preflight sendefähig. "An laut.fm übertragen"
 // lädt einen Titel über den verifiziert nicht deprecateten laut.fm-Upload-Endpunkt hoch (Zwei-Treffer-
-// Wiederverwendung, ehrliches "in Bearbeitung" statt erfundenem Erfolg). Beides ist noch kein Wiring in
-// Queue/Planung/Cardwall oder eine laut.fm-Playlist; dafür bietet diese Ansicht weiterhin bewusst keine
-// Buttons an.
+// Wiederverwendung, ehrliches "in Bearbeitung" statt erfundenem Erfolg) und kann ihn optional an eine
+// laut.fm-Playlist-ID anhängen. Kein Wiring in Queue/Planung/Cardwall; dafür bietet diese Ansicht
+// weiterhin bewusst keine Buttons an.
 import { formDialog, h, run, status } from './ui.js';
 
 /** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[], me: () => any}} Ctx */
@@ -158,14 +158,21 @@ export function mountMusicHub(root, ctx) {
   }
 
   /** Tatsächlicher Upload eines Hub-Titels zu laut.fm (Zwei-Treffer-Modell: eine bereits erfolgreich
-   * zugeordnete laut.fm-Track-ID wird serverseitig wiederverwendet statt erneut hochgeladen). Kein
-   * Wiring in eine laut.fm-Playlist - das bleibt ein eigener, separater Schritt. @param {any} item */
+   * zugeordnete laut.fm-Track-ID wird serverseitig wiederverwendet statt erneut hochgeladen). Optional
+   * wird der Titel danach an eine laut.fm-Playlist-ID angehängt (Radioadmin-Playlist-ID, nicht das
+   * AirDeck-eigene Playlistmodell) - ein leeres Feld überträgt nur, ohne Playlist-Zuordnung. Die
+   * Playlist-ID wird bewusst per einfacher Eingabe statt eines vorausgefüllten Dropdowns abgefragt -
+   * eine echte Playlist-Auswahl lässt sich über die bestehende laut.fm-Radioadmin-Ansicht (Reiter
+   * „Playlists") nachschlagen. @param {any} item */
   async function lautcastTransfer(item) {
     const sid = station();
+    const input = prompt(`laut.fm-Playlist-ID für „${item.title}“ (leer lassen für reine Übertragung ohne Playlist):`, '');
+    if (input === null) return;
+    const playlistId = input.trim() ? Number(input.trim()) : undefined;
+    if (playlistId !== undefined && (!Number.isInteger(playlistId) || playlistId <= 0)) return status('Ungültige Playlist-ID.', true);
     status(`„${item.title}“ wird an laut.fm übertragen …`);
-    const result = await run(() => ctx.api.post(url(`/items/${encodeURIComponent(item.id)}/lautcast-transfer`), { station: sid }));
+    const result = await run(() => ctx.api.post(url(`/items/${encodeURIComponent(item.id)}/lautcast-transfer`), { station: sid, playlistId }));
     if (!result) return;
-    if (result.ok) { status(`„${item.title}“ an laut.fm übertragen (Track-ID ${result.trackId})`); return; }
     /** @type {Record<string, string>} */
     const reasons = {
       lautcast_not_connected: 'Sender ist nicht mit laut.fm verbunden.',
@@ -174,7 +181,10 @@ export function mountMusicHub(root, ctx) {
       upload_failed: 'laut.fm hat den Upload abgelehnt.',
       processing: 'laut.fm verarbeitet den Upload noch - in Kürze erneut versuchen.',
     };
-    status(reasons[result.reason] ?? `Übertragung fehlgeschlagen (${result.reason})`, true);
+    if (!result.ok) return status(reasons[result.reason] ?? `Übertragung fehlgeschlagen (${result.reason})`, true);
+    if (playlistId === undefined) return status(`„${item.title}“ an laut.fm übertragen (Track-ID ${result.trackId})`);
+    if (result.playlistOk) return status(`„${item.title}“ an laut.fm übertragen und zur Playlist ${playlistId} hinzugefügt (Track-ID ${result.trackId})`);
+    status(`„${item.title}“ an laut.fm übertragen (Track-ID ${result.trackId}), aber Playlist-Zuordnung fehlgeschlagen`, true);
   }
 
   /** @param {any} item */
