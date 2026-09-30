@@ -644,4 +644,18 @@ export class MusicHubService {
     }
     return { imported, skipped, errors };
   }
+
+  /**
+   * „Übertragungen": nachvollziehbare Historie der eigenen MusikHub-Aktivität (Upload, Ersetzen,
+   * Löschen, Freigaben, Sammlungen, Nextcloud-Quelle) - liest aus dem bereits vorhandenen Audit-Log
+   * (kein neuer Speicher), gefiltert auf `kind: 'musikhub'` und den eigenen Akteur. Wie der bestehende
+   * globale `/api/v1/audit`-Endpunkt auf die zuletzt 500 protokollierten Einträge im Speicher begrenzt -
+   * das ist eine „zuletzt gesehen"-Ansicht, keine vollständige, unbegrenzte Historie.
+   */
+  myTransfers(p: Principal): unknown[] {
+    const userId = this.requireUserId(p);
+    return this.app.audit.tail(500)
+      .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object' && (e as Record<string, unknown>).kind === 'musikhub' && (e as Record<string, unknown>).actor === userId)
+      .reverse();
+  }
 }

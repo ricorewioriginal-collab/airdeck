@@ -19,6 +19,7 @@ export function mountMusicHub(root, ctx) {
   /** @type {{usedBytes: number, quotaBytes: number} | null} */ let quota = null;
   /** @type {any} */ let ncSource = null;
   /** @type {{path: string, entries: any[]} | null} */ let ncBrowse = null;
+  /** @type {any[]} */ let transfers = [];
 
   const station = () => ctx.stationId();
   const myId = () => ctx.me()?.user?.id ?? null;
@@ -30,17 +31,19 @@ export function mountMusicHub(root, ctx) {
   async function load() {
     const sid = station();
     const loggedIn = !!myId();
-    const [catalog, groups, quotaResult, ncResult] = await Promise.all([
+    const [catalog, groups, quotaResult, ncResult, transfersResult] = await Promise.all([
       ctx.api.get(url(`/items?station=${encodeURIComponent(sid)}&q=${encodeURIComponent(query)}&offset=${page * 50}&limit=50`)),
       ctx.api.get(url(`/collections?station=${encodeURIComponent(sid)}`)),
       loggedIn ? ctx.api.get(url('/uploads/quota')).catch(() => null) : Promise.resolve(null),
       loggedIn ? ctx.api.get(url('/nextcloud')).catch(() => null) : Promise.resolve(null),
+      loggedIn ? ctx.api.get(url('/transfers')).catch(() => []) : Promise.resolve([]),
     ]);
     items = catalog.items;
     total = catalog.total;
     collections = groups;
     quota = quotaResult;
     ncSource = ncResult;
+    transfers = transfersResult ?? [];
     render();
   }
 
@@ -278,7 +281,28 @@ export function mountMusicHub(root, ctx) {
       h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sender-Titel katalogisieren')),
         h('p', { class: 'muted' }, 'Die vorhandene Senderdatei bleibt an ihrem Speicherort. Eine Katalogfreigabe stellt noch keinen Dateiabruf und keine Sendebereitstellung für andere Sender bereit.'),
         unregistered.length ? h('ul', { class: 'plain-list' }, ...unregistered.slice(0, 100).map((m) => h('li', { class: 'mh-entry' }, `${m.artist ? m.artist + ' – ' : ''}${m.title} `, h('button', { class: 'btn small', onclick: () => register(m) }, 'Katalogisieren')))) : h('p', { class: 'muted' }, 'Keine weiteren Titel in der aktuellen Senderbibliothek.')),
-      myId() ? nextcloudPanel() : null);
+      myId() ? nextcloudPanel() : null,
+      myId() ? transfersPanel() : null);
+  }
+
+  /** Nur-Lese-Verlauf der eigenen Aktivität (Upload, Ersetzen, Löschen, Freigaben, Sammlungen,
+   * Cloud-Quelle) aus dem bestehenden Audit-Log - keine neue Datenhaltung, keine Aktionen hier. */
+  function transfersPanel() {
+    /** @type {Record<string, string>} */
+    const labels = {
+      item_uploaded: 'Hochgeladen', item_source_replaced: 'Ersetzt', item_deleted: 'Gelöscht',
+      item_registered: 'Sendertitel katalogisiert', grant_created: 'Freigabe erteilt', grant_revoked: 'Freigabe widerrufen',
+      collection_created: 'Sammlung angelegt', collection_items_changed: 'Sammlung geändert',
+      nextcloud_source_configured: 'Cloud-Quelle konfiguriert',
+    };
+    return h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Übertragungen (eigene Aktivität)')),
+      transfers.length
+        ? h('ul', { class: 'plain-list' }, ...transfers.slice(0, 50).map((t) => h('li', { class: 'mh-entry' },
+            h('span', { class: 'muted' }, new Date(t.at).toLocaleString('de-DE')), ' · ',
+            h('strong', {}, labels[t.event] ?? t.event),
+            t.sizeBytes ? h('span', { class: 'muted' }, ` · ${mb(t.sizeBytes)}`) : null,
+            t.version ? h('span', { class: 'muted' }, ` · v${t.version}`) : null)))
+        : h('p', { class: 'muted' }, 'Noch keine eigene Aktivität aufgezeichnet.'));
   }
 
   /** Eigene (persönliche) Nextcloud-Quelle für "Mein Archiv" - getrennt von jeder Sender-Cloud-Anbindung.
