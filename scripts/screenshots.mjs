@@ -85,6 +85,31 @@ if (!existingItems.some((item) => item.title === 'Screenshot Song')) {
   if (!upload.ok) throw new Error(`MusicHub-Screenshot-Titel konnte nicht angelegt werden: HTTP ${upload.status}`);
 }
 
+const screenshotSourcesResponse = await fetch(base + '/api/v1/stations/main/music-hub/nextcloud/sources', {
+  headers: { Authorization: `Bearer ${screenshotToken}` },
+});
+const screenshotSources = screenshotSourcesResponse.ok ? await screenshotSourcesResponse.json() : [];
+if (!screenshotSources.some((source) => source.name === 'Screenshot Cloud')) {
+  const sourceCreate = await fetch(base + '/api/v1/stations/main/music-hub/nextcloud/sources', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${screenshotToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ownerKind: 'user',
+      name: 'Screenshot Cloud',
+      url: 'https://cloud.example.invalid',
+      user: 'demo',
+      root: '/Radio',
+      password: ['screenshot', 'cloud', 'fixture', '1'].join('-'),
+      syncEnabled: false,
+      syncIntervalMinutes: 60,
+      syncQuotaBytes: 2 * 1024 * 1024 * 1024,
+      syncMaxFileBytes: 500 * 1024 * 1024,
+      allowPrivateNetwork: false,
+    }),
+  });
+  if (!sourceCreate.ok) throw new Error(`MusicHub-Screenshot-Cloud konnte nicht angelegt werden: HTTP ${sourceCreate.status}`);
+}
+
 await page.evaluate((t) => localStorage.setItem('airdeck.token', t), screenshotToken);
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.locator('[data-nav-section="media"]').evaluate((el) => { /** @type {HTMLDetailsElement} */ (el).open = true; });
@@ -98,6 +123,12 @@ await page.getByText(/Screenshot Song/).first().waitFor({ state: 'visible', time
 await page.waitForTimeout(350);
 await page.setViewportSize({ width: 1600, height: 1050 });
 await page.screenshot({ path: new URL('view-musikhub.png', out).pathname, fullPage: false });
+
+await page.getByRole('button', { name: '＋ Nextcloud', exact: true }).click();
+await page.getByRole('heading', { name: 'Nextcloud-Quelle anlegen', exact: true }).waitFor();
+await page.screenshot({ path: new URL('view-musikhub-cloud-dialog.png', out).pathname, fullPage: false });
+await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+
 await page.setViewportSize({ width: 520, height: 900 });
 await page.waitForTimeout(250);
 await page.screenshot({ path: new URL('view-musikhub-mobile.png', out).pathname, fullPage: true });
