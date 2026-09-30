@@ -144,6 +144,40 @@ export class LautfmService {
     return res;
   }
 
+  /**
+   * Radioadmin-Anfrage mit multipart/form-data-Body (z. B. Track-Upload) - eigener Pfad neben
+   * radioadmin(), da dieser den Body als JSON serialisiert. Content-Type inkl. Boundary setzt
+   * die Fetch-Implementierung selbst anhand des FormData-Objekts.
+   */
+  async radioadminMultipart(stationId: string, path: string, form: FormData): Promise<{ status: number; data: unknown }> {
+    const token = this.lautfmToken(stationId);
+    if (!token) throw new AppError(409, 'no_token', 'Kein laut.fm-Radioadmin-Token hinterlegt');
+    const send = async (origin: string) => {
+      const r = await fetch(RADIOADMIN + path, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, Origin: origin, Accept: 'application/json', 'User-Agent': 'AirDeck' },
+        body: form,
+        signal: AbortSignal.timeout(60_000),
+      }).catch(() => {
+        throw new AppError(502, 'upstream_unreachable', 'laut.fm nicht erreichbar');
+      });
+      const text = await r.text();
+      let data: unknown = text;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // Text-Antwort
+      }
+      return { status: r.status, data };
+    };
+    const res = await send(this.lautfmConfig(stationId).origin);
+    if (res.status === 401 || res.status === 403) {
+      const c = await this.check(stationId);
+      if (c.ok && c.origin !== undefined) return send(c.origin);
+    }
+    return res;
+  }
+
   /** GET /stations/{id}/live (+ ggf. /live/password) mit einem beliebigen Token/Origin abfragen. */
   private async fetchLive(token: string, origin: string, lautfmStationId: number): Promise<{ server: string; port?: number; mountpoint: string; user?: string; password: string; protocol?: string }> {
     const send = async (path: string) => {
