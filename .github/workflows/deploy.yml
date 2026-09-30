@@ -59,7 +59,17 @@ jobs:
           quoted_path=$(printf '%q' "$DEPLOY_PATH")
           ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" "bash -se -- $quoted_path $quoted_ref" <<'REMOTE'
             set -euo pipefail
-            trap 'echo "::error::Rollout abgebrochen bei Zeile $LINENO" >&2; docker compose -f packaging/demo/docker-compose.demo.yml logs --tail=80 airdeck-demo </dev/null >&2 || true' ERR
+            # AirDeck zeigt Admin-Einmalpasswort/-Token beim ersten Start (bzw. nach jedem Demo-Reset)
+            # im Container-Log an (siehe docker-compose.yml) - fuer den lokalen Betreiber gedacht, nicht
+            # fuer ein geteiltes CI-Log. Der Debug-Dump im ERR-Trap ersetzt Label- und Wertzeile.
+            redact_demo_logs() {
+              docker compose -f packaging/demo/docker-compose.demo.yml logs --tail=80 airdeck-demo </dev/null 2>&1 | awk '
+                /Einmal-Passwort|Admin-Token/ { print; getline; print "  [redigiert]"; next }
+                /Studio (o|ö)ffnen:.*#token=/ { print "  Studio oeffnen: [redigiert - enthielt Admin-Token]"; next }
+                { print }
+              '
+            }
+            trap 'echo "::error::Rollout abgebrochen bei Zeile $LINENO" >&2; redact_demo_logs >&2 || true' ERR
             umask 077
             cd "$1"
             deploy_ref="$2"
