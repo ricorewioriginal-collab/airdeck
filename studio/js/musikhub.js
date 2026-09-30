@@ -15,21 +15,27 @@ export function mountMusicHub(root, ctx) {
   /** @type {any[]} */ let items = [];
   /** @type {any[]} */ let collections = [];
   let total = 0;
+  /** @type {{usedBytes: number, quotaBytes: number} | null} */ let quota = null;
 
   const station = () => ctx.stationId();
   const myId = () => ctx.me()?.user?.id ?? null;
   /** @param {string} p */
   const url = (p) => `/music-hub${p}`;
+  /** @param {number} bytes */
+  const mb = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
   async function load() {
     const sid = station();
-    const [catalog, groups] = await Promise.all([
+    const loadQuota = myId() ? ctx.api.get(url('/uploads/quota')).catch(() => null) : Promise.resolve(null);
+    const [catalog, groups, quotaResult] = await Promise.all([
       ctx.api.get(url(`/items?station=${encodeURIComponent(sid)}&q=${encodeURIComponent(query)}&offset=${page * 50}&limit=50`)),
       ctx.api.get(url(`/collections?station=${encodeURIComponent(sid)}`)),
+      loadQuota,
     ]);
     items = catalog.items;
     total = catalog.total;
     collections = groups;
+    quota = quotaResult;
     render();
   }
 
@@ -42,6 +48,11 @@ export function mountMusicHub(root, ctx) {
 
   /** Persönlicher Upload: landet nie in einem Senderarchiv, geschlossener Standardzugriff bis der Eigentümer selbst freigibt. @param {File} file */
   async function uploadPrivate(file) {
+    // Client-seitiger Vorabhinweis spart eine aussichtslose Übertragung; die maßgebliche Prüfung
+    // bleibt serverseitig (registerUpload()), da quota hier veraltet sein kann.
+    if (quota && quota.usedBytes + file.size > quota.quotaBytes) {
+      return status(`„${file.name}“ überschreitet das verbleibende Speicherkontingent (${mb(Math.max(0, quota.quotaBytes - quota.usedBytes))} übrig von ${mb(quota.quotaBytes)}).`, true);
+    }
     status(`„${file.name}“ wird hochgeladen …`);
     const result = await run(() => ctx.api.put(`${url('/uploads')}?name=${encodeURIComponent(file.name)}`, file));
     if (!result) return;
@@ -158,7 +169,8 @@ export function mountMusicHub(root, ctx) {
         h('button', { class: 'btn small', onclick: () => run(load) }, 'Suchen / Aktualisieren'),
         h('button', { class: 'btn small primary', onclick: () => uploadInput.click() }, '＋ Eigenen Titel hochladen'),
         uploadInput,
-        h('span', { class: 'muted', role: 'status' }, `${total} sichtbare Titel insgesamt`)),
+        h('span', { class: 'muted', role: 'status' }, `${total} sichtbare Titel insgesamt`),
+        quota ? h('span', { class: 'muted', role: 'status' }, ` · Eigenes Archiv: ${mb(quota.usedBytes)} von ${mb(quota.quotaBytes)} belegt`) : null),
       h('div', { class: 'row mh-filters' },
         ...[['all', 'Alle'], ['station', 'Senderarchiv'], ['mine', 'Mein Archiv'], ['shared', 'Mit mir geteilt']].map(([id, label]) => h('button', { class: `btn small${filter === id ? ' primary' : ''}`, 'aria-pressed': String(filter === id), onclick: () => { filter = id; render(); } }, label))),
       h('div', { class: 'mh-grid' },
