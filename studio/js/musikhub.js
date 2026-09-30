@@ -1,9 +1,11 @@
 // @ts-check
-// MusikHub Phase 1+2+3(Beginn): echter, serverseitig gefilterter Katalog mit Sammlungen, expliziten
-// Freigaben, eigenem privaten Audio-Upload mit getrenntem Vorhören/Download-Recht sowie einer eigenen
-// Nextcloud-Quelle je Nutzerkonto (Ordneransicht + Einzeldatei-Übernahme, kein rekursiver Vollscan,
-// kein Job-/Sync-System). Sendebus-Anbindung (Phase 4) folgt in einer eigenen Phase - deshalb bietet
-// diese Ansicht dafür bewusst keine Buttons an.
+// MusikHub Phase 1+2+3(Beginn)+4(Bereitstellung): echter, serverseitig gefilterter Katalog mit
+// Sammlungen, expliziten Freigaben, eigenem privaten Audio-Upload mit getrenntem Vorhören/Download-Recht
+// sowie einer eigenen Nextcloud-Quelle je Nutzerkonto (Ordneransicht + Einzeldatei-Übernahme, kein
+// rekursiver Vollscan, kein Job-/Sync-System). "Für Sender bereitstellen" kopiert einen eigenen privaten
+// Upload kontrolliert in das Archiv des aktuell gewählten Senders (stage-Endpunkt) - macht ihn danach laut
+// AirDeckCast-Preflight sendefähig, ist aber selbst noch kein Wiring in Queue/Planung/Cardwall; dafür
+// bietet diese Ansicht weiterhin bewusst keine Buttons an.
 import { formDialog, h, run, status } from './ui.js';
 
 /** @typedef {{api: import('./api.js').Api, stationId: () => string, library: () => any[], me: () => any}} Ctx */
@@ -139,6 +141,19 @@ export function mountMusicHub(root, ctx) {
     await run(load);
   }
 
+  /** Kontrolliertes Kopieren eines eigenen privaten Uploads in das Archiv des aktuell gewählten Senders -
+   * erst danach ist der Titel laut AirDeckCast-Preflight für diesen Sender sendefähig. Der ursprüngliche
+   * private Upload bleibt davon unverändert bestehen (physische Kopie, kein Verschieben). @param {any} item */
+  async function stageItem(item) {
+    const sid = station();
+    if (!confirm(`„${item.title}“ in das Archiv von Sender „${sid}“ kopieren? Der private Originaltitel bleibt dabei unverändert erhalten.`)) return;
+    status(`„${item.title}“ wird für Sender „${sid}“ bereitgestellt …`);
+    const result = await run(() => ctx.api.post(url(`/items/${encodeURIComponent(item.id)}/stage`), { station: sid }));
+    if (!result) return;
+    status(`„${item.title}“ im Archiv von Sender „${sid}“ bereitgestellt und sendefähig`);
+    await run(load);
+  }
+
   /** @param {any} item */
   async function deleteItem(item) {
     if (!confirm(`„${item.title}“ endgültig aus dem MusikHub entfernen? Freigaben und Sammlungseinträge gehen dabei ebenfalls verloren.`)) return;
@@ -248,6 +263,7 @@ export function mountMusicHub(root, ctx) {
       if (item.actions.includes('file.download')) row.append(h('a', { class: 'btn small', href: ctx.api.musicHubUrl(item.id, 'download', sid), download: true }, 'Herunterladen'));
       if (isStationOwn(item) && item.actions.includes('media.upload')) row.append(h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung'));
       if (mine(item) && item.source?.kind === 'upload' && item.actions.includes('source.write')) row.append(h('button', { class: 'btn small', onclick: () => { replaceTarget = item; replaceInput.click(); } }, 'Ersetzen'));
+      if (mine(item) && item.source?.kind === 'upload' && item.actions.includes('broadcast.use')) row.append(h('button', { class: 'btn small', onclick: () => stageItem(item) }, `Für „${sid}“ bereitstellen`));
       if ((mine(item) || isStationOwn(item)) && item.actions.includes('media.delete')) row.append(h('button', { class: 'btn small danger', onclick: () => deleteItem(item) }, 'Löschen'));
       return row.childNodes.length ? row : null;
     }
