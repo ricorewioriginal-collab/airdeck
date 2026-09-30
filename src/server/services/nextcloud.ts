@@ -72,6 +72,8 @@ const HUB_NC_MAX_DIRS = 500;
 const HUB_NC_MAX_JOBS = 500;
 const HUB_NC_REQUEST_TIMEOUT_MS = 30_000;
 const HUB_NC_SCAN_TIMEOUT_MS = 60_000;
+const HUB_NC_SYNC_TIMEOUT_MS = 10 * 60_000;
+const HUB_NC_MAX_SYNC_FILES = 100;
 const HUB_NC_MAX_DEPTH = 5;
 const HUB_NC_DEFAULT_QUOTA = 2 * 1024 * 1024 * 1024;
 const HUB_NC_DEFAULT_MAX_FILE = 500 * 1024 * 1024;
@@ -537,13 +539,20 @@ export class NextcloudService {
     let skippedUnchanged = 0;
     let skippedQuota = 0;
     let skippedTooLarge = 0;
+    let deferred = 0;
+    const deadline = start + HUB_NC_SYNC_TIMEOUT_MS;
     try {
       await this.scanHubNextcloudSource(p, stationId, sourceId, true);
       const entries = this.hubNextcloudIndex(p, stationId, sourceId) as HubNextcloudEntry[];
       const synced = this.app.svc.musikhub.nextcloudSyncState(sourceId);
       let usedBytes = [...synced.values()].reduce((sum, x) => sum + x.size, 0);
 
-      for (const entry of entries) {
+      for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
+        const entry = entries[entryIndex]!;
+        if (imported >= HUB_NC_MAX_SYNC_FILES || Date.now() > deadline) {
+          deferred = entries.length - entryIndex;
+          break;
+        }
         const current = synced.get(entry.path);
         if (current && current.size === entry.size && current.modified === entry.modified) {
           skippedUnchanged++;
@@ -573,15 +582,17 @@ export class NextcloudService {
         liveSource.syncFailures = 0;
         liveSource.offlineUntil = null;
         liveSource.lastError = null;
-        liveSource.nextSyncAt = liveSource.syncEnabled ? now + liveSource.syncIntervalMinutes * 60_000 : null;
+        liveSource.nextSyncAt = liveSource.syncEnabled
+          ? (deferred > 0 ? now + 60_000 : now + liveSource.syncIntervalMinutes * 60_000)
+          : null;
         liveSource.updatedAt = now;
       }
       if (liveJob) {
         liveJob.status = 'done';
         liveJob.files = imported;
         liveJob.updatedAt = now;
-        liveJob.error = skippedQuota || skippedTooLarge
-          ? `${skippedQuota} wegen Quote, ${skippedTooLarge} wegen Dateigröße übersprungen`
+        liveJob.error = skippedQuota || skippedTooLarge || deferred
+          ? `${skippedQuota} wegen Quote, ${skippedTooLarge} wegen Dateigröße übersprungen, ${deferred} für nächsten Lauf vorgemerkt`
           : null;
       }
       state.jobs = state.jobs.slice(-HUB_NC_MAX_JOBS);
@@ -589,9 +600,9 @@ export class NextcloudService {
       await this.app.docs.flush();
       this.app.audit.write({
         kind: 'musikhub', event: 'cloud_sync_done', actor: p.user?.id ?? p.id, sourceId,
-        imported, skippedUnchanged, skippedQuota, skippedTooLarge, automatic,
+        imported, skippedUnchanged, skippedQuota, skippedTooLarge, deferred, automatic,
       });
-      return { imported, skippedUnchanged, skippedQuota, skippedTooLarge, usedBytes, quotaBytes: source.syncQuotaBytes };
+      return { imported, skippedUnchanged, skippedQuota, skippedTooLarge, deferred, usedBytes, quotaBytes: source.syncQuotaBytes };
     } catch (err) {
       state = this.hubState();
       const liveSource = state.sources.find((x) => x.id === sourceId);
