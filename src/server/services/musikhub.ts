@@ -60,6 +60,8 @@ interface HubState { version: 1; items: HubItem[]; collections: HubCollection[];
 const READ_ACTIONS = new Set<HubAction>(['catalog.read', 'preview.play', 'file.download']);
 const BROADCAST_ACTIONS = new Set<HubAction>(['broadcast.use']);
 const MAX_COLLECTION_ITEMS = 5000;
+/** Gesamtkontingent privater Uploads je Nutzerkonto (nicht je Datei) - schützt Plattenspeicher vor unbegrenztem persönlichem Archiv. */
+export const MAX_USER_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 const hasScope = (p: Principal, scope: string) => p.scopes.includes('*') || p.scopes.includes(scope);
 const validAction = (value: unknown): value is HubAction => typeof value === 'string' && (HUB_ACTIONS as readonly string[]).includes(value);
 const same = (a: HubSubject, b: HubSubject) => a.kind === b.kind && a.id === b.id;
@@ -213,6 +215,13 @@ export class MusicHubService {
     return p.user.id;
   }
 
+  /** Bereits verbrauchtes und zulässiges Gesamtvolumen privater Uploads - Kontingent gilt je Konto, nicht je Datei. */
+  uploadQuota(p: Principal): { usedBytes: number; quotaBytes: number } {
+    const userId = this.requireUserId(p);
+    const usedBytes = this.state.items.reduce((sum, item) => sum + (item.owner.kind === 'user' && item.owner.id === userId && item.source.kind === 'upload' ? item.source.sizeBytes : 0), 0);
+    return { usedBytes, quotaBytes: MAX_USER_UPLOAD_BYTES };
+  }
+
   /** Zielpfad für einen neuen privaten Upload festlegen, bevor die HTTP-Schicht die Bytes dorthin streamt. */
   preparePrivateUpload(p: Principal, ext: string): { id: string; file: string; absolutePath: string } {
     const userId = this.requireUserId(p);
@@ -238,6 +247,13 @@ export class MusicHubService {
   async registerUpload(p: Principal, id: string, file: string, mimeType: string, sizeBytes: number, titleInput: unknown, artistInput: unknown): Promise<HubItem> {
     const userId = this.requireUserId(p);
     if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    // Maßgebliche Prüfung anhand der tatsächlich geschriebenen Bytes - der Content-Length-Vorabcheck
+    // der HTTP-Schicht spart nur Bandbreite, ersetzt diese Kontrolle aber nicht.
+    const { usedBytes, quotaBytes } = this.uploadQuota(p);
+    if (usedBytes + sizeBytes > quotaBytes) {
+      rmSync(join(this.uploadDir(userId), file), { force: true });
+      throw new AppError(413, 'quota_exceeded', `Speicherkontingent überschritten (${Math.round(quotaBytes / 1024 / 1024)} MB)`);
+    }
     const title = String(titleInput ?? '').trim().slice(0, 200) || file;
     const artist = String(artistInput ?? '').trim().slice(0, 200);
     const item: HubItem = { id, owner: { kind: 'user', id: userId }, source: { kind: 'upload', file, mimeType, sizeBytes }, title, artist, version: null, createdAt: Date.now(), revision: 1 };

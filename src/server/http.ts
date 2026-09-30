@@ -289,23 +289,28 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('DELETE', '/api/v1/music-hub/grants/:id', 'media:write', async (c) => app.svc.musikhub.revokeGrant(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
   // Privater Upload: landet nie in einem Senderarchiv, Eigentümer ist ausschließlich der hochladende
   // Nutzer. Direkt an den vorgesehenen Zielpfad streamen (keine Zwischenkopie im Speicher).
+  add('GET', '/api/v1/music-hub/uploads/quota', 'media:write', (c) => app.svc.musikhub.uploadQuota(c.p));
   add('PUT', '/api/v1/music-hub/uploads', 'media:write', async (c) => {
     const name = String(c.url.searchParams.get('name') ?? '').slice(0, 200);
     const ext = extname(name).toLowerCase();
     if (!AUDIO_EXT[ext]) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${Object.keys(AUDIO_EXT).join(', ')})`);
     const len = Number(c.req.headers['content-length'] ?? 0);
     if (len > MAX_UPLOAD) throw new AppError(413, 'too_large', 'Datei zu groß');
+    // Vorabprüfung anhand der Kontingent-Zahlen von vor dem Stream-Start: spart Bandbreite bei einem
+    // von vornherein aussichtslosen Upload. Die maßgebliche Prüfung folgt in registerUpload().
+    const quota = app.svc.musikhub.uploadQuota(c.p);
+    if (len > 0 && quota.usedBytes + len > quota.quotaBytes) throw new AppError(413, 'quota_exceeded', `Speicherkontingent überschritten (${Math.round(quota.quotaBytes / 1024 / 1024)} MB)`);
     const { id, file, absolutePath } = app.svc.musikhub.preparePrivateUpload(c.p, ext);
     let size = 0;
     c.req.on('data', (d: Buffer) => {
       size += d.length;
-      if (size > MAX_UPLOAD) c.req.destroy(new Error('too_large'));
+      if (size > MAX_UPLOAD || quota.usedBytes + size > quota.quotaBytes) c.req.destroy(new Error('too_large'));
     });
     try {
       await pipeline(c.req, createWriteStream(absolutePath, { mode: 0o600 }));
     } catch {
       app.svc.musikhub.discardUpload(c.p.user?.id ?? c.p.id, file);
-      throw new AppError(413, 'upload_failed', 'Upload abgebrochen oder zu groß');
+      throw new AppError(413, 'upload_failed', 'Upload abgebrochen, Kontingent überschritten oder zu groß');
     }
     const meta = parseFileName(name);
     return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, meta.title || name, meta.artist);
