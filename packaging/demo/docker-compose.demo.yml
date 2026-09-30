@@ -23,6 +23,13 @@ services:
       TZ: Europe/Berlin
       AIRDECK_DB: sqlite
       AIRDECK_DEMO_PUBLIC_STREAM_URL: https://airdeck-demo.ricorewi-radio.de/stream/airdeck-demo.mp3
+    # Begrenzt, wie lange das einmalige Admin-Einmalpasswort/-Token (siehe docker-compose.yml) nach
+    # einem Neustart/Reset im Container-Log wiederauffindbar bleibt.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   airdeck-demo-data:
