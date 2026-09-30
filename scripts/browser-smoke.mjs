@@ -164,8 +164,8 @@ try {
   assert.equal(await page.getByText(/fehlgeschlagen/).count() >= 1, true, 'MusicHub: fehlgeschlagener Jobstatus fehlt');
 
   // Persönlicher Upload wird wirklich durch den Browser ausgelöst.
-  const personalUpload = page.locator('#view-mediathek input[type="file"]').first();
-  assert.equal(await personalUpload.count(), 1, 'MusicHub: persönlicher Upload fehlt');
+  const personalUpload = page.getByLabel('Persönliche Musik hochladen', { exact: true });
+  assert.equal(await personalUpload.count(), 1, 'MusicHub: persönlicher Upload fehlt oder ist nicht eindeutig');
   await personalUpload.setInputFiles({
     name: 'Smoke Artist - Smoke Song.mp3',
     mimeType: 'audio/mpeg',
