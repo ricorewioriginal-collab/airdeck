@@ -201,7 +201,7 @@ export function mountMusicHub(root, ctx) {
 
   async function editMetadata(item) {
     const value = await formDialog('MusicHub-Metadaten', [
-      { name: 'title', label: 'Titel', value: item.title, required: true },
+      { name: 'title', label: 'MusicHub-Titel', value: item.title, required: true },
       { name: 'artist', label: 'Interpret', value: item.artist || '' },
       { name: 'version', label: 'Version / Mix', value: item.version || '', hint: 'z. B. Radio Edit, Instrumental, 2026 Remaster' },
     ], 'Speichern');
