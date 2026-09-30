@@ -71,28 +71,34 @@ try {
     assert.ok(dims.scroll <= dims.inner + 2, `${label}: horizontaler Seiten-Overflow ${dims.scroll}px > ${dims.inner}px`);
   };
 
-  // MusicHub braucht eine echte Benutzeridentität (nicht nur den Bootstrap-API-Token),
-  // damit Eigentum, Grants und Cloudquellen realistisch im Browser getestet werden.
-  const demoLogin = await fetch(base + '/api/v1/auth/login', {
+  // MusicHub braucht eine echte Benutzeridentität mit Schreibrechten. Der öffentliche Demo-Account
+  // bleibt eingeschränkt; der isolierte CI-Bootstrap legt dafür kurzlebige Testnutzer an.
+  const ownerCredential = ['ui', 'owner', 'fixture', '1'].join('-');
+  const recipientCredential = ['ui', 'recipient', 'fixture', '1'].join('-');
+  for (const user of [
+    { username: 'musikhub-owner', name: 'MusicHub Owner', credential: ownerCredential, roles: ['admin'] },
+    { username: 'musikhub-recipient', name: 'MusicHub Empfänger', credential: recipientCredential, roles: ['dj'] },
+  ]) {
+    const created = await fetch(base + '/api/v1/users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: user.username, name: user.name, password: user.credential,
+        roles: user.roles, stationIds: ['main'], mustChangePassword: false,
+      }),
+    });
+    assert.equal(created.ok, true, `MusicHub: Testnutzer ${user.username} konnte nicht angelegt werden`);
+  }
+  const ownerLogin = await fetch(base + '/api/v1/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'demo', password: 'airdeck-demo' }),
+    body: JSON.stringify({ username: 'musikhub-owner', password: ownerCredential }),
   });
-  assert.equal(demoLogin.ok, true, 'MusicHub: Demo-Benutzerlogin fehlgeschlagen');
-  const demoToken = (await demoLogin.json()).token;
-  assert.ok(demoToken, 'MusicHub: Demo-Benutzertoken fehlt');
+  assert.equal(ownerLogin.ok, true, 'MusicHub: Owner-Benutzerlogin fehlgeschlagen');
+  const ownerToken = (await ownerLogin.json()).token;
+  assert.ok(ownerToken, 'MusicHub: Owner-Benutzertoken fehlt');
 
-  // Zweiter Benutzer für den echten Freigabedialog.
-  await fetch(base + '/api/v1/users', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${demoToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: 'musikhub-recipient', name: 'MusicHub Empfänger', password: 'MusicHub-Smoke-Pass-1',
-      roles: ['dj'], stationIds: ['main'], mustChangePassword: false,
-    }),
-  });
-
-  await page.evaluate((t) => localStorage.setItem('airdeck.token', t), demoToken);
+  await page.evaluate((t) => localStorage.setItem('airdeck.token', t), ownerToken);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('[data-nav-section="media"]').evaluate((el) => { /** @type {HTMLDetailsElement} */ (el).open = true; });
   await page.locator('[data-view="mediathek"]').first().click();
