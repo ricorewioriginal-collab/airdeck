@@ -84,7 +84,7 @@ export function mountMusicHub(root, ctx) {
       {},
     ));
     if (!result) return;
-    status(`Sync abgeschlossen: ${result.imported} aktualisiert, ${result.skippedUnchanged} unverändert, ${result.skippedQuota} wegen Quote übersprungen`);
+    status(`Sync abgeschlossen: ${result.imported} aktualisiert, ${result.skippedUnchanged} unverändert, ${result.skippedQuota} wegen Quote übersprungen${result.deferred ? `, ${result.deferred} für nächsten Lauf vorgemerkt` : ''}`);
     cloudIndexes.delete(source.id);
     await run(load);
   }
