@@ -174,8 +174,8 @@ try {
   await page.getByText(/Smoke Song/).first().waitFor();
 
   const smokeEntry = page.locator('.mh-entry').filter({ hasText: 'Smoke Song' }).first();
-  for (const action of ['▶ Vorhören', '↓ Download', '＋ In Queue', '＋ Playlist', 'Metadaten', 'Freigeben', 'Freigaben', 'In Sammlung', 'Löschen']) {
-    assert.equal(await smokeEntry.getByRole('button', { name: action, exact: true }).count(), 1, `MusicHub Titel-Aktion fehlt: ${action}`);
+  for (const action of ['Cover', 'Vorhören', 'Download', 'In Queue', 'Playlist', 'Metadaten', 'Freigeben', 'Freigaben', 'In Sammlung', 'Löschen']) {
+    assert.equal(await smokeEntry.getByRole('button', { name: new RegExp(action) }).count(), 1, `MusicHub Titel-Aktion fehlt: ${action}`);
   }
 
   // Metadaten-Dialog tatsächlich bearbeiten.
