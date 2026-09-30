@@ -183,8 +183,8 @@ button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none !important
 .deck-remain { font-size: 17px; font-weight: 700; }
 .deck-remain.warn { color: var(--amber); }
 .deck-remain.end { color: var(--red); animation: pulse 1s infinite; }
-.vu-deck { width: 8px; height: 58px; border-radius: 4px; background: #0a1427; overflow: hidden; display: flex; align-items: flex-end; }
-.vu-deck i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, var(--green) 0 65%, var(--amber) 65% 85%, var(--red) 85%); transition: height .08s linear; }
+.vu-deck { width: 8px; height: 58px; border-radius: 4px; background: #0a1427; overflow: hidden; display: flex; align-items: flex-end; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04); }
+.vu-deck i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, var(--green) 0 65%, var(--amber) 65% 85%, var(--red) 85%); box-shadow: 0 0 8px 1px rgba(34, 197, 94, .5); transition: height .08s linear; }
 .progress { height: 5px; margin: 0 10px; background: rgba(255, 255, 255, .08); border-radius: 3px; overflow: hidden; cursor: pointer; }
 .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--c), color-mix(in srgb, var(--c) 40%, #fff)); box-shadow: 0 0 8px var(--c); }
 .deck-ctrl { display: flex; gap: 5px; align-items: center; padding: 9px 10px 6px; }
@@ -266,8 +266,8 @@ table.list { width: 100%; border-collapse: collapse; }
 .quick button:hover { border-color: var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--c) 35%, transparent); }
 .quick button .ico { color: var(--c); }
 .lv-body { display: grid; grid-template-columns: 14px auto 1fr; gap: 12px; align-items: center; }
-.vu-v { width: 10px; height: 76px; border-radius: 5px; background: #0a1427; overflow: hidden; display: flex; align-items: flex-end; }
-.vu-v i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, var(--green) 0 65%, var(--amber) 65% 85%, var(--red) 85%); transition: height .08s linear; }
+.vu-v { width: 10px; height: 76px; border-radius: 5px; background: #0a1427; overflow: hidden; display: flex; align-items: flex-end; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04); }
+.vu-v i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, var(--green) 0 65%, var(--amber) 65% 85%, var(--red) 85%); box-shadow: 0 0 8px 1px rgba(34, 197, 94, .5); transition: height .08s linear; }
 .mic-btn { width: 76px; height: 76px; border-radius: 50%; border: 2px solid rgba(47, 140, 255, .6); background: radial-gradient(circle at 35% 30%, #4aa3ff, #1d5fd0); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 24px rgba(47, 140, 255, .45); }
 .mic-btn.on { background: radial-gradient(circle at 35% 30%, #ff6b6b, #c81e1e); border-color: #ff8a8a; box-shadow: 0 0 28px rgba(239, 68, 68, .6); animation: pulse 1.4s infinite; }
 .lv-side { display: flex; flex-direction: column; gap: 6px; }
@@ -289,14 +289,14 @@ table.list { width: 100%; border-collapse: collapse; }
 .po-actions { display: flex; gap: 5px; flex-wrap: wrap; }
 .fader-row, .sys-row { display: grid; grid-template-columns: 62px 1fr 62px; gap: 8px; align-items: center; margin: 4px 0; color: var(--muted); font-size: 12px; }
 .fader-row input { accent-color: var(--primary); width: 100%; }
-.vu-h { height: 16px; border-radius: 4px; background: repeating-linear-gradient(90deg, #0a1427 0 5px, #081021 5px 7px); overflow: hidden; }
-.vu-h i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--green) 0 60%, #a3e635 60% 72%, var(--amber) 72% 86%, var(--red) 86%); -webkit-mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px); mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px); transition: width .08s linear; }
+.vu-h { height: 16px; border-radius: 4px; background: repeating-linear-gradient(90deg, #0a1427 0 5px, #081021 5px 7px); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04); }
+.vu-h i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--green) 0 60%, #a3e635 60% 72%, var(--amber) 72% 86%, var(--red) 86%); -webkit-mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px); mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px); box-shadow: 0 0 8px 1px rgba(34, 197, 94, .4); transition: width .08s linear; }
 .meter-row { display: grid; grid-template-columns: 40px 1fr 40px 1fr; gap: 6px; align-items: center; margin-top: 6px; color: var(--muted); font-size: 12px; }
 .meter-row.small { grid-template-columns: 52px 1fr 40px; }
-.meter { height: 7px; background: #0a1427; border-radius: 4px; overflow: hidden; }
-.meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--green) 0 70%, var(--amber) 70% 88%, var(--red) 88%); transition: width .15s linear; }
-.meter.gr i { background: var(--accent); }
-.sys-row .meter i { background: linear-gradient(90deg, var(--primary), var(--cyan)); }
+.meter { height: 7px; background: #0a1427; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04); }
+.meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--green) 0 70%, var(--amber) 70% 88%, var(--red) 88%); box-shadow: 0 0 6px 1px rgba(34, 197, 94, .4); transition: width .15s linear; }
+.meter.gr i { background: var(--accent); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+.sys-row .meter i { background: linear-gradient(90deg, var(--primary), var(--cyan)); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--cyan) 45%, transparent); }
 .silence { margin-top: 8px; padding: 4px 8px; border-radius: 6px; background: rgba(239, 68, 68, .2); color: #fecaca; font-weight: 700; text-align: center; }
 
 /* Statusleiste */
