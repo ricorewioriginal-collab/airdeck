@@ -387,7 +387,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v3
         with: { platforms: arm64 }
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Image für linux/arm64 bauen (emuliert)
         uses: docker/build-push-action@v6
         with:
