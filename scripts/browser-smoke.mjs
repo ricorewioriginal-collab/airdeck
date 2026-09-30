@@ -7,7 +7,9 @@ if (!token) throw new Error('AIRDECK_SCREENSHOT_TOKEN fehlt');
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } });
-await page.addInitScript((t) => localStorage.setItem('airdeck.token', t), token);
+await page.addInitScript((t) => {
+  if (!localStorage.getItem('airdeck.token')) localStorage.setItem('airdeck.token', t);
+}, token);
 
 try {
   await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
@@ -97,6 +99,11 @@ try {
   assert.equal(ownerLogin.ok, true, 'MusicHub: Owner-Benutzerlogin fehlgeschlagen');
   const ownerToken = (await ownerLogin.json()).token;
   assert.ok(ownerToken, 'MusicHub: Owner-Benutzertoken fehlt');
+  const ownerMe = await fetch(base + '/api/v1/me', { headers: { Authorization: `Bearer ${ownerToken}` } });
+  assert.equal(ownerMe.ok, true, 'MusicHub: Owner-Session ist serverseitig ungültig');
+  const ownerIdentity = await ownerMe.json();
+  assert.equal(ownerIdentity.user?.username, 'musikhub-owner', 'MusicHub: falsche Owner-Identität');
+  assert.equal(ownerIdentity.scopes?.includes('*') || ownerIdentity.scopes?.includes('media:write'), true, 'MusicHub: Owner hat kein media:write');
 
   await page.evaluate((t) => localStorage.setItem('airdeck.token', t), ownerToken);
   await page.reload({ waitUntil: 'domcontentloaded' });
