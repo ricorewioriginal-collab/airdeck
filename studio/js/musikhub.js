@@ -444,6 +444,8 @@ export function mountMusicHub(root, ctx) {
         h('p', { class: 'muted' }, 'Persönliche Uploads liegen getrennt von den Senderbibliotheken. Ohne ausdrückliche Freigabe sieht kein anderer Nutzer diese Titel.'),
         h('input', {
           type: 'file',
+          'aria-label': 'Persönliche Musik hochladen',
+          'data-musikhub-upload': 'personal',
           accept: '.mp3,.ogg,.opus,.wav,.flac,.m4a,.aac,.webm,audio/*',
           onchange: (e) => {
             const input = /** @type {HTMLInputElement} */ (e.target);
