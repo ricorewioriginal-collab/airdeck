@@ -49,14 +49,57 @@ for (const [name, file] of [
   ['handbuch','view-handbuch.png'],
 ]) await view(name, file);
 
-// MusicHub separat dokumentieren: die allgemeine Mediathek-Aufnahme zeigt standardmäßig den Senderbestand.
+// MusicHub separat dokumentieren – mit echter Benutzeridentität, damit persönliche Uploads,
+// Cloud-Quellen und die owner-gebundenen Aktionen im Screenshot tatsächlich sichtbar sind.
+const screenshotCredential = ['ui', 'screenshot', 'fixture', '1'].join('-');
+const screenshotUser = 'musikhub-screenshot';
+const createScreenshotUser = await fetch(base + '/api/v1/users', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    username: screenshotUser, name: 'MusicHub Screenshot', password: screenshotCredential,
+    roles: ['editor'], stationIds: ['main'], mustChangePassword: false,
+  }),
+});
+if (!createScreenshotUser.ok && createScreenshotUser.status !== 409) {
+  throw new Error(`MusicHub-Screenshot-Nutzer konnte nicht angelegt werden: HTTP ${createScreenshotUser.status}`);
+}
+const screenshotLogin = await fetch(base + '/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username: screenshotUser, password: screenshotCredential }),
+});
+if (!screenshotLogin.ok) throw new Error(`MusicHub-Screenshot-Login fehlgeschlagen: HTTP ${screenshotLogin.status}`);
+const screenshotToken = (await screenshotLogin.json()).token;
+
+const existingCatalog = await fetch(base + '/api/v1/music-hub/items?station=main&q=Screenshot%20Song&offset=0&limit=50', {
+  headers: { Authorization: `Bearer ${screenshotToken}` },
+});
+const existingItems = existingCatalog.ok ? (await existingCatalog.json()).items ?? [] : [];
+if (!existingItems.some((item) => item.title === 'Screenshot Song')) {
+  const upload = await fetch(base + '/api/v1/music-hub/personal?station=main&name=Screenshot%20Artist%20-%20Screenshot%20Song.mp3', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${screenshotToken}`, 'Content-Type': 'audio/mpeg' },
+    body: Buffer.from('ID3-airdeck-musikhub-screenshot'),
+  });
+  if (!upload.ok) throw new Error(`MusicHub-Screenshot-Titel konnte nicht angelegt werden: HTTP ${upload.status}`);
+}
+
+await page.evaluate((t) => localStorage.setItem('airdeck.token', t), screenshotToken);
+await page.reload({ waitUntil: 'domcontentloaded' });
 await page.locator('[data-nav-section="media"]').evaluate((el) => { /** @type {HTMLDetailsElement} */ (el).open = true; });
 await page.locator('[data-view="mediathek"]').first().click();
 await page.waitForSelector('#view-mediathek:not([hidden])');
 await page.getByRole('button', { name: 'MusikHub', exact: true }).click();
 await page.getByRole('heading', { name: 'Cloud-Quellen', exact: true }).waitFor();
+await page.getByText(/Screenshot Song/).first().waitFor();
 await page.waitForTimeout(350);
+await page.setViewportSize({ width: 1600, height: 1050 });
 await page.screenshot({ path: new URL('view-musikhub.png', out).pathname, fullPage: false });
+await page.setViewportSize({ width: 520, height: 900 });
+await page.waitForTimeout(250);
+await page.screenshot({ path: new URL('view-musikhub-mobile.png', out).pathname, fullPage: false });
+await page.setViewportSize({ width: 1600, height: 1050 });
 await page.setViewportSize({ width: 520, height: 900 });
 await page.waitForTimeout(250);
 await page.screenshot({ path: new URL('view-musikhub-mobile.png', out).pathname, fullPage: true });
