@@ -3,7 +3,11 @@
 // eigenen, erneut autorisierten Phasen.
 
 import type { AirDeckApp } from '../app.ts';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { AppError, canSee, newId, type Principal } from '../model.ts';
+import { writeFileAtomic } from '../store.ts';
 
 export const HUB_ACTIONS = [
   'catalog.read', 'preview.play', 'broadcast.use', 'file.download', 'media.upload',
@@ -12,10 +16,18 @@ export const HUB_ACTIONS = [
 export type HubAction = typeof HUB_ACTIONS[number];
 export type HubSubject = { kind: 'user' | 'station'; id: string };
 export type HubResource = { kind: 'item' | 'collection'; id: string };
+/**
+ * Zwei Herkunftsarten: eine bereits vorhandene, sendergebundene Mediendatei (registriert, nicht
+ * verschoben) oder eine eigenständig hochgeladene private Datei (liegt unter dataDir/musikhub/
+ * uploads/<Eigentümer-Nutzer-ID>/, außerhalb jedes Senderarchivs).
+ */
+export type HubSource =
+  | { kind: 'station'; stationId: string; mediaId: string }
+  | { kind: 'upload'; file: string; mimeType: string; sizeBytes: number };
 export interface HubItem {
   id: string;
   owner: HubSubject;
-  source: { stationId: string; mediaId: string };
+  source: HubSource;
   title: string;
   artist: string;
   version: string | null;
@@ -59,7 +71,16 @@ export class MusicHubService {
   constructor(app: AirDeckApp) { this.app = app; }
 
   private get state(): HubState {
-    return (this.loaded ??= this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [] }));
+    if (!this.loaded) {
+      this.loaded = this.app.docs.get<HubState>('musikhub', { version: 1, items: [], collections: [], grants: [] });
+      // Ältere Bestandsdaten (Phase 1, vor der Upload-Erweiterung) kannten nur sendergebundene Quellen
+      // ohne "kind"-Unterscheidung - beim Laden einmalig auf die aktuelle Form heben.
+      for (const item of this.loaded.items) {
+        const s = item.source as unknown as Record<string, unknown>;
+        if (!s.kind) item.source = { kind: 'station', stationId: String(s.stationId ?? ''), mediaId: String(s.mediaId ?? '') };
+      }
+    }
+    return this.loaded;
   }
 
   private async save(): Promise<void> {
@@ -154,7 +175,7 @@ export class MusicHubService {
     const count = Math.min(100, Math.max(1, Math.floor(limit) || 50));
     return {
       total: filtered.length,
-      items: filtered.slice(start, start + count).map((item) => ({ id: item.id, title: item.title, artist: item.artist, version: item.version, owner: item.owner, ...(item.owner.kind === 'station' && item.owner.id === stationId && this.ownerAccess(p, item.owner) ? { source: item.source } : {}), actions: this.actions(p, { kind: 'item', id: item.id }, stationId) })),
+      items: filtered.slice(start, start + count).map((item) => ({ id: item.id, title: item.title, artist: item.artist, version: item.version, owner: item.owner, ...(this.ownerAccess(p, item.owner) && (item.owner.kind === 'user' || item.owner.id === stationId) ? { source: item.source } : {}), actions: this.actions(p, { kind: 'item', id: item.id }, stationId) })),
       nextOffset: start + count < filtered.length ? start + count : null,
     };
   }
@@ -166,13 +187,118 @@ export class MusicHubService {
     if (!this.explicitMember(p, stationId)) throw new AppError(403, 'forbidden', 'Ausdrückliche Senderzuordnung erforderlich');
     const media = this.app.svc.media.media(stationId, mediaId);
     if (media.url) throw new AppError(400, 'invalid_source', 'URL-Streams sind keine Archivdateien');
-    const existing = this.state.items.find((x) => x.source.stationId === stationId && x.source.mediaId === mediaId);
+    const existing = this.state.items.find((x) => x.source.kind === 'station' && x.source.stationId === stationId && x.source.mediaId === mediaId);
     if (existing) return existing;
-    const item: HubItem = { id: newId('hub'), owner: { kind: 'station', id: stationId }, source: { stationId, mediaId }, title: media.title, artist: media.artist, version: null, createdAt: Date.now(), revision: 1 };
+    const item: HubItem = { id: newId('hub'), owner: { kind: 'station', id: stationId }, source: { kind: 'station', stationId, mediaId }, title: media.title, artist: media.artist, version: null, createdAt: Date.now(), revision: 1 };
     this.state.items.push(item);
     await this.save();
     this.app.audit.write({ kind: 'musikhub', event: 'item_registered', actor: this.actor(p), stationId, itemId: item.id });
     return item;
+  }
+
+  /** Privater persönlicher Upload: Eigentümer ist immer der hochladende Nutzer, nie ein Sender. */
+  private uploadDir(ownerUserId: string): string {
+    return join(this.app.dataDir, 'musikhub', 'uploads', ownerUserId);
+  }
+
+  /**
+   * "Mein Archiv" braucht ein echtes Benutzerkonto: this.actor(p) fällt bei reinen API-/Desktop-Tokens
+   * ohne Login auf die Token-ID zurück (nur für Audit-Zwecke gedacht), aber ownerAccess() prüft
+   * anschließend gezielt p.user.id. Ohne diese Prüfung entstünde ein Eintrag, den nicht einmal der
+   * Hochladende selbst je wiederfinden könnte.
+   */
+  private requireUserId(p: Principal): string {
+    this.actor(p);
+    if (!p.user) throw new AppError(403, 'forbidden', 'Persönlicher Upload braucht ein angemeldetes Benutzerkonto');
+    return p.user.id;
+  }
+
+  /** Zielpfad für einen neuen privaten Upload festlegen, bevor die HTTP-Schicht die Bytes dorthin streamt. */
+  preparePrivateUpload(p: Principal, ext: string): { id: string; file: string; absolutePath: string } {
+    const userId = this.requireUserId(p);
+    if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    const dir = this.uploadDir(userId);
+    mkdirSync(dir, { recursive: true });
+    const id = newId('hub');
+    const file = `${id}${ext}`;
+    return { id, file, absolutePath: join(dir, file) };
+  }
+
+  /** Absoluter Pfad zur tatsächlich gespeicherten Datei (Sendermedium oder privater Upload). */
+  private filePath(item: HubItem): string {
+    if (item.source.kind === 'station') return this.app.svc.media.mediaPath(item.source.stationId, this.app.svc.media.media(item.source.stationId, item.source.mediaId));
+    return join(this.uploadDir(item.owner.id), item.source.file);
+  }
+
+  /**
+   * Registriert eine bereits auf die vorgesehene Zielposition geschriebene Upload-Datei (HTTP-Schicht
+   * streamt direkt dorthin, damit keine unautorisierte Kopie im Speicher entsteht). Eigentum liegt
+   * geschlossen beim hochladenden Nutzer, bis dieser selbst freigibt.
+   */
+  async registerUpload(p: Principal, id: string, file: string, mimeType: string, sizeBytes: number, titleInput: unknown, artistInput: unknown): Promise<HubItem> {
+    const userId = this.requireUserId(p);
+    if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
+    const title = String(titleInput ?? '').trim().slice(0, 200) || file;
+    const artist = String(artistInput ?? '').trim().slice(0, 200);
+    const item: HubItem = { id, owner: { kind: 'user', id: userId }, source: { kind: 'upload', file, mimeType, sizeBytes }, title, artist, version: null, createdAt: Date.now(), revision: 1 };
+    this.state.items.push(item);
+    await this.save();
+    this.app.audit.write({ kind: 'musikhub', event: 'item_uploaded', actor: userId, itemId: item.id, sizeBytes });
+    return item;
+  }
+
+  /** Eigene Uploads bei Fehlschlag/Abbruch der HTTP-Schicht wieder entfernen (kein verwaistes Item). */
+  discardUpload(ownerUserId: string, file: string): void {
+    rmSync(join(this.uploadDir(ownerUserId), file), { force: true });
+  }
+
+  async deleteItem(p: Principal, id: string, stationId: string): Promise<void> {
+    this.require(p, { kind: 'item', id }, stationId, 'media.delete');
+    const item = this.resource({ kind: 'item', id }) as HubItem;
+    if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur der Eigentümer kann löschen');
+    for (const c of this.state.collections) if (c.itemIds.includes(id)) { c.itemIds = c.itemIds.filter((x) => x !== id); c.revision++; }
+    this.state.items = this.state.items.filter((x) => x.id !== id);
+    this.state.grants = this.state.grants.filter((g) => !(g.resource.kind === 'item' && g.resource.id === id));
+    if (item.source.kind === 'upload') rmSync(join(this.uploadDir(item.owner.id), item.source.file), { force: true });
+    await this.save();
+    this.app.audit.write({ kind: 'musikhub', event: 'item_deleted', actor: this.actor(p), itemId: id });
+  }
+
+  /** Datei für Vorhören/Download: Aufrufer muss die jeweilige Aktion bereits besitzen. */
+  resolveFile(p: Principal, id: string, stationId: string, action: 'preview.play' | 'file.download'): { path: string; mimeType: string; title: string } {
+    this.require(p, { kind: 'item', id }, stationId, action);
+    const item = this.resource({ kind: 'item', id }) as HubItem;
+    const path = this.filePath(item);
+    if (!existsSync(path)) throw new AppError(404, 'not_found', 'Datei nicht mehr vorhanden');
+    const mimeType = item.source.kind === 'upload' ? item.source.mimeType : '';
+    return { path, mimeType, title: item.title };
+  }
+
+  /** Cover wird wie Katalogdaten gefiltert: ohne catalog.read kein Zugriff, unabhängig von der Herkunft. */
+  async cover(p: Principal, id: string, stationId: string): Promise<string | null> {
+    this.require(p, { kind: 'item', id }, stationId, 'catalog.read');
+    const item = this.resource({ kind: 'item', id }) as HubItem;
+    if (item.source.kind === 'station') return this.app.svc.media.cover(item.source.stationId, item.source.mediaId);
+    if (!this.app.ffmpeg) return null;
+    const dir = join(this.app.dataDir, 'covers', 'musikhub');
+    const file = join(dir, `${item.id}.jpg`);
+    const none = `${file}.none`;
+    if (existsSync(file)) return file;
+    if (existsSync(none)) return null;
+    mkdirSync(dir, { recursive: true });
+    const src = this.filePath(item);
+    const ok = await new Promise<boolean>((resolveP) => {
+      const proc = spawn(this.app.ffmpeg!.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-an', '-frames:v', '1', '-vf', 'scale=300:300:force_original_aspect_ratio=increase,crop=300:300', file], { windowsHide: true });
+      proc.on('error', () => resolveP(false));
+      proc.on('close', (code) => resolveP(code === 0 && existsSync(file)));
+      setTimeout(() => proc.kill(), 15_000).unref();
+    });
+    if (!ok) {
+      rmSync(file, { force: true });
+      writeFileAtomic(none, '');
+      return null;
+    }
+    return file;
   }
 
   listCollections(p: Principal, stationId: string) {

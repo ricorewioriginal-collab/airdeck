@@ -112,6 +112,12 @@ export class Api {
     return `${this.base}/api/v1/stations/${encodeURIComponent(stationId)}/media/${encodeURIComponent(mediaId)}/file?token=${encodeURIComponent(this.token)}`;
   }
 
+  /** MusikHub: Vorhören/Download/Cover brauchen je eine eigene, getrennt geprüfte Berechtigung.
+   * @param {string} itemId @param {'preview'|'download'|'cover'} kind @param {string} stationId */
+  musicHubUrl(itemId, kind, stationId) {
+    return `${this.base}/api/v1/music-hub/items/${encodeURIComponent(itemId)}/${kind}?station=${encodeURIComponent(stationId)}&token=${encodeURIComponent(this.token)}`;
+  }
+
   /** Mithör-URL der aktiven Quelle eines Targets. @param {string} stationId @param {string} target */
   listenUrl(stationId, target) {
     return `${this.base}/listen/${encodeURIComponent(stationId)}${target}?token=${encodeURIComponent(this.token)}`;
