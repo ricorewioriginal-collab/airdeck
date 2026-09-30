@@ -298,6 +298,8 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   // Privater Upload: landet nie in einem Senderarchiv, Eigentümer ist ausschließlich der hochladende
   // Nutzer. Direkt an den vorgesehenen Zielpfad streamen (keine Zwischenkopie im Speicher).
   add('GET', '/api/v1/music-hub/uploads/quota', 'media:write', (c) => app.svc.musikhub.uploadQuota(c.p));
+  // Nachvollziehbare eigene Aktivität (Upload/Ersetzen/Löschen/Freigaben/...) aus dem bestehenden Audit-Log.
+  add('GET', '/api/v1/music-hub/transfers', 'media:write', (c) => app.svc.musikhub.myTransfers(c.p));
   add('PUT', '/api/v1/music-hub/uploads', 'media:write', async (c) => {
     const name = String(c.url.searchParams.get('name') ?? '').slice(0, 200);
     const ext = extname(name).toLowerCase();
