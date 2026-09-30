@@ -246,9 +246,9 @@ try {
   await page.getByText(/Smoke Song UI/).first().waitFor();
 
   // Broadcast- und Playlist-Aktion bis zum Backend ausführen.
-  await editedEntry.getByRole('button', { name: '＋ In Queue', exact: true }).click();
+  await editedEntry.getByRole('button', { name: 'In Queue', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('#status-text')?.textContent?.includes('Sender-Queue gelegt'), undefined, { timeout: 10_000 });
-  await editedEntry.getByRole('button', { name: '＋ Playlist', exact: true }).click();
+  await editedEntry.getByRole('button', { name: 'Playlist', exact: true }).click();
   await page.getByRole('heading', { name: 'MusicHub-Titel zur Playlist', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('#status-text')?.textContent?.includes('zur Playlist'), undefined, { timeout: 10_000 });
