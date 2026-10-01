@@ -1,6 +1,6 @@
 {
   "name": "airdeck-android",
-  "version": "0.4.1",
+  "version": "0.5.0-beta.1",
   "private": true,
   "description": "AnMaCha Cast Studio für Android (Capacitor-Hülle um studio/)",
   "scripts": {
