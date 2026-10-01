@@ -452,3 +452,41 @@ neuen Namen, aber die tatsächliche Build-Ausgabe war noch nicht mit umbenannt. 
 `OutputBaseFilename=AnMaCha-Cast-Setup-{#AppVersion}` in `installer.iss`; der entsprechende, nun
 veraltete Hinweis „Release-Dateiname `AirDeck-Setup-{#AppVersion}` (Phase 8)“ aus dem Phase-6-Abschnitt
 oben wurde entfernt. Durch den nächsten `windows`-CI-Lauf dieser PR verifiziert.
+
+## Phase 9: GitHub-Pages-Projektseite
+
+**Geändert** (`site/index.html`, `site/docs.html` – beide einzeilig/minifiziert, Ersetzungen daher
+per Skript mit je eindeutigem Kontext statt blindem Suchen/Ersetzen durchgeführt): `<title>`,
+Meta-Description, Logo-/Hero-/Lightbox-Alt-Texte, alle Überschriften (`<h1>`-`<h3>`), Footer-Zeile,
+„AirDeckCast" im Streaming-Feature-Text → „Zusatz-Streams" (konsistent mit Phase 7), sowie die
+beiden `mailto:`-Betreffzeilen (`AirDeck%20...` → `AnMaCha%20Cast%20...`).
+
+**Funktionale Korrektur** (nicht nur kosmetisch): Das `labels`-Objekt in `site/index.html`, das
+GitHub-Release-Asset-Dateinamen auf hübsche Downloadbezeichnungen abbildet, kannte bislang nur die
+alten `AirDeck-*`-Namen. Seit Phase 8 heißen die tatsächlich von der CI veröffentlichten Assets
+`AnMaCha-Cast-*`; ohne Anpassung hätte die Seite für neue Releases nur noch den rohen Dateinamen
+statt der sprechenden Bezeichnung angezeigt (kein Absturz, aber sichtbar falsch). Die vier neuen
+Namen wurden ergänzt, die vier alten `AirDeck-*`-Schlüssel bewusst **zusätzlich** stehen gelassen,
+damit ältere, bereits veröffentlichte Releases mit altem Dateinamen weiterhin ihre hübsche
+Bezeichnung statt des rohen Dateinamens zeigen.
+
+**Bewusst unverändert**: der echte Repository-Slug `airdeck` und Branchname
+`AirDeck-Radio-Automation-&-Broadcast` in allen `raw.githubusercontent.com`-URLs und im
+JS-Konfigurationsobjekt (`owner='ricorewioriginal-collab',repo='airdeck',branch='...'`) – diese
+referenzieren den tatsächlichen GitHub-Pfad und würden bei einer Änderung sofort alle Logo-,
+Screenshot- und Dokumentations-Ladevorgänge brechen; eine Umbenennung ist an den Repository-Umzug
+gebunden (siehe Abschlussbericht, „Verbleibende manuelle GitHub-Schritte"). Die Bild-Dateinamen
+selbst (`airdeck-main-logo.png`, `airdeck-logos-full.png` unter `assets/icons/`) ebenfalls
+unverändert gelassen: eine Umbenennung wäre rein kosmetisch (der Dateiname ist für Besucher nicht
+sichtbar), hätte aber eine weitere, von dieser PR unabhängige Koordination mit jeder anderen Stelle
+erfordert, die denselben Pfad referenziert – kein Sicherheits- oder Funktionsrisiko, daher
+zurückgestellt statt blind mitgezogen. `.github/workflows/pages.yml` deployt `site/` unverändert
+(keine inhaltliche Prüfung des HTML, nur Checkout/Upload/Deploy) – kein Anpassungsbedarf.
+
+**Tests:** `npm run typecheck` grün, volle Testsuite grün (235/0/6, unverändert – `site/*.html` wird
+vom Node-Test-Harness nicht erfasst). Beide HTML-Dateien zusätzlich mit `html.parser` aus der
+Python-Standardbibliothek geparst (keine Parse-Fehler). Ein echter Browser-Smoke-Test (Playwright)
+ist für reines GitHub-Pages-HTML ohne eigenen Server in dieser Sandbox nicht sinnvoll möglich, da die
+Seite ihre Inhalte zur Laufzeit per `fetch` von `api.github.com`/`raw.githubusercontent.com` lädt;
+stattdessen wurden alle JS-Template-Strings und das `labels`-Objekt manuell gegen die in Phase 8
+tatsächlich erzeugten Artefaktnamen gegengeprüft.
