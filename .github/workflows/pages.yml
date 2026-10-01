@@ -1,4 +1,4 @@
-name: Deploy AirDeck Pages
+name: Deploy AnMaCha Cast Pages
 
 on:
   push:

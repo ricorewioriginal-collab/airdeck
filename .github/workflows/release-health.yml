@@ -51,13 +51,13 @@ jobs:
           fi
 
           grep -q 'assets/readme/status/version.svg' README.md || {
-            echo "::error::README verwendet nicht den AirDeck-Versionsbutton."
+            echo "::error::README verwendet nicht den AnMaCha-Cast-Versionsbutton."
             exit 1
           }
-          grep -q 'releases/latest/download/AirDeck-Setup.exe' README.md
-          grep -q 'releases/latest/download/AirDeck-Windows-Portable.zip' README.md
-          grep -q 'releases/latest/download/AirDeck-Android.apk' README.md
-          grep -q 'releases/latest/download/AirDeck-Linux.deb' README.md
+          grep -q 'releases/latest/download/AnMaCha-Cast-Setup.exe' README.md
+          grep -q 'releases/latest/download/AnMaCha-Cast-Windows-Portable.zip' README.md
+          grep -q 'releases/latest/download/AnMaCha-Cast-Android.apk' README.md
+          grep -q 'releases/latest/download/AnMaCha-Cast-Linux.deb' README.md
           echo "Release-/README-Konsistenz OK."
 
   release-assets:
@@ -74,10 +74,10 @@ jobs:
           TAG="$(jq -r '.tag_name' <<<"$JSON")"
           echo "Prüfe $TAG"
           REQUIRED=(
-            AirDeck-Setup.exe
-            AirDeck-Windows-Portable.zip
-            AirDeck-Android.apk
-            AirDeck-Linux.deb
+            AnMaCha-Cast-Setup.exe
+            AnMaCha-Cast-Windows-Portable.zip
+            AnMaCha-Cast-Android.apk
+            AnMaCha-Cast-Linux.deb
           )
           mkdir -p /tmp/airdeck-release
           for FILE in "${REQUIRED[@]}"; do
@@ -96,12 +96,12 @@ jobs:
             test -s "/tmp/airdeck-release/$FILE"
           done
 
-          unzip -t /tmp/airdeck-release/AirDeck-Windows-Portable.zip >/dev/null
-          file /tmp/airdeck-release/AirDeck-Setup.exe
-          file /tmp/airdeck-release/AirDeck-Android.apk
-          file /tmp/airdeck-release/AirDeck-Linux.deb
-          dpkg-deb --info /tmp/airdeck-release/AirDeck-Linux.deb >/dev/null
-          unzip -t /tmp/airdeck-release/AirDeck-Android.apk >/dev/null
+          unzip -t /tmp/airdeck-release/AnMaCha-Cast-Windows-Portable.zip >/dev/null
+          file /tmp/airdeck-release/AnMaCha-Cast-Setup.exe
+          file /tmp/airdeck-release/AnMaCha-Cast-Android.apk
+          file /tmp/airdeck-release/AnMaCha-Cast-Linux.deb
+          dpkg-deb --info /tmp/airdeck-release/AnMaCha-Cast-Linux.deb >/dev/null
+          unzip -t /tmp/airdeck-release/AnMaCha-Cast-Android.apk >/dev/null
           echo "Alle Release-Dateien vorhanden und strukturell lesbar."
 
   public-health:
@@ -117,9 +117,9 @@ jobs:
             echo "Prüfe $name: $url"
             curl -fLsS --retry 3 --retry-delay 3 --connect-timeout 15 --max-time 45 -o /dev/null "$url"
           }
-          check "AirDeck Projektseite" "https://ricorewioriginal-collab.github.io/airdeck/"
-          check "AirDeck Dokumentation" "https://ricorewioriginal-collab.github.io/airdeck/docs.html"
-          check "AirDeck Demo" "https://airdeck-demo.ricorewi-radio.de/"
-          check "AirDeck Demo Health" "https://airdeck-demo.ricorewi-radio.de/api/v1/health"
+          check "AnMaCha Cast Projektseite" "https://ricorewioriginal-collab.github.io/airdeck/"
+          check "AnMaCha Cast Dokumentation" "https://ricorewioriginal-collab.github.io/airdeck/docs.html"
+          check "AnMaCha Cast Demo" "https://airdeck-demo.ricorewi-radio.de/"
+          check "AnMaCha Cast Demo Health" "https://airdeck-demo.ricorewi-radio.de/api/v1/health"
           check "Latest Release" "https://github.com/${{ github.repository }}/releases/latest"
-          echo "Öffentliche AirDeck-Endpunkte erreichbar."
+          echo "Öffentliche AnMaCha-Cast-Endpunkte erreichbar."

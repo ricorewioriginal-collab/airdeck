@@ -22,7 +22,7 @@ jobs:
         with:
           ref: AirDeck-Radio-Automation-&-Broadcast
           fetch-depth: 0
-      - name: Aktuelles Release ermitteln und AirDeck-Badge erzeugen
+      - name: Aktuelles Release ermitteln und AnMaCha-Cast-Badge erzeugen
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           JSON="$(gh api repos/${{ github.repository }}/releases/latest)"
           NAME="$(jq -r '.name // .tag_name' <<<"$JSON")"; TAG="$(jq -r '.tag_name' <<<"$JSON")"; DISPLAY="$TAG"
-          CODENAME="$(sed -nE 's/^AirDeck[[:space:]]+(.+)[[:space:]]+v?[0-9]+\.[0-9]+\.[0-9]+.*$/\1/p' <<<"$NAME" | head -1)"
+          CODENAME="$(sed -nE 's/^(AnMaCha Cast|AirDeck)[[:space:]]+(.+)[[:space:]]+v?[0-9]+\.[0-9]+\.[0-9]+.*$/\2/p' <<<"$NAME" | head -1)"
           [ -n "$CODENAME" ] && [ "$CODENAME" != "$NAME" ] || CODENAME=""
           STATUS="$CODENAME"; [ -n "$STATUS" ] || { grep -qi beta <<<"$NAME $TAG" && STATUS=BETA || true; }
           export DISPLAY STATUS
@@ -38,7 +38,7 @@ jobs:
           import html,os
           d=html.escape(os.environ['DISPLAY']); s=html.escape(os.environ.get('STATUS','').upper())
           pill='' if not s else f'<rect x="238" y="43" width="96" height="27" rx="13.5" fill="#102d4a" stroke="#1c6c98"/><text x="286" y="62" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700" fill="#7ed7ff">{s}</text>'
-          svg=f'''<svg xmlns="http://www.w3.org/2000/svg" width="430" height="92" viewBox="0 0 430 92" role="img" aria-label="Aktuelle AirDeck Version {d} {s}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#061426"/><stop offset=".55" stop-color="#0a2340"/><stop offset="1" stop-color="#123b70"/></linearGradient></defs><rect x="2" y="2" width="426" height="88" rx="22" fill="url(#bg)" stroke="#1e6595" stroke-width="2"/><circle cx="49" cy="46" r="25" fill="#071b31" stroke="#18b7ff" stroke-width="2"/><path d="M37 48l9 9 17-22" fill="none" stroke="#55d7ff" stroke-width="5"/><text x="88" y="35" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700" fill="#79cdf6">AKTUELLE VERSION</text><text x="88" y="66" font-family="Segoe UI,Arial,sans-serif" font-size="27" font-weight="700" fill="#fff">{d}</text>{pill}</svg>'''
+          svg=f'''<svg xmlns="http://www.w3.org/2000/svg" width="430" height="92" viewBox="0 0 430 92" role="img" aria-label="Aktuelle AnMaCha Cast Version {d} {s}"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#061426"/><stop offset=".55" stop-color="#0a2340"/><stop offset="1" stop-color="#123b70"/></linearGradient></defs><rect x="2" y="2" width="426" height="88" rx="22" fill="url(#bg)" stroke="#1e6595" stroke-width="2"/><circle cx="49" cy="46" r="25" fill="#071b31" stroke="#18b7ff" stroke-width="2"/><path d="M37 48l9 9 17-22" fill="none" stroke="#55d7ff" stroke-width="5"/><text x="88" y="35" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="700" fill="#79cdf6">AKTUELLE VERSION</text><text x="88" y="66" font-family="Segoe UI,Arial,sans-serif" font-size="27" font-weight="700" fill="#fff">{d}</text>{pill}</svg>'''
           open('assets/readme/status/version.svg','w',encoding='utf-8').write(svg)
           PY
       - name: Änderung über Automations-PR einreichen und Prüfungen starten
@@ -50,9 +50,9 @@ jobs:
           git add assets/readme/status/version.svg README.md
           git diff --cached --quiet && { echo 'Badge bereits aktuell.'; exit 0; }
           TAG="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq .tag_name | tr '/ ' '--')"; BRANCH="automation/release-badge-${TAG}-${GITHUB_RUN_ID}"
-          git config user.name 'AirDeck CI'; git config user.email 'actions@users.noreply.github.com'
+          git config user.name 'AnMaCha Cast CI'; git config user.email 'actions@users.noreply.github.com'
           git switch -c "$BRANCH"; git commit -m 'README: aktuelle Release-Version'; git push origin "$BRANCH"
-          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: aktuelle Release-Version ${TAG}" --body "Automatisch erzeugtes AirDeck-Versionsbadge. Branch-Schutz und CI bleiben aktiv.")"
+          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: aktuelle Release-Version ${TAG}" --body "Automatisch erzeugtes AnMaCha-Cast-Versionsbadge. Branch-Schutz und CI bleiben aktiv.")"
           PR_NUMBER="${PR_URL##*/}"
           gh workflow run build.yml --ref "$BRANCH"
           gh workflow run security.yml --ref "$BRANCH"

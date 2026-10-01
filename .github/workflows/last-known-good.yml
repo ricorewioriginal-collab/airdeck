@@ -104,7 +104,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'AirDeck Auto Rollback'
+          git config user.name 'AnMaCha Cast Auto Rollback'
           git config user.email 'actions@users.noreply.github.com'
           git revert --no-commit "$GOOD..$CURRENT"
           if git diff --cached --quiet && git diff --quiet; then
@@ -141,7 +141,7 @@ jobs:
         run: |
           set -euo pipefail
           SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/last-known-good" --jq '.object.sha')"
-          echo "Letzter erfolgreicher AirDeck-Build: $SHA"
+          echo "Letzter erfolgreicher AnMaCha-Cast-Build: $SHA"
           gh api "repos/${GITHUB_REPOSITORY}/commits/$SHA" --jq '"Commit: " + .sha + "\nDatum: " + .commit.committer.date + "\nNachricht: " + .commit.message'
 
   rollback:
@@ -167,7 +167,7 @@ jobs:
           CURRENT="$(git rev-parse HEAD)"
           [ "$GOOD" != "$CURRENT" ] || exit 0
           git merge-base --is-ancestor "$GOOD" "$CURRENT" || { echo "::error::Unsicherer Verlauf; Rollback abgebrochen."; exit 1; }
-          git config user.name 'AirDeck Rollback'
+          git config user.name 'AnMaCha Cast Rollback'
           git config user.email 'actions@users.noreply.github.com'
           git revert --no-commit "$GOOD..$CURRENT"
           # Wie beim automatischen Rollback: Branch-Schutz (GH013) verbietet den direkten Push,
