@@ -1099,7 +1099,7 @@ export class AirDeckApp {
 
   startPlayout(p: Principal, stationId: string, input: Partial<PlayoutConfig>, opts: { forLive?: boolean } = {}): unknown {
     const rt = this.rt(stationId);
-    if (!this.ffmpeg) throw new AppError(501, 'unsupported', 'Server-Playout benötigt ffmpeg (AIRDECK_FFMPEG, ./ffmpeg/ oder PATH)');
+    if (!this.ffmpeg) throw new AppError(501, 'unsupported', 'Server-Playout benötigt ffmpeg (ANMACHA_CAST_FFMPEG, ./ffmpeg/ oder PATH)');
     const cfg = this.savePlayoutConfig(stationId, input);
     if (cfg.format === 'opus' && !this.ffmpeg.encoders.opus) throw new AppError(501, 'unsupported', 'ffmpeg ohne libopus');
     if (cfg.format === 'mp3' && !this.ffmpeg.encoders.mp3) throw new AppError(501, 'unsupported', 'ffmpeg ohne libmp3lame');

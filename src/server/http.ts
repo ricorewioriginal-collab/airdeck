@@ -16,6 +16,7 @@ import { DSP_PRESETS } from './playout.ts';
 import { toIcecastXml, toM3u, toXspf, type StreamStatus } from './status.ts';
 import { MAX_VOICE_BYTES } from './services/listeners.ts';
 import { PUBLIC_API, RADIOADMIN, allowedPublicPath, allowedRadioadminPath, forward } from './lautfm.ts';
+import { envVar } from './legacy-branding.ts';
 
 type Params = Record<string, string>;
 interface Ctx {
@@ -56,11 +57,12 @@ function hashingPassthrough(): { stream: Transform; digest: () => string } {
 
 /**
  * Erlaubte Fremd-Origins (Android-App, eigene Frontends). Standard: Capacitor-WebView.
- * Erweiterbar über AIRDECK_CORS_ORIGINS (kommagetrennt) und im Studio unter „Web-Fernsteuerung“ (network.json).
+ * Erweiterbar über ANMACHA_CAST_CORS_ORIGINS (kommagetrennt, Legacy: AIRDECK_CORS_ORIGINS) und im Studio
+ * unter „Web-Fernsteuerung“ (network.json).
  */
 const CORS_ORIGINS = new Set([
   'https://localhost', 'http://localhost', 'capacitor://localhost',
-  ...String(process.env.AIRDECK_CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+  ...String(envVar(process.env, 'CORS_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
 ]);
 
 function applyCors(req: IncomingMessage, res: ServerResponse, extra: (origin: string) => boolean): boolean {

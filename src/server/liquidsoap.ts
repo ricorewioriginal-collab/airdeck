@@ -1,4 +1,4 @@
-// Liquidsoap-Brücke: erzeugt ein Liquidsoap-Skript (2.x), das den AirDeck-Sendestream annimmt,
+// Liquidsoap-Brücke: erzeugt ein Liquidsoap-Skript (2.x), das den AnMaCha-Cast-Sendestream annimmt,
 // optional nachbearbeitet und an alle konfigurierten Ausgänge verteilt.
 // Passwörter stehen nie im Skript – sie kommen aus Umgebungsvariablen.
 
@@ -9,38 +9,38 @@ export interface LiquidsoapOptions {
   harborPort: number;
   harborMount: string;
   bitrateKbps: number;
-  /** Liquidsoap-eigene Dynamik (nrj) zusätzlich zur AirDeck-DSP */
+  /** Liquidsoap-eigene Dynamik (nrj) zusätzlich zur AnMaCha-Cast-DSP */
   processing: boolean;
 }
 
 const str = (s: string) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-const envName = (i: number) => `AIRDECK_LIQ_OUT${i + 1}_PASSWORD`;
+const envName = (i: number) => `ANMACHA_CAST_LIQ_OUT${i + 1}_PASSWORD`;
 
 export function liquidsoapScript(outputs: OutputConfig[], o: LiquidsoapOptions): { script: string; env: string[] } {
   const active = outputs.filter((x) => x.enabled);
-  const env = ['AIRDECK_LIQ_INPUT_PASSWORD', ...active.map((_, i) => envName(i))];
+  const env = ['ANMACHA_CAST_LIQ_INPUT_PASSWORD', ...active.map((_, i) => envName(i))];
   const mount = o.harborMount.replace(/^\/+/, '') || 'airdeck';
   const lines = [
-    `# AirDeck → Liquidsoap für „${o.stationName.replace(/\n/g, ' ')}“ (automatisch erzeugt, Liquidsoap 2.x)`,
+    `# AnMaCha Cast → Liquidsoap für „${o.stationName.replace(/\n/g, ' ')}“ (automatisch erzeugt, Liquidsoap 2.x)`,
     '# Start:  liquidsoap airdeck.liq',
     `# Umgebungsvariablen (Passwörter): ${env.join(', ')}`,
     '#',
-    `# In AirDeck einen Ausgang anlegen: Typ Icecast, Host = dieser Rechner, Port ${o.harborPort}, Mount /${mount},`,
-    '# Benutzer source, Passwort = AIRDECK_LIQ_INPUT_PASSWORD. Die übrigen Ausgänge in AirDeck dann deaktivieren.',
+    `# In AnMaCha Cast einen Ausgang anlegen: Typ Icecast, Host = dieser Rechner, Port ${o.harborPort}, Mount /${mount},`,
+    '# Benutzer source, Passwort = ANMACHA_CAST_LIQ_INPUT_PASSWORD. Die übrigen Ausgänge in AnMaCha Cast dann deaktivieren.',
     '',
     'settings.server.telnet := false',
     'def pw(name) = environment.get(name) end',
     '',
-    '# 1) Eingang: der fertig gemischte AirDeck-Sendestream',
-    `radio = input.harbor(${str(mount)}, port=${o.harborPort}, password=pw("AIRDECK_LIQ_INPUT_PASSWORD"))`,
+    '# 1) Eingang: der fertig gemischte AnMaCha-Cast-Sendestream',
+    `radio = input.harbor(${str(mount)}, port=${o.harborPort}, password=pw("ANMACHA_CAST_LIQ_INPUT_PASSWORD"))`,
     '',
-    '# 2) Kein Abbruch bei Verbindungsverlust (AirDeck hat eigene Fallbacks, hier nur Stille als Sicherung)',
+    '# 2) Kein Abbruch bei Verbindungsverlust (AnMaCha Cast hat eigene Fallbacks, hier nur Stille als Sicherung)',
     'radio = mksafe(radio)',
     '',
   ];
   if (o.processing) lines.push('# 3) Zusätzliche Dynamik: Kompressor + Normalisierung', 'radio = nrj(radio)', '');
   lines.push('# Ausgänge');
-  if (!active.length) lines.push('# (In AirDeck sind noch keine aktiven Ausgänge eingerichtet.)', 'output.dummy(radio)');
+  if (!active.length) lines.push('# (In AnMaCha Cast sind noch keine aktiven Ausgänge eingerichtet.)', 'output.dummy(radio)');
   active.forEach((x, i) => {
     const icy = x.type === 'shoutcast';
     const args = [

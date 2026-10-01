@@ -93,7 +93,7 @@ provider = postgres          # sqlite (Standard) · postgres · mysql (auch Mari
 url = postgres://airdeck@localhost:5432/airdeck
 ```
 
-Das Passwort gehört in die Umgebungsvariable `AIRDECK_DB_PASSWORD`, nicht in die Datei. Alternativ gehen `AIRDECK_DB` und `AIRDECK_DB_URL`. Server-Datenbanken, die beim Start noch nicht bereit sind (Container), werden bis zu einer Minute lang erneut versucht.
+Das Passwort gehört in die Umgebungsvariable `ANMACHA_CAST_DB_PASSWORD`, nicht in die Datei (bisheriges `AIRDECK_DB_PASSWORD` funktioniert als Legacy-Fallback weiter – die mitgelieferte `docker-compose.yml` nutzt aktuell noch die bisherigen `AIRDECK_DB*`-Namen, siehe [`DOCKER.md`](../DOCKER.md)). Alternativ gehen `ANMACHA_CAST_DB` und `ANMACHA_CAST_DB_URL`. Server-Datenbanken, die beim Start noch nicht bereit sind (Container), werden bis zu einer Minute lang erneut versucht.
 
 ## Health
 

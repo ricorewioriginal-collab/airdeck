@@ -1,10 +1,12 @@
 // Lokaler Secret Store: AES-256-GCM verschlüsselt auf Platte.
-// Schlüssel aus AIRDECK_SECRET_KEY (64 Hex-Zeichen) oder lokal erzeugter Schlüsseldatei (0600).
+// Schlüssel aus ANMACHA_CAST_SECRET_KEY (64 Hex-Zeichen, Legacy: AIRDECK_SECRET_KEY) oder lokal
+// erzeugter Schlüsseldatei (0600).
 // Secrets verlassen den Store nur für den internen Gebrauch – nie über API oder Logs.
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { envVar } from './legacy-branding.ts';
 import { writeFileAtomic } from './store.ts';
 
 type Encrypted = { iv: string; tag: string; data: string };
@@ -14,7 +16,7 @@ export class SecretStore {
   private readonly file: string;
   private values: Record<string, Encrypted> = {};
 
-  constructor(dataDir: string, envKey = process.env.AIRDECK_SECRET_KEY) {
+  constructor(dataDir: string, envKey = envVar(process.env, 'SECRET_KEY')) {
     this.file = join(dataDir, 'secrets.json');
     this.key = SecretStore.loadKey(dataDir, envKey);
     if (existsSync(this.file)) this.values = JSON.parse(readFileSync(this.file, 'utf8'));
@@ -22,7 +24,7 @@ export class SecretStore {
 
   private static loadKey(dataDir: string, envKey?: string): Buffer {
     if (envKey) {
-      if (!/^[0-9a-fA-F]{64}$/.test(envKey)) throw new Error('AIRDECK_SECRET_KEY muss 64 Hex-Zeichen haben');
+      if (!/^[0-9a-fA-F]{64}$/.test(envKey)) throw new Error('ANMACHA_CAST_SECRET_KEY muss 64 Hex-Zeichen haben');
       return Buffer.from(envKey, 'hex');
     }
     const keyFile = join(dataDir, '.secret.key');

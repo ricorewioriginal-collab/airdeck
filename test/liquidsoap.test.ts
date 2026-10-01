@@ -14,8 +14,8 @@ test('Liquidsoap-Skript: alle aktiven Ausgänge, keine Passwörter, SHOUTcast/la
     out({ name: 'SC', type: 'shoutcast', host: 'sc.example.org', port: 8010, streamId: 2 }),
     out({ name: 'Aus', enabled: false }),
   ], { stationName: 'Radio "Test"', harborPort: 8005, harborMount: '/airdeck', bitrateKbps: 128, processing: true });
-  assert.deepEqual(env, ['AIRDECK_LIQ_INPUT_PASSWORD', 'AIRDECK_LIQ_OUT1_PASSWORD', 'AIRDECK_LIQ_OUT2_PASSWORD']);
-  assert.match(script, /input\.harbor\("airdeck", port=8005, password=pw\("AIRDECK_LIQ_INPUT_PASSWORD"\)\)/);
+  assert.deepEqual(env, ['ANMACHA_CAST_LIQ_INPUT_PASSWORD', 'ANMACHA_CAST_LIQ_OUT1_PASSWORD', 'ANMACHA_CAST_LIQ_OUT2_PASSWORD']);
+  assert.match(script, /input\.harbor\("airdeck", port=8005, password=pw\("ANMACHA_CAST_LIQ_INPUT_PASSWORD"\)\)/);
   assert.match(script, /mount="\/meinradio\?prio=5"/);
   assert.match(script, /%mp3\(bitrate=192\)/);
   assert.match(script, /protocol="icy", icy_id=2/);
