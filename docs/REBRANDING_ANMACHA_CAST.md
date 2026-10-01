@@ -96,11 +96,8 @@ Gemäß Auftrag priorisiert, jeweils als eigener, kleiner PR mit eigenen Tests:
 3. ~~**LocalStorage-Schlüssel**~~ – erledigt, siehe „Phase 4" unten.
 4. ~~**Android-App**~~ – erledigt, siehe „Phase 5" unten. `applicationId` bleibt bewusst `app.airdeck.studio`
    (Signatur-/Update-Kompatibilität).
-5. **Windows-App** (`apps/windows/AirDeck.csproj`, Installer unter `packaging/windows/installer/`):
-   Assembly-Metadaten (ProductName/Company/Description), Tray-Text, Installer-/Setup-Dateiname,
-   Autostart/Registry/Firewall-Regeln, Update-Erkennung des laufenden `.exe`-Namens (`src/server/main.ts`/
-   `update.ts` referenzieren `AirDeck.exe` an mehreren Stellen - erst ändern, wenn der tatsächliche Build
-   das neue `.exe` auch wirklich erzeugt, sonst bricht die „vor einem Update sauber beenden"-Logik).
+5. ~~**Windows-App**~~ – erledigt, siehe „Phase 6" unten. Tatsächlicher Dateiname bleibt bewusst
+   `AirDeck.exe` (gleiche Begründung wie zuvor hier vermerkt).
 6. **Linux/Docker/Paketierung** (`Dockerfile`, `docker-compose.yml`, `packaging/linux/`, `packaging/demo/`):
    systemd-Beschreibungen, Image-/Paketnamen, Installationsskripte. Bestehende Pfade
    (`/var/lib/airdeck`, `/etc/airdeck`, `/opt/airdeck`, Benutzer `airdeck`) **nicht** blind ändern -
@@ -239,6 +236,64 @@ weiterhin syntaktisch korrekt sind und sich erfolgreich mit einem echten Icecast
 senden und wieder trennen. Die Android-spezifischen Dateien unter `native/` (abhängig von
 Capacitor/Android-SDK, hier nicht lokal baubar) werden vom `android`-CI-Job der jeweiligen PR geprüft
 (echter `./gradlew assembleDebug`-Build).
+
+## Phase 6: Windows-App sichtbares Rebranding
+
+**Investigation zuerst**: `apps/windows/AirDeck.csproj` (.NET Framework 4.8, WinExe), `apps/windows/*.cs`
+(Program.cs, MainForm.cs, Engine.cs – das eigenständige Windows-Fensterprogramm) und
+`packaging/windows/` (Inno-Setup-Installer, Begleitskripte, Liesmich/Haftungsausschluss).
+
+**Bewusst unverändert** (reale Dateinamen, Update-Mechanismus, von Windows persistierte Kennungen):
+- `AssemblyName`/tatsächlicher Dateiname **bleibt `AirDeck.exe`**: `src/server/main.ts` hat eine
+  hartkodierte Laufzeitprüfung (`basename(process.execPath).toLowerCase() !== 'airdeck.exe'`), die
+  erkennt, ob das Windows-Fensterprogramm neben der Engine liegt (Tray-Symbol-Logik). Der Installer
+  startet/beendet/prüft ebenfalls `AirDeck.exe` an rund einem Dutzend Stellen (`installer.iss`,
+  `*.cmd`-Skripte). Eine Umbenennung des tatsächlichen Programmnamens ist eine eigene, größere
+  koordinierte Änderung (Node-Seite + Installer + Skripte gemeinsam) und bewusst nicht Teil dieses
+  Blocks.
+- Installationspfad `{autopf}\AirDeck`, Build-Quellordner `dist\AirDeck\`, Startmenü-Gruppenname,
+  Release-Dateiname `AirDeck-Setup-{#AppVersion}` (Phase 8), Registry-Autostart-Eintrag
+  (`HKCU\...\Run`, `ValueName: "AirDeck"`), Windows-Firewall-Regelname `"AirDeck"`, geplanter Task
+  `schtasks /TN "AirDeck"` (`Autostart-einrichten.cmd`) sowie die drei Verknüpfungsnamen
+  (`IconStop`/`IconServer`/`IconManual` in `installer.iss`): alles von Windows bzw. dem Installer
+  persistierte Kennungen. Eine Änderung würde bei einem Update entweder den Mechanismus selbst
+  brechen (Registry-/Firewall-/Task-Eintrag wird beim Deinstallieren über denselben Namen entfernt)
+  oder verwaiste Duplikate hinterlassen (umbenannte Verknüpfung neben der alten, die Inno Setup nicht
+  automatisch löscht).
+- `%LOCALAPPDATA%\AirDeck` (Fensterposition `fenster.txt`, WebView2-Nutzerdaten) sowie
+  `%LOCALAPPDATA%\AirDeck\data` (echte Senderdaten, vom Installer wie von der Engine genutzt):
+  bestehende Installationen haben dort bereits Daten – nicht blind verschoben (Entsprechung zu den
+  Linux-Pfaden in Phase 7).
+- Interne, nicht nutzersichtbare Bezeichner: `namespace AirDeck`, benannte Synchronisationsobjekte
+  (`Mutex`/`EventWaitHandle`-Namen wie `"AirDeck.Studio.Window"`), `app.manifest`s
+  `assemblyIdentity name="AirDeck.Studio"`.
+
+**Geändert** (sichtbare Texte, keine Auswirkung auf Dateinamen/Update-Mechanismus):
+- `AirDeck.csproj`: `Product`, `Description`, `Copyright` (sichtbar in Windows' Dateieigenschaften und
+  Task-Manager) auf „AnMaCha Cast" umgestellt; `Company` war bereits korrekt.
+- `Program.cs`/`MainForm.cs`/`Engine.cs`: Fenstertitel, Tray-Tooltip-Texte, Kontextmenü, alle
+  MessageBox-/Balloon-Tip-Texte, Splash-Text, Kommentare.
+- `packaging/windows/installer.iss`: `AppName`/`AppVerName`/`VersionInfoDescription`/
+  `VersionInfoProductName`/`UninstallDisplayName` (reine Anzeigetexte, kein Dateibezug), der große
+  Begrüßungs-Banner und sämtliche Assistenten-Seiten (Betriebsart, Netzwerk, Monitoring, Administrator,
+  Komponentenübersicht, Datenspeicher, Bestätigung), alle Fehlermeldungen. Dabei „AirDeckCast" (altes
+  Feature) konsequent zu „Zusatz-Streams" korrigiert (Phase-1-Konvention, hier übersehen). Component-
+  Checkbox-Texte (`CompCore` usw.) und `RunNow` ebenfalls geändert – diese sind reine Textbeschriftungen
+  ohne Dateinamenbezug. `IconStop`/`IconServer`/`IconManual` dagegen **bewusst unverändert** gelassen
+  (siehe oben) und mit einem erklärenden Kommentar versehen.
+- `AirDeck-Netzwerk.cmd`: `AIRDECK_HOST` → `ANMACHA_CAST_HOST` (neuer primärer Name aus Phase 3; altes
+  `AIRDECK_HOST` funktioniert weiterhin als Fallback), Kommentarzeile.
+- `AirDeck-Headless.cmd`, `Autostart-einrichten.cmd` (nur Kommentare, Aufgabenname bleibt), `LIESMICH.txt`,
+  `installer/haftung.txt`: Prosa rebrandet, echte Dateinamen/Pfade (`AirDeck.exe`, `airdeck-engine.exe`,
+  `%LOCALAPPDATA%\AirDeck\...`, Skriptnamen) unverändert gelassen.
+
+**Tests:** `npm run typecheck` + volle Testsuite grün (235/0/6, unverändert – keine der .NET-/Installer-
+Dateien wird vom Node-Test-Harness erfasst). Zusätzlich lokal mit `dotnet build
+apps/windows/AirDeck.csproj -c Release` geprüft (das .NET-Framework-4.8-Ziel lässt sich dank
+`EnableWindowsTargeting` auch unter Linux bauen) – **Build succeeded, 0 Warnings, 0 Errors**, bestätigt
+die syntaktische Korrektheit aller C#-/csproj-Änderungen. `installer.iss` selbst kann in dieser Umgebung
+nicht kompiliert werden (Inno Setup ist Windows-only); die Prüfung erfolgt über den `windows`-CI-Job der
+PR.
 
 ## Fehler und Behebungen (Phase 1)
 

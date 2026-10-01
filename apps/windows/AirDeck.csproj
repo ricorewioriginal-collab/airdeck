@@ -1,9 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
     AirDeck.exe – eigenständiges Windows-Programm: eigenes Fenster (WebView2), Symbol im Infobereich,
-    startet und überwacht die AirDeck-Engine (airdeck-engine.exe). .NET Framework 4.8 ist auf jedem
+    startet und überwacht die AnMaCha-Cast-Engine (airdeck-engine.exe). .NET Framework 4.8 ist auf jedem
     Windows 10/11 vorhanden – keine zusätzliche Laufzeit nötig.
     Bauen: dotnet build apps/windows/AirDeck.csproj -c Release -p:Version=0.4.0
+    AssemblyName/Dateiname bleiben bewusst "AirDeck" (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 6):
+    eine Änderung würde den Update-/Neustart-Mechanismus (src/server/main.ts, update.ts, Installer-
+    Verknüpfungen) brechen, solange diese nicht koordiniert mitgeändert werden. Product/Description/
+    Copyright (sichtbar in Windows' Dateieigenschaften/Task-Manager) sind bereits auf AnMaCha Cast
+    umgestellt.
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -16,10 +21,10 @@
     <ApplicationIcon>..\..\assets\icons\airdeck-windows.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>0.0.0</Version>
-    <Product>AirDeck</Product>
-    <Description>AirDeck Radio Automation</Description>
+    <Product>AnMaCha Cast</Product>
+    <Description>AnMaCha Cast Radio Automation &amp; Live Broadcast</Description>
     <Company>AnMaCha Radioproduktion &amp; RicoReWi</Company>
-    <Copyright>AirDeck – Powered by AnMaCha Radioproduktion &amp; RicoReWi</Copyright>
+    <Copyright>AnMaCha Cast – Powered by AnMaCha Radioproduktion &amp; RicoReWi</Copyright>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

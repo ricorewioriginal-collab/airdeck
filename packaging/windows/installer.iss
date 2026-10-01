@@ -1,5 +1,8 @@
-; AirDeck – Windows-Installer (Inno Setup 6)
+; AnMaCha Cast – Windows-Installer (Inno Setup 6)
 ; Baut aus dist\AirDeck\ eine Setup.exe. Installation pro Benutzer, keine Administratorrechte nötig.
+; AssemblyName/Installationspfad/Verknüpfungsnamen/Registry-/Firewall-Einträge bleiben bewusst "AirDeck"
+; (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 6) - eine Änderung würde bei bestehenden Installationen
+; verwaiste Verknüpfungen/Registrierungseinträge hinterlassen bzw. den Update-Mechanismus brechen.
 ; Aufruf: iscc /DAppVersion=0.3.0 packaging\windows\installer.iss
 
 #ifndef AppVersion
@@ -8,14 +11,14 @@
 
 [Setup]
 AppId={{6F1B2C84-5A3E-4E7C-9C1D-7A0D2B8E4F11}
-AppName=AirDeck
+AppName=AnMaCha Cast
 AppVersion={#AppVersion}
-AppVerName=AirDeck {#AppVersion}
+AppVerName=AnMaCha Cast {#AppVersion}
 AppPublisher=AnMaCha Radioproduktion & RicoReWi
 AppPublisherURL=https://github.com/ricorewioriginal-collab/anmacha_control
 AppComments=Radio-Automation & Live-Broadcast
-VersionInfoDescription=AirDeck Setup
-VersionInfoProductName=AirDeck
+VersionInfoDescription=AnMaCha Cast Setup
+VersionInfoProductName=AnMaCha Cast
 DefaultDirName={autopf}\AirDeck
 DefaultGroupName=AirDeck
 DisableProgramGroupPage=yes
@@ -36,7 +39,7 @@ ShowLanguageDialog=auto
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\AirDeck.exe
-UninstallDisplayName=AirDeck
+UninstallDisplayName=AnMaCha Cast
 SetupIconFile=..\..\assets\icons\airdeck-windows.ico
 CloseApplications=yes
 RestartApplications=no
@@ -54,8 +57,8 @@ de.TaskAutostart=Bei der Anmeldung im Hintergrund starten (24/7-Automation, Symb
 en.TaskAutostart=Start in the background at sign-in (24/7 automation, tray icon)
 de.TaskLan=Im Netzwerk erreichbar (Android-App, weitere PCs im WLAN)
 en.TaskLan=Reachable on the network (Android app, other PCs)
-de.CompCore=AirDeck Studio & Server (Pflicht)
-en.CompCore=AirDeck studio & server (required)
+de.CompCore=AnMaCha Cast Studio & Server (Pflicht)
+en.CompCore=AnMaCha Cast studio & server (required)
 de.CompFfmpeg=Audio-Engine ffmpeg mit LAME/AAC/Opus (für 24/7-Automation, Encoder, Recorder)
 en.CompFfmpeg=Audio engine ffmpeg with LAME/AAC/Opus (24/7 automation, encoders, recorder)
 de.CompAndroid=Android-App (APK) zum Verteilen an Handys im WLAN
@@ -66,6 +69,9 @@ de.TypeCompact=Nur Studio (ohne Audio-Engine, z. B. als Fernbedienung)
 en.TypeCompact=Studio only (no audio engine, e.g. as remote control)
 de.TypeCustom=Benutzerdefiniert
 en.TypeCustom=Custom
+; IconStop/IconServer/IconManual bleiben bewusst "AirDeck": sie sind zugleich der Dateiname der
+; Start-Menü-Verknüpfung ([Icons] unten) - eine Änderung würde bei einem Update neben der neuen eine
+; verwaiste alte Verknüpfung hinterlassen (Inno Setup löscht umbenannte Verknüpfungen nicht automatisch).
 de.IconStop=AirDeck beenden
 en.IconStop=Quit AirDeck
 de.IconServer=AirDeck im Hintergrund (24/7, ohne Fenster)
@@ -74,8 +80,8 @@ de.IconManual=AirDeck Handbuch
 en.IconManual=AirDeck manual
 de.RunManual=Handbuch öffnen
 en.RunManual=Open the manual
-de.RunNow=AirDeck jetzt starten
-en.RunNow=Launch AirDeck now
+de.RunNow=AnMaCha Cast jetzt starten
+en.RunNow=Launch AnMaCha Cast now
 
 [Types]
 Name: "full"; Description: "{cm:TypeFull}"
@@ -110,12 +116,12 @@ Name: "{autodesktop}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AirDeck"; ValueData: """{app}\AirDeck.exe"" --minimized"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-; Nur bei bewusst gewähltem LAN-Zugriff mit Adminrechten, auf den tatsächlichen AirDeck-Port begrenzt.
+; Nur bei bewusst gewähltem LAN-Zugriff mit Adminrechten, auf den tatsächlichen AnMaCha-Cast-Port begrenzt.
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""AirDeck"" dir=in action=allow protocol=TCP localport={code:InstallerPort} program=""{app}\airdeck-engine.exe"" profile=private enable=yes"; Flags: runhidden; Tasks: lan; Check: ShouldAddLanFirewall
 Filename: "{app}\AirDeck.exe"; Description: "{cm:RunNow}"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\studio\handbuch.html"; Description: "{cm:RunManual}"; Flags: shellexec postinstall skipifsilent unchecked nowait
 
-; Nach einem automatischen Update (Aufruf mit /UPDATE=1) AirDeck wieder starten
+; Nach einem automatischen Update (Aufruf mit /UPDATE=1) AnMaCha Cast wieder starten
 Filename: "{app}\{code:RelaunchExe}"; Parameters: "{code:RelaunchParams}"; Flags: nowait; Check: IsUpdate
 
 [UninstallRun]
@@ -124,8 +130,8 @@ Filename: "{cmd}"; Parameters: "/c taskkill /IM AirDeck.exe /F & taskkill /IM ai
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""AirDeck"""; Flags: runhidden; RunOnceId: "FirewallAirDeck"; Check: IsAdminInstallMode
 
 [Messages]
-de.WelcomeLabel2=AirDeck wird auf diesem Computer installiert.%n%nAirDeck läuft komplett lokal im Hintergrund (Symbol im Infobereich) – kein eigener Server nötig. Deine Daten (Musik, Einstellungen, verschlüsselte Passwörter) liegen unter %LOCALAPPDATA%\AirDeck und bleiben bei einer Deinstallation erhalten.%n%nAirDeck ist ein Hobbyprojekt – bitte den Haftungsausschluss auf der nächsten Seite lesen.
-en.WelcomeLabel2=This will install AirDeck on your computer.%n%nAirDeck runs fully locally in the background (tray icon) – no server required. Your data stays in %LOCALAPPDATA%\AirDeck and is kept when uninstalling.%n%nAirDeck is a hobby project – please read the disclaimer on the next page.
+de.WelcomeLabel2=AnMaCha Cast wird auf diesem Computer installiert.%n%nAnMaCha Cast läuft komplett lokal im Hintergrund (Symbol im Infobereich) – kein eigener Server nötig. Deine Daten (Musik, Einstellungen, verschlüsselte Passwörter) liegen unter %LOCALAPPDATA%\AirDeck und bleiben bei einer Deinstallation erhalten.%n%nAnMaCha Cast ist ein Hobbyprojekt – bitte den Haftungsausschluss auf der nächsten Seite lesen.
+en.WelcomeLabel2=This will install AnMaCha Cast on your computer.%n%nAnMaCha Cast runs fully locally in the background (tray icon) – no server required. Your data stays in %LOCALAPPDATA%\AirDeck and is kept when uninstalling.%n%nAnMaCha Cast is a hobby project – please read the disclaimer on the next page.
 
 [Code]
 { Moderner Einrichtungsdialog: Betriebsart/Port/LAN, eigener Admin, Komponentenuebersicht,
@@ -185,18 +191,18 @@ end;
 procedure InitializeWizard;
 begin
   BrandPage := CreateOutputMsgMemoPage(wpSelectTasks,
-    '◉ AIRDECK', 'Radio Automation & Broadcast',
-    'Willkommen beim AirDeck Setup',
+    '◉ ANMACHA CAST', 'Radio Automation & Live Broadcast',
+    'Willkommen beim AnMaCha Cast Setup',
     '╔══════════════════════════════════════════════╗' + #13#10 +
-    '║   ◉  A I R D E C K                          ║' + #13#10 +
+    '║   ◉  A N M A C H A   C A S T                ║' + #13#10 +
     '║   Radio Automation & Live Broadcast         ║' + #13#10 +
     '╚══════════════════════════════════════════════╝' + #13#10#13#10 +
-    'Dieser Assistent richtet AirDeck so ein, dass nach der Installation möglichst keine Konsole nötig ist.' + #13#10 +
+    'Dieser Assistent richtet AnMaCha Cast so ein, dass nach der Installation möglichst keine Konsole nötig ist.' + #13#10 +
     'Du wählst Betriebsart, Port, Netzwerkzugriff, optional einen eigenen Administrator und den Datenspeicher.');
 
   ServerModePage := CreateInputOptionPage(BrandPage.ID,
-    'Betriebsart', 'Wie soll AirDeck auf diesem Computer laufen?',
-    'Die Einstellung kann später im AirDeck-Setup-Assistenten geändert werden.', True, False);
+    'Betriebsart', 'Wie soll AnMaCha Cast auf diesem Computer laufen?',
+    'Die Einstellung kann später im AnMaCha-Cast-Setup-Assistenten geändert werden.', True, False);
   ServerModePage.Add('Standard / Lokal – Studio und Automation auf diesem PC');
   ServerModePage.Add('Erweitert / Server – 24/7, mehrere Sender und Streamziele');
   ServerModePage.Add('Erweitert / Hybrid – lokales Studio mit Server-/Netzwerkfunktionen');
@@ -205,35 +211,35 @@ begin
   NetworkPage := CreateInputQueryPage(ServerModePage.ID,
     'Server & Port', 'Netzwerkeinstellungen',
     'Standard ist Port 8750. Bitte nur ändern, wenn der Port bereits belegt ist oder du bewusst einen anderen Port verwenden willst.');
-  NetworkPage.Add('AirDeck-Port:', False);
+  NetworkPage.Add('AnMaCha-Cast-Port:', False);
   NetworkPage.Values[0] := '8750';
 
   LanPage := CreateInputOptionPage(NetworkPage.ID,
-    'Netzwerkzugriff', 'Soll AirDeck im lokalen Netzwerk erreichbar sein?',
-    'Y erlaubt Android-App und andere PCs im LAN. N bindet AirDeck nur an diesen Computer.', True, False);
+    'Netzwerkzugriff', 'Soll AnMaCha Cast im lokalen Netzwerk erreichbar sein?',
+    'Y erlaubt Android-App und andere PCs im LAN. N bindet AnMaCha Cast nur an diesen Computer.', True, False);
   LanPage.Add('Y (Yes) – im LAN erreichbar');
   LanPage.Add('N (No) – nur auf diesem Computer');
   LanPage.SelectedValueIndex := 1;
 
   MonitoringPage := CreateInputOptionPage(LanPage.ID,
-    'Lokales Monitoring', 'AirDeck auf diesem PC mithören?',
-    'AirDeckCast stellt bei laufender Automation ein authentifiziertes HLS-Monitoring über den AirDeck-Port bereit. Ein zusätzlicher Icecast-Dienst und eine Firewallregel für Port 8000 sind dafür nicht nötig.', True, False);
+    'Lokales Monitoring', 'AnMaCha Cast auf diesem PC mithören?',
+    'Zusatz-Streams/HLS stellt bei laufender Automation ein authentifiziertes HLS-Monitoring über den AnMaCha-Cast-Port bereit. Ein zusätzlicher Icecast-Dienst und eine Firewallregel für Port 8000 sind dafür nicht nötig.', True, False);
   MonitoringPage.Add('Y (Yes) – lokales HLS-Monitoring vorbereiten (empfohlen)');
   MonitoringPage.Add('N (No) – später im Studio einrichten');
   MonitoringPage.SelectedValueIndex := 0;
 
   AdminChoicePage := CreateInputOptionPage(MonitoringPage.ID,
-    'Administrator', 'Eigenen AirDeck-Admin jetzt anlegen?',
+    'Administrator', 'Eigenen AnMaCha-Cast-Admin jetzt anlegen?',
     'Empfohlen für Server-/LAN-Betrieb. Das Kennwort wird während der Installation gehasht und die Bootstrap-Datei danach gelöscht.', True, False);
   AdminChoicePage.Add('Y (Yes) – eigenen Admin-Zugang einrichten');
-  AdminChoicePage.Add('N (No) – später im AirDeck-Setup einrichten');
+  AdminChoicePage.Add('N (No) – später im AnMaCha-Cast-Setup einrichten');
   { Unattended installation defers credentials to the application's first-run setup.
     Never create a bootstrap file with an empty password or wait for an invisible dialog. }
   if WizardSilent then AdminChoicePage.SelectedValueIndex := 1
   else AdminChoicePage.SelectedValueIndex := 0;
 
   AdminPage := CreateInputQueryPage(AdminChoicePage.ID,
-    'Administrator', 'Eigener AirDeck-Zugang',
+    'Administrator', 'Eigener AnMaCha-Cast-Zugang',
     'Benutzername 2–40 Zeichen. Passwort mindestens 10 Zeichen mit Buchstaben und mindestens einer Ziffer oder einem Sonderzeichen.');
   AdminPage.Add('Benutzername:', False);
   AdminPage.Add('Anzeigename:', False);
@@ -243,22 +249,22 @@ begin
   AdminPage.Values[1] := 'Administrator';
 
   ThirdPartyPage := CreateOutputMsgMemoPage(AdminPage.ID,
-    'Komponenten', 'Was AirDeck installiert bzw. verwendet',
+    'Komponenten', 'Was AnMaCha Cast installiert bzw. verwendet',
     'Komponentenübersicht',
-    'AirDeck Core / Studio                 – RicoReWi / AirDeck' + #13#10 +
-    'AirDeck Encoder / Relay / Failover    – eigener AirDeck-Kern' + #13#10 +
+    'AnMaCha Cast Core / Studio            – RicoReWi / AnMaCha Cast' + #13#10 +
+    'AnMaCha Cast Encoder / Relay / Failover – eigener AnMaCha-Cast-Kern' + #13#10 +
     'FFmpeg + FFprobe + FFplay             – Audio-Engine (bei Komponente „Audio-Engine“)' + #13#10 +
     'LAME MP3 / AAC / Opus                 – Encoder über den mitgelieferten FFmpeg-Build' + #13#10 +
-    'Node.js Laufzeit / SEA                – Laufzeit der AirDeck-Engine' + #13#10 +
+    'Node.js Laufzeit / SEA                – Laufzeit der AnMaCha-Cast-Engine' + #13#10 +
     'SQLite                                – lokale Standarddatenbank' + #13#10 +
     'Android APK                           – optionales Installationspaket für Handys' + #13#10#13#10 +
     'Icecast/SHOUTcast/laut.fm             – externe Streaming-Ziele; Zugangsdaten werden nicht mitgeliefert.' + #13#10 +
-    'AirDeckCast/HLS                       – AirDeck-eigene Streaming-/Profilfunktionen.' + #13#10#13#10 +
+    'Zusatz-Streams/HLS                    – AnMaCha-Cast-eigene Streaming-/Profilfunktionen.' + #13#10#13#10 +
     'Exakte Versionen, Quellen und Lizenzen stehen in THIRD_PARTY_COMPONENTS.md und im Handbuch.');
 
   StoragePage := CreateInputOptionPage(ThirdPartyPage.ID,
     'Datenspeicher', 'Wo sollen die Senderdaten gespeichert werden?',
-    'AirDeck läuft immer lokal. Optional kann der Senderzustand mit einer Datenbank synchronisiert werden. Musikdateien bleiben lokal.',
+    'AnMaCha Cast läuft immer lokal. Optional kann der Senderzustand mit einer Datenbank synchronisiert werden. Musikdateien bleiben lokal.',
     True, False);
   StoragePage.Add('Nur lokal (empfohlen, keine Einrichtung nötig)');
   StoragePage.Add('MySQL / MariaDB (eigener Server, mehrere Standorte)');
@@ -267,7 +273,7 @@ begin
 
   MysqlPage := CreateInputQueryPage(StoragePage.ID,
     'MySQL / MariaDB', 'Zugangsdaten zur Datenbank',
-    'Die Datenbank muss bereits existieren; AirDeck legt seine Tabelle selbst an. Das Passwort wird beim ersten Start verschlüsselt gespeichert.');
+    'Die Datenbank muss bereits existieren; AnMaCha Cast legt seine Tabelle selbst an. Das Passwort wird beim ersten Start verschlüsselt gespeichert.');
   MysqlPage.Add('Server (Host):', False);
   MysqlPage.Add('Port:', False);
   MysqlPage.Add('Benutzer:', False);
@@ -289,7 +295,7 @@ begin
   FirstSyncPage.SelectedValueIndex := 0;
 
   ConfirmPage := CreateInputOptionPage(FirstSyncPage.ID,
-    'Bestätigung', 'AirDeck mit diesen Einstellungen installieren?',
+    'Bestätigung', 'AnMaCha Cast mit diesen Einstellungen installieren?',
     'Y übernimmt die gewählten Einstellungen. N geht nicht weiter – du kannst mit „Zurück“ Änderungen vornehmen.', True, False);
   ConfirmPage.Add('Y (Yes) – Einstellungen übernehmen und installieren');
   ConfirmPage.Add('N (No) – noch nicht installieren');
@@ -366,12 +372,12 @@ begin
   else ModeName := 'LOCAL';
 
   if LanPage.SelectedValueIndex = 0 then LanName := 'Y (LAN)' else LanName := 'N (nur dieser PC)';
-  if MonitoringPage.SelectedValueIndex = 0 then MonitoringName := 'AirDeckCast HLS (lokal)' else MonitoringName := 'spaeter einrichten';
+  if MonitoringPage.SelectedValueIndex = 0 then MonitoringName := 'Zusatz-Streams/HLS (lokal)' else MonitoringName := 'spaeter einrichten';
 
   if AdminChoicePage.SelectedValueIndex = 0 then
     AdminName := Trim(AdminPage.Values[0])
   else
-    AdminName := 'spaeter im AirDeck-Setup';
+    AdminName := 'spaeter im AnMaCha-Cast-Setup';
 
   if StoragePage.SelectedValueIndex = 1 then StorageName := 'MySQL / MariaDB'
   else if StoragePage.SelectedValueIndex = 2 then StorageName := 'Firebase'
@@ -396,7 +402,7 @@ begin
     'Administrator: ' + AdminName + #13#10 +
     'Datenspeicher: ' + StorageName + #13#10 +
     'Komponenten: ' + ComponentsText + #13#10#13#10 +
-    'Y installiert AirDeck mit diesen Einstellungen. N bricht hier ab; mit Zurueck kannst du Aenderungen vornehmen.';
+    'Y installiert AnMaCha Cast mit diesen Einstellungen. N bricht hier ab; mit Zurueck kannst du Aenderungen vornehmen.';
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -444,7 +450,7 @@ begin
     begin
       WizardSelectTasks('lan');
       if not IsAdminInstallMode then
-        MsgBox('AirDeck wird im LAN gebunden. Bei Installation nur für diesen Benutzer kann der Installer keine Firewallregel anlegen; gib den gewählten Port bei Bedarf manuell für das private Netzwerk frei.', mbInformation, MB_OK);
+        MsgBox('AnMaCha Cast wird im LAN gebunden. Bei Installation nur für diesen Benutzer kann der Installer keine Firewallregel anlegen; gib den gewählten Port bei Bedarf manuell für das private Netzwerk frei.', mbInformation, MB_OK);
     end
     else WizardSelectTasks('!lan');
   end;
@@ -513,19 +519,19 @@ begin
   if LanPage.SelectedValueIndex = 0 then BindName := 'lan' else BindName := 'local';
 
   SetArrayLength(Lines, 6);
-  Lines[0] := '# AirDeck – vom Windows-Installer angelegte Grundeinstellungen.';
+  Lines[0] := '# AnMaCha Cast – vom Windows-Installer angelegte Grundeinstellungen.';
   Lines[1] := 'mode = ' + ModeName;
   Lines[2] := '';
   Lines[3] := '[network]';
   Lines[4] := 'port = ' + Trim(NetworkPage.Values[0]);
   Lines[5] := 'bind = ' + BindName;
   if not SaveStringsToUTF8File(ConfigDir + '\airdeck.conf', Lines, False) then
-    RaiseException('AirDeck-Grundeinstellungen konnten nicht geschrieben werden.');
+    RaiseException('AnMaCha-Cast-Grundeinstellungen konnten nicht geschrieben werden.');
 
   SetArrayLength(Lines, 1);
   if LanPage.SelectedValueIndex = 0 then Lines[0] := '{"lan":true}' else Lines[0] := '{"lan":false}';
   if not SaveStringsToUTF8File(DataDir + '\network.json', Lines, False) then
-    RaiseException('AirDeck-Netzwerkeinstellungen konnten nicht geschrieben werden.');
+    RaiseException('AnMaCha-Cast-Netzwerkeinstellungen konnten nicht geschrieben werden.');
 
   ResultCode := -1;
   if (not Exec(ExpandConstant('{app}\airdeck-engine.exe'), '--headless --check-port',
@@ -533,7 +539,7 @@ begin
   begin
     DeleteFile(ConfigDir + '\airdeck.conf');
     DeleteFile(DataDir + '\network.json');
-    RaiseException('Der gewählte AirDeck-Port ist belegt oder konnte nicht geprüft werden. Bitte einen anderen Port wählen.');
+    RaiseException('Der gewählte AnMaCha-Cast-Port ist belegt oder konnte nicht geprüft werden. Bitte einen anderen Port wählen.');
   end;
 
   BootstrapFile := DataDir + '\installer-bootstrap.json';
@@ -549,7 +555,7 @@ begin
     SetArrayLength(Lines, 1);
     Lines[0] := Json;
     if not SaveStringsToUTF8File(DataDir + '\storage-setup.json', Lines, False) then
-      RaiseException('AirDeck-Datenspeicher konnte nicht vorbereitet werden.');
+      RaiseException('AnMaCha-Cast-Datenspeicher konnte nicht vorbereitet werden.');
   end;
 
   if (AdminChoicePage.SelectedValueIndex = 0) or (MonitoringPage.SelectedValueIndex = 0) or
@@ -570,7 +576,7 @@ begin
     if not SaveStringsToUTF8File(BootstrapFile, Lines, False) then
     begin
       DeleteFile(DataDir + '\storage-setup.json');
-      RaiseException('AirDeck-Einmaldaten konnten nicht geschrieben werden.');
+      RaiseException('AnMaCha-Cast-Einmaldaten konnten nicht geschrieben werden.');
     end;
   end;
 
@@ -587,7 +593,7 @@ begin
     begin
       DeleteFile(BootstrapFile);
       DeleteFile(DataDir + '\storage-setup.json');
-      RaiseException('AirDeck konnte die Ersteinrichtung nicht übernehmen. Bitte Installation prüfen; kein Admin-Passwort wurde behalten.');
+      RaiseException('AnMaCha Cast konnte die Ersteinrichtung nicht übernehmen. Bitte Installation prüfen; kein Admin-Passwort wurde behalten.');
     end;
   end;
 end;

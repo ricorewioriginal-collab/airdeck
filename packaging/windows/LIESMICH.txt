@@ -1,14 +1,14 @@
-AirDeck für Windows
-===================
+AnMaCha Cast für Windows
+========================
 
 Start:            AirDeck.exe  (das Programm: eigenes Fenster, Symbol im Infobereich, startet die Engine)
 Fenster zu:       Automation und Streams laufen im Hintergrund weiter (Symbol im Infobereich).
-Beenden:          Rechtsklick auf das Symbol im Infobereich → „AirDeck beenden“.
+Beenden:          Rechtsklick auf das Symbol im Infobereich → „AnMaCha Cast beenden“.
 Nur Engine:       AirDeck-Headless.cmd  (ohne Fenster, für 24/7)
-Autostart:        Autostart-einrichten.cmd  (startet AirDeck bei jeder Anmeldung im Infobereich)
+Autostart:        Autostart-einrichten.cmd  (startet AnMaCha Cast bei jeder Anmeldung im Infobereich)
 Neues Token:      airdeck-engine.exe --new-admin-token  (z. B. für die Android-App)
 
-AirDeck.exe ist das Programm, airdeck-engine.exe die Audio-Engine (Automation, Decks, Encoder) im Hintergrund.
+AirDeck.exe ist das Programm, airdeck-engine.exe die AnMaCha-Cast-Engine (Automation, Decks, Encoder) im Hintergrund.
 Das Fenster nutzt Microsoft WebView2 (bei Windows 10/11 vorhanden).
 
 Daten liegen in %LOCALAPPDATA%\AirDeck\data (Medien, Einstellungen, verschlüsselte Passwörter).
