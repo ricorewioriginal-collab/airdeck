@@ -1,14 +1,14 @@
-# Funktionsabgleich: AnMaCha-Dashboard → AirDeck
+# Funktionsabgleich: AnMaCha-Dashboard → AnMaCha Cast
 
 Quellen: `index.html` und `sam.html` (eigene Server-Automation, „AnMaCha Broadcaster – Live-Automation“),
 `automation.html` (laut.fm Radioadmin), `ki-tools.html` (KI Tools) und `radioadmin-api-spec`.
-AirDeck bildet diese Funktionen **ohne PHP-Server** lokal ab: `AirDeck.exe` bzw. `npm start`.
+AnMaCha Cast bildet diese Funktionen **ohne PHP-Server** lokal ab: `AnMaCha Cast.exe` bzw. `npm start`.
 
 Legende: ✅ vorhanden · 🟡 teilweise · ⏳ geplant
 
 ## Server-Automation (index.html / sam.html)
 
-| Funktion | Status | In AirDeck |
+| Funktion | Status | In AnMaCha Cast |
 |---|---|---|
 | Decks A/B (Auto-DJ, Crossfade), C/D manuell | ✅ | 4 Decks, Automation, Server-Playout 24/7 |
 | Cue-Marke, Loop, Tempo, ±10 s | 🟡 | Cue-In/Segue pro Titel, Springen per Klick. Loop/Tempo ⏳ |
@@ -37,7 +37,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · ⏳ geplant
 
 ## lautCast (vormals „laut.fm" im Menü) - Radioadmin-Anbindung (automation.html als 1:1-Funktionsreferenz)
 
-Der Menüpunkt heißt in AirDeck **lautCast** (reine UI-Bezeichnung der AirDeck-Funktion); „laut.fm" bleibt unverändert der Name des externen Dienstes, zu dem verbunden wird. Siehe `docs/LAUTCAST_PROGRESS.md` für den laufenden, phasenweisen Abgleich gegen `automation.html` als Funktionsreferenz.
+Der Menüpunkt heißt in AnMaCha Cast **lautCast** (reine UI-Bezeichnung der AnMaCha Cast-Funktion); „laut.fm" bleibt unverändert der Name des externen Dienstes, zu dem verbunden wird. Siehe `docs/LAUTCAST_PROGRESS.md` für den laufenden, phasenweisen Abgleich gegen `automation.html` als Funktionsreferenz.
 
 | Funktion | Status |
 |---|---|
@@ -51,7 +51,7 @@ Der Menüpunkt heißt in AirDeck **lautCast** (reine UI-Bezeichnung der AirDeck-
 | Statistik: Hörer jetzt, Einschaltungen, gespielte Titel 24 h | ✅ |
 | Benutzer: einladen, Rolle ändern, entfernen | ✅ |
 | Station: Beschreibung, Format, DJs, Links, Genres, Logo | ✅ |
-| Live: Zugangsdaten → als AirDeck-Ausgang übernehmen (mit ?prio=) | ✅ |
+| Live: Zugangsdaten → als AnMaCha Cast-Ausgang übernehmen (mit ?prio=) | ✅ |
 | „Jetzt auf laut.fm“-Live-Kachel (Cover, Fortschrittsbalken, Stream-Vorhören) | ⏳ |
 | Lifehacks (Massen-Tagger, Jahr-Batch-Füllen, Top-24h-Playlist-Builder) | ⏳ |
 | Statistik-Mail-Report | ⏳ - lokale Zusatzfunktion der Referenz (cron.php), kein reiner laut.fm-API-Aufruf |
@@ -59,16 +59,16 @@ Der Menüpunkt heißt in AirDeck **lautCast** (reine UI-Bezeichnung der AirDeck-
 ## KI Tools (ki-tools.html)
 
 Voice Studio, KI-Assistent, Musik-Studio (Suno), Spot-Werkstatt, Sendeablauf-Planer, Transkription und Office-Studio
-kommen in die AirDeck-AI-Schicht (Phase 8 der Roadmap). Dort gelten eigene Provider-Keys, lokale bzw. kostenlose Engines
+kommen in die AnMaCha Cast-AI-Schicht (Phase 8 der Roadmap). Dort gelten eigene Provider-Keys, lokale bzw. kostenlose Engines
 (Piper/Whisper) zuerst und ein Kosten-Ledger. AI darf nie Single Point of Failure sein.
 
 ## LunarCaster DJ 1.2 Beta 5 (Funktionsvorlage für den lokalen Betrieb)
 
 LunarCaster wird nicht mehr gepflegt und darf frei verwendet werden. Übernommen wurden **nur Funktionsideen**.
 Die mitgelieferten Fremdbibliotheken (BASS/Bass.Net von un4seen, Winamp-DSP-Plugins, Encoder-EXEs) sind eigenständige
-Drittsoftware mit eigenen Lizenzen und sind **nicht** Teil von AirDeck. AirDeck nutzt stattdessen ffmpeg.
+Drittsoftware mit eigenen Lizenzen und sind **nicht** Teil von AnMaCha Cast. AnMaCha Cast nutzt stattdessen ffmpeg.
 
-| LunarCaster | Status | AirDeck |
+| LunarCaster | Status | AnMaCha Cast |
 |---|---|---|
 | Decks A/B, Auto-Crossfade, Fade-In/Fade-Out/Next-Start | ✅ | Überblendung, Einblenden, Segue pro Titel |
 | Mikrofon + Voice-Over-Lautstärke, Aux-Eingänge in den Stream | ✅ | Server-Automation: Mikrofon/Line-In am PC mit Ducking (🎙 Mikro) |
@@ -86,11 +86,11 @@ Drittsoftware mit eigenen Lizenzen und sind **nicht** Teil von AirDeck. AirDeck 
 
 ## AzuraCast, mAirList, RadioDJ, SAM Broadcaster (echte Fremdsysteme)
 
-Öffentlich dokumentierte Funktionen der vier verbreitetsten Systeme, abgeglichen mit dem tatsächlichen AirDeck-Code
+Öffentlich dokumentierte Funktionen der vier verbreitetsten Systeme, abgeglichen mit dem tatsächlichen AnMaCha Cast-Code
 (nicht mit Werbetexten). Quellen: azuracast.com/docs, github.com/AzuraCast/AzuraCast (AGPL-3.0, nur zum Vergleich
 gelesen, kein Code übernommen), mairlist.com/en/products/radio-automation, radiodj.ro, spacial.com (SAM Broadcaster).
 
-| Funktion | AzuraCast | mAirList | RadioDJ | SAM Broadcaster | AirDeck |
+| Funktion | AzuraCast | mAirList | RadioDJ | SAM Broadcaster | AnMaCha Cast |
 |---|---|---|---|---|---|
 | AutoDJ mit Playlist-Typen (Standard, Zeitfenster, X-mal/Stunde) | ✅ | ✅ | ✅ (Rotation) | ✅ | ✅ Sendeuhr, Zeitplan, Rotation |
 | Live-Assist/Automation-Umschaltung, Mikrofon mit Ducking | ✅ Web-DJ | ✅ | ✅ | ✅ | ✅ Manuell/24-7-AutoDJ, 🎙 Mikro |
@@ -104,13 +104,13 @@ gelesen, kein Code übernommen), mairlist.com/en/products/radio-automation, radi
 | Webhooks/Integrationen | ✅ Slack/Discord/TuneIn | 🟡 (REST/Skripte) | ✗ | ✗ | ✅ signierte Webhooks, Telegram |
 | Sound-Prozessor (EQ/Kompressor/Lautheit) | 🟡 (Liquidsoap-Filter) | ✅ (VST/Winamp-Plugins) | ✅ (Plugin) | ✅ 5-Band | ✅ 10-Band-EQ, Multiband, EBU-R128-Lautheitsangleich pro Titel |
 | Podcast-/RSS-Hosting (Episoden, Feed) | ✅ | ✗ | 🟡 | ✗ | ⏳ geplant |
-| Erweiterte Playlisten mit eigenem Skript (Liquidsoap von Hand) | ✅ „Advanced Playlist“ | ✗ | ✗ | ✗ | ⏳ nicht geplant (AirDeck bleibt ohne Skriptsprache bedienbar) |
+| Erweiterte Playlisten mit eigenem Skript (Liquidsoap von Hand) | ✅ „Advanced Playlist“ | ✗ | ✗ | ✗ | ⏳ nicht geplant (AnMaCha Cast bleibt ohne Skriptsprache bedienbar) |
 | Fernsteuerung professioneller Misch­pulte (DHD, Lawo, Studer, Axia, Ember+) | ✗ | ✅ | ✗ | ✗ | ✗ bewusst nicht: Hardware-spezifisch, sehr kleine Zielgruppe |
 | MusicMaster-Anbindung (externe Musikplanung) | ✗ | ✅ | ✗ | ✗ | ✗ nicht geplant: eigene Rotation/Sendeuhr deckt den Bedarf |
-| Monetarisierung (Musikverkauf, Werbe-/Merch-Links) | ✗ | ✗ | ✗ | ✅ | ✗ nicht AirDecks Zweck (Hobbyprojekt, ohne Gewähr) |
+| Monetarisierung (Musikverkauf, Werbe-/Merch-Links) | ✗ | ✗ | ✗ | ✅ | ✗ nicht der Zweck von AnMaCha Cast (Hobbyprojekt, ohne Gewähr) |
 
-**Einordnung:** Bei Kern-Playout, Lautheit/DSP, Mehr-Sender-Betrieb und Hörer-Interaktion liegt AirDeck vor allen vier
+**Einordnung:** Bei Kern-Playout, Lautheit/DSP, Mehr-Sender-Betrieb und Hörer-Interaktion liegt AnMaCha Cast vor allen vier
 Vergleichssystemen. Die einzige verbliebene, wirklich genutzte Lücke war Voice Tracking – jetzt umgesetzt (siehe
 oben). Podcast-/RSS-Hosting ist die einzige noch offene, tatsächlich nachgefragte Funktion (AzuraCast bietet sie);
-alles andere in der Tabelle ist entweder Nischenhardware, eine externe Abhängigkeit, die AirDecks Ziel
+alles andere in der Tabelle ist entweder Nischenhardware, eine externe Abhängigkeit, die dem Ziel von AnMaCha Cast
 „läuft komplett lokal, ohne Zusatzsoftware“ widerspräche, oder außerhalb des Projektzwecks.

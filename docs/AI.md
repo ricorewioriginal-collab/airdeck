@@ -1,6 +1,6 @@
 # KI-Automation (AI Radio Director)
 
-AirDeck kann einen Sender auf Wunsch vollständig von KI moderieren und musikalisch planen lassen. Dafür nutzt es deine eigenen API-Keys oder lokale Modelle. Die KI ist nie Single Point of Failure. Scheitert ein Aufruf, läuft die Sendeuhr weiter und nichts Unfertiges geht auf Sendung.
+AnMaCha Cast kann einen Sender auf Wunsch vollständig von KI moderieren und musikalisch planen lassen. Dafür nutzt es deine eigenen API-Keys oder lokale Modelle. Die KI ist nie Single Point of Failure. Scheitert ein Aufruf, läuft die Sendeuhr weiter und nichts Unfertiges geht auf Sendung.
 
 ## Anbieter
 
@@ -13,7 +13,7 @@ AirDeck kann einen Sender auf Wunsch vollständig von KI moderieren und musikali
 | Sprache | Piper | lokal/offline, Stimme = Pfad zur `.onnx` (z. B. Thorsten) |
 
 - Keys liegen verschlüsselt im Secret-Store (AES-256-GCM) und werden nie angezeigt oder an den Browser geschickt.
-- Modell- und Stimmenlisten werden beim Anbieter abgefragt. AirDeck gibt keine Modelle vor.
+- Modell- und Stimmenlisten werden beim Anbieter abgefragt. AnMaCha Cast gibt keine Modelle vor.
 - Pro Aufgabe gibt es Primär und Fallback. Fehler, Zeitüberschreitungen, leere Antworten und Ablehnungen des Modells führen zum Fallback, danach zum Überspringen.
 
 ## Director (pro Sender)

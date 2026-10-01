@@ -1,6 +1,6 @@
-# AirDeck Community Code of Conduct
+# AnMaCha Cast Community Code of Conduct
 
-AirDeck soll ein sachliches, respektvolles und konstruktives Entwicklungsumfeld bieten. Dieser Verhaltenskodex gilt für Issues, Pull Requests, Reviews, Diskussionen und andere offizielle AirDeck-Projektbereiche.
+AnMaCha Cast soll ein sachliches, respektvolles und konstruktives Entwicklungsumfeld bieten. Dieser Verhaltenskodex gilt für Issues, Pull Requests, Reviews, Diskussionen und andere offizielle AnMaCha Cast-Projektbereiche.
 
 ## Erwartetes Verhalten
 
@@ -26,7 +26,7 @@ Nicht akzeptiert werden insbesondere:
 - absichtliche Veröffentlichung von Secrets oder Zugangsdaten;
 - Spam oder wiederholte destruktive Störung von Diskussionen;
 - vorsätzlich irreführende Angaben zu Tests, Sicherheitsprüfungen oder Funktionsfähigkeit;
-- Ausgabe inoffizieller Builds als offizielle AirDeck-Releases;
+- Ausgabe inoffizieller Builds als offizielle AnMaCha Cast-Releases;
 - vorsätzliche Umgehung von Sicherheits-, Lizenz- oder Review-Regeln.
 
 ## Technische Diskussionen
@@ -43,7 +43,7 @@ Wesentliche KI-Unterstützung soll gemäß [`AI_HANDOVER.md`](AI_HANDOVER.md) tr
 
 ## Sicherheit
 
-Noch nicht behobene Schwachstellen sollen gemäß [`SECURITY.md`](SECURITY.md) vertraulich gemeldet werden. Das öffentliche Posten unnötiger Exploitdetails kann andere AirDeck-Nutzer gefährden.
+Noch nicht behobene Schwachstellen sollen gemäß [`SECURITY.md`](SECURITY.md) vertraulich gemeldet werden. Das öffentliche Posten unnötiger Exploitdetails kann andere AnMaCha Cast-Nutzer gefährden.
 
 ## Moderation
 
@@ -55,8 +55,8 @@ Schwere Fälle, insbesondere Drohungen, gezielte Belästigung, Veröffentlichung
 
 ## Meldung eines Verhaltensproblems
 
-Probleme mit dem Verhalten innerhalb der AirDeck-Community sollen über einen geeigneten offiziellen Kontaktweg an den Maintainer gemeldet werden. Sensible persönliche Details nicht unnötig öffentlich posten.
+Probleme mit dem Verhalten innerhalb der AnMaCha Cast-Community sollen über einen geeigneten offiziellen Kontaktweg an den Maintainer gemeldet werden. Sensible persönliche Details nicht unnötig öffentlich posten.
 
 ## Projektentscheidungen
 
-Dieser Code of Conduct gibt keinen Anspruch auf Merge, Feature-Implementierung oder Release. Technische und organisatorische Entscheidungen für das offizielle AirDeck-Projekt verbleiben beim Maintainer und werden nach Möglichkeit anhand von Architektur, Sicherheit, Wartbarkeit und Projektzielen getroffen.
+Dieser Code of Conduct gibt keinen Anspruch auf Merge, Feature-Implementierung oder Release. Technische und organisatorische Entscheidungen für das offizielle AnMaCha Cast-Projekt verbleiben beim Maintainer und werden nach Möglichkeit anhand von Architektur, Sicherheit, Wartbarkeit und Projektzielen getroffen.
