@@ -51,6 +51,18 @@ Hinweise, die der Client gezielt gibt, statt „Server nicht erreichbar“:
 
 Das Desktop-Studio verbindet sich über `127.0.0.1` und nicht über die LAN-Adresse. Die Anmeldung erfolgt automatisch mit einem Maschinen-Token, das nur von `127.0.0.1` angenommen wird und im Datenverzeichnis des Dienstes liegt. IPC über Named Pipes/Unix-Sockets bringt gegenüber Loopback-HTTP keinen Vorteil und wird nicht eingeführt.
 
+## Web-Fernsteuerung (Browser auf fremder Webseite)
+
+Webseiten wie ein Radio-Control-Center können AirDeck direkt aus dem Browser bedienen und den Sendebetrieb über `GET /api/v1/events` live mitlesen. Damit der Browser das darf, muss die Webseite freigegeben sein:
+
+- **Studio:** Tools → Web-Fernsteuerung → eine Adresse pro Zeile (nur Origin, z. B. `https://control.meinradio.de`). Erlaubt sind `https://…` sowie `http://localhost`/`127.0.0.1`. Gespeichert in `network.json` (`webOrigins`), sofort wirksam, kein Neustart.
+- **API:** `GET`/`PUT /api/v1/app/origins` (`{ "webOrigins": [...] }`, nur globale Admins).
+- **Umgebung:** `AIRDECK_CORS_ORIGINS` (kommagetrennt) wirkt zusätzlich, z. B. für feste Docker-Setups.
+
+Die Freigabe ersetzt keine Anmeldung: Die Webseite verbindet sich per Kopplungscode (im selben Dialog erzeugbar, Rolle und Sender wählbar) oder Benutzerkonto und erhält ein widerrufbares Geräte-Token. `EventSource` übergibt das Token als `?token=` (nur bei GET erlaubt).
+
+Für AirDeck auf diesem PC oder im LAN beantwortet AirDeck bei freigegebenen Webseiten zusätzlich Chromes „Private Network Access“-Abfrage (`Access-Control-Allow-Private-Network: true`). Ruft eine https-Webseite ein AirDeck im LAN per `http://` auf, blockiert der Browser das trotzdem (Mixed Content). Ausnahme ist `127.0.0.1`/`localhost`. Für andere Rechner im Netz muss AirDeck daher per HTTPS erreichbar sein (siehe unten).
+
 ## HTTPS
 
 - **Self-Hosted:** Caddy als Reverse Proxy mit automatischem Zertifikat. Die Vorlage erzeugt der Setup-Assistent aus Domain und E-Mail.
@@ -66,6 +78,7 @@ Das Desktop-Studio verbindet sich über `127.0.0.1` und nicht über die LAN-Adre
 | Kopplungscode (6 Ziffern, 5 min, einmalig, Rolle und Sender wählbar, Sperre nach 8 Fehlversuchen je Adresse für 10 min) | umgesetzt: `POST /api/v1/pairing`, öffentlich `POST /api/v1/pair` |
 | Geräte-Token, einzeln widerrufbar, „zuletzt gesehen“ | umgesetzt: `GET /api/v1/devices`, `DELETE /api/v1/devices/<id>` |
 | Verbindungstest in Stufen mit Hinweisen, Versionsprüfung, Serverprofile | umgesetzt (`studio/js/connect.js`, Dialog „Mit AirDeck verbinden“, „Server wechseln“) |
+| Web-Fernsteuerung (freigegebene Webseiten, CORS + Private Network Access) | umgesetzt: `GET`/`PUT /api/v1/app/origins`, Studio → Tools → Web-Fernsteuerung |
 | QR-Code | folgt mit dem nativen Kamera-Scanner der App (Schritt 8) |
 | Token im Android Keystore | folgt mit Schritt 8, bis dahin Speicher der WebView |
 
