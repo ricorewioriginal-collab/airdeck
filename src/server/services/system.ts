@@ -4,6 +4,7 @@ import type { AirDeckApp } from '../app.ts';
 import { existsSync } from 'node:fs';
 import { cpus, freemem, networkInterfaces, totalmem, uptime as osUptime } from 'node:os';
 import { join } from 'node:path';
+import { envVar } from '../legacy-branding.ts';
 import { AppError } from '../model.ts';
 import { readJson, writeFileAtomic } from '../store.ts';
 import { DEFAULT_SOURCE, type UpdateSource } from '../update.ts';
@@ -120,7 +121,7 @@ export class SystemService {
     for (const list of Object.values(networkInterfaces())) {
       for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) addresses.push(`http://${a.address}:${this.app.listenPort}`);
     }
-    return { lan: lanSetting, listening, restartNeeded: lanSetting !== listening && !process.env.AIRDECK_HOST, addresses, apk: this.localApk() ? 'local' : 'release' };
+    return { lan: lanSetting, listening, restartNeeded: lanSetting !== listening && !envVar(process.env, 'HOST'), addresses, apk: this.localApk() ? 'local' : 'release' };
   }
 
   setNetwork(lan: boolean): unknown {
@@ -139,7 +140,7 @@ export class SystemService {
 
   private originsCache: Set<string> | null = null;
 
-  /** Webseiten, die AirDeck aus dem Browser heraus bedienen dürfen (zusätzlich zu AIRDECK_CORS_ORIGINS). */
+  /** Webseiten, die AnMaCha Cast aus dem Browser heraus bedienen dürfen (zusätzlich zu ANMACHA_CAST_CORS_ORIGINS). */
   webOrigins(): string[] {
     const raw = this.readNetwork().webOrigins;
     return Array.isArray(raw) ? raw.filter((o): o is string => typeof o === 'string' && normalizeOrigin(o) === o) : [];

@@ -61,3 +61,19 @@ test('relative Pfade ab Konfigurationsordner, Umgebung hat Vorrang, ungültige W
   assert.equal(bad.port, 8750);
   assert.equal(bad.mode, 'hybrid');
 });
+
+test('neue ANMACHA_CAST_*-Umgebungsvariablen haben Vorrang vor den bisherigen AIRDECK_*-Namen', () => {
+  const files = { '/srv/ad/airdeck.conf': 'mode = local\n' };
+  // nur die neuen Namen gesetzt: funktioniert genauso wie bisher mit AIRDECK_*
+  const neu = resolveConfig({ ...base, env: { ANMACHA_CAST_CONFIG: '/srv/ad/airdeck.conf', ANMACHA_CAST_PORT: '9200' }, ...fsOf(files) });
+  assert.equal(neu.configFile, '/srv/ad/airdeck.conf');
+  assert.equal(neu.port, 9200);
+  // beide gesetzt: der neue Name gewinnt
+  const beide = resolveConfig({
+    ...base,
+    env: { ANMACHA_CAST_CONFIG: '/srv/ad/airdeck.conf', AIRDECK_CONFIG: '/anderer/ort/airdeck.conf', ANMACHA_CAST_PORT: '9300', AIRDECK_PORT: '9100' },
+    ...fsOf(files),
+  });
+  assert.equal(beide.configFile, '/srv/ad/airdeck.conf');
+  assert.equal(beide.port, 9300);
+});

@@ -54,7 +54,8 @@ Ist die Datenbank nicht erreichbar, startet AirDeck trotzdem lokal und zeigt den
 3. `AirDeck-Headless.cmd` startet nur die Engine, ohne Fenster (24/7 auf einem Sende-PC).
 
 In beiden Fällen liegen Musik, Einstellungen und die verschlüsselten Passwörter unter `%LOCALAPPDATA%\AirDeck\data`.
-Soll alles im Programmordner bleiben (z. B. USB-Stick), vorher `set AIRDECK_DATA=.\data` setzen.
+Soll alles im Programmordner bleiben (z. B. USB-Stick), vorher `set ANMACHA_CAST_DATA=.\data` setzen
+(das bisherige `AIRDECK_DATA` funktioniert als Legacy-Fallback weiter).
 
 ### Erster Test (5 Minuten)
 1. Unter **Playlist / Archiv → „＋ Ordner“** einen Musikordner hochladen oder Dateien einfach ins Fenster ziehen.
@@ -121,4 +122,4 @@ API: `GET /api/v1/update`, `GET|PUT /api/v1/update/settings`, `POST /api/v1/upda
 
 - **„Windows hat den PC geschützt“** – das liegt an der fehlenden Code-Signatur. Ein Signaturzertifikat kann später ergänzt werden.
 - **Kein Ton in der Server-Automation am PC** – im Menü **⋯** „Programm über die Lautsprecher dieses PCs mithören“ aktivieren.
-- **Port belegt** – eine andere Portnummer setzen: `set AIRDECK_PORT=8760`.
+- **Port belegt** – eine andere Portnummer setzen: `set ANMACHA_CAST_PORT=8760`.

@@ -6,14 +6,17 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
+import { envVar } from './legacy-branding.ts';
 
 // Umgebungsvariablen nur für Tests/Staging (z. B. lokaler Mock); Standard sind die echten laut.fm-Server
-export const RADIOADMIN = process.env.AIRDECK_RADIOADMIN_URL || 'https://api.radioadmin.laut.fm';
-export const PUBLIC_API = process.env.AIRDECK_LAUTFM_API_URL || 'https://api.laut.fm';
+export const RADIOADMIN = envVar(process.env, 'RADIOADMIN_URL') || 'https://api.radioadmin.laut.fm';
+export const PUBLIC_API = envVar(process.env, 'LAUTFM_API_URL') || 'https://api.laut.fm';
 
 /**
  * Radioadmin-Tokens gehören zu einer „callback_url“. Bei jeder Anfrage muss derselbe Wert als
- * Origin-Header mitgeschickt werden (Auskunft laut.fm). AirDeck nutzt standardmäßig „airdeck“.
+ * Origin-Header mitgeschickt werden (Auskunft laut.fm). AnMaCha Cast nutzt standardmäßig „airdeck“ –
+ * dieser Wert ist Teil des bei laut.fm hinterlegten Protokolls bestehender Nutzer-Tokens und bleibt
+ * daher bewusst unverändert (Legacy-AirDeck-Kompatibilität, siehe docs/REBRANDING_ANMACHA_CAST.md).
  */
 export const DEFAULT_ORIGIN = 'airdeck';
 export const ORIGIN_RE = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,119}$/;

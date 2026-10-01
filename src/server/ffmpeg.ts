@@ -1,9 +1,10 @@
-// ffmpeg-Capability-Erkennung. Reihenfolge: AIRDECK_FFMPEG → mitgeliefertes ./ffmpeg/ → PATH.
-// Ohne ffmpeg bleibt AirDeck lauffähig; nur das Server-Playout meldet dann "unsupported".
+// ffmpeg-Capability-Erkennung. Reihenfolge: ANMACHA_CAST_FFMPEG (Legacy: AIRDECK_FFMPEG) → mitgeliefertes ./ffmpeg/ → PATH.
+// Ohne ffmpeg bleibt AnMaCha Cast lauffähig; nur das Server-Playout meldet dann "unsupported".
 
 import { execFile, spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { envVar } from './legacy-branding.ts';
 
 export interface FfmpegInfo {
   ffmpeg: string;
@@ -12,7 +13,7 @@ export interface FfmpegInfo {
   ffplay: string | null;
   version: string;
   encoders: { mp3: boolean; opus: boolean };
-  /** custom = AIRDECK_FFMPEG, bundled = mitgeliefert (./ffmpeg/), system = PATH */
+  /** custom = ANMACHA_CAST_FFMPEG, bundled = mitgeliefert (./ffmpeg/), system = PATH */
   source: 'custom' | 'bundled' | 'system';
 }
 
@@ -38,7 +39,8 @@ const isPath = (bin: string) => bin.includes('/') || bin.includes('\\');
 // Reihenfolge: eigener Pfad → mitgeliefert → PATH. Schlägt ein Kandidat fehl, folgt der nächste.
 function candidates(appRoot: string): { bin: string; source: FfmpegInfo['source'] }[] {
   const list: { bin: string; source: FfmpegInfo['source'] }[] = [];
-  if (process.env.AIRDECK_FFMPEG) list.push({ bin: process.env.AIRDECK_FFMPEG, source: 'custom' });
+  const custom = envVar(process.env, 'FFMPEG');
+  if (custom) list.push({ bin: custom, source: 'custom' });
   list.push({ bin: join(appRoot, 'ffmpeg', `ffmpeg${exe}`), source: 'bundled' }, { bin: `ffmpeg${exe}`, source: 'system' });
   return list.filter((c) => !isPath(c.bin) || existsSync(c.bin));
 }

@@ -20,6 +20,7 @@ import { DbDocStore, importJsonFiles } from './repo/docs.ts';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AirDeckApp } from './app.ts';
+import { envVar } from './legacy-branding.ts';
 import { SecretStore } from './secrets.ts';
 import { SyncManager } from './sync.ts';
 import { createHttpServer } from './http.ts';
@@ -33,7 +34,7 @@ declare global {
 
 const argv = process.argv.slice(2);
 const packaged = globalThis.__AIRDECK_PACKAGED === true;
-const root = process.env.AIRDECK_ROOT ?? globalThis.__AIRDECK_ROOT ?? resolve(fileURLToPath(import.meta.url), '../../..');
+const root = envVar(process.env, 'ROOT') ?? globalThis.__AIRDECK_ROOT ?? resolve(fileURLToPath(import.meta.url), '../../..');
 const desktop = !argv.includes('--headless') && (argv.includes('--desktop') || packaged);
 /** vom Windows-Programm (AirDeck.exe) gestartet: das Programm hat Fenster und Tray-Symbol */
 const shell = argv.includes('--shell');
@@ -286,7 +287,7 @@ async function main(): Promise<void> {
   server.headersTimeout = 15_000;
   // LAN-Erkennung (UDP 8751) – antwortet auch bei nur lokaler Freigabe, damit Clients „LAN aus“ melden können
   let discovery: { close(): void } | null = null;
-  if (String(process.env.AIRDECK_DISCOVERY ?? '').toLowerCase() !== 'off') {
+  if (String(envVar(process.env, 'DISCOVERY') ?? '').toLowerCase() !== 'off') {
     const { startResponder } = await import('./discovery.ts');
     const { hostname } = await import('node:os');
     discovery = await startResponder(() => ({
@@ -299,7 +300,7 @@ async function main(): Promise<void> {
     app.start();
     console.log(`AirDeck läuft auf http://${host}:${port}  (Daten: ${dataDir})`);
     // nach einem Neustart aus dem Programm heraus ist das Studio-Fenster schon offen
-    if (desktop && !shell && !process.env.AIRDECK_RESTARTED) openStudio(`http://${localHost}:${port}/#token=${app.svc.auth.desktopToken()}`);
+    if (desktop && !shell && !process.env.ANMACHA_CAST_RESTARTED) openStudio(`http://${localHost}:${port}/#token=${app.svc.auth.desktopToken()}`);
     // Tray-Symbol hat das Windows-Programm; das PowerShell-Symbol nur ohne AirDeck.exe (ältere portable Fassung)
     if (packaged && process.platform === 'win32' && !shell && !hasWindowsApp && !argv.includes('--no-tray')) startTray(logFile);
   });
@@ -321,12 +322,12 @@ async function main(): Promise<void> {
    * Dienst-Manager startet neu. Sonst startet AirDeck sich selbst neu – erst beim Beenden, wenn der Port frei ist.
    */
   app.requestRestart = () => {
-    const supervised = process.pid === 1 || !!process.env.INVOCATION_ID || process.env.AIRDECK_SUPERVISED === '1';
+    const supervised = process.pid === 1 || !!process.env.INVOCATION_ID || envVar(process.env, 'SUPERVISED') === '1';
     if (supervised) exitCode = 75;
     else {
       const args = packaged ? process.argv.slice(2) : process.argv.slice(1);
       process.once('exit', () => {
-        spawn(process.execPath, args, { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, AIRDECK_RESTARTED: '1' } }).unref();
+        spawn(process.execPath, args, { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ANMACHA_CAST_RESTARTED: '1' } }).unref();
       });
     }
     stop();

@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { databaseConfig, type DatabaseConfig } from './db/index.ts';
+import { envVar } from './legacy-branding.ts';
 
 export type Mode = 'local' | 'server' | 'hybrid';
 export const MODES: readonly Mode[] = ['local', 'server', 'hybrid'];
@@ -84,11 +85,11 @@ export function resolveConfig(input: ResolveInput): AirDeckConfig {
   const sys = systemLayout(platform, env);
   const sysFile = join(sys.config, 'airdeck.conf');
   // Reihenfolge: ausdrücklich angegeben → systemweite Installation → bisheriger Datenordner
-  const legacyData = resolve(env.AIRDECK_DATA ?? legacyDataDir(root, packaged, platform, env, home));
+  const legacyData = resolve(envVar(env, 'DATA') ?? legacyDataDir(root, packaged, platform, env, home));
   let configFile: string;
   let system = false;
-  if (env.AIRDECK_CONFIG) configFile = resolve(env.AIRDECK_CONFIG);
-  else if (!env.AIRDECK_DATA && exists(sysFile)) {
+  if (envVar(env, 'CONFIG')) configFile = resolve(envVar(env, 'CONFIG')!);
+  else if (!envVar(env, 'DATA') && exists(sysFile)) {
     configFile = sysFile;
     system = true;
   } else configFile = join(legacyData, 'config', 'airdeck.conf');
@@ -102,26 +103,26 @@ export function resolveConfig(input: ResolveInput): AirDeckConfig {
   const confDir = dirname(configFile);
   const pathOf = (v: string | undefined) => (v ? (isAbsolute(v) ? v : resolve(confDir, v)) : undefined);
 
-  const data = resolve(env.AIRDECK_DATA ?? pathOf(conf['paths.data']) ?? (system ? sys.data : legacyData));
+  const data = resolve(envVar(env, 'DATA') ?? pathOf(conf['paths.data']) ?? (system ? sys.data : legacyData));
   const paths = {
     config: confDir,
     data,
     // Medien lagen bisher unter <daten>/media – das bleibt der Standard außerhalb systemweiter Installationen
-    media: resolve(env.AIRDECK_MEDIA ?? pathOf(conf['paths.media']) ?? (system ? sys.media : join(data, 'media'))),
-    logs: resolve(env.AIRDECK_LOGS ?? pathOf(conf['paths.logs']) ?? (system ? sys.logs : join(data, 'logs'))),
+    media: resolve(envVar(env, 'MEDIA') ?? pathOf(conf['paths.media']) ?? (system ? sys.media : join(data, 'media'))),
+    logs: resolve(envVar(env, 'LOGS') ?? pathOf(conf['paths.logs']) ?? (system ? sys.logs : join(data, 'logs'))),
     backups: resolve(pathOf(conf['paths.backups']) ?? (system ? sys.backups : join(data, 'backups'))),
   };
 
-  const modeRaw = String(env.AIRDECK_MODE ?? conf.mode ?? conf['airdeck.mode'] ?? '').toLowerCase();
+  const modeRaw = String(envVar(env, 'MODE') ?? conf.mode ?? conf['airdeck.mode'] ?? '').toLowerCase();
   // Ohne Angabe wie bisher: Desktop-Programm = Local, ohne Fenster (Dienst/Docker) = Server
   const mode: Mode = (MODES as readonly string[]).includes(modeRaw) ? (modeRaw as Mode) : desktop ? 'local' : 'server';
 
-  const portRaw = Number(env.AIRDECK_PORT ?? conf['network.port'] ?? 8750);
+  const portRaw = Number(envVar(env, 'PORT') ?? conf['network.port'] ?? 8750);
   const port = Number.isInteger(portRaw) && portRaw > 0 && portRaw < 65536 ? portRaw : 8750;
 
   // bind = local | lan | <Adresse>; ohne Angabe gilt die LAN-Einstellung aus dem Studio (network.json)
   const bind = String(conf['network.bind'] ?? '').toLowerCase();
-  let host = env.AIRDECK_HOST;
+  let host = envVar(env, 'HOST');
   if (!host) {
     if (bind === 'lan' || bind === 'all') host = '0.0.0.0';
     else if (bind === 'local' || bind === '') host = bind === '' && readLan(join(data, 'network.json'), exists, read) ? '0.0.0.0' : '127.0.0.1';
@@ -146,8 +147,9 @@ export function writeDefaultConf(cfg: AirDeckConfig): boolean {
   try {
     mkdirSync(dirname(cfg.configFile), { recursive: true });
     writeFileSync(cfg.configFile, [
-      '# AirDeck – Grundeinstellungen. Änderungen wirken nach einem Neustart.',
-      '# Umgebungsvariablen (AIRDECK_MODE, AIRDECK_PORT, AIRDECK_HOST, AIRDECK_DATA, AIRDECK_MEDIA) haben Vorrang.',
+      '# AnMaCha Cast – Grundeinstellungen. Änderungen wirken nach einem Neustart.',
+      '# Umgebungsvariablen (ANMACHA_CAST_MODE, ANMACHA_CAST_PORT, ANMACHA_CAST_HOST, ANMACHA_CAST_DATA,',
+      '# ANMACHA_CAST_MEDIA; bisherige AIRDECK_*-Namen funktionieren als Legacy-Fallback weiter) haben Vorrang.',
       '',
       '# local = alles auf diesem PC · server = Self-Hosted · hybrid = lokal senden, mit Server abgleichen',
       '# Ohne Angabe: Programm mit Fenster = local, ohne Fenster (Dienst, Docker, --headless) = server',
@@ -168,7 +170,7 @@ export function writeDefaultConf(cfg: AirDeckConfig): boolean {
       '',
       '[database]',
       '# sqlite (Standard, Datei im Datenordner) · postgres · mysql (auch MariaDB)',
-      '# Passwort besser nicht hier, sondern in der Umgebungsvariablen AIRDECK_DB_PASSWORD.',
+      '# Passwort besser nicht hier, sondern in der Umgebungsvariablen ANMACHA_CAST_DB_PASSWORD.',
       `# provider = ${cfg.database.provider}`,
       '# url = postgres://airdeck@localhost:5432/airdeck',
       '',

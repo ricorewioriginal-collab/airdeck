@@ -1,7 +1,9 @@
 // Datenbank nach airdeck.conf öffnen: [database] provider = sqlite | postgres | mysql, url = …
-// Passwort wahlweise in der URL oder getrennt über AIRDECK_DB_PASSWORD (nicht in der Datei).
+// Passwort wahlweise in der URL oder getrennt über ANMACHA_CAST_DB_PASSWORD (nicht in der Datei;
+// bisheriges AIRDECK_DB_PASSWORD funktioniert als Legacy-Fallback weiter).
 
 import { join } from 'node:path';
+import { envVar } from '../legacy-branding.ts';
 import { migrate, migrateSync } from './schema.ts';
 import { SqliteProvider } from './sqlite.ts';
 import type { DatabaseProvider } from './types.ts';
@@ -17,10 +19,10 @@ export interface DatabaseConfig {
 }
 
 export function databaseConfig(conf: Record<string, string>, env: NodeJS.ProcessEnv, dataDir: string): DatabaseConfig {
-  const raw = String(env.AIRDECK_DB ?? conf['database.provider'] ?? 'sqlite').toLowerCase();
+  const raw = String(envVar(env, 'DB') ?? conf['database.provider'] ?? 'sqlite').toLowerCase();
   const provider: Provider = raw === 'postgresql' ? 'postgres' : raw === 'mariadb' ? 'mysql' : (PROVIDERS as readonly string[]).includes(raw) ? (raw as Provider) : 'sqlite';
-  const url = env.AIRDECK_DB_URL ?? conf['database.url'] ?? (provider === 'sqlite' ? join(dataDir, 'airdeck.db') : '');
-  return { provider, url, password: env.AIRDECK_DB_PASSWORD };
+  const url = envVar(env, 'DB_URL') ?? conf['database.url'] ?? (provider === 'sqlite' ? join(dataDir, 'airdeck.db') : '');
+  return { provider, url, password: envVar(env, 'DB_PASSWORD') };
 }
 
 /** URL ohne Passwort (für Anzeige und Protokoll) */
@@ -39,7 +41,7 @@ export async function openDatabase(cfg: DatabaseConfig): Promise<DatabaseProvide
   let db: DatabaseProvider;
   if (cfg.provider === 'sqlite') db = new SqliteProvider(cfg.url);
   else {
-    if (!cfg.url) throw new Error(`Für ${cfg.provider} fehlt die Verbindungsadresse ([database] url in airdeck.conf oder AIRDECK_DB_URL)`);
+    if (!cfg.url) throw new Error(`Für ${cfg.provider} fehlt die Verbindungsadresse ([database] url in airdeck.conf oder ANMACHA_CAST_DB_URL)`);
     // Treiber erst bei Bedarf laden – Desktop-Installationen brauchen sie nicht
     db = cfg.provider === 'postgres'
       ? new (await import('./postgres.ts')).PostgresProvider(cfg.url, { password: cfg.password })

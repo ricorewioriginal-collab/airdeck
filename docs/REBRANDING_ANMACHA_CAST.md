@@ -91,9 +91,8 @@ Gemäß Auftrag priorisiert, jeweils als eigener, kleiner PR mit eigenen Tests:
    CODE_OF_CONDUCT.md, CHANGELOG.md-Kopfzeile, HAFTUNGSAUSSCHLUSS.md, THIRD_PARTY_COMPONENTS.md,
    AI_HANDOVER.md, LICENSE-nahe Hinweise) sowie `docs/*.md` (20 Dateien) - historische Changelog-Einträge
    bleiben unverändert (keine Geschichtsfälschung), nur aktuelle Produkttexte ändern sich.
-2. **Umgebungsvariablen** (21 Stück, `AIRDECK_*`): neue `ANMACHA_CAST_*`-Namen einführen, alte als Fallback
-   behalten (`ANMACHA_CAST_HOST ?? AIRDECK_HOST ?? Default`), als deprecated dokumentieren. Danach
-   `handbuch.html`s Fehlerbehebungstabelle (`AIRDECK_FFMPEG`) aktualisieren.
+2. ~~**Umgebungsvariablen**~~ – erledigt, siehe „Phase 3" unten. Offen bleiben nur die Compose-Interpolations-
+   variablen in `docker-compose.yml` selbst (Teil von Punkt 6, Linux/Docker/Paketierung).
 3. **LocalStorage-Schlüssel** (`airdeck.token`, `airdeck.server`, `airdeck.mobileMode` in `studio/js/api.js`
    u. a.): Migration auf neue Schlüssel beim ersten Start (neuen Schlüssel prüfen → wenn leer, alten lesen →
    übernehmen → neuen schreiben), alte vorerst nicht löschen. Bewusst nicht blind umbenannt in diesem Block,
@@ -123,7 +122,50 @@ Gemäß Auftrag priorisiert, jeweils als eigener, kleiner PR mit eigenen Tests:
    Umbenennung eine Liste der manuell auf GitHub vorzunehmenden Schritte liefern (Repository umbenennen,
    Pages-URL, Beschreibung, Topics, ggf. Default-Branch).
 
-## Fehler und Behebungen (dieser Block)
+## Phase 3: Umgebungsvariablen `ANMACHA_CAST_*` mit `AIRDECK_*`-Fallback
+
+**Umfang:** zentraler Helfer `src/server/legacy-branding.ts` (`envVar(env, suffix)`: prüft zuerst
+`ANMACHA_CAST_<suffix>`, dann das bisherige `AIRDECK_<suffix>`), angewendet auf alle dokumentierten,
+von außen gesetzten Umgebungsvariablen: `*_DATA`, `*_CONFIG`, `*_MEDIA`, `*_LOGS`, `*_MODE`, `*_PORT`,
+`*_HOST` (`config.ts`), `*_DB`, `*_DB_URL`, `*_DB_PASSWORD` (`db/index.ts`), `*_FFMPEG` (`ffmpeg.ts`),
+`*_CORS_ORIGINS` (`http.ts`), `*_RADIOADMIN_URL`, `*_LAUTFM_API_URL` (`lautfm.ts`), `*_ROOT`,
+`*_DISCOVERY`, `*_SUPERVISED` (`main.ts`), `*_SECRET_KEY` (`secrets.ts`). Kommentare und Fehlermeldungen
+an diesen Stellen sowie in `app.ts` (ffmpeg-Fehlermeldung) und `studio/handbuch.html`
+(Fehlerbehebungstabelle) entsprechend aktualisiert. Zusätzlich `docs/INSTALLATION.md`,
+`docs/architecture/NETWORK.md`, `docs/architecture/DATABASE.md` aktualisiert (reine App-Umgebungsvariablen,
+kein Docker-Compose-Bezug).
+
+**Bewusst ohne Fallback direkt umbenannt** (rein intern, keine Kompatibilitätsfrage):
+- `AIRDECK_RESTARTED` → `ANMACHA_CAST_RESTARTED` (`main.ts`): wird nur innerhalb eines Prozessbaums
+  derselben laufenden Version gesetzt und sofort wieder gelesen – kein Upgrade-Szenario, in dem alte und
+  neue Benennung aufeinandertreffen könnten.
+- `AIRDECK_LIQ_INPUT_PASSWORD` / `AIRDECK_LIQ_OUT<n>_PASSWORD` → `ANMACHA_CAST_LIQ_*` (`liquidsoap.ts`):
+  das generierte Liquidsoap-Skript und der dazugehörige Hinweistext werden bei jedem Abruf gemeinsam neu
+  erzeugt, nie über eine Version hinweg gespeichert – keine Kompatibilitätsnotwendigkeit.
+
+**Bewusst unverändert gelassen** (echte externe Protokoll-/Konfigurations-Kompatibilität):
+- `lautfm.ts`s `DEFAULT_ORIGIN = 'airdeck'`: Radioadmin-Tokens bei laut.fm sind an diesen Origin-Wert
+  gebunden (siehe Datei-Kommentar) – eine Änderung würde bestehende, bei laut.fm hinterlegte Zugänge
+  brechen. Bleibt dauerhaft `'airdeck'`, unabhängig vom weiteren Rebranding-Fortschritt.
+- `docker-compose.yml` und die darauf aufbauende Dokumentation (`docs/DEPLOY.md`, `docs/DOCKER.md`):
+  nutzen weiterhin ausschließlich `AIRDECK_DB*` als Compose-Interpolationsvariablen (`${AIRDECK_DB_PASSWORD}`
+  in der YAML-Datei selbst, nicht nur im Node-Prozess). Eine Umbenennung hier betrifft bestehende `.env`-
+  Dateien produktiver Installationen und braucht eine eigene, sorgfältige Migration – Teil des separaten
+  Linux/Docker/Paketierungs-Blocks (siehe „Noch offen" Punkt 6), nicht dieses Blocks.
+- `globalThis.__AIRDECK_VERSION` / `__AIRDECK_ROOT` / `__AIRDECK_PACKAGED` / `__AIRDECK_BUILD`: Build-Zeit-
+  Banner-Variablen, die `scripts/build.mjs` beim Bundling setzt – kein vom Nutzer gesetzter Umgebungswert,
+  gehört inhaltlich zum Build-/Paketierungs-Block.
+- `AIRDECK_TEST_PG` / `AIRDECK_TEST_MYSQL*`: reine CI-/Test-Infrastruktur-Variablen (Service-Container-
+  Adressen in den Testdateien), kein Produkt-Konfigurationswert – gehört ggf. zum CI/CD-Block.
+
+**Tests:** `test/liquidsoap.test.ts` an die neuen (ohne Fallback direkt umbenannten) Variablennamen
+angepasst; `test/config.test.ts` um einen neuen Test ergänzt, der sowohl „nur `ANMACHA_CAST_*` gesetzt"
+als auch „beide gesetzt, `ANMACHA_CAST_*` gewinnt" prüft. Alle bestehenden Tests, die noch `AIRDECK_*`
+setzen (z. B. `test/setup.test.ts`, `test/installer-bootstrap.test.ts`, `test/automation-source.test.ts`),
+bleiben unverändert grün – sie beweisen live die Rückwärtskompatibilität über den Fallback-Pfad.
+`npm run typecheck` und die volle Testsuite grün (230 bestanden, 0 fehlgeschlagen, 6 übersprungen).
+
+## Fehler und Behebungen (Phase 1)
 
 - **Health-Namen-Vergleich hätte Verbindungen gebrochen**: `studio/js/connect.js` verglich `health.name`
   exakt gegen den Produktnamen, um zu erkennen, ob der Server überhaupt „ein AnMaCha Cast/AirDeck" ist. Das
