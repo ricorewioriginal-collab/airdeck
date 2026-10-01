@@ -1917,6 +1917,8 @@ function bindStatic() {
   $('btn-listen').addEventListener('click', () => toggleListen());
   $('btn-audio').addEventListener('click', editAudio);
   $('btn-android').addEventListener('click', androidApp);
+  $('btn-webremote').addEventListener('click', webRemote);
+  $('btn-remotelink').addEventListener('click', remoteLink);
   // Benutzer: Abmelden/Passwort nur mit Sitzung, Benutzerverwaltung nur für Administratoren
   const isAdmin = S.me?.roles?.includes('admin') && S.me?.stationIds?.includes('*');
   $('nav-users').hidden = !isAdmin;
@@ -2118,6 +2120,63 @@ async function liquidsoapDialog() {
   download(blob, `airdeck-${S.station.id}.liq`);
   const info = await run(() => api.get(url(`/liquidsoap?${q}&format=json`)));
   status(`Skript gespeichert. Umgebungsvariablen setzen: ${info?.env.join(', ') ?? ''} – dann in AirDeck einen Icecast-Ausgang auf Port ${v.port ?? 8005}, Mount /${v.mount} anlegen.`);
+}
+
+// ---------- Web-Fernsteuerung (Webseiten, die AirDeck im Browser bedienen und live mitlesen) ----------
+
+async function webRemote() {
+  const cur = await run(() => api.get('/app/origins'));
+  if (!cur) return;
+  const v = await formDialog('Web-Fernsteuerung', [
+    { name: 'info', label: 'Wofür?', type: 'info', value: 'Webseiten aus dieser Liste dürfen AirDeck im Browser bedienen und den Sendebetrieb live mitlesen, z. B. ein Radio-Control-Center. Anmelden müssen sie sich trotzdem: per Kopplungscode oder Benutzerkonto.' },
+    { name: 'origins', label: 'Erlaubte Webseiten (eine pro Zeile)', type: 'textarea', value: cur.webOrigins.join('\n'), hint: 'Nur die Adresse ohne Pfad, z. B. https://control.meinradio.de. Leer = keine Webseite erlaubt.' },
+    { name: 'pair', label: 'Danach Kopplungscode für die Webseite anzeigen', type: 'checkbox', value: false },
+    { name: 'role', label: 'Rechte der Webseite', value: 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
+    { name: 'scope', label: 'Sender', value: 'all', options: [['all', 'Alle Sender'], ['one', `Nur „${S.station.name}“`]] },
+  ], 'Speichern');
+  if (!v) return;
+  const r = await run(() => api.put('/app/origins', { webOrigins: String(v.origins ?? '').split(/\s+/).filter(Boolean) }));
+  if (!r) return;
+  status(r.webOrigins.length ? `Freigegeben: ${r.webOrigins.join(' · ')}` : 'Keine Webseite freigegeben');
+  if (!v.pair) return;
+  const p = await run(() => api.post('/pairing', { role: v.role, stationIds: v.scope === 'one' ? [S.station.id] : ['*'] }));
+  if (!p) return;
+  const until = new Date(p.expiresAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const c = await run(() => api.get('/app/connect'));
+  const addr = [location.origin, ...(c?.listening ? c.addresses : [])].filter((x, i, a) => a.indexOf(x) === i).join(' · ');
+  await formDialog('Kopplungscode für die Webseite', [
+    { name: 'code', label: 'Kopplungscode', type: 'info', value: `${p.code.slice(0, 3)} ${p.code.slice(3)}` },
+    { name: 'addr', label: 'AirDeck-Adresse', type: 'info', value: addr },
+    { name: 'valid', label: 'Gültig', type: 'info', value: `einmalig, bis ${until} Uhr` },
+  ], 'Fertig');
+}
+
+// ---------- Fernzugriff ohne Portfreigabe (AirDeck verbindet sich selbst mit einem Vermittler) ----------
+
+async function remoteLink() {
+  const cur = await run(() => api.get('/app/remote-link'));
+  if (!cur) return;
+  const STATE = { off: 'aus', connecting: 'verbindet …', online: '✓ verbunden', error: '⚠ Fehler' };
+  const v = await formDialog('Fernzugriff ohne Portfreigabe', [
+    { name: 'info', label: 'Wofür?', type: 'info', value: 'AirDeck verbindet sich selbst mit einem Vermittler, z. B. deinem Radio-Control-Center. So ist dieses AirDeck auch hinter dem Router (Studio-PC) von überall live sichtbar und steuerbar, ohne Portfreigabe.' },
+    ...(cur.configured ? [{ name: 'status', label: `Status${cur.name ? ` (${cur.name})` : ''}`, type: 'info', value: `${STATE[cur.state] ?? cur.state}${cur.error ? ` – ${cur.error}` : ''}` }] : []),
+    { name: 'code', label: cur.configured ? 'Neuer Verbindungscode (leer = unverändert)' : 'Verbindungscode', value: '', hint: 'Beginnt mit „adl1.“ – im Control Center unter „Mit AirDeck verbinden → Fernzugriff anlegen“ erzeugen' },
+    { name: 'role', label: 'Rechte über den Fernzugriff', value: cur.role ?? 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
+    { name: 'scope', label: 'Sender', value: !cur.configured || cur.stationIds.includes('*') ? 'all' : 'one', options: [['all', 'Alle Sender'], ['one', `Nur „${S.station.name}“`]] },
+    { name: 'enabled', label: 'Fernzugriff aktiv', type: 'checkbox', value: cur.configured ? cur.enabled : true },
+    { name: 'feed', label: 'Sendesignal übergeben erlauben (der Vermittler darf das Programm dieses AirDeck auf Sendung nehmen)', type: 'checkbox', value: !!cur.feed },
+    ...(cur.feeding?.length ? [{ name: 'feeding', label: 'Übergabe läuft', type: 'info', value: `Sendesignal geht gerade an den Vermittler (${cur.feeding.join(', ')})` }] : []),
+    ...(cur.configured ? [{ name: 'remove', label: 'Fernzugriff entfernen (Zugang widerrufen)', type: 'checkbox', value: false }] : []),
+  ], 'Speichern');
+  if (!v) return;
+  if (v.remove) {
+    if (await run(() => api.del('/app/remote-link'))) status('Fernzugriff entfernt, Zugang widerrufen');
+    return;
+  }
+  const code = String(v.code ?? '').trim();
+  if (!cur.configured && !code) return status('Bitte den Verbindungscode aus dem Control Center einfügen');
+  const r = await run(() => api.put('/app/remote-link', { code: code || undefined, role: v.role, stationIds: v.scope === 'one' ? [S.station.id] : ['*'], enabled: v.enabled, feed: v.feed }));
+  if (r) status(r.enabled ? 'Fernzugriff gespeichert – verbinde mit dem Vermittler …' : 'Fernzugriff ausgeschaltet');
 }
 
 // ---------- Android-App ----------

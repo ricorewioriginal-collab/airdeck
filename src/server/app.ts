@@ -207,6 +207,8 @@ export class AirDeckApp {
   }
 
   start(): void {
+    // Fernzugriff über Vermittler (falls eingerichtet): baut die ausgehende Verbindung auf
+    this.svc.remoteLink.start();
     this.tickTimer = setInterval(() => this.tick(), 500);
     this.tickTimer.unref();
     // Pegel des Kerns für die VU-Anzeige (nur wenn jemand zuhört)
@@ -261,6 +263,7 @@ export class AirDeckApp {
 
   shutdown(): void {
     this.stopping = true;
+    this.svc.remoteLink.stop();
     if (this.ffmpegRetry) clearTimeout(this.ffmpegRetry);
     this.ai.flush();
     this.users.flush();

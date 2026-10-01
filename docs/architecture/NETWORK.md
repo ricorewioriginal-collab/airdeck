@@ -51,6 +51,31 @@ Hinweise, die der Client gezielt gibt, statt „Server nicht erreichbar“:
 
 Das Desktop-Studio verbindet sich über `127.0.0.1` und nicht über die LAN-Adresse. Die Anmeldung erfolgt automatisch mit einem Maschinen-Token, das nur von `127.0.0.1` angenommen wird und im Datenverzeichnis des Dienstes liegt. IPC über Named Pipes/Unix-Sockets bringt gegenüber Loopback-HTTP keinen Vorteil und wird nicht eingeführt.
 
+## Web-Fernsteuerung (Browser auf fremder Webseite)
+
+Webseiten wie ein Radio-Control-Center können AirDeck direkt aus dem Browser bedienen und den Sendebetrieb über `GET /api/v1/events` live mitlesen. Damit der Browser das darf, muss die Webseite freigegeben sein:
+
+- **Studio:** Tools → Web-Fernsteuerung → eine Adresse pro Zeile (nur Origin, z. B. `https://control.meinradio.de`). Erlaubt sind `https://…` sowie `http://localhost`/`127.0.0.1`. Gespeichert in `network.json` (`webOrigins`), sofort wirksam, kein Neustart.
+- **API:** `GET`/`PUT /api/v1/app/origins` (`{ "webOrigins": [...] }`, nur globale Admins).
+- **Umgebung:** `AIRDECK_CORS_ORIGINS` (kommagetrennt) wirkt zusätzlich, z. B. für feste Docker-Setups.
+
+Die Freigabe ersetzt keine Anmeldung: Die Webseite verbindet sich per Kopplungscode (im selben Dialog erzeugbar, Rolle und Sender wählbar) oder Benutzerkonto und erhält ein widerrufbares Geräte-Token. `EventSource` übergibt das Token als `?token=` (nur bei GET erlaubt).
+
+Für AirDeck auf diesem PC oder im LAN beantwortet AirDeck bei freigegebenen Webseiten zusätzlich Chromes „Private Network Access“-Abfrage (`Access-Control-Allow-Private-Network: true`). Ruft eine https-Webseite ein AirDeck im LAN per `http://` auf, blockiert der Browser das trotzdem (Mixed Content). Ausnahme ist `127.0.0.1`/`localhost`. Für andere Rechner im Netz muss AirDeck daher per HTTPS erreichbar sein (siehe unten).
+
+## Fernzugriff über einen Vermittler (ohne Portfreigabe)
+
+Ein AirDeck hinter einem Router (Studio-PC) ist von außen nicht erreichbar. Deshalb kann AirDeck selbst eine **ausgehende** HTTPS-Verbindung zu einem Vermittler (Hub) aufbauen, z. B. dem Relay-Dienst eines Radio-Control-Centers. Darüber laufen Anfragen und Live-Ereignisse in beide Richtungen.
+
+- **Studio:** Tools → Fernzugriff → Verbindungscode einfügen (`adl1.…`, erzeugt im Control Center), Rolle und Sender wählen. Status: verbindet / verbunden / Fehler.
+- **API:** `GET`/`PUT`/`DELETE /api/v1/app/remote-link` (nur globale Admins). Der Schlüssel aus dem Code und das Geräte-Token liegen nur im Secret Store und erscheinen nie in einer API-Antwort.
+- **Protokoll** (nur Bordmittel): `GET <hub>?action=adl_agent&link=<id>` mit Header `X-Link-Key` liefert Server-Sent Events (`req`: `{rid, method, path, body}`); Antworten gehen an `POST …adl_reply` (`{rid, status, body}`), Ereignisse gebündelt an `POST …adl_events`. Wiederverbindung mit wachsendem Abstand (2 s bis 60 s); bleibt der Strom 65 s still, wird neu verbunden.
+- **Rechte:** Jede vermittelte Anfrage läuft über die eigene API (Loopback) mit einem eigenen Geräte-Token („Fernzugriff: …“, unter Geräte einzeln widerrufbar). Rolle, Sender, Scopes und Rate-Limit gelten wie bei jedem gekoppelten Gerät. Anmeldung, Tokens/Geräte/Benutzer, `app/*`-Einstellungen, Ereignis-Strom, Neustart, Update, Backup, Speicher und Datenbank sind über den Vermittler grundsätzlich gesperrt. Übertragen werden nur JSON-Antworten bis 2 MB (keine Dateien/Audio).
+- **Ereignisse:** Titel, Queue, Betriebsart, Automation, Decks, Sendebus (je Sender nur der neueste Stand), Carts, Streams und Quellen; keine Pegel.
+  Für einen Inhaltsabgleich zusätzlich `library.changed`, `playlists.changed` und `planning.changed` – nur als Hinweis „hat sich geändert“, ohne Daten.
+- **Sendesignal übergeben (Standard aus):** Ist im Fernzugriff „Sendesignal übergeben erlauben“ eingeschaltet, kann der Vermittler per Ereignis `feed` (`{stationId, on}`) das Programm eines freigegebenen Senders anfordern. AirDeck hängt sich dann wie der Recorder an das Programmziel (`/live`) und schickt das kodierte Signal gebündelt alle 0,5 s per `POST <hub>?action=adl_feed&link=<id>&s=<sender>` (Header `X-Link-Key`, `Content-Type` des Encoders, `X-Feed-Init` mit Container-Header, `X-Feed-End` am Ende). Antwortet der Vermittler mit 404/410, hört AirDeck auf; bei Verbindungsverlust endet die Übergabe und wird nach dem Neuverbinden neu angefordert.
+- **Dateien (Inhaltsabgleich):** Eine Anfrage kann `pull` (Datei beim Vermittler holen und per `PUT` an die eigene API geben, z. B. `/stations/<id>/media?name=…`) oder `push` (Datei per `GET` aus der eigenen API lesen und zum Vermittler hochladen) enthalten. Beides ist **nur mit der Adresse des Vermittlers** erlaubt (gleiche Herkunft), höchstens 300 MB; Stream-Titel (Weiterleitung) werden nicht übertragen.
+
 ## HTTPS
 
 - **Self-Hosted:** Caddy als Reverse Proxy mit automatischem Zertifikat. Die Vorlage erzeugt der Setup-Assistent aus Domain und E-Mail.
@@ -66,6 +91,8 @@ Das Desktop-Studio verbindet sich über `127.0.0.1` und nicht über die LAN-Adre
 | Kopplungscode (6 Ziffern, 5 min, einmalig, Rolle und Sender wählbar, Sperre nach 8 Fehlversuchen je Adresse für 10 min) | umgesetzt: `POST /api/v1/pairing`, öffentlich `POST /api/v1/pair` |
 | Geräte-Token, einzeln widerrufbar, „zuletzt gesehen“ | umgesetzt: `GET /api/v1/devices`, `DELETE /api/v1/devices/<id>` |
 | Verbindungstest in Stufen mit Hinweisen, Versionsprüfung, Serverprofile | umgesetzt (`studio/js/connect.js`, Dialog „Mit AirDeck verbinden“, „Server wechseln“) |
+| Web-Fernsteuerung (freigegebene Webseiten, CORS + Private Network Access) | umgesetzt: `GET`/`PUT /api/v1/app/origins`, Studio → Tools → Web-Fernsteuerung |
+| Fernzugriff über Vermittler (ausgehende Verbindung, eigenes Geräte-Token, gesperrte Admin-Pfade) | umgesetzt: `src/server/services/remote-link.ts`, `GET`/`PUT`/`DELETE /api/v1/app/remote-link`, Studio → Tools → Fernzugriff |
 | QR-Code | folgt mit dem nativen Kamera-Scanner der App (Schritt 8) |
 | Token im Android Keystore | folgt mit Schritt 8, bis dahin Speicher der WebView |
 

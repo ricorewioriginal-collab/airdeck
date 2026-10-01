@@ -56,22 +56,24 @@ function hashingPassthrough(): { stream: Transform; digest: () => string } {
 
 /**
  * Erlaubte Fremd-Origins (Android-App, eigene Frontends). Standard: Capacitor-WebView.
- * Erweiterbar über AIRDECK_CORS_ORIGINS (kommagetrennt).
+ * Erweiterbar über AIRDECK_CORS_ORIGINS (kommagetrennt) und im Studio unter „Web-Fernsteuerung“ (network.json).
  */
 const CORS_ORIGINS = new Set([
   'https://localhost', 'http://localhost', 'capacitor://localhost',
   ...String(process.env.AIRDECK_CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
 ]);
 
-function applyCors(req: IncomingMessage, res: ServerResponse): boolean {
+function applyCors(req: IncomingMessage, res: ServerResponse, extra: (origin: string) => boolean): boolean {
   const origin = req.headers.origin;
-  if (!origin || !CORS_ORIGINS.has(origin)) return false;
+  if (!origin || (!CORS_ORIGINS.has(origin) && !extra(origin))) return false;
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Range');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length');
   res.setHeader('Access-Control-Max-Age', '600');
+  // Chrome „Private Network Access“: Webseiten dürfen AirDeck auf diesem PC/im LAN nur nach ausdrücklicher Zustimmung erreichen
+  if (req.headers['access-control-request-private-network'] === 'true') res.setHeader('Access-Control-Allow-Private-Network', 'true');
   return true;
 }
 
@@ -694,6 +696,13 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return (await discover()).filter((f) => f.id !== app.sync.instance);
   });
   add('PUT', '/api/v1/app/network', null, async (c) => (globalAdmin(c), app.svc.system.setNetwork((await c.body()).lan === true)));
+  // Webseiten, die AirDeck im Browser fernsteuern dürfen (CORS); Anmeldung bleibt trotzdem per Token/Kopplungscode nötig
+  add('GET', '/api/v1/app/origins', null, (c) => (globalAdmin(c), { webOrigins: app.svc.system.webOrigins() }));
+  add('PUT', '/api/v1/app/origins', null, async (c) => (globalAdmin(c), app.svc.system.setWebOrigins((await c.body()).webOrigins)));
+  // Fernzugriff über einen Vermittler (ausgehende Verbindung, keine Portfreigabe nötig)
+  add('GET', '/api/v1/app/remote-link', null, (c) => (globalAdmin(c), app.svc.remoteLink.view()));
+  add('PUT', '/api/v1/app/remote-link', null, async (c) => (globalAdmin(c), app.svc.remoteLink.configure(c.p, await c.body())));
+  add('DELETE', '/api/v1/app/remote-link', null, (c) => (globalAdmin(c), app.svc.remoteLink.remove(c.p)));
 
   // --- KI-Automation ---
   const aiErr = (err: unknown) => (err instanceof AppError ? err : new AppError(err instanceof AiError && err.code === 'not_found' ? 404 : err instanceof AiError && ['invalid', 'unknown_provider'].includes(err.code) ? 400 : 502, 'ai_error', (err as Error).message));
@@ -790,7 +799,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const path = url.pathname;
     setSecurityHeaders(res);
-    const cors = applyCors(req, res);
+    const cors = applyCors(req, res, (o) => app.svc.system.isWebOrigin(o));
     // Hörerbereich beantwortet seine Vorabanfrage (CORS) selbst – er ist absichtlich von überall erreichbar
     if (req.method === 'OPTIONS' && !path.startsWith('/api/v1/public/')) {
       res.writeHead(cors ? 204 : 403);
