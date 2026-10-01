@@ -1,6 +1,8 @@
-# Öffentliche AirDeck-Demo (nur zum Ausprobieren, keine echte 24/7-Sendung, siehe README.md in diesem Ordner).
-# AirDeck und Icecast sind nur lokal am Host gebunden. Der bestehende Webserver macht HTTPS und leitet
-# airdeck-demo.ricorewi-radio.de an AirDeck sowie /stream/* gezielt an Icecast weiter.
+# Öffentliche AnMaCha-Cast-Demo (nur zum Ausprobieren, keine echte 24/7-Sendung, siehe README.md in diesem Ordner).
+# AnMaCha Cast und Icecast sind nur lokal am Host gebunden. Der bestehende Webserver macht HTTPS und leitet
+# airdeck-demo.ricorewi-radio.de an AnMaCha Cast sowie /stream/* gezielt an Icecast weiter.
+# Service-/Container-/Volume-/Hostnamen bleiben bewusst "airdeck(-demo)" (siehe
+# docs/REBRANDING_ANMACHA_CAST.md Phase 7) - DNS und TLS-Zertifikat zeigen bereits darauf.
 #
 # Start:   docker compose -f packaging/demo/docker-compose.demo.yml up -d
 # Reset:   packaging/demo/reset-demo.sh (idealerweise per Cron alle 10 Minuten, siehe README.md)

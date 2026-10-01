@@ -1,4 +1,8 @@
-# AirDeck als Server im Docker-Container (24/7-Automation, Studio im Browser, Android-App verbindet sich hierher)
+# AnMaCha Cast als Server im Docker-Container (24/7-Automation, Studio im Browser, Android-App verbindet sich hierher)
+# ENV-Namen (AIRDECK_*) und das Volume /data bleiben bewusst unverändert (siehe
+# docs/REBRANDING_ANMACHA_CAST.md Phase 7): ein baked-in Default unter dem neuen Namen würde einen
+# per `-e AIRDECK_*` gesetzten Legacy-Override stillschweigend überstimmen (envVar() prüft den neuen
+# Namen zuerst).
 FROM node:22-slim
 
 # ffmpeg: Decoder, Encoder (MP3/LAME, AAC, Opus), Processing – aus Debian (libmp3lame, libopus enthalten)

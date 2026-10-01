@@ -1,4 +1,7 @@
-# AirDeck-Server: docker compose up -d   →   Studio: http://<server>:8750
+# AnMaCha-Cast-Server: docker compose up -d   →   Studio: http://<server>:8750
+# Service-/Container-/Volume-Namen und AIRDECK_DB*-Variablen bleiben bewusst "airdeck" (siehe
+# docs/REBRANDING_ANMACHA_CAST.md Phase 7): eine Änderung würde bei bestehenden Installationen neue,
+# leere Volumes anlegen bzw. einen per .env gesetzten Legacy-Namen stillschweigend überstimmen.
 # Anmeldung beim ersten Start steht im Log:  docker compose logs airdeck | grep -A1 -e Admin-Token -e Einmal-Passwort
 #
 # Datenbank: PostgreSQL (Standard für Server). Das Passwort bitte in einer Datei .env neben dieser Datei setzen:

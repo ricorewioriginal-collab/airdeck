@@ -1,5 +1,8 @@
 #!/bin/sh
-# Setzt die öffentliche AirDeck-Demo komplett zurück. Die Instanz wird alle 10 Minuten verworfen.
+# Setzt die öffentliche AnMaCha-Cast-Demo komplett zurück. Die Instanz wird alle 10 Minuten verworfen.
+# Hostnamen, Mount-Pfade, Container-/Service-/Volume-Namen bleiben bewusst "airdeck(-demo)" (siehe
+# docs/REBRANDING_ANMACHA_CAST.md Phase 7): DNS und TLS-Zertifikat des laufenden Demo-Servers zeigen
+# bereits auf airdeck-demo.ricorewi-radio.de - eine Code-Änderung allein würde die echte Demo brechen.
 set -e
 cd "$(dirname "$0")/../.."
 compose="docker compose -f packaging/demo/docker-compose.demo.yml"
@@ -21,13 +24,13 @@ token=$($compose logs airdeck-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | h
 api="http://127.0.0.1:8751/api/v1/stations/main"
 auth="Authorization: Bearer $token"
 
-curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d '{"name":"AirDeck-FM","slogan":"Testinstanz - setzt sich alle 10 Minuten zurueck"}' "$api" >/dev/null
+curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d '{"name":"AnMaCha-Cast-FM","slogan":"Testinstanz - setzt sich alle 10 Minuten zurueck"}' "$api" >/dev/null
 curl -fs -X PUT -H "$auth" -H "Content-Type: application/json" -d '{"requests":true,"messages":true,"voting":true,"voice":true}' "$api/listener" >/dev/null
 
 # Encoder-Ziel bleibt intern. publicUrl ist ausschließlich die hörbare HTTPS-Adresse für Browser,
 # Dokumentation und Tests; Zugangsdaten bzw. Port 8000 werden nicht öffentlich exponiert.
 curl -fs -X POST -H "$auth" -H "Content-Type: application/json" \
-  -d "{\"name\":\"AirDeckCast Demo\",\"type\":\"icecast\",\"host\":\"127.0.0.1\",\"port\":8000,\"mount\":\"/airdeck-demo.mp3\",\"username\":\"source\",\"password\":\"airdeck-demo-source\",\"bitrateKbps\":128,\"enabled\":true,\"publicUrl\":\"$public_stream\"}" \
+  -d "{\"name\":\"Zusatz-Streams Demo\",\"type\":\"icecast\",\"host\":\"127.0.0.1\",\"port\":8000,\"mount\":\"/airdeck-demo.mp3\",\"username\":\"source\",\"password\":\"airdeck-demo-source\",\"bitrateKbps\":128,\"enabled\":true,\"publicUrl\":\"$public_stream\"}" \
   "$api/outputs" >/dev/null
 
 upload_tone() {
@@ -38,14 +41,14 @@ upload_tone() {
 track_a="$(upload_tone 440 DemoTrack-A music 12 | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
 track_b="$(upload_tone 554 DemoTrack-B music 12 | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
 track_c="$(upload_tone 659 DemoTrack-C music 12 | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
-station_id="$(upload_tone 880 AirDeck-FM-ID station_id 3 | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
+station_id="$(upload_tone 880 AnMaCha-Cast-FM-ID station_id 3 | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
 jingle="$(upload_tone 988 Demo-Jingle jingle 3 | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
 
 curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$jingle\",\"label\":\"Demo Jingle\"}" "$api/cardwall/cart1" >/dev/null
-curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$station_id\",\"label\":\"AirDeck-FM ID\"}" "$api/cardwall/cart2" >/dev/null
+curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$station_id\",\"label\":\"AnMaCha-Cast-FM ID\"}" "$api/cardwall/cart2" >/dev/null
 curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$track_a\",\"label\":\"Demo Track A\"}" "$api/cardwall/cart3" >/dev/null
 
-playlist_json=$(curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"name\":\"AirDeck Demo Rotation\",\"color\":\"#22a6ff\",\"items\":[\"$track_a\",\"$track_b\",\"$track_c\",\"$station_id\",\"$jingle\"]}" "$api/playlists")
+playlist_json=$(curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"name\":\"AnMaCha Cast Demo Rotation\",\"color\":\"#22a6ff\",\"items\":[\"$track_a\",\"$track_b\",\"$track_c\",\"$station_id\",\"$jingle\"]}" "$api/playlists")
 playlist_id=$(printf '%s' "$playlist_json" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
 if [ -n "$playlist_id" ]; then
   curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"label\":\"Demo Rotation\",\"days\":[],\"from\":\"00:00\",\"to\":\"23:59\",\"playlistId\":\"$playlist_id\",\"shuffle\":true}" "$api/plans" >/dev/null
@@ -68,7 +71,7 @@ done
 if [ -n "$stream_ok" ]; then
   echo "Demo-Stream lokal erreichbar; öffentliche Playback-URL: $public_stream"
 else
-  echo "WARNUNG: Icecast-Mount war nach dem Reset noch nicht hörbar. AirDeck bleibt erreichbar."
+  echo "WARNUNG: Icecast-Mount war nach dem Reset noch nicht hörbar. AnMaCha Cast bleibt erreichbar."
 fi
 
 echo "[$(date -Is)] Demo zurückgesetzt: $public_stream"

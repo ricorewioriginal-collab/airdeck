@@ -1,6 +1,6 @@
-# AirDeck-Demo-Image: voll funktionsfaehige, aber isolierte Testinstanz.
+# AnMaCha-Cast-Demo-Image: voll funktionsfaehige, aber isolierte Testinstanz.
 # ffmpeg + ein nur containerintern erreichbarer Icecast sind enthalten, damit Automation,
-# Encoder, AirDeckCast, HLS und echte Audio-Ausgabe in der Demo funktionieren. Die Instanz wird
+# Encoder, Zusatz-Streams, HLS und echte Audio-Ausgabe in der Demo funktionieren. Die Instanz wird
 # alle 10 Minuten verworfen und enthaelt keine produktiven Zugangsdaten.
 FROM node:22-slim
 

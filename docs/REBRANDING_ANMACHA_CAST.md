@@ -98,10 +98,10 @@ Gemäß Auftrag priorisiert, jeweils als eigener, kleiner PR mit eigenen Tests:
    (Signatur-/Update-Kompatibilität).
 5. ~~**Windows-App**~~ – erledigt, siehe „Phase 6" unten. Tatsächlicher Dateiname bleibt bewusst
    `AirDeck.exe` (gleiche Begründung wie zuvor hier vermerkt).
-6. **Linux/Docker/Paketierung** (`Dockerfile`, `docker-compose.yml`, `packaging/linux/`, `packaging/demo/`):
-   systemd-Beschreibungen, Image-/Paketnamen, Installationsskripte. Bestehende Pfade
-   (`/var/lib/airdeck`, `/etc/airdeck`, `/opt/airdeck`, Benutzer `airdeck`) **nicht** blind ändern -
-   Legacy-Pfad-Erkennung/Migration statt Datenverlust.
+6. ~~**Linux/Docker/Paketierung**~~ – erledigt, siehe „Phase 7" unten. Paketname/Pfade/Benutzer/
+   Service-/Volume-Namen bleiben bewusst `airdeck` (gleiche Begründung wie zuvor hier vermerkt).
+   `docs/INSTALLATION.md` bleibt wegen eng verwobener echter Release-Dateinamen bis Phase 8
+   zurückgestellt.
 7. **CI/CD** (`.github/workflows/*.yml`, 15 Dateien): Workflow-Anzeigenamen, Artefakt-/Release-Dateinamen
    (`AnMaCha-Cast-Setup.exe`, `AnMaCha-Cast-Windows-Portable.zip`, `AnMaCha-Cast-Android.apk`,
    `AnMaCha-Cast-Linux.deb`). `src/server/update.ts`s Asset-Erkennung arbeitet bereits mit Mustern
@@ -294,6 +294,67 @@ apps/windows/AirDeck.csproj -c Release` geprüft (das .NET-Framework-4.8-Ziel l�
 die syntaktische Korrektheit aller C#-/csproj-Änderungen. `installer.iss` selbst kann in dieser Umgebung
 nicht kompiliert werden (Inno Setup ist Windows-only); die Prüfung erfolgt über den `windows`-CI-Job der
 PR.
+
+## Phase 7: Linux/Docker/Packaging – sichtbare Texte, Legacy-Pfad-Kompatibilität
+
+**Investigation zuerst**: `Dockerfile`, `docker-compose.yml`, `packaging/linux/` (Debian-Paket:
+`control`, `*.service`, `postinst`/`prerm`/`postrm`, `copyright`), `packaging/demo/` (öffentliche
+Dauer-Demo auf `airdeck-demo.ricorewi-radio.de`), sowie die in Phase 2 bewusst zurückgestellten
+`docs/DOCKER.md`, `docs/DEPLOY.md`, `docs/STREAMING.md`.
+
+**Bewusst unverändert** (reale, von Paketmanager/systemd/Docker/DNS persistierte Kennungen – eine
+Änderung würde bestehende Installationen/die laufende Demo brechen oder Daten verwaist zurücklassen):
+- Debian-Paketname `airdeck` (`control`), systemd-Diensteinheit `airdeck-server.service`,
+  Dienstkonto/-gruppe `airdeck`, Pfade `/etc/airdeck`, `/var/lib/airdeck`, `/var/log/airdeck`,
+  `/opt/airdeck`, Dateinamen `airdeck.conf`/`airdeck.db`. Ein Umbenennen des Paketnamens würde aus
+  einem Update eine komplette Neuinstallation machen (kein `apt upgrade`-Pfad mehr); `ReadWritePaths`
+  im Service, `postinst`/`postrm`s Purge-Logik und die CI-Prüfung aus Phase 1 hängen exakt an diesen
+  Namen.
+- `docker-compose.yml`: Service-/Container-/Volume-Namen (`airdeck`, `airdeck-postgres`,
+  `airdeck-data`, `airdeck-pg`) sowie `AIRDECK_DB`/`AIRDECK_DB_URL`/`AIRDECK_DB_PASSWORD` (bereits in
+  Phase 3 aus demselben Grund zurückgestellt) – eine Volume-Umbenennung würde bei bestehenden
+  Installationen neue, leere Volumes anlegen statt die vorhandene Datenbank/Mediendaten
+  weiterzuverwenden.
+- `Dockerfile`/`Dockerfile.demo`: `ENV AIRDECK_DATA/AIRDECK_HOST/AIRDECK_PORT` bewusst nicht auf die
+  neuen Namen umgestellt – ein im Image gebackener Default unter dem neuen Namen hätte in
+  `envVar()` (Phase 3) **Vorrang** vor einem vom Nutzer per `docker run -e AIRDECK_PORT=...` gesetzten
+  Legacy-Override und würde diesen so stillschweigend überschreiben.
+- `packaging/demo/*`: Hostname `airdeck-demo.ricorewi-radio.de`, Icecast-Mount-Pfad
+  `/airdeck-demo.mp3`, Container-/Service-/Volume-Namen. Der laufende Demo-Server hat DNS und ein
+  Let's-Encrypt-Zertifikat bereits auf diese exakten Namen ausgestellt; eine Code-Änderung allein
+  würde die öffentlich erreichbare Demo brechen (TLS-Validierung schlägt fehl, Proxy-Regeln laufen
+  ins Leere). Eine echte Umstellung bräuchte einen neuen DNS-Eintrag und ein neues Zertifikat –
+  externe, manuelle Schritte außerhalb dieses Repositories.
+
+**Geändert** (sichtbare Texte/Beschreibungen ohne Auswirkung auf die obigen Kennungen):
+- `control`s `Description:`, `airdeck-server.service`s `Description=` (beide rein informativ:
+  `apt show`/`systemctl status`), `copyright`s `Upstream-Name:`, GECOS-Feld des Dienstkontos
+  (`adduser --gecos`) – alles reine Anzeigetexte ohne technische Bindung an den Paket-/Kontonamen.
+  Kommentare in allen `packaging/linux/*`-Skripten sowie der in `/etc/airdeck/airdeck.conf`
+  geschriebene Kommentarkopf (nicht geparst, siehe gleiches Vorgehen in Phase 3/6).
+  „AirDeckCast" konsequent zu „Zusatz-Streams" korrigiert, wo es in Prosa vorkam
+  (`start-demo.sh`, `Dockerfile.demo`, `packaging/demo/README.md`).
+- `packaging/demo/reset-demo.sh`: rein kosmetische Anzeigenamen der von der Demo selbst erzeugten
+  Testinhalte (Sender „AirDeck-FM" → „AnMaCha-Cast-FM", Playlist-/Cardwall-/Stream-Profile-Namen) –
+  diese sind API-Nutzinhalte ohne jede technische Bindung an Hostnamen/Pfade.
+- `docs/DOCKER.md`, `docs/DEPLOY.md`: Fließtext rebrandet, dabei alle echten Container-/Volume-/
+  Kontonamen, Pfade und Secret-Namen unverändert gelassen (gleiches Vorgehen wie `WORKFLOWS.md` in
+  Phase 2) und jeweils ein erklärender Hinweis ergänzt, warum diese bleiben.
+- `docs/STREAMING.md`: vollständig rebrandet (nur vier reine Prosa-Vorkommen, keine echten Namen
+  betroffen).
+
+**Bewusst noch zurückgestellt**: `docs/INSTALLATION.md` – der Großteil der verbleibenden
+„AirDeck"-Vorkommen dort sind echte, aktuell noch gültige Release-Dateinamen
+(`AirDeck-Setup.exe`, `AirDeck-Android.apk`, `AirDeck-Linux.deb` usw.) und reale Pfade
+(`%LOCALAPPDATA%\AirDeck`), eng mit Prosa vermischt. Ein sinnvoller vollständiger Durchgang gehört
+zusammen mit der tatsächlichen Artefakt-Umbenennung in Phase 8, damit die Dokumentation nie auf
+einen noch nicht existierenden Dateinamen verweist (wie schon in Phase 2 bei `README.md` begründet).
+
+**Tests:** `npm run typecheck` + volle Testsuite grün (235/0/6, unverändert – keine der geänderten
+Dateien wird vom Node-Test-Harness erfasst). Alle geänderten Shell-Skripte zusätzlich mit `sh -n`
+auf Syntaxfehler geprüft (alle fehlerfrei). `Dockerfile`/`docker-compose.yml`/`installer.iss`-
+Äquivalente für Linux (echter `.deb`-Build, Docker-Image-Build) werden vom `linux`-/`docker`-/
+`docker-arm64`-CI-Job dieser PR geprüft.
 
 ## Fehler und Behebungen (Phase 1)
 

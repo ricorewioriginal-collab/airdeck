@@ -1,10 +1,14 @@
 # Automatischer Rollout auf einen eigenen Server (GitHub Actions → SSH)
 
-Der Workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) rollt AirDeck per Knopfdruck
+Der Workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) rollt AnMaCha Cast per Knopfdruck
 („Run workflow“ unter **Actions → Deploy**) auf einen eigenen Server aus: Er verbindet sich per SSH mit dem
 Server und führt dort nach einer Sicherung `git fetch/checkout` + `docker compose up -d --build` aus.
 Ein Push auf den AirDeck-Branch löst den Rollout erst nach einem erfolgreichen **Build**-Workflow aus;
 „Run workflow“ erlaubt weiterhin einen manuellen Start.
+
+Kontonamen, Pfade (`airdeck-deploy`, `/opt/airdeck-demo`) und GitHub-Secret-Namen beschreiben die
+tatsächlich eingerichtete Umgebung des bestehenden Deploy-Servers und bleiben deshalb unverändert
+(siehe docs/REBRANDING_ANMACHA_CAST.md Phase 7).
 
 Diese Sandbox selbst kann kein SSH (nur ausgehendes HTTPS über einen Proxy) – deshalb läuft der eigentliche
 Rollout auf einem GitHub-Actions-Runner, der normales Internet hat.
@@ -34,7 +38,7 @@ su - airdeck-deploy -c '
 Reicht dir root als Deploy-Konto (einfacher, aber mehr Rechte als nötig), einfach `airdeck-deploy` durch
 `root` ersetzen und `usermod`/`adduser` weglassen.
 
-**Öffentlich erreichbar?** Vor AirDeck einen Reverse Proxy (Caddy/Traefik/nginx) mit HTTPS schalten – siehe
+**Öffentlich erreichbar?** Vor AnMaCha Cast einen Reverse Proxy (Caddy/Traefik/nginx) mit HTTPS schalten – siehe
 `docker-compose.yml` und [docs/DOCKER.md](DOCKER.md#hinweise).
 
 ## 2. Deploy-Schlüssel hinterlegen
@@ -58,7 +62,7 @@ der Actions-Runner ihn automatisiert nutzen kann). Den privaten Teil bekommst du
    | `DEPLOY_SSH_KEY` | Inhalt der zugeschickten privaten Schlüsseldatei (die ganze Datei, inkl. `-----BEGIN...` / `-----END...`-Zeilen) |
    | `DEPLOY_PATH` | `/opt/airdeck-demo` (Pfad aus Schritt 1) |
    | `DEPLOY_PORT` | nur nötig, wenn SSH nicht auf Port 22 läuft |
-   | `DEPLOY_HEALTH_URL` | optional, z. B. `https://airdeck-demo.ricorewi.de/api/v1/health` – prüft nach dem Rollout, ob AirDeck antwortet |
+   | `DEPLOY_HEALTH_URL` | optional, z. B. `https://airdeck-demo.ricorewi.de/api/v1/health` – prüft nach dem Rollout, ob AnMaCha Cast antwortet |
    | `DEPLOY_HOST_KEY` | optional: Ausgabe von `ssh-keyscan -p <Port> <Host>` – ohne dieses Secret wird der Host-Schlüssel beim ersten Lauf automatisch abgerufen (leicht geringere Absicherung gegen einen Server-Tausch mitten im Deploy) |
 
 3. Die private Schlüsseldatei danach **lokal löschen** (sie liegt nur bei dir und im GitHub-Secret, nirgends
