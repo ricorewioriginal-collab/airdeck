@@ -25,6 +25,7 @@ const events: { type: string; stationId?: string }[] = [];
 const agentHeaders: Record<string, string>[] = [];
 const AUDIO = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(4096, 7)]);
 let uploaded: Buffer | null = null;
+const feedIn: { init: boolean; end: boolean; type: string; bytes: Buffer }[] = [];
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function until(fn: () => boolean, ms = 4000) {
@@ -64,6 +65,12 @@ before(async () => {
       return;
     }
     if (action === 'adl_file') return void res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': AUDIO.length }).end(AUDIO);
+    if (action === 'adl_feed') {
+      const parts: Buffer[] = [];
+      req.on('data', (d) => parts.push(d));
+      req.on('end', () => { feedIn.push({ init: req.headers['x-feed-init'] === '1', end: req.headers['x-feed-end'] === '1', type: String(req.headers['content-type']), bytes: Buffer.concat(parts) }); res.writeHead(204).end(); });
+      return;
+    }
     if (action === 'adl_upload') {
       const parts: Buffer[] = [];
       req.on('data', (d) => parts.push(d));
@@ -147,6 +154,38 @@ test('Dateien: holen und liefern nur über den Vermittler', async () => {
   assert.equal((await ask('PUT', '/api/v1/stations/main/media?name=x.mp3', undefined, { pull: 'http://example.org/datei.mp3' })).status, 403);
   assert.equal((await ask('POST', '/api/v1/stations/main/media?name=x.mp3', undefined, { pull: hubUrl('adl_file') })).status, 403);
   assert.equal((await ask('GET', '/api/v1/users', undefined, { push: hubUrl('adl_upload') })).status, 403);
+});
+
+test('Einstellungen ändern: genau eine Verbindung, kein gegenseitiges Verdrängen', async () => {
+  const before = agentHeaders.length;
+  await api('PUT', '/api/v1/app/remote-link', { role: 'operator' });
+  await until(() => app.svc.remoteLink.view().state === 'online' && agentHeaders.length > before);
+  await wait(2600);   // eine zweite Schleife würde sich nach 2 s erneut verbinden
+  assert.equal(agentHeaders.length, before + 1, 'nur ein Neuaufbau');
+});
+
+test('Sendesignal: nur mit Freigabe, gebündelt, mit Ende-Meldung', async () => {
+  const relay = app.relayFor('main', '/live');
+  const feedReq = (on: boolean) => agent!.write(`event: feed\ndata: ${JSON.stringify({ stationId: 'main', on })}\n\n`);
+  // ohne Freigabe: nichts
+  feedReq(true);
+  await wait(200);
+  assert.deepEqual(app.svc.remoteLink.view().feeding, []);
+  // freigeben (Verbindung bleibt bestehen bzw. baut sich neu auf)
+  assert.equal((await api('PUT', '/api/v1/app/remote-link', { feed: true })).body.feed, true);
+  await until(() => !!agent && app.svc.remoteLink.view().state === 'online');
+  feedReq(true);
+  await until(() => app.svc.remoteLink.view().feeding.includes('main'));
+  relay.open('test-src', 'audio/mpeg');
+  relay.setActive('test-src');
+  for (let i = 0; i < 5; i++) relay.data('test-src', Buffer.alloc(1000, i));
+  await until(() => feedIn.reduce((n, f) => n + f.bytes.length, 0) >= 5000);
+  assert.ok(feedIn.length <= 2, 'gebündelt statt je Stück');
+  assert.equal(feedIn[0]!.type, 'audio/mpeg');
+  feedReq(false);
+  await until(() => feedIn.some((f) => f.end));
+  assert.deepEqual(app.svc.remoteLink.view().feeding, []);
+  relay.close('test-src');
 });
 
 test('Inhaltsänderungen werden ohne Datenlast gemeldet', async () => {

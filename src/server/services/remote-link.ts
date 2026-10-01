@@ -14,6 +14,7 @@
 
 import { join } from 'node:path';
 import type { AirDeckApp } from '../app.ts';
+import type { RelayTap } from '../relay.ts';
 import { AppError, type Principal } from '../model.ts';
 import { readJson, writeFileAtomic } from '../store.ts';
 import { ROLE_SCOPES, type Role } from '../users.ts';
@@ -36,8 +37,26 @@ interface LinkConfig {
   enabled: boolean;
   role: Role;
   stationIds: string[];
+  /** Sendesignal (Programmbus) an den Vermittler übergeben, wenn er es anfordert – Standard aus */
+  feed?: boolean;
   tokenId?: string;
 }
+
+/** Laufende Übergabe des Sendesignals eines Senders an den Vermittler */
+interface Feed {
+  stationId: string;
+  tap: RelayTap;
+  type: string;
+  init: Buffer | null;
+  sendInit: boolean;
+  chunks: Buffer[];
+  bytes: number;
+  timer: NodeJS.Timeout | null;
+  busy: boolean;
+}
+const FEED_TARGET = '/live';
+const FEED_FLUSH_MS = 500;
+const FEED_MAX_BUFFER = 2 * 1024 * 1024;
 
 type State = 'off' | 'connecting' | 'online' | 'error';
 
@@ -48,6 +67,9 @@ export interface RemoteLinkView {
   name: string | null;
   role: Role | null;
   stationIds: string[];
+  feed: boolean;
+  /** Sender, deren Sendesignal gerade an den Vermittler geht */
+  feeding: string[];
   state: State;
   error: string | null;
   since: string | null;
@@ -88,6 +110,8 @@ export class RemoteLinkService {
   private unsub: (() => void) | null = null;
   private queue: { type: string; stationId?: string; payload: unknown }[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
+  private readonly feeds = new Map<string, Feed>();
+  private gen = 0;
   private state: State = 'off';
   private error: string | null = null;
   private since: string | null = null;
@@ -106,12 +130,13 @@ export class RemoteLinkService {
     const c = this.cfg();
     return {
       configured: !!c, enabled: !!c?.enabled, hub: c?.hub ?? null, name: c?.name ?? null, role: c?.role ?? null, stationIds: c?.stationIds ?? [],
+      feed: !!c?.feed, feeding: [...this.feeds.keys()],
       state: c?.enabled ? this.state : 'off', error: c?.enabled ? this.error : null, since: this.since,
     };
   }
 
   /** Neu einrichten (mit Code) oder ändern (Rolle, Sender, an/aus). */
-  configure(p: Principal, input: { code?: unknown; enabled?: unknown; role?: unknown; stationIds?: unknown }): RemoteLinkView {
+  configure(p: Principal, input: { code?: unknown; enabled?: unknown; role?: unknown; stationIds?: unknown; feed?: unknown }): RemoteLinkView {
     const cur = this.cfg();
     const code = typeof input.code === 'string' && input.code.trim() ? parseLinkCode(input.code) : null;
     if (!cur && !code) throw new AppError(400, 'no_code', 'Bitte den Verbindungscode aus dem Control Center einfügen');
@@ -121,6 +146,7 @@ export class RemoteLinkService {
     const next: LinkConfig = {
       hub: code?.hub ?? cur!.hub, link: code?.link ?? cur!.link, name: code ? (code.name || 'Fernzugriff') : cur!.name,
       enabled: input.enabled === undefined ? true : input.enabled === true, role, stationIds, tokenId: cur?.tokenId,
+      feed: input.feed === undefined ? (code ? false : !!cur?.feed) : input.feed === true,
     };
     // Rechte geändert oder neuer Code → eigenes Geräte-Token neu ausstellen (altes widerrufen)
     if (code || !cur || cur.role !== role || cur.stationIds.join() !== stationIds.join() || !this.app.secrets.get('remote-link:token')) {
@@ -136,7 +162,7 @@ export class RemoteLinkService {
     }
     if (code) this.app.secrets.set('remote-link:key', code.key);
     writeFileAtomic(this.file, JSON.stringify(next));
-    this.app.audit.write({ kind: 'network', event: 'remote_link', actor: p.id, hub: next.hub, enabled: next.enabled, role, stationIds });
+    this.app.audit.write({ kind: 'network', event: 'remote_link', actor: p.id, hub: next.hub, enabled: next.enabled, role, stationIds, feed: next.feed });
     this.restart();
     return this.view();
   }
@@ -159,7 +185,7 @@ export class RemoteLinkService {
     if (this.running || !c?.enabled) return;
     this.running = true;
     this.unsub = this.app.subscribe((e) => this.onEvent(e.type, e.stationId, e.payload));
-    void this.loop();
+    void this.loop(++this.gen);
   }
 
   stop(): void {
@@ -171,6 +197,7 @@ export class RemoteLinkService {
     if (this.flushTimer) clearTimeout(this.flushTimer);
     this.flushTimer = null;
     this.queue = [];
+    this.stopFeeds();
     this.setState('off');
   }
 
@@ -202,9 +229,11 @@ export class RemoteLinkService {
     });
   }
 
-  private async loop(): Promise<void> {
+  /** Jede Verbindungsschleife gehört zu einer Generation: nach stop()/start() endet die alte sicher (sonst verdrängen sich zwei Schleifen gegenseitig). */
+  private async loop(gen: number): Promise<void> {
+    const alive = () => this.running && gen === this.gen;
     let delay = 2000;
-    while (this.running) {
+    while (alive()) {
       const ac = new AbortController();
       this.abort = ac;
       let watchdog: NodeJS.Timeout | null = null;
@@ -225,16 +254,17 @@ export class RemoteLinkService {
           this.setState('online');
           delay = 2000;
           await this.readStream(r.body, feed);
-          if (this.running) this.setState('connecting', 'Verbindung zum Vermittler unterbrochen – verbinde neu');
+          this.stopFeeds();   // der Vermittler fordert das Signal nach dem Neuverbinden wieder an
+          if (alive()) this.setState('connecting', 'Verbindung zum Vermittler unterbrochen – verbinde neu');
         }
       } catch (err) {
-        if (!this.running) break;
+        if (!alive()) break;
         const msg = ac.signal.aborted ? 'Vermittler antwortet nicht mehr – verbinde neu' : `Vermittler nicht erreichbar: ${(err as Error).message}`;
         this.setState('error', msg);
       } finally {
         if (watchdog) clearTimeout(watchdog);
       }
-      if (!this.running) break;
+      if (!alive()) break;
       await this.sleep(delay);
       delay = Math.min(delay * 2, 60_000);
     }
@@ -254,6 +284,7 @@ export class RemoteLinkService {
         buf = buf.slice(nl + 1);
         if (line === '') {
           if (event === 'req' && data) void this.handle(data);
+          else if (event === 'feed' && data) this.onFeedRequest(data);
           event = 'message';
           data = '';
         } else if (line.startsWith('event:')) event = line.slice(6).trim();
@@ -364,6 +395,83 @@ export class RemoteLinkService {
     } as RequestInit);
     await up.body?.cancel();
     return up.ok ? [200, { pushed: true }] : [502, { error: 'push_failed', message: `Upload zum Vermittler fehlgeschlagen (HTTP ${up.status})` }];
+  }
+
+  // ---------- Sendesignal übergeben ----------
+
+  /** Anforderung des Vermittlers: {stationId, on}. Nur wenn hier freigegeben und der Sender zum Fernzugriff gehört. */
+  private onFeedRequest(raw: string): void {
+    let q: { stationId?: unknown; on?: unknown };
+    try {
+      q = JSON.parse(raw) as typeof q;
+    } catch {
+      return;
+    }
+    const sid = String(q.stationId ?? ''), c = this.cfg();
+    if (q.on !== true) return this.stopFeed(sid);
+    if (!c?.feed || !this.app.stations.has(sid) || !(c.stationIds.includes('*') || c.stationIds.includes(sid)) || this.feeds.has(sid)) return;
+    const f: Feed = {
+      stationId: sid, type: '', init: null, sendInit: false, chunks: [], bytes: 0, timer: null, busy: false,
+      tap: {
+        onStart: (type, init) => {
+          f.type = type;
+          f.init = init ?? null;
+          f.sendInit = !!init;
+          f.chunks = [];
+          f.bytes = 0;
+        },
+        onData: (chunk) => {
+          f.chunks.push(chunk);
+          f.bytes += chunk.length;
+          while (f.bytes > FEED_MAX_BUFFER && f.chunks.length > 1) f.bytes -= f.chunks.shift()!.length;   // Vermittler zu langsam: Älteres verwerfen
+        },
+        onStop: () => void this.feedPost(f, Buffer.alloc(0), { 'X-Feed-End': '1' }),
+      },
+    };
+    this.feeds.set(sid, f);
+    f.timer = setInterval(() => void this.feedFlush(f), FEED_FLUSH_MS);
+    this.app.relayFor(sid, FEED_TARGET).addTap(f.tap);
+    this.app.audit.write({ kind: 'network', event: 'remote_link_feed', stationId: sid, on: true });
+  }
+
+  private async feedFlush(f: Feed): Promise<void> {
+    if (f.busy || !f.type || (!f.bytes && !f.sendInit)) return;
+    const body = Buffer.concat(f.sendInit && f.init ? [f.init, ...f.chunks] : f.chunks);
+    const init = f.sendInit;
+    f.chunks = [];
+    f.bytes = 0;
+    f.sendInit = false;
+    await this.feedPost(f, body, init ? { 'X-Feed-Init': '1' } : {});
+  }
+
+  private async feedPost(f: Feed, body: Buffer, extra: Record<string, string>): Promise<void> {
+    const c = this.cfg();
+    if (!c) return;
+    f.busy = true;
+    try {
+      const r = await fetch(`${this.url('adl_feed')}&s=${encodeURIComponent(f.stationId)}`, {
+        method: 'POST', headers: { ...this.headers(), 'Content-Type': f.type || 'application/octet-stream', ...extra }, body, signal: AbortSignal.timeout(10_000),
+      });
+      await r.body?.cancel();
+      if (r.status === 404 || r.status === 410) this.stopFeed(f.stationId);   // Vermittler will das Signal nicht mehr
+    } catch {
+      /* Aussetzer: der Vermittler fällt nach kurzer Zeit auf seine eigene Automation zurück */
+    } finally {
+      f.busy = false;
+    }
+  }
+
+  private stopFeed(sid: string): void {
+    const f = this.feeds.get(sid);
+    if (!f) return;
+    this.feeds.delete(sid);
+    if (f.timer) clearInterval(f.timer);
+    this.app.relayFor(sid, FEED_TARGET).removeTap(f.tap);
+    this.app.audit.write({ kind: 'network', event: 'remote_link_feed', stationId: sid, on: false });
+  }
+
+  private stopFeeds(): void {
+    for (const sid of [...this.feeds.keys()]) this.stopFeed(sid);
   }
 
   private onEvent(type: string, stationId: string | undefined, payload: unknown): void {
