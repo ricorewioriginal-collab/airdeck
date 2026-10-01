@@ -35,20 +35,26 @@ Legende: ✅ vorhanden · 🟡 teilweise · ⏳ geplant
 | HLS-Stream (m3u8) | ⏳ | |
 | Cloud-Kachel (Team-Dateien) | ⏳ | Cloud-Adapter (WebDAV/S3/NAS) laut Spezifikation |
 
-## laut.fm Radioadmin (automation.html)
+## lautCast (vormals „laut.fm" im Menü) - Radioadmin-Anbindung (automation.html als 1:1-Funktionsreferenz)
+
+Der Menüpunkt heißt in AirDeck **lautCast** (reine UI-Bezeichnung der AirDeck-Funktion); „laut.fm" bleibt unverändert der Name des externen Dienstes, zu dem verbunden wird. Siehe `docs/LAUTCAST_PROGRESS.md` für den laufenden, phasenweisen Abgleich gegen `automation.html` als Funktionsreferenz.
 
 | Funktion | Status |
 |---|---|
 | Verbindung per Radioadmin-Token (verschlüsselt lokal), Stationswahl | ✅ |
 | Übersicht: Station, Aktiv-Status + Aktivieren, Hörer, laufende Playlist, aktueller Titel | ✅ |
-| Playlists: anlegen, bearbeiten, löschen, Titel hinzufügen/entfernen | ✅ |
-| Titel: Suche, Vorhören, zu Playlist, MP3-Upload, Uploads in Verarbeitung | ✅ |
+| Playlists: anlegen, bearbeiten, löschen, Titel hinzufügen/entfernen | 🟡 - Änderungen wirken sofort live; die gebündelte „Speichern (N)"-Zwischenablage aus der Referenz fehlt noch |
+| Titel: Suche, Vorhören, zu Playlist, MP3-Upload, Uploads in Verarbeitung | 🟡 - Upload fehlt Metadaten-Felder (Künstler/Titel/Genre/Jahr/Privat), Verarbeitungs-Poll mit automatischem Status und automatischer Nachbearbeitung der Metadaten; kein Bearbeiten-/Löschen-Dialog für bestehende Titel |
+| Automations-Algorithmen (16 Vorlagen, Zuweisung je Playlist) | ✅ - lokaler Testlauf vor dem Speichern (wie in der Referenz) fehlt noch |
+| Tags & Felder (Typ/Genre/Jahr/Popularität/Tags), In-App-Referenz dazu | 🟡 - Tags bearbeitbar; Typ/Privat/Jahr nur beim Erstellen über Radioadmin direkt, keine In-App-Felderklärung wie in der Referenz |
 | Sendeplan: Wochenraster (Slot = Tag×24+Stunde), Stunden belegen | ✅ |
 | Statistik: Hörer jetzt, Einschaltungen, gespielte Titel 24 h | ✅ |
 | Benutzer: einladen, Rolle ändern, entfernen | ✅ |
 | Station: Beschreibung, Format, DJs, Links, Genres, Logo | ✅ |
 | Live: Zugangsdaten → als AirDeck-Ausgang übernehmen (mit ?prio=) | ✅ |
-| Automation-Algorithmen, Tags, Deep-Stats/Mail | ⏳ |
+| „Jetzt auf laut.fm“-Live-Kachel (Cover, Fortschrittsbalken, Stream-Vorhören) | ⏳ |
+| Lifehacks (Massen-Tagger, Jahr-Batch-Füllen, Top-24h-Playlist-Builder) | ⏳ |
+| Statistik-Mail-Report | ⏳ - lokale Zusatzfunktion der Referenz (cron.php), kein reiner laut.fm-API-Aufruf |
 
 ## KI Tools (ki-tools.html)
 
