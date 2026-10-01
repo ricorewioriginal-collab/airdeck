@@ -116,7 +116,12 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .btn:hover, .toggle:hover, .icon-btn:hover, .deck-btn:hover { border-color: var(--primary); box-shadow: 0 0 12px rgba(47, 140, 255, .25); }
 .btn.small, .toggle.small { padding: 3px 9px; font-size: 12px; }
 .btn.primary { background: linear-gradient(180deg, #3b95ff, #1f6fe0); border-color: #3b95ff; color: #fff; font-weight: 650; }
+.btn.success { background: linear-gradient(180deg, #2fd46b, #16a34a); border-color: var(--green); color: #03140a; font-weight: 650; }
+.btn.success:hover { box-shadow: 0 0 12px rgba(34, 197, 94, .35); }
 .btn.danger { border-color: rgba(239, 68, 68, .55); color: #fca5a5; }
+/* Zurückhaltend/neutral - für Abbrechen & andere Zweithandlungen neben einer .primary/.success-Hauptaktion. */
+.btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
+.btn.ghost:hover { border-color: var(--line-2); color: var(--text); box-shadow: none; }
 .toggle { font-weight: 750; letter-spacing: .04em; font-size: 12px; }
 .toggle[aria-pressed="true"] { background: linear-gradient(180deg, #2fd46b, #16a34a); border-color: var(--green); color: #03140a; }
 #btn-stream[aria-pressed="true"], #btn-mic[aria-pressed="true"], #po-mic[aria-pressed="true"] { background: linear-gradient(180deg, #f25555, #d42a2a); border-color: var(--red); color: #fff; }

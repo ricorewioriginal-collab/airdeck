@@ -35,7 +35,7 @@ export async function scanQrCode() {
   const dlg = /** @type {HTMLDialogElement} */ ($('scan-dialog'));
   const video = /** @type {HTMLVideoElement} */ (h('video', { autoplay: true, playsinline: true, muted: true, style: 'display:block;width:100%;max-width:360px;margin:0 auto;border-radius:8px;background:#000' }));
   const hint = h('p', { class: 'muted', style: 'text-align:center;margin:10px 0 0' }, 'Kamera wird gestartet …');
-  const cancelBtn = h('button', { type: 'button', class: 'btn' }, 'Abbrechen');
+  const cancelBtn = h('button', { type: 'button', class: 'btn ghost' }, 'Abbrechen');
   dlg.replaceChildren(
     h('h3', {}, 'QR-Code scannen'),
     video,

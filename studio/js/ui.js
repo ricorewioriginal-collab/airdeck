@@ -109,7 +109,7 @@ export function formDialog(title, fields, submitLabel = 'Speichern') {
   }
   form.append(
     h('div', { class: 'dialog-actions' },
-      h('button', { class: 'btn', value: 'cancel', formnovalidate: true }, 'Abbrechen'),
+      h('button', { class: 'btn ghost', value: 'cancel', formnovalidate: true }, 'Abbrechen'),
       h('button', { class: 'btn primary', value: 'ok' }, submitLabel)),
   );
   return new Promise((resolve) => {
