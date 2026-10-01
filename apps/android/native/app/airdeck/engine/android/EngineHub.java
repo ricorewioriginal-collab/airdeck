@@ -66,7 +66,7 @@ final class EngineHub {
         c.mount = prefs.getString("mount", "/live");
         c.user = prefs.getString("user", "source");
         c.password = prefs.getString("password", "");
-        c.name = prefs.getString("name", "AirDeck");
+        c.name = prefs.getString("name", "AnMaCha Cast");
         return c;
     }
 

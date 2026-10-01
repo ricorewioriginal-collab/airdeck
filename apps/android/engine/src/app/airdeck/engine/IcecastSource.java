@@ -23,7 +23,7 @@ public final class IcecastSource {
         public String mount = "/live";
         public String user = "source";
         public String password;
-        public String name = "AirDeck";
+        public String name = "AnMaCha Cast";
         public String contentType = "audio/mpeg";
     }
 
@@ -168,7 +168,7 @@ public final class IcecastSource {
         h.append(requestLine).append("\r\n");
         h.append("Host: ").append(cfg.host).append(':').append(cfg.port).append("\r\n");
         h.append("Authorization: Basic ").append(auth).append("\r\n");
-        h.append("User-Agent: AirDeck-Android\r\n");
+        h.append("User-Agent: AnMaCha-Cast-Android\r\n");
         h.append("Content-Type: ").append(cfg.contentType).append("\r\n");
         h.append("Ice-Public: 0\r\n");
         h.append("Ice-Name: ").append(cfg.name.replaceAll("[\\r\\n]", " ")).append("\r\n");

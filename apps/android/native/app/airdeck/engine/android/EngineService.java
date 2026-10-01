@@ -1,4 +1,4 @@
-// Vordergrund-Dienst: hält die Sendung am Leben (Benachrichtigung „AirDeck sendet live“ mit Beenden-Knopf).
+// Vordergrund-Dienst: hält die Sendung am Leben (Benachrichtigung „AnMaCha Cast sendet live“ mit Beenden-Knopf).
 package app.airdeck.engine.android;
 
 import android.app.Notification;
@@ -56,7 +56,7 @@ public final class EngineService extends Service {
         if (Build.VERSION.SDK_INT >= 26) {
             if (nm.getNotificationChannel(CHANNEL) == null) {
                 NotificationChannel ch = new NotificationChannel(CHANNEL, "Live-Sendung", NotificationManager.IMPORTANCE_LOW);
-                ch.setDescription("Zeigt an, solange AirDeck vom Handy sendet");
+                ch.setDescription("Zeigt an, solange AnMaCha Cast vom Handy sendet");
                 nm.createNotificationChannel(ch);
             }
             b = new Notification.Builder(this, CHANNEL);
@@ -69,7 +69,7 @@ public final class EngineService extends Service {
         PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, EngineService.class).setAction(ACTION_STOP), flags);
         b.addAction(new Notification.Action.Builder(Icon.createWithResource(this, android.R.drawable.ic_media_pause), "Sendung beenden", stop).build());
         return b.setSmallIcon(getApplicationInfo().icon)
-            .setContentTitle("AirDeck sendet live")
+            .setContentTitle("AnMaCha Cast sendet live")
             .setContentText("Tippen zum Öffnen – Sendung läuft auch bei ausgeschaltetem Bildschirm")
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
@@ -79,7 +79,7 @@ public final class EngineService extends Service {
     private void acquireLocks() {
         if (wake == null) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-            wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AirDeck:live");
+            wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AnMaChaCast:live");
             wake.setReferenceCounted(false);
             wake.acquire(12 * 60 * 60 * 1000L); // spätestens nach 12 h freigeben
         }
@@ -87,7 +87,7 @@ public final class EngineService extends Service {
             WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             if (wm != null) {
                 int mode = Build.VERSION.SDK_INT >= 29 ? WifiManager.WIFI_MODE_FULL_LOW_LATENCY : WifiManager.WIFI_MODE_FULL_HIGH_PERF;
-                wifi = wm.createWifiLock(mode, "AirDeck:live");
+                wifi = wm.createWifiLock(mode, "AnMaChaCast:live");
                 wifi.setReferenceCounted(false);
                 wifi.acquire();
             }

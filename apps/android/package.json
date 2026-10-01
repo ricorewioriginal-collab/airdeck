@@ -2,7 +2,7 @@
   "name": "airdeck-android",
   "version": "0.4.1",
   "private": true,
-  "description": "AirDeck Studio für Android (Capacitor-Hülle um studio/)",
+  "description": "AnMaCha Cast Studio für Android (Capacitor-Hülle um studio/)",
   "scripts": {
     "setup": "node prepare.mjs",
     "build:debug": "node prepare.mjs && cd android && ./gradlew assembleDebug",
