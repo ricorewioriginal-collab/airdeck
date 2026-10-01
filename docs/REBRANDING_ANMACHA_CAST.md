@@ -252,7 +252,7 @@ Capacitor/Android-SDK, hier nicht lokal baubar) werden vom `android`-CI-Job der 
   koordinierte Änderung (Node-Seite + Installer + Skripte gemeinsam) und bewusst nicht Teil dieses
   Blocks.
 - Installationspfad `{autopf}\AirDeck`, Build-Quellordner `dist\AirDeck\`, Startmenü-Gruppenname,
-  Release-Dateiname `AirDeck-Setup-{#AppVersion}` (Phase 8), Registry-Autostart-Eintrag
+  Registry-Autostart-Eintrag
   (`HKCU\...\Run`, `ValueName: "AirDeck"`), Windows-Firewall-Regelname `"AirDeck"`, geplanter Task
   `schtasks /TN "AirDeck"` (`Autostart-einrichten.cmd`) sowie die drei Verknüpfungsnamen
   (`IconStop`/`IconServer`/`IconManual` in `installer.iss`): alles von Windows bzw. dem Installer
@@ -441,3 +441,14 @@ auf syntaktische Gültigkeit geprüft (alle fehlerfrei). Die tatsächliche Artef
 PR (inkl. `windows`-, `android`- und `linux`-Jobs) scharf geprüft; der `release`-Job selbst läuft nur
 bei einem `v*`-Tag-Push und wird daher durch diese PR nicht ausgeführt, nur durch Lesen/Nachvollziehen
 der Befehlskette verifiziert.
+
+**Fehler und Behebung (Phase 8):** Der erste `windows`-CI-Lauf dieser PR schlug fehl
+(`Cannot validate argument on parameter 'FilePath'. The argument is null or empty.`) – `build.yml`
+suchte bereits nach `dist/AnMaCha-Cast-Setup-*.exe`, aber `packaging/windows/installer.iss`s
+`OutputBaseFilename` erzeugte tatsächlich weiterhin `AirDeck-Setup-{#AppVersion}.exe`, sodass
+`Get-ChildItem` nichts fand und `$setup.FullName` leer war. Das ist derselbe wiederkehrende
+Fehlertyp wie in Phase 1 (`docker`-Job) und Phase 7 (`demo`-Job): eine CI-Prüfung erwartet schon den
+neuen Namen, aber die tatsächliche Build-Ausgabe war noch nicht mit umbenannt. Behoben durch
+`OutputBaseFilename=AnMaCha-Cast-Setup-{#AppVersion}` in `installer.iss`; der entsprechende, nun
+veraltete Hinweis „Release-Dateiname `AirDeck-Setup-{#AppVersion}` (Phase 8)“ aus dem Phase-6-Abschnitt
+oben wurde entfernt. Durch den nächsten `windows`-CI-Lauf dieser PR verifiziert.

@@ -2,7 +2,7 @@
 
 Ziel: **Download → Installieren → Setup → Sender → Musik → Stream → AUTO**, ohne Kommandozeile und ohne manuell installierte Abhängigkeiten.
 
-## Windows-Installer (`AirDeck-Setup.exe`)
+## Windows-Installer (`AnMaCha-Cast-Setup.exe`)
 
 Komponenten:
 
