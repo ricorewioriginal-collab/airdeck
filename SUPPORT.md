@@ -1,4 +1,4 @@
-# AirDeck Support
+# AnMaCha Cast Support
 
 Diese Seite erklärt, welcher GitHub-Kanal für welches Anliegen gedacht ist.
 
@@ -6,7 +6,7 @@ Diese Seite erklärt, welcher GitHub-Kanal für welches Anliegen gedacht ist.
 
 Nutze den strukturierten **Bug Report** unter GitHub Issues.
 
-Bitte gib mindestens AirDeck-Version bzw. Commit, Plattform, betroffenen Bereich, Reproduktionsschritte sowie erwartetes und tatsächliches Verhalten an.
+Bitte gib mindestens AnMaCha Cast-Version bzw. Commit, Plattform, betroffenen Bereich, Reproduktionsschritte sowie erwartetes und tatsächliches Verhalten an.
 
 Vor dem Absenden bitte prüfen, ob bereits ein passendes Issue existiert.
 
@@ -42,17 +42,17 @@ Pull Requests sollen das vorhandene System erweitern und keine unnötigen parall
 
 ## Forks und Community-Builds
 
-Der offizielle AirDeck-Support bezieht sich auf den offiziellen Projektcode und die vom Maintainer freigegebenen Releases.
+Der offizielle AnMaCha Cast-Support bezieht sich auf den offiziellen Projektcode und die vom Maintainer freigegebenen Releases.
 
 Für veränderte Forks, Community-Builds oder fremde Hosting-Angebote ist grundsätzlich deren jeweiliger Anbieter bzw. Entwickler verantwortlich.
 
-Wenn ein Fehler auch im unveränderten offiziellen AirDeck reproduzierbar ist, kann er selbstverständlich im offiziellen Repository gemeldet werden.
+Wenn ein Fehler auch im unveränderten offiziellen AnMaCha Cast reproduzierbar ist, kann er selbstverständlich im offiziellen Repository gemeldet werden.
 
 ## Kommerzielle Nutzung
 
-Informationen zu AirDeck-Hosting, SaaS, Abos, Reseller- und White-Label-Modellen stehen in [`COMMERCIAL.md`](COMMERCIAL.md).
+Informationen zu AnMaCha Cast-Hosting, SaaS, Abos, Reseller- und White-Label-Modellen stehen in [`COMMERCIAL.md`](COMMERCIAL.md).
 
-Die normale AirDeck-Nutzung und der eigene Sendebetrieb sind davon zu unterscheiden.
+Die normale AnMaCha Cast-Nutzung und der eigene Sendebetrieb sind davon zu unterscheiden.
 
 ## Keine Secrets veröffentlichen
 
@@ -71,4 +71,4 @@ Logs und Screenshots vor dem Hochladen entsprechend prüfen.
 
 ## Offizielle Releases
 
-Nur vom Maintainer freigegebene Versionen gelten als offizielle AirDeck-Releases. Downloads sollen über die offiziellen GitHub-Releases bzw. die in der README genannten offiziellen Projektkanäle erfolgen.
+Nur vom Maintainer freigegebene Versionen gelten als offizielle AnMaCha Cast-Releases. Downloads sollen über die offiziellen GitHub-Releases bzw. die in der README genannten offiziellen Projektkanäle erfolgen.
