@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: AirDeck-Radio-Automation-&-Broadcast
+          ref: main
       - name: Aktuelles Release und Versionen prüfen
         env:
           GH_TOKEN: ${{ github.token }}
@@ -117,8 +117,8 @@ jobs:
             echo "Prüfe $name: $url"
             curl -fLsS --retry 3 --retry-delay 3 --connect-timeout 15 --max-time 45 -o /dev/null "$url"
           }
-          check "AnMaCha Cast Projektseite" "https://ricorewioriginal-collab.github.io/airdeck/"
-          check "AnMaCha Cast Dokumentation" "https://ricorewioriginal-collab.github.io/airdeck/docs.html"
+          check "AnMaCha Cast Projektseite" "https://ricorewioriginal-collab.github.io/anmacha_cast/"
+          check "AnMaCha Cast Dokumentation" "https://ricorewioriginal-collab.github.io/anmacha_cast/docs.html"
           check "AnMaCha Cast Demo" "https://airdeck-demo.ricorewi-radio.de/"
           check "AnMaCha Cast Demo Health" "https://airdeck-demo.ricorewi-radio.de/api/v1/health"
           check "Latest Release" "https://github.com/${{ github.repository }}/releases/latest"

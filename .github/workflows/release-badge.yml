@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: AirDeck-Radio-Automation-&-Broadcast
+          ref: main
           fetch-depth: 0
       - name: Aktuelles Release ermitteln und AnMaCha-Cast-Badge erzeugen
         env:
@@ -52,7 +52,7 @@ jobs:
           TAG="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq .tag_name | tr '/ ' '--')"; BRANCH="automation/release-badge-${TAG}-${GITHUB_RUN_ID}"
           git config user.name 'AnMaCha Cast CI'; git config user.email 'actions@users.noreply.github.com'
           git switch -c "$BRANCH"; git commit -m 'README: aktuelle Release-Version'; git push origin "$BRANCH"
-          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: aktuelle Release-Version ${TAG}" --body "Automatisch erzeugtes AnMaCha-Cast-Versionsbadge. Branch-Schutz und CI bleiben aktiv.")"
+          PR_URL="$(gh pr create --base main --head "$BRANCH" --title "docs: aktuelle Release-Version ${TAG}" --body "Automatisch erzeugtes AnMaCha-Cast-Versionsbadge. Branch-Schutz und CI bleiben aktiv.")"
           PR_NUMBER="${PR_URL##*/}"
           gh workflow run build.yml --ref "$BRANCH"
           gh workflow run security.yml --ref "$BRANCH"

@@ -10,8 +10,8 @@ per `.env` gesetzten Namen stillschweigend überstimmen.
 ## Start
 
 ```bash
-git clone https://github.com/ricorewioriginal-collab/airdeck.git airdeck
-cd airdeck && git checkout "AirDeck-Radio-Automation-&-Broadcast"
+git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git airdeck
+cd airdeck && git checkout "main"
 echo "AIRDECK_DB_PASSWORD=$(openssl rand -hex 24)" > .env   # Passwort der Datenbank, einmalig
 docker compose up -d
 docker compose logs airdeck | grep -A1 -e "Admin-Token" -e "Einmal-Passwort"

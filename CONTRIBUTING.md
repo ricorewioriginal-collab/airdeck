@@ -62,7 +62,7 @@ Vor Änderungen immer den aktuellen Remote-Stand holen und sicherstellen, dass k
 ## Entwicklungsumgebung
 
 ```bash
-git clone https://github.com/ricorewioriginal-collab/airdeck.git
+git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git
 cd airdeck
 git checkout 'AnMaCha Cast-Radio-Automation-&-Broadcast'
 npm ci

@@ -490,3 +490,43 @@ ist für reines GitHub-Pages-HTML ohne eigenen Server in dieser Sandbox nicht si
 Seite ihre Inhalte zur Laufzeit per `fetch` von `api.github.com`/`raw.githubusercontent.com` lädt;
 stattdessen wurden alle JS-Template-Strings und das `labels`-Objekt manuell gegen die in Phase 8
 tatsächlich erzeugten Artefaktnamen gegengeprüft.
+
+## Nachtrag: Repository- und Hauptbranch-Umbenennung
+
+Nach Abschluss aller neun Phasen hat der Nutzer das Repository selbst (über GitHub-Settings) von
+`ricorewioriginal-collab/airdeck` zu `ricorewioriginal-collab/anmacha_cast` umbenannt und den
+Hauptbranch von `AirDeck-Radio-Automation-&-Broadcast` zu `main`. Das macht aus den bis dahin
+bewusst unveränderten „echten Repository-/Branch-Identifikatoren" (siehe Begründungen in den
+Phasen 1–9 oben) selbst veraltete Werte – konsequent im gleichen Muster wie der ursprüngliche
+Produktname wurden sie hier nachgezogen:
+
+- Alle `.github/workflows/*.yml`: `branches: [...]`, `ref:`, `--base`/`--head` bei `gh pr create`,
+  `workflow_run.head_branch`-Vergleiche, `workflow_dispatch`-Default-Werte → `main`;
+  `github.io/airdeck/`-Projektseiten-URLs (Pages-URL hängt vom Repo-Namen ab) →
+  `github.io/anmacha_cast/`.
+- `src/server/update.ts`: `DEFAULT_SOURCE.repo` (Grundlage der In-App-Update-Prüfung) auf
+  `ricorewioriginal-collab/anmacha_cast` umgestellt – ein funktional wichtiger Fund, da die
+  Update-Funktion sonst dauerhaft auf einen nur per GitHub-Redirect erreichbaren, inoffiziellen
+  Pfad gezeigt hätte.
+- `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md` (nur die Link-Ziele, nicht die historischen
+  Release-Namen), `docs/DEPLOY.md`, `docs/WORKFLOWS.md`, `docs/DOCKER.md`, `site/index.html`,
+  `site/docs.html` (inklusive der dort getrennt gehaltenen JS-Variablen `owner`/`repo`/`branch`).
+- Zusätzlich dabei entdeckt: mehrere Dateien zeigten noch auf den ursprünglichen, schon vor dem
+  AirDeck-Rebrand verwendeten Repository-Namen `anmacha_control` (eine noch ältere Zwischenstufe,
+  die keine der AirDeck-Suchen bisher erfasst hatte) – `packaging/linux/copyright`,
+  `packaging/linux/control`, `packaging/linux/airdeck-server.service`,
+  `packaging/windows/installer.iss`, `.github/ISSUE_TEMPLATE/config.yml`,
+  `scripts/cleanup-github-storage.ps1`, `SUPPORT.md`, `docs/DEPLOY.md`. Alle auf
+  `ricorewioriginal-collab/anmacha_cast` korrigiert.
+
+**Bewusst unverändert gelassen** (historische Aufzeichnungen, kein aktueller Zustand):
+`docs/MUSIKHUB_CODE_AUDIT.md`, `docs/MUSIKHUB_PROGRESS.md`, `docs/architecture/AUDIT.md` – diese
+Dokumente protokollieren, auf welchem Branch/Commit zu einem bestimmten Zeitpunkt tatsächlich
+geprüft wurde; das nachträglich auf „main" umzuschreiben würde die Aufzeichnung verfälschen. Ebenso
+unverändert: die PR-Links in `docs/MUSIKHUB_PROGRESS.md`, die auf den damaligen Pfad verweisen
+(GitHub-Redirect greift dort weiterhin), und `docs/LAUTCAST_PROGRESS.md`s Erwähnung von
+„AnMaCha-Control-Projekt" (bezeichnet ein unabhängiges, anderes lokales Projekt, nicht dieses
+Repository).
+
+**Tests:** `npm run typecheck` grün, volle Testsuite grün (235/0/6, unverändert). Alle geänderten
+`.github/workflows/*.yml` zusätzlich mit `yaml.safe_load` auf syntaktische Gültigkeit geprüft.

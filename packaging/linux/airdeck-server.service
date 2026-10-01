@@ -1,6 +1,6 @@
 [Unit]
 Description=AnMaCha Cast Radio-Automation & Live-Broadcast (Server)
-Documentation=https://github.com/ricorewioriginal-collab/anmacha_control
+Documentation=https://github.com/ricorewioriginal-collab/anmacha_cast
 After=network-online.target
 Wants=network-online.target
 

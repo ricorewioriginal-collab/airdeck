@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BRANCH: AirDeck-Radio-Automation-&-Broadcast
+  BRANCH: main
 
 jobs:
   remember:
@@ -33,7 +33,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'AirDeck-Radio-Automation-&-Broadcast'
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Erfolgreichen Commit als last-known-good markieren
@@ -55,14 +55,14 @@ jobs:
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.head_branch == 'AirDeck-Radio-Automation-&-Broadcast' &&
+      github.event.workflow_run.head_branch == 'main' &&
       !startsWith(github.event.workflow_run.head_commit.message, 'revert: automatic rollback') &&
       !startsWith(github.event.workflow_run.head_commit.message, 'revert: rollback')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: AirDeck-Radio-Automation-&-Broadcast
+          ref: main
           fetch-depth: 0
 
       - name: Rollback-Ziel und Branchzustand prüfen
@@ -124,7 +124,7 @@ jobs:
           git switch -c "$BRANCH"
           git commit -m "$TITLE"
           git push origin "$BRANCH"
-          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "$TITLE" --body "Der zuletzt gebaute Stand ist fehlgeschlagen. Dieser PR nimmt die seit dem letzten erfolgreichen Build ($GOOD) hinzugekommenen Aenderungen als nachvollziehbaren Revert-Commit zurueck. Branch-Schutz und CI bleiben aktiv - bitte zeitnah pruefen und mergen.")"
+          PR_URL="$(gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "Der zuletzt gebaute Stand ist fehlgeschlagen. Dieser PR nimmt die seit dem letzten erfolgreichen Build ($GOOD) hinzugekommenen Aenderungen als nachvollziehbaren Revert-Commit zurueck. Branch-Schutz und CI bleiben aktiv - bitte zeitnah pruefen und mergen.")"
           PR_NUMBER="${PR_URL##*/}"
           gh pr merge "$PR_NUMBER" --auto --squash || true
           echo "::warning::Automatischer Rollback auf $GOOD als PR #${PR_NUMBER} eingereicht (Auto-Merge angefordert, greift erst nach gruenen Pflicht-Checks) - Branch-Schutz verlangt das, daher kein direkter Push."
@@ -155,7 +155,7 @@ jobs:
           test "${{ inputs.confirm }}" = "ROLLBACK" || { echo "::error::Im Feld confirm muss exakt ROLLBACK stehen."; exit 1; }
       - uses: actions/checkout@v7
         with:
-          ref: AirDeck-Radio-Automation-&-Broadcast
+          ref: main
           fetch-depth: 0
       - name: Last Known Good wiederherstellen
         env:
@@ -177,7 +177,7 @@ jobs:
           git switch -c "$BRANCH"
           git commit -m "$TITLE"
           git push origin "$BRANCH"
-          PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "$TITLE" --body "Manuell angeforderter Rollback auf $GOOD. Branch-Schutz und CI bleiben aktiv - bitte pruefen und mergen.")"
+          PR_URL="$(gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "Manuell angeforderter Rollback auf $GOOD. Branch-Schutz und CI bleiben aktiv - bitte pruefen und mergen.")"
           PR_NUMBER="${PR_URL##*/}"
           gh pr merge "$PR_NUMBER" --auto --squash || true
           echo "::warning::Manueller Rollback auf $GOOD als PR #${PR_NUMBER} eingereicht (Auto-Merge angefordert) - Branch-Schutz verlangt das, daher kein direkter Push."

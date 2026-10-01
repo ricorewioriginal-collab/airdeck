@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: ['AirDeck-Radio-Automation-&-Broadcast']
+    branches: ['main']
     tags: ['v*']
     paths-ignore:
       - 'docs/screenshots/**'

@@ -2,7 +2,7 @@ name: Security Check
 
 on:
   push:
-    branches: ['AirDeck-Radio-Automation-&-Broadcast']
+    branches: ['main']
   pull_request:
   workflow_dispatch:
   schedule:
