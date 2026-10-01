@@ -72,6 +72,8 @@ Ein AirDeck hinter einem Router (Studio-PC) ist von außen nicht erreichbar. Des
 - **Protokoll** (nur Bordmittel): `GET <hub>?action=adl_agent&link=<id>` mit Header `X-Link-Key` liefert Server-Sent Events (`req`: `{rid, method, path, body}`); Antworten gehen an `POST …adl_reply` (`{rid, status, body}`), Ereignisse gebündelt an `POST …adl_events`. Wiederverbindung mit wachsendem Abstand (2 s bis 60 s); bleibt der Strom 65 s still, wird neu verbunden.
 - **Rechte:** Jede vermittelte Anfrage läuft über die eigene API (Loopback) mit einem eigenen Geräte-Token („Fernzugriff: …“, unter Geräte einzeln widerrufbar). Rolle, Sender, Scopes und Rate-Limit gelten wie bei jedem gekoppelten Gerät. Anmeldung, Tokens/Geräte/Benutzer, `app/*`-Einstellungen, Ereignis-Strom, Neustart, Update, Backup, Speicher und Datenbank sind über den Vermittler grundsätzlich gesperrt. Übertragen werden nur JSON-Antworten bis 2 MB (keine Dateien/Audio).
 - **Ereignisse:** Titel, Queue, Betriebsart, Automation, Decks, Sendebus (je Sender nur der neueste Stand), Carts, Streams und Quellen; keine Pegel.
+  Für einen Inhaltsabgleich zusätzlich `library.changed`, `playlists.changed` und `planning.changed` – nur als Hinweis „hat sich geändert“, ohne Daten.
+- **Dateien (Inhaltsabgleich):** Eine Anfrage kann `pull` (Datei beim Vermittler holen und per `PUT` an die eigene API geben, z. B. `/stations/<id>/media?name=…`) oder `push` (Datei per `GET` aus der eigenen API lesen und zum Vermittler hochladen) enthalten. Beides ist **nur mit der Adresse des Vermittlers** erlaubt (gleiche Herkunft), höchstens 300 MB; Stream-Titel (Weiterleitung) werden nicht übertragen.
 
 ## HTTPS
 
