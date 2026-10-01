@@ -1,8 +1,8 @@
-# AirDeck Changelog
+# AnMaCha Cast Changelog
 
-Alle wesentlichen Änderungen an **offiziell veröffentlichten AirDeck-Versionen** werden hier dokumentiert.
+Alle wesentlichen Änderungen an **offiziell veröffentlichten AnMaCha-Cast-Versionen** werden hier dokumentiert. Einträge vor der Umbenennung (siehe `docs/REBRANDING_ANMACHA_CAST.md`) tragen noch den damaligen Projektnamen AirDeck – das ist der historisch korrekte Releasename und bleibt unverändert.
 
-> **Automatisch gepflegt:** Bei einer neuen Veröffentlichung aktualisiert der AirDeck-Changelog-Workflow den Bereich zwischen `AUTO-CHANGELOG` und `/AUTO-CHANGELOG`. Grundlage sind die tatsächlich veröffentlichten GitHub-Releases sowie der Git-Vergleich zwischen zwei Versionen. Individuelle Release-Hinweise gehören in die GitHub Release Notes.
+> **Automatisch gepflegt:** Bei einer neuen Veröffentlichung aktualisiert der Changelog-Workflow den Bereich zwischen `AUTO-CHANGELOG` und `/AUTO-CHANGELOG`. Grundlage sind die tatsächlich veröffentlichten GitHub-Releases sowie der Git-Vergleich zwischen zwei Versionen. Individuelle Release-Hinweise gehören in die GitHub Release Notes.
 
 Die Versionshistorie orientiert sich soweit praktikabel an Semantic Versioning.
 
