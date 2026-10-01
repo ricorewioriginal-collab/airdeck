@@ -1,10 +1,14 @@
-# AirDeck-Demo (öffentliche Testinstanz)
+# AnMaCha-Cast-Demo (öffentliche Testinstanz)
+
+Pfade, Hostnamen, Container-/Dienstnamen in diesem Ordner bleiben bewusst "airdeck(-demo)"
+(siehe docs/REBRANDING_ANMACHA_CAST.md Phase 7): der laufende Demo-Server, sein DNS-Eintrag und
+sein TLS-Zertifikat zeigen bereits auf diese Namen.
 
 Die Demo setzt sich **alle 10 Minuten vollständig zurück** und ist von produktiven Installationen getrennt.
 
 ## Vollfunktions-Demo mit hörbarem Stream
 
-Die Demo enthält ffmpeg und Icecast. AirDeck sendet intern an `127.0.0.1:8000/airdeck-demo.mp3`; dieser Encoder-Endpunkt bleibt privat. Für Besucher wird ausschließlich der Mount über den HTTPS-Reverse-Proxy veröffentlicht:
+Die Demo enthält ffmpeg und Icecast. AnMaCha Cast sendet intern an `127.0.0.1:8000/airdeck-demo.mp3`; dieser Encoder-Endpunkt bleibt privat. Für Besucher wird ausschließlich der Mount über den HTTPS-Reverse-Proxy veröffentlicht:
 
 `https://airdeck-demo.ricorewi-radio.de/stream/airdeck-demo.mp3`
 
@@ -13,7 +17,7 @@ Damit können Player, Encoder, Automation, Queue, Now Playing und Streamstatus n
 ## Netzwerkmodell
 
 ```text
-AirDeck/Encoder (Container)
+AnMaCha Cast/Encoder (Container)
         |
         v
 Icecast :8000 (Container)
@@ -28,7 +32,7 @@ HTTPS Reverse Proxy /stream/*
 öffentlicher Demo-Stream
 ```
 
-AirDeck selbst ist am Host nur über `127.0.0.1:8751` erreichbar. Icecast ist nur über `127.0.0.1:8752` erreichbar. Firewall/NAT sollen beide Ports nicht öffentlich freigeben.
+AnMaCha Cast selbst ist am Host nur über `127.0.0.1:8751` erreichbar. Icecast ist nur über `127.0.0.1:8752` erreichbar. Firewall/NAT sollen beide Ports nicht öffentlich freigeben.
 
 ## Einrichtung
 
@@ -43,7 +47,7 @@ AirDeck selbst ist am Host nur über `127.0.0.1:8751` erreichbar. Icecast ist nu
    */10 * * * * /opt/airdeck-demo/packaging/demo/reset-demo.sh >> /var/log/airdeck-demo-reset.log 2>&1
    ```
 
-`reset-demo.sh` erzeugt Sender, Testmedien, Playlist, Queue, Automation, HLS, AirDeckCast-Ausgang und Demo-Zugang neu. Zusätzlich prüft es nach dem Start, ob der Icecast-Mount lokal tatsächlich Audio liefert.
+`reset-demo.sh` erzeugt Sender, Testmedien, Playlist, Queue, Automation, HLS, Zusatz-Streams-Ausgang und Demo-Zugang neu. Zusätzlich prüft es nach dem Start, ob der Icecast-Mount lokal tatsächlich Audio liefert.
 
 ## Zugang
 

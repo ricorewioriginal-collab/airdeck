@@ -1,6 +1,11 @@
-# AirDeck im Docker-Container
+# AnMaCha Cast im Docker-Container
 
-Der Container ist AirDeck als Server für den 24/7-Betrieb, zum Beispiel auf einem VPS, einem NAS oder einem Raspberry Pi 4/5 mit 64 Bit. ffmpeg mit LAME (MP3), AAC und Opus ist enthalten.
+Der Container ist AnMaCha Cast als Server für den 24/7-Betrieb, zum Beispiel auf einem VPS, einem NAS oder einem Raspberry Pi 4/5 mit 64 Bit. ffmpeg mit LAME (MP3), AAC und Opus ist enthalten.
+
+Container-/Volume-/Dienstnamen (`airdeck`, `airdeck-postgres`, `airdeck-data`, `airdeck-pg`) und die
+Umgebungsvariablen `AIRDECK_DB*` bleiben bewusst unverändert (siehe docs/REBRANDING_ANMACHA_CAST.md
+Phase 7) - eine Änderung würde bei bestehenden Installationen neue, leere Volumes anlegen bzw. einen
+per `.env` gesetzten Namen stillschweigend überstimmen.
 
 ## Start
 
@@ -14,7 +19,7 @@ docker compose logs airdeck | grep -A1 -e "Admin-Token" -e "Einmal-Passwort"
 
 Gestartet werden zwei Container: `airdeck` und `airdeck-postgres` (PostgreSQL 17, nur intern erreichbar). Redis wird nicht gebraucht.
 
-**Ohne PostgreSQL** (kleine Installation): in `docker-compose.yml` den Dienst `postgres`, den Abschnitt `depends_on` und die drei `AIRDECK_DB`-Zeilen entfernen. AirDeck nutzt dann SQLite im Datenordner.
+**Ohne PostgreSQL** (kleine Installation): in `docker-compose.yml` den Dienst `postgres`, den Abschnitt `depends_on` und die drei `AIRDECK_DB`-Zeilen entfernen. AnMaCha Cast nutzt dann SQLite im Datenordner.
 
 Danach das Studio unter `http://<server>:8750/#token=<Admin-Token>` öffnen. Die Android-App verbindet sich mit derselben Adresse. Handys koppelst du im Studio unter „Android-App → Gerät koppeln“ (Adresse + Kopplungscode).
 
@@ -29,7 +34,7 @@ Danach das Studio unter `http://<server>:8750/#token=<Admin-Token>` öffnen. Die
 
 ## Demo-Stack
 
-Die kontinuierliche Test-Demo ist vom normalen AirDeck-Stack getrennt. Sie verwendet `packaging/demo/docker-compose.demo.yml`; auf dem Demo-Host ist AirDeck über `127.0.0.1:8751` und der interne Icecast-Teststream über `127.0.0.1:8752` angebunden. Diese Host-Bindings bleiben loopback-only und sind für einen vorgeschalteten Reverse Proxy bzw. lokale End-to-End-Tests gedacht.
+Die kontinuierliche Test-Demo ist vom normalen AnMaCha-Cast-Stack getrennt. Sie verwendet `packaging/demo/docker-compose.demo.yml`; auf dem Demo-Host ist AnMaCha Cast über `127.0.0.1:8751` und der interne Icecast-Teststream über `127.0.0.1:8752` angebunden. Diese Host-Bindings bleiben loopback-only und sind für einen vorgeschalteten Reverse Proxy bzw. lokale End-to-End-Tests gedacht.
 
 Die Demo ist kein Release-Kanal: Sie darf dem aktuellen freigegebenen Entwicklungsstand folgen, während Releases bewusst versionierte, stabile Veröffentlichungen bleiben. Ein erfolgreicher Demo-Test muss nicht nur den API-Status prüfen, sondern auch Encoder, Stream-Verbindung, Icecast-Mount und tatsächlich empfangene Audiodaten.
 

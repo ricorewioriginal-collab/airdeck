@@ -1,5 +1,5 @@
 #!/bin/sh
-# AirDeck – vor der Entfernung/dem Upgrade: Dienst anhalten (Upgrade startet ihn über postinst neu).
+# AnMaCha Cast – vor der Entfernung/dem Upgrade: Dienst anhalten (Upgrade startet ihn über postinst neu).
 set -e
 
 if [ -d /run/systemd/system ]; then

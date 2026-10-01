@@ -1,5 +1,7 @@
 #!/bin/sh
-# AirDeck – nach der Installation: Dienstkonto anlegen, Ordner vorbereiten, systemd-Dienst starten.
+# AnMaCha Cast – nach der Installation: Dienstkonto anlegen, Ordner vorbereiten, systemd-Dienst starten.
+# Dienstkonto, Pfade und Paketname bleiben bewusst "airdeck" (siehe docs/REBRANDING_ANMACHA_CAST.md
+# Phase 7) - ein Umbenennen würde bestehende Installationen bei einem Upgrade verwaisen lassen.
 set -e
 
 if ! getent group airdeck >/dev/null 2>&1; then
@@ -7,15 +9,15 @@ if ! getent group airdeck >/dev/null 2>&1; then
 fi
 if ! getent passwd airdeck >/dev/null 2>&1; then
   adduser --system --ingroup airdeck --home /var/lib/airdeck --no-create-home \
-    --shell /usr/sbin/nologin --gecos "AirDeck Radio-Automation" airdeck
+    --shell /usr/sbin/nologin --gecos "AnMaCha Cast Radio-Automation" airdeck
 fi
 
 mkdir -p /etc/airdeck /var/lib/airdeck /var/log/airdeck
-# Eine airdeck.conf muss vorhanden sein, bevor AirDeck zum ersten Mal startet – sonst würde es
+# Eine airdeck.conf muss vorhanden sein, bevor AnMaCha Cast zum ersten Mal startet – sonst würde es
 # (ohne systemweite Konfiguration) im Home-Verzeichnis des Dienstkontos statt unter /var/lib/airdeck
-# ablegen (siehe resolveConfig() in src/server/config.ts). Den Rest trägt AirDeck selbst ein.
+# ablegen (siehe resolveConfig() in src/server/config.ts). Den Rest trägt AnMaCha Cast selbst ein.
 if [ ! -e /etc/airdeck/airdeck.conf ]; then
-  printf '# AirDeck – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man airdeck-server, oder das Handbuch im Studio.\n' > /etc/airdeck/airdeck.conf
+  printf '# AnMaCha Cast – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man airdeck-server, oder das Handbuch im Studio.\n' > /etc/airdeck/airdeck.conf
 fi
 chown -R airdeck:airdeck /etc/airdeck /var/lib/airdeck /var/log/airdeck
 chmod 750 /etc/airdeck /var/lib/airdeck /var/log/airdeck
