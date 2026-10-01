@@ -1457,7 +1457,7 @@ async function voicetrack(index, q) {
     h('div', { class: 'field', style: 'margin-top:8px' }, h('div', { class: 'meter' }, meterBar)),
     audioPreview,
     h('div', { class: 'dialog-actions' },
-      h('button', { class: 'btn', value: 'cancel', formnovalidate: true }, 'Abbrechen'),
+      h('button', { class: 'btn ghost', value: 'cancel', formnovalidate: true }, 'Abbrechen'),
       saveBtn),
   );
 
