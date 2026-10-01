@@ -70,7 +70,7 @@ export class Updater {
   }
 
   private headers(token?: string, accept = 'application/vnd.github+json'): Record<string, string> {
-    return { Accept: accept, 'User-Agent': 'AirDeck-Updater', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+    return { Accept: accept, 'User-Agent': 'AnMaCha-Cast-Updater', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   }
 
   async check(src: UpdateSource, token?: string, force = false): Promise<UpdateInfo> {
@@ -79,7 +79,7 @@ export class Updater {
     try {
       if (src.manifestUrl) {
         // Eigenes Manifest: { build, publishedAt, assets: { setup: {url,size,sha256}, portable: {...}, apk: {...} } }
-        const r = await this.fetchFn(src.manifestUrl, { headers: { 'User-Agent': 'AirDeck-Updater' }, signal: AbortSignal.timeout(10_000) });
+        const r = await this.fetchFn(src.manifestUrl, { headers: { 'User-Agent': 'AnMaCha-Cast-Updater' }, signal: AbortSignal.timeout(10_000) });
         if (!r.ok) throw new Error(`Update-Adresse antwortete ${r.status}`);
         const m = (await r.json()) as { build?: string; publishedAt?: string; assets?: Record<string, { url: string; size?: number; sha256?: string }> };
         info.latest = m.build?.slice(0, 7) ?? null;
@@ -116,7 +116,7 @@ export class Updater {
   async open(asset: UpdateAsset, token?: string): Promise<Response> {
     const isGithubApi = asset.url.startsWith('https://api.github.com/');
     const r = await this.fetchFn(asset.url, {
-      headers: isGithubApi ? this.headers(token, 'application/octet-stream') : { 'User-Agent': 'AirDeck-Updater' },
+      headers: isGithubApi ? this.headers(token, 'application/octet-stream') : { 'User-Agent': 'AnMaCha-Cast-Updater' },
       redirect: 'follow', signal: AbortSignal.timeout(15 * 60_000),
     });
     if (!r.ok || !r.body) throw new Error(`Download fehlgeschlagen (${r.status})`);

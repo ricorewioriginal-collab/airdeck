@@ -61,7 +61,7 @@ jobs:
             }
 
             const summary = core.summary
-              .addHeading('AirDeck Parallel Change Guard')
+              .addHeading('AnMaCha Cast Parallel Change Guard')
               .addRaw(`Current PR #${current.number} touches ${ours.size} file(s).`)
               .addEOL();
             if (!collisions.length) {

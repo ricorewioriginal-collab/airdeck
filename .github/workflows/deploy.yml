@@ -59,7 +59,7 @@ jobs:
           quoted_path=$(printf '%q' "$DEPLOY_PATH")
           ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" "bash -se -- $quoted_path $quoted_ref" <<'REMOTE'
             set -euo pipefail
-            # AirDeck zeigt Admin-Einmalpasswort/-Token beim ersten Start (bzw. nach jedem Demo-Reset)
+            # AnMaCha Cast zeigt Admin-Einmalpasswort/-Token beim ersten Start (bzw. nach jedem Demo-Reset)
             # im Container-Log an (siehe docker-compose.yml) - fuer den lokalen Betreiber gedacht, nicht
             # fuer ein geteiltes CI-Log. Der Debug-Dump im ERR-Trap ersetzt Label- und Wertzeile.
             redact_demo_logs() {

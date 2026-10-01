@@ -299,10 +299,10 @@ Prüft unter anderem:
 
 Erwartete veröffentlichte Pakete umfassen derzeit unter anderem:
 
-- `AirDeck-Setup.exe`
-- `AirDeck-Windows-Portable.zip`
-- `AirDeck-Android.apk`
-- `AirDeck-Linux.deb`
+- `AnMaCha-Cast-Setup.exe`
+- `AnMaCha-Cast-Windows-Portable.zip`
+- `AnMaCha-Cast-Android.apk`
+- `AnMaCha-Cast-Linux.deb`
 
 Der Workflow prüft, ob Dateien vorhanden, nicht leer, herunterladbar und strukturell lesbar sind.
 

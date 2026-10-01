@@ -64,7 +64,7 @@ jobs:
           git add CHANGELOG.md
           git diff --cached --quiet && { echo 'Changelog aktuell.'; exit 0; }
           TAG="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq .tag_name | tr '/ ' '--')"; BRANCH="automation/changelog-${TAG}-${GITHUB_RUN_ID}"
-          git config user.name 'AirDeck CI'; git config user.email 'actions@users.noreply.github.com'
+          git config user.name 'AnMaCha Cast CI'; git config user.email 'actions@users.noreply.github.com'
           git switch -c "$BRANCH"; git commit -m "Docs: Changelog für ${TAG} aktualisieren"; git push origin "$BRANCH"
           PR_URL="$(gh pr create --base AirDeck-Radio-Automation-&-Broadcast --head "$BRANCH" --title "docs: Changelog ${TAG}" --body "Automatisch erzeugte Release-Historie. Branch-Schutz und CI bleiben aktiv.")"; PR_NUMBER="${PR_URL##*/}"
           gh workflow run build.yml --ref "$BRANCH"

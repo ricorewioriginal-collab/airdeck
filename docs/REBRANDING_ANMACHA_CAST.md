@@ -252,7 +252,7 @@ Capacitor/Android-SDK, hier nicht lokal baubar) werden vom `android`-CI-Job der 
   koordinierte Änderung (Node-Seite + Installer + Skripte gemeinsam) und bewusst nicht Teil dieses
   Blocks.
 - Installationspfad `{autopf}\AirDeck`, Build-Quellordner `dist\AirDeck\`, Startmenü-Gruppenname,
-  Release-Dateiname `AirDeck-Setup-{#AppVersion}` (Phase 8), Registry-Autostart-Eintrag
+  Registry-Autostart-Eintrag
   (`HKCU\...\Run`, `ValueName: "AirDeck"`), Windows-Firewall-Regelname `"AirDeck"`, geplanter Task
   `schtasks /TN "AirDeck"` (`Autostart-einrichten.cmd`) sowie die drei Verknüpfungsnamen
   (`IconStop`/`IconServer`/`IconManual` in `installer.iss`): alles von Windows bzw. dem Installer
@@ -373,3 +373,82 @@ auf Syntaxfehler geprüft (alle fehlerfrei). `Dockerfile`/`docker-compose.yml`/`
   beim Gegenprüfen stellte sich heraus, dass dieser Preflight (`broadcastPreflight()`) nichts mit der
   Zusatz-Stream-Profile-Funktion zu tun hat, sondern die allgemeine Sendefähigkeit eines MusikHub-Titels
   prüft. Korrigiert zu „Sendefähigkeits-Preflight".
+
+## Phase 8: CI/CD-Workflows – Artefakt-/Release-Dateinamen
+
+**Geändert** (`.github/workflows/build.yml`):
+- `android`-Job: lokaler APK-Dateiname und `upload-artifact`-Name → `AnMaCha-Cast-Android` /
+  `out/AnMaCha-Cast-Android.apk`.
+- `windows`-Job: `download-artifact`-Referenz auf den Android-Job → `AnMaCha-Cast-Android`; alle drei
+  `dist/AirDeck-Setup-*.exe`-Vorkommen (Build-Prüfung, Signierschleife, Installer-Test) →
+  `dist/AnMaCha-Cast-Setup-*.exe`; `upload-artifact`-Namen → `AnMaCha-Cast-Windows-Installer`
+  (Pfad `dist/AnMaCha-Cast-Setup-*.exe`) und `AnMaCha-Cast-Windows` (Pfad `dist/AirDeck` bewusst
+  unverändert – das ist der reale, von `installer.iss`/`Program.cs` erzeugte Ordnername).
+- `linux`-Job: `upload-artifact`-Name → `AnMaCha-Cast-Linux-Deb` (Pfad/Muster `dist/airdeck_*.deb`
+  bewusst unverändert – realer `.deb`-Dateiname, der Paketname selbst bleibt laut Phase 7 `airdeck`).
+- `release`-Job: `download-artifact`-Muster → `AnMaCha-Cast-*`; die `cp`/`mv`/`zip`-Befehle bauen die
+  veröffentlichten Dateien jetzt als `AnMaCha-Cast-Setup.exe`, `AnMaCha-Cast-Windows-Portable.zip`
+  (der intern gezippte Ordner heißt weiter `AirDeck`, siehe oben), `AnMaCha-Cast-Android.apk` und
+  `AnMaCha-Cast-Linux.deb` (Quelle bleibt `airdeck_*.deb`); GitHub-Release-Titel →
+  `AnMaCha Cast ${{ github.ref_name }}`; die Release-Notes (`body:`) nennen die vier neuen Dateinamen,
+  `AirDeck.exe starten` bleibt unverändert (realer Binärname).
+
+**Geändert** (`.github/workflows/release-health.yml`): alle vier erwarteten Release-Dateinamen,
+die README-Downloadlink-Prüfungen und die rein kosmetischen Anzeigenamen in den
+Health-Check-Meldungen (URLs selbst – echte DNS-Namen der Projektseite/Demo – bleiben unverändert).
+
+**Geändert** (kosmetische Anzeigetexte in weiteren Workflows, ohne Auswirkung auf Branch-Namen,
+Artefakt-Identität oder externe Endpunkte): Workflow-Titel `pages.yml` → „Deploy AnMaCha Cast Pages“,
+Bot-Committer-Namen (`changelog.yml`, `release-badge.yml`, `release-screenshots.yml`,
+`last-known-good.yml`) → „AnMaCha Cast CI“/„AnMaCha Cast Rollback“/„AnMaCha Cast Auto Rollback“,
+PR-Beschreibungstext in `release-badge.yml`, SVG-`aria-label` des Versionsbadges, Job-Summary-Titel
+in `parallel-change-guard.yml`, Prosa-Kommentar in `deploy.yml`. Die `CODENAME`-Parser-Regex in
+`release-badge.yml` erkennt jetzt sowohl neue (`AnMaCha Cast …`) als auch historische
+(`AirDeck …`) Release-Titel, damit ältere, bereits veröffentlichte Releases weiter korrekt geparst
+werden.
+
+**Bewusst unverändert** (in allen zehn Workflow-Dateien): der echte Git-Branchname
+`AirDeck-Radio-Automation-&-Broadcast` (Branch-Trigger, `ref:`, `--base`/`--head` bei `gh pr create`,
+`workflow_run.head_branch`-Vergleiche) – eine Umbenennung des Branches selbst ist ein eigener,
+manueller GitHub-Schritt außerhalb dieses Rebrands (siehe Abschlussbericht) und hätte, vorzeitig im
+Code vorweggenommen, alle Branch-Schutzregeln und laufenden PRs gegen diesen Branch gebrochen.
+
+**Geändert** (Code): `src/server/update.ts` – `User-Agent: 'AirDeck-Updater'` → `'AnMaCha-Cast-Updater'`
+(zwei Vorkommen), konsistent mit dem bereits in Phase 2 umbenannten `User-Agent` in
+`src/server/services/remote-link.ts`. Die übrigen `User-Agent`-Strings im Projekt (`bridge.ts`,
+`icecast.ts`, `icy.ts`, `lautfm.ts`, `nextcloud.ts`, `notify.ts`, `shoutcast.ts`, `stats.ts`,
+`status.ts`, `ai/director.ts`) sind Kennungen, die gegenüber externen Diensten (laut.fm, Icecast/
+SHOUTcast-Server, Webhook-Empfänger) gesendet werden bzw. ein dokumentiertes Webhook-Event-Header-
+Präfix (`X-AirDeck-Event`) bilden – eine Umbenennung dieser deutlich breiteren Gruppe ist bewusst
+nicht Teil von Phase 8 (CI/CD-Artefakte) und bräuchte eine eigene Prüfung, ob/welche dieser
+Außenkontakte von einem reinen Text-Rename unberührt bleiben.
+
+**Geändert** (`README.md`, `docs/INSTALLATION.md`): Downloadlinks/-Dateitabelle auf die neuen
+`AnMaCha-Cast-*`-Namen umgestellt, nachdem die CI sie jetzt tatsächlich so erzeugt.
+`docs/INSTALLATION.md` war in Phase 2 komplett zurückgestellt worden (siehe Begründung oben) und
+wurde jetzt vollständig durchrebrandet: alle Fließtext-Vorkommen von „AirDeck“ als Produktname →
+„AnMaCha Cast“, während alle echten, in Phase 6/7 bewusst unveränderten Kennungen (`AirDeck.exe`,
+`airdeck-engine.exe`, `%LOCALAPPDATA%\AirDeck`, `airdeck.log`, Startmenü-Verknüpfung `AirDeck`,
+Linux-Paketname/Dienst/Pfade `airdeck`/`airdeck-server`/`/etc/airdeck`/`/var/lib/airdeck`/
+`/var/log/airdeck`) unverändert blieben und dort, wo das im Fließtext sonst missverständlich gewesen
+wäre (Startmenü-Eintrag), ein erklärender Nebensatz ergänzt wurde.
+
+**Tests:** `npm run typecheck` grün, volle Testsuite grün (235/0/6, unverändert – keine der
+geänderten Dateien wird vom Node-Test-Harness erfasst). Alle zehn geänderten
+`.github/workflows/*.yml`-Dateien zusätzlich mit `python3 -c "import yaml; yaml.safe_load(...)"`
+auf syntaktische Gültigkeit geprüft (alle fehlerfrei). Die tatsächliche Artefakt-Kette (Android-APK
+→ Windows-Download-Artefakt → Release-`cp`/`mv`/`zip`) wird erst durch einen echten CI-Lauf dieser
+PR (inkl. `windows`-, `android`- und `linux`-Jobs) scharf geprüft; der `release`-Job selbst läuft nur
+bei einem `v*`-Tag-Push und wird daher durch diese PR nicht ausgeführt, nur durch Lesen/Nachvollziehen
+der Befehlskette verifiziert.
+
+**Fehler und Behebung (Phase 8):** Der erste `windows`-CI-Lauf dieser PR schlug fehl
+(`Cannot validate argument on parameter 'FilePath'. The argument is null or empty.`) – `build.yml`
+suchte bereits nach `dist/AnMaCha-Cast-Setup-*.exe`, aber `packaging/windows/installer.iss`s
+`OutputBaseFilename` erzeugte tatsächlich weiterhin `AirDeck-Setup-{#AppVersion}.exe`, sodass
+`Get-ChildItem` nichts fand und `$setup.FullName` leer war. Das ist derselbe wiederkehrende
+Fehlertyp wie in Phase 1 (`docker`-Job) und Phase 7 (`demo`-Job): eine CI-Prüfung erwartet schon den
+neuen Namen, aber die tatsächliche Build-Ausgabe war noch nicht mit umbenannt. Behoben durch
+`OutputBaseFilename=AnMaCha-Cast-Setup-{#AppVersion}` in `installer.iss`; der entsprechende, nun
+veraltete Hinweis „Release-Dateiname `AirDeck-Setup-{#AppVersion}` (Phase 8)“ aus dem Phase-6-Abschnitt
+oben wurde entfernt. Durch den nächsten `windows`-CI-Lauf dieser PR verifiziert.

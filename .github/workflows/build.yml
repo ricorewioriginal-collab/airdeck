@@ -104,9 +104,9 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen: $f" }
           }
           Remove-Item $pfx
-      - name: Android-App beilegen (Download direkt aus AirDeck)
+      - name: Android-App beilegen (Download direkt aus AnMaCha Cast)
         uses: actions/download-artifact@v4
-        with: { name: AirDeck-Android, path: dist/AirDeck/android }
+        with: { name: AnMaCha-Cast-Android, path: dist/AirDeck/android }
       - name: ffmpeg beilegen
         shell: pwsh
         run: |
@@ -179,7 +179,7 @@ jobs:
           $version = (Get-Content package.json | ConvertFrom-Json).version
           & $iscc "/DAppVersion=$version" packaging/windows/installer.iss
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup fehlgeschlagen' }
-          Get-ChildItem dist/AirDeck-Setup-*.exe
+          Get-ChildItem dist/AnMaCha-Cast-Setup-*.exe
       - name: Installer signieren (nur mit hinterlegtem Zertifikat)
         if: env.HAS_CERT == 'true'
         shell: pwsh
@@ -190,7 +190,7 @@ jobs:
           $pfx = "$env:RUNNER_TEMP/cert.pfx"
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_B64))
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match 'x64' } | Select-Object -Last 1
-          foreach ($f in @((Get-ChildItem dist/AirDeck-Setup-*.exe).FullName)) {
+          foreach ($f in @((Get-ChildItem dist/AnMaCha-Cast-Setup-*.exe).FullName)) {
             & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d AirDeck $f
             if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen: $f" }
           }
@@ -199,7 +199,7 @@ jobs:
         timeout-minutes: 5
         shell: pwsh
         run: |
-          $setup = Get-ChildItem dist/AirDeck-Setup-*.exe | Select-Object -First 1
+          $setup = Get-ChildItem dist/AnMaCha-Cast-Setup-*.exe | Select-Object -First 1
           $install = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/SP-', '/TASKS=""' -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer fehlgeschlagen: $($install.ExitCode)" }
           if (Test-Path "$env:LOCALAPPDATA/AirDeck/data/installer-bootstrap.json") { throw 'Silent-Setup darf keine leeren Admin-Zugangsdaten anlegen' }
@@ -221,12 +221,12 @@ jobs:
           Write-Host 'Installer: Installation, Start und Deinstallation OK'
       - uses: actions/upload-artifact@v4
         with:
-          name: AirDeck-Windows-Installer
-          path: dist/AirDeck-Setup-*.exe
+          name: AnMaCha-Cast-Windows-Installer
+          path: dist/AnMaCha-Cast-Setup-*.exe
           retention-days: 3
       - uses: actions/upload-artifact@v4
         with:
-          name: AirDeck-Windows
+          name: AnMaCha-Cast-Windows
           path: dist/AirDeck
           retention-days: 3
 
@@ -473,7 +473,7 @@ jobs:
           echo "Linux-Paket: Installation, Dienst, Neustart, Health-Check und Purge OK"
       - uses: actions/upload-artifact@v4
         with:
-          name: AirDeck-Linux-Deb
+          name: AnMaCha-Cast-Linux-Deb
           path: dist/airdeck_*.deb
           retention-days: 3
 
@@ -505,21 +505,21 @@ jobs:
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/airdeck.jks"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/airdeck.jks"
             npm run build:release
-            cp android/app/build/outputs/apk/release/app-release.apk out/AirDeck-Android.apk
+            cp android/app/build/outputs/apk/release/app-release.apk out/AnMaCha-Cast-Android.apk
             echo "Release-APK (offiziell signiert)"
           else
             npm run build:debug
-            cp android/app/build/outputs/apk/debug/app-debug.apk out/AirDeck-Android.apk
+            cp android/app/build/outputs/apk/debug/app-debug.apk out/AnMaCha-Cast-Android.apk
             echo "Test-APK mit Debug-Signatur; Release-Signierung erfolgt bei Versionstags mit hinterlegtem Keystore."
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: AirDeck-Android
-          path: apps/android/out/AirDeck-Android.apk
+          name: AnMaCha-Cast-Android
+          path: apps/android/out/AnMaCha-Cast-Android.apk
           retention-days: 3
 
   # Download-Bereich: Nach jedem Push auf den Hauptbranch liegen Installer, portable Version und APK
-  # unter „Releases → AirDeck (aktueller Stand)“, ohne GitHub-Login-Umweg über Artefakte.
+  # unter „Releases → AnMaCha Cast (aktueller Stand)“, ohne GitHub-Login-Umweg über Artefakte.
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [windows, android, linux]
@@ -531,15 +531,15 @@ jobs:
       # internes Buildx-Cache-Artefakt ab ("<owner>~<repo>~....dockerbuild"), dessen Download
       # gelegentlich fehlschlägt und ohne dieses Muster den ganzen Release-Job unnötig scheitern lässt.
       - uses: actions/download-artifact@v4
-        with: { path: artifacts, pattern: 'AirDeck-*' }
+        with: { path: artifacts, pattern: 'AnMaCha-Cast-*' }
       - name: Dateien vorbereiten
         run: |
           mkdir -p out
-          cp artifacts/AirDeck-Windows-Installer/*.exe out/AirDeck-Setup.exe
-          mv artifacts/AirDeck-Windows artifacts/AirDeck && (cd artifacts && zip -qr ../out/AirDeck-Windows-Portable.zip AirDeck)
-          cp artifacts/AirDeck-Android/AirDeck-Android.apk out/AirDeck-Android.apk
+          cp artifacts/AnMaCha-Cast-Windows-Installer/*.exe out/AnMaCha-Cast-Setup.exe
+          mv artifacts/AnMaCha-Cast-Windows artifacts/AirDeck && (cd artifacts && zip -qr ../out/AnMaCha-Cast-Windows-Portable.zip AirDeck)
+          cp artifacts/AnMaCha-Cast-Android/AnMaCha-Cast-Android.apk out/AnMaCha-Cast-Android.apk
           # stabiler Dateiname für den "latest"-Downloadlink; der Paketname (im Innern, für apt) bleibt "airdeck"
-          cp artifacts/AirDeck-Linux-Deb/airdeck_*.deb out/AirDeck-Linux.deb
+          cp artifacts/AnMaCha-Cast-Linux-Deb/airdeck_*.deb out/AnMaCha-Cast-Linux.deb
           ls -la out
       - uses: softprops/action-gh-release@v2
         with:
@@ -547,15 +547,15 @@ jobs:
           # die Download-Links zeigen über „latest" immer auf das neueste
           tag_name: ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
-          name: AirDeck ${{ github.ref_name }}
+          name: AnMaCha Cast ${{ github.ref_name }}
           prerelease: false
           make_latest: true
           body: |
             Gebaut und getestet aus ${{ github.sha }}.
-            • AirDeck-Setup.exe – Windows-Installer (ohne Adminrechte, Deutsch/English, mit Audio-Engine und Android-APK)
-            • AirDeck-Windows-Portable.zip – ohne Installation: entpacken, AirDeck.exe starten
-            • AirDeck-Android.apk – Android-App: Handy-Sender (Mikrofon + Musik direkt zu laut.fm/Icecast, ohne Server) oder Studio-Fernbedienung für AirDeck auf PC/Server
-            • AirDeck-Linux.deb – Linux-Server als systemd-Dienst: `sudo apt install ./AirDeck-Linux.deb` (Debian/Ubuntu, x86_64)
+            • AnMaCha-Cast-Setup.exe – Windows-Installer (ohne Adminrechte, Deutsch/English, mit Audio-Engine und Android-APK)
+            • AnMaCha-Cast-Windows-Portable.zip – ohne Installation: entpacken, AirDeck.exe starten
+            • AnMaCha-Cast-Android.apk – Android-App: Handy-Sender (Mikrofon + Musik direkt zu laut.fm/Icecast, ohne Server) oder Studio-Fernbedienung für AnMaCha Cast auf PC/Server
+            • AnMaCha-Cast-Linux.deb – Linux-Server als systemd-Dienst: `sudo apt install ./AnMaCha-Cast-Linux.deb` (Debian/Ubuntu, x86_64)
             • Server: docker compose up -d (siehe docs/DOCKER.md)
 
             Powered by AnMaCha Radioproduktion & RicoReWi – für Broadcast, Automation, Live und laut.fm. Hobbyprojekt, ohne Gewähr.
