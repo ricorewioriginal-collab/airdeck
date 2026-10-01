@@ -15,6 +15,44 @@ const ROLES = /** @type {Array<[string,string]>} */ ([['owner', 'Inhaber'], ['ed
 
 /** @typedef {{ api: import('./api.js').Api, url: (p: string) => string, onLautfmConnected?: () => void }} Ctx */
 
+/**
+ * Wartet auf den Abschluss der laut.fm-Verarbeitung eines gerade hochgeladenen Titels (Referenz:
+ * automation.html waitForNewTrack()). Exponentielles Backoff (800 ms Start, ×1,4 je Versuch, Deckel
+ * 4000 ms), max. 90 s Gesamtwartezeit. Ab dem zweiten Versuch zusätzlich gegen `;queued`/`;incomplete`
+ * geprüft: ist die negative Upload-ID dort nicht mehr gelistet, gilt die Verarbeitung als abgeschlossen,
+ * auch wenn die neueste eigene Track-ID aus irgendeinem Grund noch nicht aktualisiert wirkt.
+ * Reine Logik, unabhängig von DOM/Netzwerk - `deps` kapselt die beiden einzigen Seiteneffekte (API-Abruf,
+ * Verzögerung), damit dies ohne echte Zeit/Netzwerk testbar ist.
+ * @param {number} snapshotId @param {number} negId
+ * @param {{ ownDesc: () => Promise<{tracks?: {id: number}[]}|null>, queuedIncomplete: () => Promise<[{tracks?: {id:number}[]}|null, {tracks?: {id:number}[]}|null]>, onWaiting?: () => void, sleep?: (ms: number) => Promise<void>, maxWaitMs?: number, now?: () => number }} deps
+ * @returns {Promise<number|null>}
+ */
+export async function waitForNewTrackLogic(snapshotId, negId, deps) {
+  const { ownDesc, queuedIncomplete, onWaiting, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), maxWaitMs = 90000, now = () => Date.now() } = deps;
+  const start = now();
+  let delay = 800;
+  let attempts = 0;
+  while (now() - start < maxWaitMs) {
+    attempts++;
+    onWaiting?.();
+    const r = await ownDesc();
+    const top = r?.tracks?.[0];
+    if (top && typeof top.id === 'number' && top.id > snapshotId) return top.id;
+    if (attempts >= 2) {
+      const [q, inc] = await queuedIncomplete();
+      const stillPending = [...(q?.tracks ?? []), ...(inc?.tracks ?? [])].some((x) => x.id === negId);
+      if (!stillPending) {
+        const again = await ownDesc();
+        const top2 = again?.tracks?.[0];
+        if (top2 && typeof top2.id === 'number' && top2.id > snapshotId) return top2.id;
+      }
+    }
+    await sleep(delay);
+    delay = Math.min(4000, Math.round(delay * 1.4));
+  }
+  return null;
+}
+
 /** @param {HTMLElement} root @param {Ctx} ctx */
 export function mountLautfm(root, ctx) {
   let tab = 'overview';
@@ -179,7 +217,7 @@ export function mountLautfm(root, ctx) {
         h('button', { class: 'btn small', onclick: () => editPlaylist(p) }, 'Bearbeiten'),
         h('button', { class: 'btn small', onclick: () => addTrackById(p) }, '＋ Titel-ID'),
         h('button', { class: 'btn small danger', onclick: () => confirm(`Playlist „${p.title}“ bei laut.fm löschen?`) && run(async () => { await ra('DELETE', `${st()}/playlists/${p.id}`); renderTab(); }) }, 'Löschen')),
-      trackTable(tracks, (t) => h('button', { title: 'Aus Playlist entfernen', onclick: () => run(async () => { await ra('DELETE', `${st()}/playlists/${p.id}/entries/${t.id}`); status('Entfernt'); renderTab(); }) }, '✕')))];
+      trackTable(tracks, (t) => h('button', { title: 'Aus Playlist entfernen', onclick: () => run(async () => { await ra('DELETE', `${st()}/playlists/${p.id}/entries/${t.id}`); status('Entfernt'); renderTab(); }) }, '✕'), () => renderTab()))];
   }
 
   /** @param {any} p */
@@ -202,8 +240,8 @@ export function mountLautfm(root, ctx) {
     if (v?.track_id) await run(async () => { await ra('POST', `${st()}/playlists/${p.id}`, { track_id: v.track_id }); status('Hinzugefügt'); renderTab(); });
   }
 
-  /** @param {any[]} tracks @param {(t: any) => HTMLElement} [action] */
-  function trackTable(tracks, action) {
+  /** @param {any[]} tracks @param {(t: any) => HTMLElement} [action] @param {() => void} [onChanged] Nach Bearbeiten/Löschen aufgerufen, um die Ansicht neu zu laden. */
+  function trackTable(tracks, action, onChanged) {
     if (!tracks.length) return h('div', { class: 'empty' }, 'Keine Titel.');
     return h('div', { class: 'table-wrap' }, h('table', { class: 'list' },
       h('thead', {}, h('tr', {}, h('th', {}, 'ID'), h('th', {}, 'Interpret'), h('th', {}, 'Titel'), h('th', {}, 'Genre'), h('th', { class: 'num' }, 'Dauer'), h('th', {}, 'Tags'), h('th', {}))),
@@ -211,7 +249,46 @@ export function mountLautfm(root, ctx) {
         h('td', { class: 'num muted' }, String(t.id)), h('td', {}, typeof t.artist === 'object' ? t.artist?.name ?? '' : t.artist ?? ''), h('td', {}, t.title ?? ''),
         h('td', {}, t.genre ?? ''), h('td', { class: 'num' }, fmt((t.duration ?? t.length ?? 0) * 1000)),
         t._tagCell,
-        h('td', { class: 'act' }, h('button', { title: 'Vorhören', onclick: () => prelisten(t) }, '▶'), h('button', { title: 'Tags bearbeiten', onclick: () => editTags(t) }, '#'), action ? action(t) : null))))));
+        h('td', { class: 'act' },
+          h('button', { title: 'Vorhören', onclick: () => prelisten(t) }, '▶'),
+          h('button', { title: 'Tags bearbeiten', onclick: () => editTags(t) }, '#'),
+          h('button', { title: 'Titel bearbeiten', onclick: () => editTrack(t, onChanged) }, '✎'),
+          h('button', { title: 'Titel bei laut.fm löschen', onclick: () => deleteTrack(t, onChanged) }, '🗑'),
+          action ? action(t) : null))))));
+  }
+
+  /**
+   * Künstler/Titel/Genre/Jahr/Privat/Typ eines bestehenden Titels bearbeiten (Referenz: automation.html
+   * Tracks-Tab → Bearbeiten-Dialog). `type` (song/jingle) entscheidet über mehrere Algorithmus-Vorlagen
+   * (z. B. Song-Song-Song-Jingle-Muster), `private` blendet den Titel aus der öffentlichen
+   * laut.fm-Songdatenbank aus, ohne das Abspielen durch den eigenen Sender einzuschränken.
+   * @param {any} t @param {() => void} [onChanged]
+   */
+  async function editTrack(t, onChanged) {
+    const v = await formDialog(`Titel bearbeiten: ${t.title ?? t.id}`, [
+      { name: 'artist', label: 'Interpret', value: typeof t.artist === 'object' ? t.artist?.name ?? '' : t.artist ?? '' },
+      { name: 'title', label: 'Titel', value: t.title ?? '' },
+      { name: 'genre', label: 'Genre', value: t.genre ?? '' },
+      { name: 'release_year', label: 'Jahr', type: 'number', value: t.release_year ?? '' },
+      { name: 'type', label: 'Typ', options: [['song', 'Song'], ['jingle', 'Jingle']], value: t.type ?? 'song' },
+      { name: 'private', label: 'Privat (nicht in der öffentlichen laut.fm-Songdatenbank)', type: 'checkbox', value: !!t.private },
+    ]);
+    if (!v) return;
+    await run(async () => {
+      await ra('PATCH', `${st()}/tracks/${t.id}`, {
+        artist: v.artist, title: v.title, genre: v.genre,
+        release_year: v.release_year ? Number(v.release_year) : null,
+        type: v.type, private: !!v.private,
+      });
+      status('Titel aktualisiert');
+      onChanged?.();
+    });
+  }
+
+  /** @param {any} t @param {() => void} [onChanged] */
+  async function deleteTrack(t, onChanged) {
+    if (!confirm(`„${t.title ?? t.id}“ bei laut.fm endgültig löschen?`)) return;
+    await run(async () => { await ra('DELETE', `${st()}/tracks/${t.id}`); status('Titel gelöscht'); onChanged?.(); });
   }
 
   /** Tags eines Titels (Radioadmin: GET/POST/DELETE …/tracks/{id}/tags). @param {any} t */
@@ -384,30 +461,77 @@ export function mountLautfm(root, ctx) {
           run(async () => { await ra('POST', `${st()}/playlists/${sel.value}`, { track_id: t.id }); status('Zur Playlist hinzugefügt'); });
           sel.value = '';
         },
-      }, h('option', { value: '' }, '＋ Playlist'), ...playlists.map((p) => h('option', { value: String(p.id) }, p.title)))));
+      }, h('option', { value: '' }, '＋ Playlist'), ...playlists.map((p) => h('option', { value: String(p.id) }, p.title))), search));
     });
     const upload = h('label', { class: 'btn' }, '⭱ MP3 zu laut.fm hochladen', h('input', { type: 'file', accept: '.mp3,audio/mpeg', multiple: true, hidden: true, onchange: uploadTracks }));
-    const queued = h('button', { class: 'btn small', onclick: () => run(async () => {
+    const loadQueued = () => run(async () => {
       const [q, inc] = await Promise.all([ra('GET', `${st()}/tracks;queued`), ra('GET', `${st()}/tracks;incomplete`)]);
-      results.replaceChildren(card('In Verarbeitung', trackTable([...(q?.tracks ?? []), ...(inc?.tracks ?? [])])));
-    }) }, 'Uploads in Verarbeitung');
+      results.replaceChildren(card('In Verarbeitung', trackTable([...(q?.tracks ?? []), ...(inc?.tracks ?? [])], undefined, loadQueued)));
+    });
+    const queued = h('button', { class: 'btn small', onclick: loadQueued }, 'Uploads in Verarbeitung');
     return [card('Titel suchen', form, h('div', { class: 'row-btns' }, upload, queued)), results];
   }
 
-  /** @param {Event} e */
+  /**
+   * Hochladen mit Metadaten, Verarbeitungs-Poll und optionaler Playlist-Zuordnung (Referenz:
+   * automation.html, Tracks-Tab Upload-Dialog + waitForNewTrack()). Je Datei ein kurzer Metadaten-Dialog
+   * (Künstler/Titel/Genre/Jahr/Typ/Privat/Playlist) - „Abbrechen" überspringt nur diese eine Datei, die
+   * übrigen werden trotzdem angeboten. @param {Event} e
+   */
   async function uploadTracks(e) {
     const input = /** @type {HTMLInputElement} */ (e.target);
     const files = [...(input.files ?? [])];
     input.value = '';
     let ok = 0;
     for (const f of files) {
-      status(`laut.fm-Upload: ${f.name} …`);
-      const fd = new FormData();
-      fd.append('track', f);
-      fd.append('private', 'false');
-      if (await run(() => ra('POST', `${st()}/tracks`, fd))) ok++;
+      const meta = await formDialog(`Hochladen: ${f.name}`, [
+        { name: 'artist', label: 'Interpret' },
+        { name: 'title', label: 'Titel' },
+        { name: 'genre', label: 'Genre' },
+        { name: 'release_year', label: 'Jahr', type: 'number' },
+        { name: 'type', label: 'Typ', options: [['song', 'Song'], ['jingle', 'Jingle']], value: 'song' },
+        { name: 'private', label: 'Privat (nicht in der öffentlichen laut.fm-Songdatenbank)', type: 'checkbox' },
+        { name: 'playlist', label: 'Zu Playlist hinzufügen', options: [['', '– keine –'], ...playlists.map((p) => /** @type {[string,string]} */ ([String(p.id), p.title]))] },
+      ], 'Hochladen');
+      if (!meta) continue;
+      if (await run(() => uploadOneTrack(f, meta))) ok++;
     }
-    status(`${ok}/${files.length} Datei(en) an laut.fm übertragen – laut.fm verarbeitet sie jetzt`, ok < files.length);
+    status(`${ok}/${files.length} Datei(en) an laut.fm übertragen`, ok < files.length);
+  }
+
+  /**
+   * Einzelner Upload: Schnappschuss der aktuell neuesten eigenen Track-ID (Untergrenze), Upload (liefert
+   * zunächst eine negative „in Bearbeitung"-ID), Warten auf Verarbeitung, Metadaten setzen, optional zu
+   * einer Playlist hinzufügen. @param {File} f @param {Record<string, any>} meta
+   */
+  async function uploadOneTrack(f, meta) {
+    status(`laut.fm-Upload: ${f.name} …`);
+    const snap = await ra('GET', `${st()}/tracks?own=true&order=desc`).catch(() => null);
+    const snapshotId = snap?.tracks?.[0]?.id ?? 0;
+    const fd = new FormData();
+    fd.append('track', f);
+    fd.append('private', meta.private ? 'true' : 'false');
+    const up = await ra('POST', `${st()}/tracks`, fd);
+    const negId = up?.id;
+    if (typeof negId !== 'number') throw new Error(`${f.name}: Upload fehlgeschlagen`);
+    const trackId = await waitForNewTrack(snapshotId, negId);
+    if (trackId == null) { status(`${f.name}: Zeitüberschreitung – hochgeladen, Metadaten bitte manuell setzen`, true); return true; }
+    await ra('PATCH', `${st()}/tracks/${trackId}`, {
+      artist: meta.artist || undefined, title: meta.title || undefined, genre: meta.genre || undefined,
+      release_year: meta.release_year ? Number(meta.release_year) : undefined,
+      type: meta.type, private: !!meta.private,
+    }).catch(() => {});
+    if (meta.playlist) await ra('POST', `${st()}/playlists/${meta.playlist}`, { track_id: trackId }).catch(() => {});
+    return true;
+  }
+
+  /** Dünner Adapter um waitForNewTrackLogic() mit den echten Radioadmin-Aufrufen dieser Instanz. @param {number} snapshotId @param {number} negId */
+  async function waitForNewTrack(snapshotId, negId) {
+    return waitForNewTrackLogic(snapshotId, negId, {
+      ownDesc: () => ra('GET', `${st()}/tracks?own=true&order=desc`).catch(() => null),
+      queuedIncomplete: () => Promise.all([ra('GET', `${st()}/tracks;queued`).catch(() => null), ra('GET', `${st()}/tracks;incomplete`).catch(() => null)]),
+      onWaiting: () => status('Warte auf laut.fm-Verarbeitung…'),
+    });
   }
 
   // ---------- Sendeplan (Slots: Tag*24 + Stunde, Montag = 0) ----------

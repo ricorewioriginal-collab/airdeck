@@ -58,8 +58,8 @@ erneut implementiert - nur echte Lücken.
 | Phase | Stand | Nachweis / Grenze |
 |---|---|---|
 | 0 - Bestandsaufnahme | Abgeschlossen | Research-Subagent-Bericht (dieser Datei zugrunde liegend) |
-| 1 - Menüpunkt-Umbenennung | Siehe unten | `feature/lautcast-rename` |
-| 2 - Titel-Upload: Metadaten + Verarbeitungs-Poll + Bearbeiten/Löschen | Offen | |
+| 1 - Menüpunkt-Umbenennung | Gemerged (PR #56) | `feature/lautcast-rename` |
+| 2 - Titel-Upload: Metadaten + Verarbeitungs-Poll + Bearbeiten/Löschen | Siehe unten | `feature/lautcast-phase2-upload-edit` |
 | 3 - Playlist-Änderungen bündeln („Speichern (N)") | Offen | |
 | 4 - Reichhaltige Jetzt-Kachel + Stream-Vorhören | Offen | |
 | 5 - Lokaler Algorithmus-Testlauf | Offen | |
@@ -74,17 +74,57 @@ automatisiert diesen Sender" → „lautCast automatisiert diesen Sender". Inter
 `#view-lautfm`, API-Routen `/lautfm/...`, DOM-IDs `nav-lautfm`/`lautfm-auto-banner`) bewusst unverändert gelassen -
 reine Label-Änderung ohne Identifier-Rename, um das Risiko eines großflächigen Umbaus ohne Funktionsnutzen zu vermeiden.
 Rein visuell/textuell, keine Funktionsänderung. Verifiziert: `npm run typecheck` grün; per Playwright/Chromium real im
-Browser geprüft (Nav-Label liest „lautCast"). Kein bestehender Test referenziert den alten Label-Text.
+Browser geprüft (Nav-Label liest „lautCast"). Kein bestehender Test referenziert den alten Label-Text. Zusätzlich (per
+Playwright-Verifikation des Folgeblocks aufgefallen, nachträglich in diesen Block aufgenommen): der Panel-Titel im
+lautCast-Kopf (`lf-title`, bisher „laut.fm Radioadmin") ebenfalls auf „lautCast" umbenannt.
+
+### Block: Phase 2 (Titel-Upload: Metadaten + Verarbeitungs-Poll + Bearbeiten/Löschen)
+
+Branch `feature/lautcast-phase2-upload-edit`, additiv auf dem gemergten Hauptbranch (inkl. Phase 1). Größte der
+dokumentierten Lücken geschlossen - Details siehe Lückenliste Punkt 3/4 oben:
+
+- **Upload-Dialog je Datei** (`uploadTracks()`): statt reinem Datei-Upload jetzt ein kurzer `formDialog()` je Datei mit
+  Künstler/Titel/Genre/Jahr/Typ (Song/Jingle)/Privat/Ziel-Playlist. „Abbrechen" überspringt nur diese eine Datei, die
+  übrigen werden trotzdem angeboten (kein Alles-oder-nichts).
+- **`waitForNewTrackLogic()`** (neu, exportiert, reine Logik ohne DOM/Netzwerk-Abhängigkeit): exponentielles Backoff
+  (800 ms Start, ×1,4 je Versuch, Deckel 4000 ms), max. 90 s Gesamtwartezeit - exakt das Referenz-Timing aus
+  `automation.html waitForNewTrack()`. Ab dem zweiten Versuch zusätzlicher Cross-Check gegen `;queued`/`;incomplete`:
+  ist die negative Upload-Platzhalter-ID dort nicht mehr gelistet, gilt die Verarbeitung als abgeschlossen, auch wenn
+  der direkte `own=true&order=desc`-Abruf aus irgendeinem Grund noch nicht aktualisiert wirkt. Nach Zeitüberschreitung
+  ehrlich `null` statt eines erfundenen Erfolgs - die aufrufende `uploadOneTrack()` meldet das dann als „Zeitüberschreitung,
+  Metadaten bitte manuell setzen" statt eines stillen Fehlschlags.
+- Nach Auflösung der Track-ID: automatisches `PATCH .../tracks/{id}` mit den Metadaten, optionales
+  `POST .../playlists/{id}` zur gewählten Playlist (laut.fm lehnt bereits enthaltene Tracks ohne Fehler ab - idempotent).
+- **`editTrack()`/`deleteTrack()`** (neu): Bearbeiten-Dialog (Künstler/Titel/Genre/Jahr/Typ/Privat) und Löschen für
+  bestehende Titel in der Titel-Tabelle (`trackTable()` um ✎/🗑-Aktionen erweitert, inkl. Playlist-Detailansicht und
+  „Uploads in Verarbeitung"-Liste) - bisher war nur das Bearbeiten der Tags möglich.
+
+Kein Server-Änderungsbedarf: alle genutzten Radioadmin-Pfade (`/tracks?own=true&order=desc`, `/tracks;queued`,
+`/tracks;incomplete`, `PATCH`/`DELETE /tracks/{id}`) sind über den bestehenden generischen Proxy
+(`allowedRadioadminPath()` in `src/server/lautfm.ts`) bereits erlaubt - die Methodenprüfung (`lautfm:write` für
+PATCH/DELETE) greift unverändert.
+
+Test: `test/lautfm-upload-poll.test.ts` (neu, 4 Fälle: sofortiger Treffer ohne Wartezeit, exponentielles Backoff bis
+zum Treffer mit exakt geprüften Verzögerungswerten, Cross-Check-Erkennung bei scheinbar noch alter `own`-Liste,
+ehrliches `null` nach Ablauf von `maxWaitMs`) - reine Logikprüfung mit injizierten Fake-API-Aufrufen/-Uhr, keine echte
+Zeit/kein echtes Netzwerk. `npm run typecheck` grün; vollständige laut.fm-/MusikHub-Testsuite (21 Tests) weiterhin
+grün. Per Playwright/Chromium real im Browser gegen einen lokalen Mock-Radioadmin-Server geprüft: Titel-Tabelle zeigt
+die neuen ✎/🗑-Aktionen, Bearbeiten-Dialog öffnet vorausgefüllt mit allen Feldern.
+
+**Weiterhin offen (bewusst nicht in diesem Block):** Playlisten-Änderungen bündeln (Phase 3), reichhaltige
+Jetzt-Kachel/Stream-Vorhören (Phase 4), lokaler Algorithmus-Testlauf (Phase 5), In-App-Tag-Referenz (Phase 6),
+Lifehacks (Phase 7) - keine Live-Verifikation gegen einen echten laut.fm-Account möglich.
 
 ## Nächste konkrete Arbeit
 
-1. Diesen Block (Phase 1) committen, PR öffnen, CI abwarten, mergen.
-2. Phase 2 (Titel-Upload-Vervollständigung) beginnen: Upload-Dialog um Künstler/Titel/Genre/Jahr/Privat erweitern,
-   Verarbeitungs-Poll mit exponentiellem Backoff (Referenz-Timing: 800 ms → ×1,4 → Deckel 4000 ms, max. 90 s) plus
-   Status-Anzeige, automatische Metadaten-Nachbearbeitung nach Auflösung der Track-ID, Bearbeiten-/Löschen-Dialog für
-   bestehende Titel (Künstler/Titel/Genre/Jahr/Privat/Typ).
-3. Danach Phase 3 (gebündelte Playlist-Änderungen), Phase 4 (reichhaltige Jetzt-Kachel), Phase 5 (lokaler
-   Algorithmus-Testlauf), Phase 6 (In-App-Referenz), Phase 7 (Lifehacks) - je eigener, kleiner PR mit Tests.
+1. Diesen Block (Phase 2) committen, PR öffnen, CI abwarten, mergen.
+2. Phase 3 (gebündelte Playlist-Änderungen) beginnen: `plPendingAdds`/`plPendingRemoves`-Muster aus der Referenz -
+   Hinzufügen/Entfernen in der Playlist-Detailansicht sammeln statt sofort zu senden, „Speichern (N)"-Button mit
+   Ergebnis-Rückmeldung (ok/fehlgeschlagen je Änderung).
+3. Danach Phase 4 (reichhaltige Jetzt-Kachel + Stream-Vorhören), Phase 5 (lokaler Algorithmus-Testlauf), Phase 6
+   (In-App-Referenz), Phase 7 (Lifehacks) - je eigener, kleiner PR mit Tests.
 4. Jede Phase nach Tests committen, Build abwarten, Typecheck + Testsuite grün, Fortschrittstabelle hier aktualisieren.
+5. Keine Live-Verifikation gegen einen echten laut.fm-Account aus dieser Sandbox möglich - wie bei allen
+   laut.fm-Anbindungen bleibt das offen und wird an dieser Stelle dokumentiert, nicht verschwiegen.
 5. Keine Live-Verifikation gegen einen echten laut.fm-Account aus dieser Sandbox möglich - wie bei allen
    laut.fm-Anbindungen bleibt das offen und wird an dieser Stelle dokumentiert, nicht verschwiegen.
