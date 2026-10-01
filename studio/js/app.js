@@ -2164,6 +2164,8 @@ async function remoteLink() {
     { name: 'role', label: 'Rechte über den Fernzugriff', value: cur.role ?? 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
     { name: 'scope', label: 'Sender', value: !cur.configured || cur.stationIds.includes('*') ? 'all' : 'one', options: [['all', 'Alle Sender'], ['one', `Nur „${S.station.name}“`]] },
     { name: 'enabled', label: 'Fernzugriff aktiv', type: 'checkbox', value: cur.configured ? cur.enabled : true },
+    { name: 'feed', label: 'Sendesignal übergeben erlauben (der Vermittler darf das Programm dieses AirDeck auf Sendung nehmen)', type: 'checkbox', value: !!cur.feed },
+    ...(cur.feeding?.length ? [{ name: 'feeding', label: 'Übergabe läuft', type: 'info', value: `Sendesignal geht gerade an den Vermittler (${cur.feeding.join(', ')})` }] : []),
     ...(cur.configured ? [{ name: 'remove', label: 'Fernzugriff entfernen (Zugang widerrufen)', type: 'checkbox', value: false }] : []),
   ], 'Speichern');
   if (!v) return;
@@ -2173,7 +2175,7 @@ async function remoteLink() {
   }
   const code = String(v.code ?? '').trim();
   if (!cur.configured && !code) return status('Bitte den Verbindungscode aus dem Control Center einfügen');
-  const r = await run(() => api.put('/app/remote-link', { code: code || undefined, role: v.role, stationIds: v.scope === 'one' ? [S.station.id] : ['*'], enabled: v.enabled }));
+  const r = await run(() => api.put('/app/remote-link', { code: code || undefined, role: v.role, stationIds: v.scope === 'one' ? [S.station.id] : ['*'], enabled: v.enabled, feed: v.feed }));
   if (r) status(r.enabled ? 'Fernzugriff gespeichert – verbinde mit dem Vermittler …' : 'Fernzugriff ausgeschaltet');
 }
 
