@@ -699,6 +699,10 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   // Webseiten, die AirDeck im Browser fernsteuern dürfen (CORS); Anmeldung bleibt trotzdem per Token/Kopplungscode nötig
   add('GET', '/api/v1/app/origins', null, (c) => (globalAdmin(c), { webOrigins: app.svc.system.webOrigins() }));
   add('PUT', '/api/v1/app/origins', null, async (c) => (globalAdmin(c), app.svc.system.setWebOrigins((await c.body()).webOrigins)));
+  // Fernzugriff über einen Vermittler (ausgehende Verbindung, keine Portfreigabe nötig)
+  add('GET', '/api/v1/app/remote-link', null, (c) => (globalAdmin(c), app.svc.remoteLink.view()));
+  add('PUT', '/api/v1/app/remote-link', null, async (c) => (globalAdmin(c), app.svc.remoteLink.configure(c.p, await c.body())));
+  add('DELETE', '/api/v1/app/remote-link', null, (c) => (globalAdmin(c), app.svc.remoteLink.remove(c.p)));
 
   // --- KI-Automation ---
   const aiErr = (err: unknown) => (err instanceof AppError ? err : new AppError(err instanceof AiError && err.code === 'not_found' ? 404 : err instanceof AiError && ['invalid', 'unknown_provider'].includes(err.code) ? 400 : 502, 'ai_error', (err as Error).message));

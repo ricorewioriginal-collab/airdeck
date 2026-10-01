@@ -6,6 +6,7 @@ import type { AirDeckApp } from '../app.ts';
 import { AiToolsService } from './ai.ts';
 import { AuthService } from './auth.ts';
 import { BackupService } from './backup.ts';
+import { RemoteLinkService } from './remote-link.ts';
 import { BridgeService } from './bridges.ts';
 import { DeviceService } from './devices.ts';
 import { LautfmService } from './lautfm.ts';
@@ -40,6 +41,7 @@ export function createServices(app: AirDeckApp) {
     setup: new SetupService(app),
     listeners: new ListenerService(app),
     backup: new BackupService(app),
+    remoteLink: new RemoteLinkService(app),
   };
 }
 

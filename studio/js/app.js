@@ -1918,6 +1918,7 @@ function bindStatic() {
   $('btn-audio').addEventListener('click', editAudio);
   $('btn-android').addEventListener('click', androidApp);
   $('btn-webremote').addEventListener('click', webRemote);
+  $('btn-remotelink').addEventListener('click', remoteLink);
   // Benutzer: Abmelden/Passwort nur mit Sitzung, Benutzerverwaltung nur für Administratoren
   const isAdmin = S.me?.roles?.includes('admin') && S.me?.stationIds?.includes('*');
   $('nav-users').hidden = !isAdmin;
@@ -2148,6 +2149,32 @@ async function webRemote() {
     { name: 'addr', label: 'AirDeck-Adresse', type: 'info', value: addr },
     { name: 'valid', label: 'Gültig', type: 'info', value: `einmalig, bis ${until} Uhr` },
   ], 'Fertig');
+}
+
+// ---------- Fernzugriff ohne Portfreigabe (AirDeck verbindet sich selbst mit einem Vermittler) ----------
+
+async function remoteLink() {
+  const cur = await run(() => api.get('/app/remote-link'));
+  if (!cur) return;
+  const STATE = { off: 'aus', connecting: 'verbindet …', online: '✓ verbunden', error: '⚠ Fehler' };
+  const v = await formDialog('Fernzugriff ohne Portfreigabe', [
+    { name: 'info', label: 'Wofür?', type: 'info', value: 'AirDeck verbindet sich selbst mit einem Vermittler, z. B. deinem Radio-Control-Center. So ist dieses AirDeck auch hinter dem Router (Studio-PC) von überall live sichtbar und steuerbar, ohne Portfreigabe.' },
+    ...(cur.configured ? [{ name: 'status', label: `Status${cur.name ? ` (${cur.name})` : ''}`, type: 'info', value: `${STATE[cur.state] ?? cur.state}${cur.error ? ` – ${cur.error}` : ''}` }] : []),
+    { name: 'code', label: cur.configured ? 'Neuer Verbindungscode (leer = unverändert)' : 'Verbindungscode', value: '', hint: 'Beginnt mit „adl1.“ – im Control Center unter „Mit AirDeck verbinden → Fernzugriff anlegen“ erzeugen' },
+    { name: 'role', label: 'Rechte über den Fernzugriff', value: cur.role ?? 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
+    { name: 'scope', label: 'Sender', value: !cur.configured || cur.stationIds.includes('*') ? 'all' : 'one', options: [['all', 'Alle Sender'], ['one', `Nur „${S.station.name}“`]] },
+    { name: 'enabled', label: 'Fernzugriff aktiv', type: 'checkbox', value: cur.configured ? cur.enabled : true },
+    ...(cur.configured ? [{ name: 'remove', label: 'Fernzugriff entfernen (Zugang widerrufen)', type: 'checkbox', value: false }] : []),
+  ], 'Speichern');
+  if (!v) return;
+  if (v.remove) {
+    if (await run(() => api.del('/app/remote-link'))) status('Fernzugriff entfernt, Zugang widerrufen');
+    return;
+  }
+  const code = String(v.code ?? '').trim();
+  if (!cur.configured && !code) return status('Bitte den Verbindungscode aus dem Control Center einfügen');
+  const r = await run(() => api.put('/app/remote-link', { code: code || undefined, role: v.role, stationIds: v.scope === 'one' ? [S.station.id] : ['*'], enabled: v.enabled }));
+  if (r) status(r.enabled ? 'Fernzugriff gespeichert – verbinde mit dem Vermittler …' : 'Fernzugriff ausgeschaltet');
 }
 
 // ---------- Android-App ----------
