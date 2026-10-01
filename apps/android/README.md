@@ -1,4 +1,4 @@
-# AirDeck für Android
+# AnMaCha Cast für Android
 
 Die App hat zwei Betriebsarten, die Wahl kommt beim ersten Start:
 
@@ -8,7 +8,7 @@ Die App hat zwei Betriebsarten, die Wahl kommt beim ersten Start:
 - Sendet an laut.fm, Icecast oder AzuraCast (Icecast-Quellprotokoll PUT, bei älteren Servern SOURCE). Bei Abbruch verbindet sich die App selbst neu, die Titelanzeige geht an den Server.
 - Titelliste mit automatischem Weiterspielen, Mithören über Kopfhörer, Pegelanzeigen
 
-**Mit AirDeck verbinden:** Studio eines AirDeck-PCs oder -Servers fernsteuern (Decks, Cardwall, Queue, Quellen). Dazu MIC LIVE als Live-Quelle (Priorität 3) und Mithören.
+**Mit AnMaCha Cast verbinden:** Studio eines AnMaCha-Cast-PCs oder -Servers fernsteuern (Decks, Cardwall, Queue, Quellen). Dazu MIC LIVE als Live-Quelle (Priorität 3) und Mithören.
 
 Aufbau:
 - `engine/src`: Engine ohne Android-Bezug (Mischpult, Encoder, Icecast-Quelle, Takt). Wird mit `engine/test.sh` gegen einen echten Icecast getestet.
@@ -25,10 +25,10 @@ npm install
 npm run build:debug      # → android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Automatisch passiert das über GitHub Actions (Workflow „Build“, Artefakt `AirDeck-Android`).
+Automatisch passiert das über GitHub Actions (Workflow „Build“, Artefakt `AnMaCha-Cast-Android`).
 
 ## Verbinden
 
-1. AirDeck auf dem PC mit Netzwerkfreigabe starten: `AIRDECK_HOST=0.0.0.0`
+1. AnMaCha Cast auf dem PC mit Netzwerkfreigabe starten: `AIRDECK_HOST=0.0.0.0`
 2. In der App die Server-Adresse eingeben (z. B. `http://192.168.1.20:8750`) und ein Token.
    Ein Token erzeugst du mit `airdeck-engine.exe --new-admin-token`.
