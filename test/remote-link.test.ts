@@ -23,6 +23,8 @@ let agent: ServerResponse | null = null;
 const replies = new Map<string, (v: { status: number; body: unknown }) => void>();
 const events: { type: string; stationId?: string }[] = [];
 const agentHeaders: Record<string, string>[] = [];
+const AUDIO = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(4096, 7)]);
+let uploaded: Buffer | null = null;
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function until(fn: () => boolean, ms = 4000) {
@@ -39,11 +41,11 @@ async function api(method: string, path: string, body?: unknown) {
 }
 const code = (k = KEY) => 'adl1.' + Buffer.from(JSON.stringify({ h: `${hubBase}/golive-relay`, l: 'testlink01', k, n: 'Studio-PC' })).toString('base64url');
 let rid = 0;
-function ask(method: string, path: string, body?: unknown): Promise<{ status: number; body: any }> {
+function ask(method: string, path: string, body?: unknown, extra: Record<string, string> = {}): Promise<{ status: number; body: any }> {
   const id = 'r' + ++rid;
   return new Promise((ok, fail) => {
     replies.set(id, ok);
-    agent!.write(`event: req\ndata: ${JSON.stringify({ rid: id, method, path, body })}\n\n`);
+    agent!.write(`event: req\ndata: ${JSON.stringify({ rid: id, method, path, body, ...extra })}\n\n`);
     setTimeout(() => fail(new Error('keine Antwort')), 5000);
   });
 }
@@ -59,6 +61,13 @@ before(async () => {
       res.write(': hallo\n\n');
       agent = res;
       req.on('close', () => { if (agent === res) agent = null; });
+      return;
+    }
+    if (action === 'adl_file') return void res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': AUDIO.length }).end(AUDIO);
+    if (action === 'adl_upload') {
+      const parts: Buffer[] = [];
+      req.on('data', (d) => parts.push(d));
+      req.on('end', () => { uploaded = Buffer.concat(parts); res.writeHead(204).end(); });
       return;
     }
     let raw = '';
@@ -123,6 +132,28 @@ test('Vermittelte Anfragen laufen mit den Rechten des Fernzugriffs', async () =>
   assert.equal((await ask('GET', '/api/v1/app/remote-link')).status, 403);
   assert.equal((await ask('POST', '/api/v1/auth/login', { username: 'x', password: 'y' })).status, 403);
   assert.equal((await ask('GET', '/api/v1/../health')).status, 403);
+});
+
+test('Dateien: holen und liefern nur über den Vermittler', async () => {
+  const hubUrl = (a: string) => `${hubBase}/golive-relay?action=${a}&link=testlink01`;
+  const put = await ask('PUT', '/api/v1/stations/main/media?name=' + encodeURIComponent('Künstler - Lied.mp3'), undefined, { pull: hubUrl('adl_file') });
+  assert.equal(put.status, 200, JSON.stringify(put.body));
+  assert.equal(put.body.artist, 'Künstler');
+  assert.equal(put.body.title, 'Lied');
+  const got = await ask('GET', `/api/v1/stations/main/media/${put.body.id}/file`, undefined, { push: hubUrl('adl_upload') });
+  assert.equal(got.status, 200);
+  assert.deepEqual(uploaded, AUDIO);
+  // fremde Adressen und falsche Methoden sind gesperrt
+  assert.equal((await ask('PUT', '/api/v1/stations/main/media?name=x.mp3', undefined, { pull: 'http://example.org/datei.mp3' })).status, 403);
+  assert.equal((await ask('POST', '/api/v1/stations/main/media?name=x.mp3', undefined, { pull: hubUrl('adl_file') })).status, 403);
+  assert.equal((await ask('GET', '/api/v1/users', undefined, { push: hubUrl('adl_upload') })).status, 403);
+});
+
+test('Inhaltsänderungen werden ohne Datenlast gemeldet', async () => {
+  events.length = 0;
+  await api('POST', '/api/v1/stations/main/playlists', { name: 'Abgleich' });
+  await until(() => events.some((e) => e.type === 'playlists.changed'));
+  assert.equal((events.find((e) => e.type === 'playlists.changed') as { payload?: unknown }).payload, null);
 });
 
 test('Live-Ereignisse gehen gebündelt an den Vermittler', async () => {

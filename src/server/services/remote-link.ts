@@ -20,10 +20,13 @@ import { ROLE_SCOPES, type Role } from '../users.ts';
 
 const LINK_ROLES: readonly Role[] = ['operator', 'dj', 'editor', 'viewer'];
 /** Diese Ereignisse gehen an den Hub (Pegel und interne Systemmeldungen nicht). */
-const EVENT_TYPES = new Set(['now_playing.changed', 'now_playing.live', 'queue.changed', 'MODE_CHANGED', 'automation.state_changed', 'deck.state_changed', 'playout.state', 'cardwall.changed', 'cardwall.triggered', 'stream.state_changed', 'sources.changed']);
+const EVENT_TYPES = new Set(['now_playing.changed', 'now_playing.live', 'queue.changed', 'MODE_CHANGED', 'automation.state_changed', 'deck.state_changed', 'playout.state', 'cardwall.changed', 'cardwall.triggered', 'stream.state_changed', 'sources.changed', 'library.changed', 'playlists.changed', 'planning.changed']);
+/** Nur „hat sich geändert“ melden (für den Inhaltsabgleich), ohne die oft großen Listen mitzuschicken. */
+const CHANGE_ONLY = new Set(['library.changed', 'playlists.changed', 'planning.changed']);
 /** Über den Fernzugriff nie erreichbar: Anmeldung, Tokens/Geräte, Netzwerk- und Fernzugriffs-Einstellungen, Ereignis-Stream. */
 const BLOCKED = /^\/api\/v1\/(auth\/|pair(ing)?\b|tokens\b|devices\b|users\b|app\/|events\b|system\/(restart|shutdown)|update\b|backup\b|storage\b|database\b|secrets?\b)/;
 const MAX_REPLY = 2 * 1024 * 1024;
+const MAX_FILE = 300 * 1024 * 1024;
 const PING_TIMEOUT_MS = 65_000;
 
 interface LinkConfig {
@@ -266,7 +269,7 @@ export class RemoteLinkService {
     let status = 500;
     let body: unknown = null;
     try {
-      const q = JSON.parse(raw) as { rid?: unknown; method?: unknown; path?: unknown; body?: unknown };
+      const q = JSON.parse(raw) as { rid?: unknown; method?: unknown; path?: unknown; body?: unknown; pull?: unknown; push?: unknown };
       rid = String(q.rid ?? '').slice(0, 64);
       const method = String(q.method ?? 'GET').toUpperCase();
       const path = String(q.path ?? '');
@@ -274,9 +277,10 @@ export class RemoteLinkService {
       if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method) || !path.startsWith('/api/v1/') || path.includes('..') || /[\s\\]/.test(path) || BLOCKED.test(path)) {
         status = 403;
         body = { error: 'forbidden', message: 'Über den Fernzugriff nicht erlaubt' };
+      } else if (q.pull !== undefined || q.push !== undefined) {
+        [status, body] = await this.transfer(method, path, q.pull, q.push);
       } else {
-        const host = this.app.listenHost === '0.0.0.0' || this.app.listenHost === '::' ? '127.0.0.1' : this.app.listenHost;
-        const r = await fetch(`http://${host.includes(':') ? `[${host}]` : host}:${this.app.listenPort}${path}`, {
+        const r = await fetch(this.local(path), {
           method,
           headers: { Authorization: `Bearer ${this.app.secrets.get('remote-link:token') ?? ''}`, 'Content-Type': 'application/json' },
           body: method === 'GET' || method === 'DELETE' || q.body === undefined ? undefined : JSON.stringify(q.body),
@@ -306,13 +310,69 @@ export class RemoteLinkService {
     }
   }
 
+  private local(path: string): string {
+    const host = this.app.listenHost === '0.0.0.0' || this.app.listenHost === '::' ? '127.0.0.1' : this.app.listenHost;
+    return `http://${host.includes(':') ? `[${host}]` : host}:${this.app.listenPort}${path}`;
+  }
+
+  /**
+   * Dateiübertragung für den Inhaltsabgleich, nur mit dem Vermittler selbst (gleiche Herkunft wie die Vermittler-Adresse):
+   *  pull: Datei beim Vermittler holen und per PUT an die eigene API geben (z. B. /stations/x/media?name=…)
+   *  push: Datei per GET aus der eigenen API lesen und an den Vermittler hochladen.
+   */
+  private async transfer(method: string, path: string, pull: unknown, push: unknown): Promise<[number, unknown]> {
+    const c = this.cfg();
+    const target = String(pull ?? push ?? '');
+    let ok = false;
+    try {
+      ok = !!c && new URL(target).origin === new URL(c.hub).origin;
+    } catch {
+      /* ungültige Adresse */
+    }
+    if (!ok || (pull !== undefined && method !== 'PUT') || (push !== undefined && method !== 'GET')) {
+      return [403, { error: 'forbidden', message: 'Dateiübertragung nur mit dem Vermittler erlaubt' }];
+    }
+    const auth = { Authorization: `Bearer ${this.app.secrets.get('remote-link:token') ?? ''}` };
+    const signal = AbortSignal.timeout(10 * 60_000);
+    if (pull !== undefined) {
+      const src = await fetch(target, { headers: this.headers(), signal });
+      if (!src.ok || !src.body) return [502, { error: 'pull_failed', message: `Datei beim Vermittler nicht abrufbar (HTTP ${src.status})` }];
+      if (Number(src.headers.get('content-length') ?? 0) > MAX_FILE) {
+        await src.body.cancel();
+        return [413, { error: 'too_large', message: 'Datei zu groß' }];
+      }
+      const r = await fetch(this.local(path), {
+        method: 'PUT', headers: { ...auth, 'Content-Type': src.headers.get('content-type') ?? 'application/octet-stream', ...(src.headers.get('content-length') ? { 'Content-Length': src.headers.get('content-length')! } : {}) },
+        body: src.body, duplex: 'half', signal,
+      } as RequestInit);
+      const text = await r.text();
+      return [r.status, text && (r.headers.get('content-type') ?? '').includes('json') ? JSON.parse(text) : null];
+    }
+    const r = await fetch(this.local(path), { headers: auth, signal, redirect: 'manual' });   // Stream-Titel leiten nur weiter: nichts übertragen
+    if (r.status !== 200 || !r.body) {
+      if (r.status >= 300 && r.status < 400) return [415, { error: 'unsupported', message: 'Stream-Titel haben keine Datei' }];
+      const text = await r.text().catch(() => '');
+      return [r.status, text && (r.headers.get('content-type') ?? '').includes('json') ? JSON.parse(text) : null];
+    }
+    if (Number(r.headers.get('content-length') ?? 0) > MAX_FILE) {
+      await r.body.cancel();
+      return [413, { error: 'too_large', message: 'Datei zu groß' }];
+    }
+    const up = await fetch(target, {
+      method: 'POST', headers: { ...this.headers(), 'Content-Type': r.headers.get('content-type') ?? 'application/octet-stream', ...(r.headers.get('content-length') ? { 'Content-Length': r.headers.get('content-length')! } : {}) },
+      body: r.body, duplex: 'half', signal,
+    } as RequestInit);
+    await up.body?.cancel();
+    return up.ok ? [200, { pushed: true }] : [502, { error: 'push_failed', message: `Upload zum Vermittler fehlgeschlagen (HTTP ${up.status})` }];
+  }
+
   private onEvent(type: string, stationId: string | undefined, payload: unknown): void {
     if (this.state !== 'online' || !EVENT_TYPES.has(type) || !stationId) return;
     const c = this.cfg();
     if (!c || !(c.stationIds.includes('*') || c.stationIds.includes(stationId))) return;
     // Sendebus-Status kommt jede Sekunde: je Sender nur den neuesten behalten
-    if (type === 'playout.state') this.queue = this.queue.filter((q) => !(q.type === type && q.stationId === stationId));
-    this.queue.push({ type, stationId, payload });
+    if (type === 'playout.state' || CHANGE_ONLY.has(type)) this.queue = this.queue.filter((q) => !(q.type === type && q.stationId === stationId));
+    this.queue.push({ type, stationId, payload: CHANGE_ONLY.has(type) ? null : payload });
     if (this.queue.length > 500) this.queue.splice(0, this.queue.length - 500);
     if (!this.flushTimer) this.flushTimer = setTimeout(() => void this.flush(), 300);
   }
