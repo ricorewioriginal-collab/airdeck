@@ -521,7 +521,7 @@ function applyBranding() {
     logo.textContent = S.station.name.split(/\s+/).map((/** @type {string} */ w) => w[0]).join('').slice(0, 3).toUpperCase();
     logo.classList.remove('has-img');
   }
-  document.title = `${S.station.name} · AirDeck Studio`;
+  document.title = `${S.station.name} · AnMaCha Cast Studio`;
 }
 
 function renderStationSelect() {
