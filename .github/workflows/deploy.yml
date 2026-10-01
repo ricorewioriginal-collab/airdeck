@@ -4,13 +4,13 @@ on:
   workflow_run:
     workflows: ['Build']
     types: [completed]
-    branches: ['AirDeck-Radio-Automation-&-Broadcast']
+    branches: ['main']
   workflow_dispatch:
     inputs:
       ref:
         description: "Branch/Tag, das ausgerollt werden soll"
         required: false
-        default: "AirDeck-Radio-Automation-&-Broadcast"
+        default: "main"
 
 # Automatischer Rollout erst nach erfolgreichem Build + manueller Start moeglich.
 # Vor dem Checkout wird der aktuelle Stand gesichert und ein nicht sauberer

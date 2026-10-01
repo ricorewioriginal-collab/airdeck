@@ -29,8 +29,8 @@ usermod -aG docker airdeck-deploy
 mkdir -p /opt/airdeck-demo
 chown airdeck-deploy:airdeck-deploy /opt/airdeck-demo
 su - airdeck-deploy -c '
-  git clone https://github.com/ricorewioriginal-collab/anmacha_control.git /opt/airdeck-demo
-  cd /opt/airdeck-demo && git checkout "AirDeck-Radio-Automation-&-Broadcast"
+  git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git /opt/airdeck-demo
+  cd /opt/airdeck-demo && git checkout "main"
   echo "AIRDECK_DB_PASSWORD=$(openssl rand -hex 24)" > .env
 '
 ```

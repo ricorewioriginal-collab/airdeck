@@ -48,7 +48,7 @@ Code / Dependency Update / Pull Request
 7. Secrets, Keystores und private Schlüssel gehören nicht ins Repository.
 8. Automatisch erzeugte Screenshots dürfen den normalen Build nicht zerstören.
 9. CI-eigene Dokumentationscommits sollen unnötige Build-Schleifen vermeiden.
-10. Der aktive Entwicklungsbranch ist derzeit `AirDeck-Radio-Automation-&-Broadcast`.
+10. Der aktive Entwicklungsbranch ist derzeit `main`.
 
 ---
 
@@ -60,7 +60,7 @@ Der Build ist die zentrale technische Qualitätskontrolle des Projekts. Andere W
 
 Typische Trigger:
 
-- Push auf `AirDeck-Radio-Automation-&-Broadcast`
+- Push auf `main`
 - Pull Requests
 - manuelle Ausführung
 - Versionstags entsprechend der Build-Konfiguration
@@ -89,7 +89,7 @@ Wenn:
 
 ```text
 Build = success
-Branch = AirDeck-Radio-Automation-&-Broadcast
+Branch = main
 ```
 
 wird der erfolgreiche Commit mit dem beweglichen Git-Tag

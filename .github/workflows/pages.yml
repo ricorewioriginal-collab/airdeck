@@ -3,7 +3,7 @@ name: Deploy AnMaCha Cast Pages
 on:
   push:
     branches:
-      - AirDeck-Radio-Automation-&-Broadcast
+      - main
     paths:
       - 'site/**'
       - '.github/workflows/pages.yml'

@@ -41,7 +41,7 @@ jobs:
             for (const number of [...new Set(numbers)]) {
               const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
               if (pr.user?.login !== 'dependabot[bot]' || pr.draft) continue;
-              if (pr.base.ref !== 'AirDeck-Radio-Automation-&-Broadcast') continue;
+              if (pr.base.ref !== 'main') continue;
 
               const labels = (pr.labels || []).map(l => typeof l === 'string' ? l : l.name);
               if (labels.some(l => ['do-not-merge', 'manual-merge', 'migration-required'].includes(l))) {

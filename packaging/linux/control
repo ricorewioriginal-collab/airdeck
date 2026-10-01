@@ -5,7 +5,7 @@ Priority: optional
 Architecture: amd64
 Depends: adduser, ffmpeg
 Maintainer: AnMaCha Radioproduktion & RicoReWi <231153075+ricorewioriginal-collab@users.noreply.github.com>
-Homepage: https://github.com/ricorewioriginal-collab/anmacha_control
+Homepage: https://github.com/ricorewioriginal-collab/anmacha_cast
 Description: AnMaCha Cast - Radio-Automation & Live-Broadcast (Server)
  AnMaCha Cast ist eine unabhaengige Radio-Automation fuer Sendebetrieb, 24/7-Automation,
  Live-Sendungen, laut.fm und Icecast/AzuraCast-Bruecken. Dieses Paket installiert die

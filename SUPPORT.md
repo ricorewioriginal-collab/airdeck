@@ -26,7 +26,7 @@ Bitte [`SECURITY.md`](SECURITY.md) beachten und nach Möglichkeit GitHubs privat
 
 Das GitHub Wiki ist für Benutzerhandbuch, Installation und Bedienung vorgesehen:
 
-https://github.com/ricorewioriginal-collab/anmacha_control/wiki
+https://github.com/ricorewioriginal-collab/anmacha_cast/wiki
 
 Wenn die Dokumentation eine Frage nicht beantwortet und tatsächlich ein Softwarefehler vorliegt, kann anschließend ein Bug Report erstellt werden.
 

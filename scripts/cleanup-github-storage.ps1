@@ -11,7 +11,7 @@
 
 param(
     [string]$Token    = $env:GITHUB_TOKEN,
-    [string]$Repo     = "ricorewioriginal-collab/anmacha_control",
+    [string]$Repo     = "ricorewioriginal-collab/anmacha_cast",
     [switch]$DryRun,               # Mit -DryRun: nur anzeigen, nichts loeschen
     [switch]$IncludeReleases,      # Mit -IncludeReleases: auch alte Releases loeschen
     [int]   $KeepReleases = 1      # Wie viele aktuelle Releases behalten (Standard: 1)

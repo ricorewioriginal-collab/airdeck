@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Sicherheitslücke melden
-    url: https://github.com/ricorewioriginal-collab/anmacha_control/security
+    url: https://github.com/ricorewioriginal-collab/anmacha_cast/security
     about: Bitte Sicherheitsprobleme nicht als öffentliches Bug-Issue mit Exploitdetails melden. SECURITY.md beachten.
   - name: AirDeck Wiki
-    url: https://github.com/ricorewioriginal-collab/anmacha_control/wiki
+    url: https://github.com/ricorewioriginal-collab/anmacha_cast/wiki
     about: Dokumentation und Benutzerhandbuch prüfen, bevor ein neues Issue erstellt wird.
