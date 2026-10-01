@@ -121,8 +121,60 @@ export class SystemService {
   }
 
   setNetwork(lan: boolean): unknown {
-    writeFileAtomic(join(this.app.dataDir, 'network.json'), JSON.stringify({ lan }));
+    this.writeNetwork({ lan });
     this.app.audit.write({ kind: 'network', event: 'lan', lan });
     return this.appConnect();
   }
+
+  private readNetwork(): { lan?: boolean; webOrigins?: unknown } {
+    return readJson<{ lan?: boolean; webOrigins?: unknown }>(join(this.app.dataDir, 'network.json'), {});
+  }
+
+  private writeNetwork(patch: { lan?: boolean; webOrigins?: string[] }): void {
+    writeFileAtomic(join(this.app.dataDir, 'network.json'), JSON.stringify({ ...this.readNetwork(), ...patch }));
+  }
+
+  private originsCache: Set<string> | null = null;
+
+  /** Webseiten, die AirDeck aus dem Browser heraus bedienen dürfen (zusätzlich zu AIRDECK_CORS_ORIGINS). */
+  webOrigins(): string[] {
+    const raw = this.readNetwork().webOrigins;
+    return Array.isArray(raw) ? raw.filter((o): o is string => typeof o === 'string' && normalizeOrigin(o) === o) : [];
+  }
+
+  isWebOrigin(origin: string): boolean {
+    this.originsCache ??= new Set(this.webOrigins());
+    return this.originsCache.has(origin);
+  }
+
+  setWebOrigins(input: unknown): { webOrigins: string[] } {
+    const list = Array.isArray(input) ? input : typeof input === 'string' ? input.split(/[\s,]+/) : [];
+    const out: string[] = [];
+    for (const raw of list) {
+      const s = String(raw ?? '').trim();
+      if (!s) continue;
+      const o = normalizeOrigin(s);
+      if (!o) throw new AppError(400, 'invalid_origin', `„${s.slice(0, 80)}“ ist keine gültige Webseite. Erlaubt: https://name.de (ohne Pfad) oder http://localhost`);
+      if (!out.includes(o)) out.push(o);
+    }
+    if (out.length > 20) throw new AppError(400, 'too_many', 'Höchstens 20 Webseiten');
+    this.writeNetwork({ webOrigins: out });
+    this.originsCache = new Set(out);
+    this.app.audit.write({ kind: 'network', event: 'web_origins', origins: out });
+    return { webOrigins: out };
+  }
+}
+
+/** Nur reine Origins: https mit Hostname, http nur für diesen PC (localhost/127.0.0.1). Kein Pfad, keine Zugangsdaten. */
+export function normalizeOrigin(input: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(input.trim());
+  } catch {
+    return null;
+  }
+  if (u.username || u.password || (u.pathname !== '/' && u.pathname !== '') || u.search || u.hash) return null;
+  const loopback = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]';
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && loopback)) return null;
+  return u.origin;
 }
