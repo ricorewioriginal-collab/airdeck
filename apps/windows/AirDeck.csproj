@@ -16,10 +16,10 @@
     <ApplicationIcon>..\..\assets\icons\airdeck-windows.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>0.0.0</Version>
-    <Product>AirDeck</Product>
-    <Description>AirDeck Radio Automation</Description>
+    <Product>AnMaCha Cast</Product>
+    <Description>AnMaCha Cast Radio Automation &amp; Live Broadcast</Description>
     <Company>AnMaCha Radioproduktion &amp; RicoReWi</Company>
-    <Copyright>AirDeck – Powered by AnMaCha Radioproduktion &amp; RicoReWi</Copyright>
+    <Copyright>AnMaCha Cast – AnMaCha Radioproduktion &amp; RicoReWi</Copyright>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
