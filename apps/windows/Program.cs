@@ -1,4 +1,4 @@
-// AirDeck für Windows: ein Programm, ein Fenster. Ein zweiter Start holt nur das vorhandene Fenster nach vorn.
+// AnMaCha Cast für Windows: ein Programm, ein Fenster. Ein zweiter Start holt nur das vorhandene Fenster nach vorn.
 //   AirDeck.exe              Studio öffnen (startet die Engine bei Bedarf)
 //   AirDeck.exe --minimized  nur im Infobereich starten (Autostart bei der Anmeldung)
 using System;
@@ -30,7 +30,7 @@ namespace AirDeck
                 Application.SetCompatibleTextRenderingDefault(false);
                 if (!Engine.Installed)
                 {
-                    MessageBox.Show("Die AirDeck-Engine (airdeck-engine.exe) fehlt im Programmordner. Bitte AirDeck neu installieren.", "AirDeck", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Die AnMaCha-Cast-Engine (airdeck-engine.exe) fehlt im Programmordner. Bitte AnMaCha Cast neu installieren.", "AnMaCha Cast", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 var minimized = Array.Exists(args, a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));

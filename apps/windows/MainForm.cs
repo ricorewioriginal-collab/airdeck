@@ -22,7 +22,7 @@ namespace AirDeck
         readonly EventWaitHandle quitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "AirDeck.Studio.Quit");
         readonly bool startHidden;
         readonly WebView2 web = new WebView2 { Dock = DockStyle.Fill, DefaultBackgroundColor = Back };
-        readonly Label splash = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.FromArgb(160, 180, 210), BackColor = Back, Font = new Font("Segoe UI", 13f), Text = "AirDeck startet …" };
+        readonly Label splash = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.FromArgb(160, 180, 210), BackColor = Back, Font = new Font("Segoe UI", 13f), Text = "AnMaCha Cast startet …" };
         readonly NotifyIcon tray = new NotifyIcon();
         readonly System.Windows.Forms.Timer watch = new System.Windows.Forms.Timer { Interval = 3000 };
         EngineInfo engine;
@@ -35,7 +35,7 @@ namespace AirDeck
         {
             showSignal = show;
             startHidden = minimized;
-            Text = "AirDeck";
+            Text = "AnMaCha Cast";
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             BackColor = Back;
             MinimumSize = new Size(960, 600);
@@ -46,12 +46,12 @@ namespace AirDeck
             splash.BringToFront();
 
             tray.Icon = Icon;
-            tray.Text = "AirDeck";
+            tray.Text = "AnMaCha Cast";
             var menu = new ContextMenuStrip();
             menu.Items.Add("Studio öffnen", null, (s, e) => ShowStudio());
             menu.Items.Add("Protokoll anzeigen", null, (s, e) => OpenLog());
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add("AirDeck beenden", null, (s, e) => Quit(true));
+            menu.Items.Add("AnMaCha Cast beenden", null, (s, e) => Quit(true));
             tray.ContextMenuStrip = menu;
             tray.DoubleClick += (s, e) => ShowStudio();
             tray.Visible = true;
@@ -111,13 +111,13 @@ namespace AirDeck
             });
             if (string.IsNullOrEmpty(engine.Url) || !Engine.Alive(engine.Health))
             {
-                var r = MessageBox.Show(this, "Die AirDeck-Engine startet nicht.\n\nProtokoll öffnen?", "AirDeck", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+                var r = MessageBox.Show(this, "Die AnMaCha-Cast-Engine startet nicht.\n\nProtokoll öffnen?", "AnMaCha Cast", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
                 if (r == DialogResult.Yes) OpenLog();
                 Quit(false);
                 return;
             }
             origin = new Uri(engine.Url);
-            tray.Text = "AirDeck läuft";
+            tray.Text = "AnMaCha Cast läuft";
             try
             {
                 Directory.CreateDirectory(LocalDir);
@@ -127,7 +127,7 @@ namespace AirDeck
             }
             catch (WebView2RuntimeNotFoundException)
             {
-                var r = MessageBox.Show(this, "Für das AirDeck-Fenster fehlt die Microsoft-WebView2-Laufzeit (bei Windows 11 vorinstalliert).\n\nJetzt herunterladen?", "AirDeck", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                var r = MessageBox.Show(this, "Für das AnMaCha-Cast-Fenster fehlt die Microsoft-WebView2-Laufzeit (bei Windows 11 vorinstalliert).\n\nJetzt herunterladen?", "AnMaCha Cast", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (r == DialogResult.Yes) OpenExternal("https://go.microsoft.com/fwlink/p/?LinkId=2124703");
                 Quit(false);
                 return;
@@ -173,7 +173,7 @@ namespace AirDeck
             {
                 if (!e.ContextMenuTarget.IsEditable) e.Handled = true;
             };
-            // Befehle aus dem Studio (z. B. „AirDeck beenden“)
+            // Befehle aus dem Studio (z. B. „AnMaCha Cast beenden“)
             core.WebMessageReceived += (o, e) =>
             {
                 string msg;
@@ -227,7 +227,7 @@ namespace AirDeck
             if (++downChecks < 8) return;
             watch.Stop();
             ShowStudio();
-            var r = MessageBox.Show(this, "Die AirDeck-Engine läuft nicht mehr.\n\nJetzt neu starten?", "AirDeck", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var r = MessageBox.Show(this, "Die AnMaCha-Cast-Engine läuft nicht mehr.\n\nJetzt neu starten?", "AnMaCha Cast", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (r != DialogResult.Yes)
             {
                 Quit(false);
@@ -263,7 +263,7 @@ namespace AirDeck
                 if (!hintShown)
                 {
                     hintShown = true;
-                    tray.ShowBalloonTip(4000, "AirDeck läuft weiter", "Automation und Streams laufen im Hintergrund. Beenden über das Symbol im Infobereich.", ToolTipIcon.Info);
+                    tray.ShowBalloonTip(4000, "AnMaCha Cast läuft weiter", "Automation und Streams laufen im Hintergrund. Beenden über das Symbol im Infobereich.", ToolTipIcon.Info);
                 }
                 return;
             }
@@ -274,11 +274,11 @@ namespace AirDeck
         void Quit(bool ask)
         {
             if (quitting) return;
-            if (ask && MessageBox.Show(this, "AirDeck komplett beenden? Automation und alle Streams stoppen.", "AirDeck", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            if (ask && MessageBox.Show(this, "AnMaCha Cast komplett beenden? Automation und alle Streams stoppen.", "AnMaCha Cast", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             quitting = true;
             watch.Stop();
             SaveBounds();
-            tray.Text = "AirDeck wird beendet …";
+            tray.Text = "AnMaCha Cast wird beendet …";
             Task.Run(() => Engine.Stop()).ContinueWith(_ => BeginInvoke((Action)(() =>
             {
                 tray.Visible = false;

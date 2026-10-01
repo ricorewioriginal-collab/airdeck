@@ -1,4 +1,4 @@
-// Verbindung zur AirDeck-Engine (airdeck-engine.exe im selben Ordner): Adresse erfragen, starten, beenden.
+// Verbindung zur AnMaCha-Cast-Engine (airdeck-engine.exe im selben Ordner): Adresse erfragen, starten, beenden.
 using System;
 using System.Diagnostics;
 using System.IO;
