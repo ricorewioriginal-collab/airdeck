@@ -761,7 +761,7 @@ export class MusicHubService {
   }
 
   /**
-   * AirDeckCast-Preflight (Phase 4, erster Schritt): prüft vor einer geplanten Aufnahme in
+   * Sendefähigkeits-Preflight (Phase 4, erster Schritt): prüft vor einer geplanten Aufnahme in
    * Queue/Planung/Cardwall, ob ein Hub-Titel für den angegebenen Sender tatsächlich sendefähig ist -
    * Berechtigung (`broadcast.use`), Senderzugehörigkeit der Quelldatei, tatsächliches Vorhandensein
    * und unterstütztes Format. `require()` liefert dieselbe existenzleck-freie 404-Antwort wie überall
@@ -798,7 +798,7 @@ export class MusicHubService {
    * hinterlegt, laut.fm-Stations-ID gewählt) und ob die zugrundeliegende Datei tatsächlich vorhanden
    * und in einem unterstützten Format vorliegt. Reine Prüfung ohne Seiteneffekt - der tatsächliche
    * Upload passiert erst in lautcastTransfer() (Phase 5, zweiter Schritt), demselben Aufbau wie
-   * broadcastPreflight()/stageToStation() bei AirDeckCast.
+   * broadcastPreflight()/stageToStation() bei AnMaCha Cast.
    */
   lautcastCapability(p: Principal, itemId: string, stationId: string): { ok: boolean; reason?: string; itemId: string; stationId: string } {
     this.require(p, { kind: 'item', id: itemId }, stationId, 'transfer.export');

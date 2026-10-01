@@ -81,11 +81,11 @@ export interface StationData {
   linkedFolders?: LinkedFolder[];
   /** Grundbetriebsart des Mode-Managers (AUTO/MANUAL); LIVE/EMERGENCY ergeben sich aus dem Sendezustand */
   mode?: BaseMode;
-  /** AirDeckCast: benannte Zusatzprofile (z. B. "Mobile AAC 64k"), die Ausgänge per profileId referenzieren können */
+  /** Zusatz-Streams: benannte Zusatzprofile (z. B. "Mobile AAC 64k"), die Ausgänge per profileId referenzieren können */
   streamProfiles?: StreamProfileConfig[];
 }
 
-/** AirDeckCast-Zusatzprofil: eigenes Format/Bitrate, gespeist aus demselben Programmbus wie der Hauptencoder. */
+/** Zusatz-Streams-Profil: eigenes Format/Bitrate, gespeist aus demselben Programmbus wie der Hauptencoder. */
 export interface StreamProfileConfig {
   id: string;
   name: string;
@@ -151,7 +151,7 @@ export interface PlayoutConfig extends PlayoutOptions {
   sourceId?: string;
   /** Notfall-Ordner: spielt, wenn Queue, Sendeuhr und Sendeplan nichts liefern */
   emergencyFolder?: string;
-  /** AirDeckCast: zusätzlich als HLS (m3u8 + Segmente) ausliefern, direkt vom AirDeck-Server */
+  /** Zusatz-Streams: zusätzlich als HLS (m3u8 + Segmente) ausliefern, direkt vom AirDeck-Server */
   hls?: HlsConfig;
 }
 

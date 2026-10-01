@@ -4,7 +4,7 @@
 // Vorhören/Download-Recht sowie einer eigenen Nextcloud-Quelle je Nutzerkonto (Ordneransicht +
 // Einzeldatei-Übernahme, kein rekursiver Vollscan, kein Job-/Sync-System). "Für Sender bereitstellen"
 // kopiert einen eigenen privaten Upload kontrolliert in das Archiv des aktuell gewählten Senders
-// (stage-Endpunkt) - macht ihn danach laut AirDeckCast-Preflight sendefähig. "An laut.fm übertragen"
+// (stage-Endpunkt) - macht ihn danach laut Sendefähigkeits-Preflight sendefähig. "An laut.fm übertragen"
 // lädt einen Titel über den verifiziert nicht deprecateten laut.fm-Upload-Endpunkt hoch (Zwei-Treffer-
 // Wiederverwendung, ehrliches "in Bearbeitung" statt erfundenem Erfolg) und kann ihn optional an eine
 // laut.fm-Playlist-ID anhängen. Kein Wiring in Queue/Planung/Cardwall; dafür bietet diese Ansicht
@@ -145,7 +145,7 @@ export function mountMusicHub(root, ctx) {
   }
 
   /** Kontrolliertes Kopieren eines eigenen privaten Uploads in das Archiv des aktuell gewählten Senders -
-   * erst danach ist der Titel laut AirDeckCast-Preflight für diesen Sender sendefähig. Der ursprüngliche
+   * erst danach ist der Titel laut Sendefähigkeits-Preflight für diesen Sender sendefähig. Der ursprüngliche
    * private Upload bleibt davon unverändert bestehen (physische Kopie, kein Verschieben). @param {any} item */
   async function stageItem(item) {
     const sid = station();
@@ -160,7 +160,7 @@ export function mountMusicHub(root, ctx) {
   /** Tatsächlicher Upload eines Hub-Titels zu laut.fm (Zwei-Treffer-Modell: eine bereits erfolgreich
    * zugeordnete laut.fm-Track-ID wird serverseitig wiederverwendet statt erneut hochgeladen). Optional
    * wird der Titel danach an eine laut.fm-Playlist-ID angehängt (Radioadmin-Playlist-ID, nicht das
-   * AirDeck-eigene Playlistmodell) - ein leeres Feld überträgt nur, ohne Playlist-Zuordnung. Die
+   * AnMaCha Cast-eigene Playlistmodell) - ein leeres Feld überträgt nur, ohne Playlist-Zuordnung. Die
    * Playlist-ID wird bewusst per einfacher Eingabe statt eines vorausgefüllten Dropdowns abgefragt -
    * eine echte Playlist-Auswahl lässt sich über die bestehende laut.fm-Radioadmin-Ansicht (Reiter
    * „Playlists") nachschlagen. @param {any} item */

@@ -1,6 +1,6 @@
 // @ts-check
 // Handy-Sender: Oberfläche für die Engine in der Android-App (Plugin „AirDeckEngine“).
-// Sendet Mikrofon und Musik vom Handy direkt an Icecast/laut.fm – ohne AirDeck-Server.
+// Sendet Mikrofon und Musik vom Handy direkt an Icecast/laut.fm – ohne AnMaCha Cast-Server.
 (() => {
   const $ = (/** @type {string} */ id) => /** @type {HTMLElement} */ (document.getElementById(id));
   /** @param {string} tag @param {Record<string, any>} [attrs] @param {...(Node|string|null|undefined|false)} kids */
@@ -200,7 +200,7 @@
       try { localStorage.setItem(MODE_KEY, 'server'); } catch {}
     });
     if (!E) {
-      $('main').replaceChildren(h('div', { class: 'card' }, 'Der Handy-Sender ist Teil der AirDeck-App für Android. Im Browser gibt es ihn nicht – dort sendet das Studio über den AirDeck-Server.'));
+      $('main').replaceChildren(h('div', { class: 'card' }, 'Der Handy-Sender ist Teil der AnMaCha Cast-App für Android. Im Browser gibt es ihn nicht – dort sendet das Studio über den AnMaCha Cast-Server.'));
       return;
     }
     try { localStorage.setItem(MODE_KEY, 'handy'); } catch {}

@@ -1,5 +1,5 @@
 // @ts-check
-// AirDeck Audio Engine (Web Audio API): 4 Decks, Cart-Player, Master-Bus mit Limiter,
+// AnMaCha Cast Audio Engine (Web Audio API): 4 Decks, Cart-Player, Master-Bus mit Limiter,
 // Pegelmessung, Ducking und Studio-Stream (MediaRecorder → Relay).
 
 export const DECKS = /** @type {const} */ (['A', 'B', 'C', 'D']);

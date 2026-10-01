@@ -1,13 +1,13 @@
 // @ts-check
-// Schlanker API-Client für AirDeck REST v1 + Server-Sent Events.
+// Schlanker API-Client für AnMaCha Cast REST v1 + Server-Sent Events.
 
 const TOKEN_KEY = 'airdeck.token';
 const SERVER_KEY = 'airdeck.server';
 
-/** Läuft das Studio in der Android-/Desktop-Hülle (Capacitor) statt vom AirDeck-Server geladen? */
+/** Läuft das Studio in der Android-/Desktop-Hülle (Capacitor) statt vom AnMaCha Cast-Server geladen? */
 export const isNativeApp = () => !!(/** @type {any} */ (window).Capacitor?.isNativePlatform?.());
 
-/** Basis-URL des AirDeck-Servers ('' = gleicher Ursprung). */
+/** Basis-URL des AnMaCha Cast-Servers ('' = gleicher Ursprung). */
 export function serverBase() {
   try {
     return (localStorage.getItem(SERVER_KEY) ?? '').replace(/\/+$/, '');

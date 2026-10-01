@@ -7,7 +7,7 @@
 // Relink) sowie Aktionen zum Senden an Deck/Queue/Playlist/Cardwall.
 //
 // Abschnitt 10 (Nextcloud): Nextcloud steht ausschließlich als Quellen-Reiter direkt hier neben
-// der AirDeck-Bibliothek. Es gibt keinen separaten Sidebar-Menüpunkt mehr; dieselbe Browse-/Import-
+// der AnMaCha Cast-Bibliothek. Es gibt keinen separaten Sidebar-Menüpunkt mehr; dieselbe Browse-/Import-
 // Logik wird wiederverwendet (keine zweite Nextcloud-Anbindung).
 
 import { $, CATEGORY_STYLE, clockTime, fmt, formDialog, h, mediaTitle, run, status } from './ui.js';
@@ -202,7 +202,7 @@ export function mountMediaManagement(root, ctx) {
     $('mm-count') && ($('mm-count').textContent = `${list.length} von ${items.length} Titel${selected.size ? ` · ${selected.size} ausgewählt` : ''}`);
   }
 
-  // ---------- Quellen-Reiter: AirDeck-Bibliothek / Nextcloud (Abschnitt 10, nebeneinander statt isoliert) ----------
+  // ---------- Quellen-Reiter: AnMaCha Cast-Bibliothek / Nextcloud (Abschnitt 10, nebeneinander statt isoliert) ----------
 
   let source = 'library';
   const nextcloudPane = h('div', { hidden: true });
@@ -225,7 +225,7 @@ export function mountMediaManagement(root, ctx) {
   }
   const tabBar = h('div', { class: 'row' });
   function renderTabs() {
-    tabBar.replaceChildren(tabBtn('library', 'AirDeck-Bibliothek'), tabBtn('musikhub', 'MusikHub'), tabBtn('nextcloud', 'Nextcloud'));
+    tabBar.replaceChildren(tabBtn('library', 'AnMaCha Cast-Bibliothek'), tabBtn('musikhub', 'MusikHub'), tabBtn('nextcloud', 'Nextcloud'));
   }
 
   async function selectSource(id) {

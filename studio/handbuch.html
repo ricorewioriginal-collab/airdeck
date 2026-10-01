@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#07101f">
-<title>AirDeck Handbuch</title>
+<title>AnMaCha Cast Handbuch</title>
 <link rel="icon" href="icons/icon-32.png" type="image/png">
 <style>
 :root { --bg: #07101f; --panel: #0d1a30; --line: #1f2d4a; --text: #e6edf8; --muted: #8fa3c4; --accent: #2f8cff; --ok: #22c55e; --warn: #f59e0b; color-scheme: dark; }
@@ -49,7 +49,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
 <body>
 <header>
   <img src="icons/icon-192.png" alt="">
-  <strong>AIRDECK</strong><span style="color:var(--muted)">Handbuch</span>
+  <strong>ANMACHA CAST</strong><span style="color:var(--muted)">Handbuch</span>
   <a class="back" href="./">← Zum Studio</a>
 </header>
 
@@ -91,11 +91,11 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
 
 <main>
 <section id="ueberblick">
-  <h1>AirDeck – Radio-Automation &amp; Live-Broadcast</h1>
-  <p class="lead">Eigenständige Sendesoftware für Webradio: Automation rund um die Uhr, Live-Sendungen, Sendeplan, Recorder, laut.fm-Verwaltung und optional KI-Moderation. AirDeck läuft lokal als Windows-Programm, als Server oder gesteuert per Android-App.</p>
+  <h1>AnMaCha Cast – Radio-Automation &amp; Live-Broadcast</h1>
+  <p class="lead">Eigenständige Sendesoftware für Webradio: Automation rund um die Uhr, Live-Sendungen, Sendeplan, Recorder, laut.fm-Verwaltung und optional KI-Moderation. AnMaCha Cast läuft lokal als Windows-Programm, als Server oder gesteuert per Android-App.</p>
   <h3>So hängt alles zusammen</h3>
   <ol>
-    <li><b>Kern (AirDeck-Server/Windows-Programm)</b>: Bibliothek, Queue, Sendeuhr und Sendeplan liegen hier. Der Kern mischt das Programm selbst (ffmpeg) und schickt es an die Ausgänge. Das läuft auch, wenn kein Studio-Fenster offen ist.</li>
+    <li><b>Kern (AnMaCha Cast-Server/Windows-Programm)</b>: Bibliothek, Queue, Sendeuhr und Sendeplan liegen hier. Der Kern mischt das Programm selbst (ffmpeg) und schickt es an die Ausgänge. Das läuft auch, wenn kein Studio-Fenster offen ist.</li>
     <li><b>Quellen mit Priorität</b>: Automation, Live-Studio, Remote-Studio und Android-Live senden auf denselben Sendeweg. Die Quelle mit der kleinsten Prioritätszahl hat Vorrang, zum Beispiel übernimmt Live (1) die Automation (10). Endet die Live-Sendung, springt die Automation automatisch wieder ein.</li>
     <li><b>Ausgänge (Encoder)</b>: Icecast, SHOUTcast oder laut.fm bekommen immer nur die aktive Quelle.</li>
     <li><b>Studio</b>: Die Oberfläche steuert den Kern. Sie läuft im Windows-Fenster, im Browser oder in der Android-App.</li>
@@ -106,18 +106,18 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
   <h2>Installation</h2>
   <h3>Windows</h3>
   <ul>
-    <li><b>Installer</b> <code>AirDeck-Setup.exe</code>: installiert pro Benutzer ohne Adminrechte, legt Startmenü- und Desktop-Verknüpfung an und fragt nach dem Datenspeicher (nur lokal, MySQL/MariaDB oder Firebase).</li>
-    <li><b>Portable</b> <code>AirDeck-Windows-Portable.zip</code>: entpacken, <code>AirDeck.exe</code> starten, fertig.</li>
+    <li><b>Installer</b> <code>AnMaCha-Cast-Setup.exe</code>: installiert pro Benutzer ohne Adminrechte, legt Startmenü- und Desktop-Verknüpfung an und fragt nach dem Datenspeicher (nur lokal, MySQL/MariaDB oder Firebase).</li>
+    <li><b>Portable</b> <code>AnMaCha-Cast-Windows-Portable.zip</code>: entpacken, <code>AnMaCha Cast.exe</code> starten, fertig.</li>
     <li>ffmpeg ist enthalten (Encoder für MP3/LAME, AAC, Opus, Monitor-Wiedergabe). Ein eigener Server ist nicht nötig.</li>
     <li>Beim ersten Start warnt SmartScreen eventuell, weil die Datei nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.</li>
-    <li><b>Hintergrundbetrieb:</b> AirDeck läuft ohne Konsolenfenster. Das Symbol im Infobereich (neben der Uhr) bietet Studio öffnen, Protokoll anzeigen und AirDeck beenden.</li>
+    <li><b>Hintergrundbetrieb:</b> AnMaCha Cast läuft ohne Konsolenfenster. Das Symbol im Infobereich (neben der Uhr) bietet Studio öffnen, Protokoll anzeigen und AnMaCha Cast beenden.</li>
   </ul>
   <h3>Docker</h3>
-  <p><code>docker compose up -d</code> startet AirDeck als Server mit ffmpeg. Das Admin-Token steht im Log (<code>docker compose logs airdeck</code>).</p>
+  <p><code>docker compose up -d</code> startet AnMaCha Cast als Server mit ffmpeg. Das Admin-Token steht im Log (<code>docker compose logs airdeck</code>).</p>
   <h3>Server (Linux, 24/7)</h3>
-  <p>Node.js ab 22.18 und ffmpeg installieren, dann <code>npm start</code>. Mit <code>--headless</code> startet AirDeck ohne Fenster. Das Admin-Token erzeugt <code>--new-admin-token</code>.</p>
+  <p>Node.js ab 22.18 und ffmpeg installieren, dann <code>npm start</code>. Mit <code>--headless</code> startet AnMaCha Cast ohne Fenster. Das Admin-Token erzeugt <code>--new-admin-token</code>.</p>
   <h3>Android</h3>
-  <p>Siehe <a href="#android">Android-App</a>. Die APK lässt sich direkt aus AirDeck laden.</p>
+  <p>Siehe <a href="#android">Android-App</a>. Die APK lässt sich direkt aus AnMaCha Cast laden.</p>
 </section>
 
 <section id="erste-schritte">
@@ -129,7 +129,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
     <li><b>Automation starten:</b> In der Kachel „Server-Automation 24/7“ auf <b>Start</b> klicken oder oben auf <b>AUTO</b>. Die Sendeuhr füllt die Queue, der Kern sendet.</li>
     <li><b>Mithören:</b> Kopfhörer-Knopf oben rechts. Unter „Audio &amp; Geräte“ legst du fest, auf welchem Gerät du mithörst.</li>
   </ol>
-  <div class="tip">„Autostart“ ist nach dem ersten Start aktiv. Nach einem Neustart des PCs sendet AirDeck von selbst weiter.</div>
+  <div class="tip">„Autostart“ ist nach dem ersten Start aktiv. Nach einem Neustart des PCs sendet AnMaCha Cast von selbst weiter.</div>
 </section>
 
 <section id="oberflaeche">
@@ -160,12 +160,12 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
   <h2>Betriebsart, Decks A–D &amp; Vorhören</h2>
   <h3>Manuell oder 24/7 AutoDJ</h3>
   <ul>
-    <li><b>Manuell:</b> Du bist selbst live. Decks, Mikrofon und Cartwall bedienst du von Hand, nichts startet von selbst. Wird es still, meldet AirDeck das, springt aber nicht selbst ein.</li>
-    <li><b>24/7 AutoDJ:</b> AirDeck spielt Queue, Sendeuhr und Sendeplan mit Überblendung, rund um die Uhr und auch ohne geöffnetes Fenster. Bei Stille springt der Notfall-Ordner ein.</li>
+    <li><b>Manuell:</b> Du bist selbst live. Decks, Mikrofon und Cartwall bedienst du von Hand, nichts startet von selbst. Wird es still, meldet AnMaCha Cast das, springt aber nicht selbst ein.</li>
+    <li><b>24/7 AutoDJ:</b> AnMaCha Cast spielt Queue, Sendeuhr und Sendeplan mit Überblendung, rund um die Uhr und auch ohne geöffnetes Fenster. Bei Stille springt der Notfall-Ordner ein.</li>
     <li>Wechsel zu Manuell: Der laufende Titel spielt zu Ende. Eine Live-Quelle (Studio, App, Relay) hat immer Vorrang, danach gilt wieder die gewählte Betriebsart.</li>
   </ul>
   <h3>Decks</h3>
-  <p>Die Decks laufen in der AirDeck-Engine, das Studio ist die Fernbedienung. Was du siehst, ist genau das, was gesendet wird, auch auf jedem anderen verbundenen Gerät. A und B sind die Hauptdecks, der AutoDJ nutzt ein freies davon. C und D laufen parallel, etwa für Jingles oder Musikbetten.</p>
+  <p>Die Decks laufen in der AnMaCha Cast-Engine, das Studio ist die Fernbedienung. Was du siehst, ist genau das, was gesendet wird, auch auf jedem anderen verbundenen Gerät. A und B sind die Hauptdecks, der AutoDJ nutzt ein freies davon. C und D laufen parallel, etwa für Jingles oder Musikbetten.</p>
   <ul>
     <li>Titel ins Deck ziehen oder mit ⏭ den nächsten aus der Queue laden. ▶ startet, ⏸ hält an (die Position bleibt), ⏹ stoppt und springt an den Anfang, ⏏ wirft aus. Ein Klick auf den Fortschrittsbalken springt an diese Stelle.</li>
     <li>In ein laufendes Deck lässt sich nichts laden, erst stoppen.</li>
@@ -178,7 +178,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
   <h2>Queue, Sendeuhr &amp; Rotation</h2>
   <ul>
     <li>Die <b>Queue</b> zeigt Startzeiten (Backtiming). Einträge lassen sich per Ziehen sortieren. „Uhr“ markiert Einträge der Sendeuhr, „ai“ Einträge der KI.</li>
-    <li><b>Sendeuhr</b>: Ist die Option aktiv, füllt AirDeck die Queue nach der Stundenuhr, zum Beispiel Station ID → Musik → Musik → Jingle.</li>
+    <li><b>Sendeuhr</b>: Ist die Option aktiv, füllt AnMaCha Cast die Queue nach der Stundenuhr, zum Beispiel Station ID → Musik → Musik → Jingle.</li>
     <li><b>Aus Ordner …</b> füllt gezielt aus einem Ordner oder einer Kategorie. <b>Mischen</b> mischt die Queue, <b>M3U</b> exportiert sie.</li>
     <li><b>Rotation:</b> Gleicher Interpret bzw. Titel erst nach einem Mindestabstand. Die Regeln werden gelockert, bevor die Automation stehen bleibt.</li>
     <li><b>🎙 Voicetrack:</b> Moderationslink zwischen zwei Titeln aufnehmen. Klick auf 🎙 an einem Queue-Eintrag zeigt, zwischen welchen zwei Titeln aufgenommen wird, dann „⏺ Aufnehmen“ → „⏹ Stopp“ → anhören → „In die Queue einfügen“. Die Aufnahme landet als eigener Titel (Kategorie „Voice Track“) genau an dieser Stelle in der Queue und wird von der Automation wie jeder andere Titel abgespielt.</li>
@@ -192,12 +192,12 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
 
 <section id="live">
   <h2>Live senden &amp; Quellen</h2>
-  <h3>Mikrofon am AirDeck-PC</h3>
+  <h3>Mikrofon am AnMaCha Cast-PC</h3>
   <p>Unter „Audio &amp; Geräte“ Mikrofon oder Line-In wählen, dann in der Server-Automation auf <b>Mic</b>. Die Stimme wird über die laufende Musik gemischt, die Musik wird abgesenkt.</p>
   <h3>Einrichtung (Assistent)</h3>
   <p>Beim ersten Start führt ein Assistent durch Betriebsart, Datenbank, Speicher (auch <b>vorhandene Musikordner einbinden</b> – die Dateien bleiben, wo sie sind), Admin-Konto, Netzwerk, Sender, Stream, Audio, Automation und KI. Jeder Schritt lässt sich überspringen; erneut aufrufen über „Einrichtung (Assistent)“ im Menü. Änderungen an Betriebsart, Datenbank, Netzwerk oder Medienordner gelten nach einem Neustart, den der Assistent auf Wunsch selbst auslöst.</p>
   <h3>MIC LIVE (Browser/App)</h3>
-  <p>Oben auf <b>MIC LIVE</b> klicken. Das Studio sendet dein Mikrofon als Live-Quelle. Nach der Prioritätsregel übernimmt es die Automation (2 s Anti-Flapping). Beim Beenden kehrt die Automation zurück. Das Mikrofon läuft durch denselben Mixer wie die Musik: Der Stream bleibt MP3 (bzw. das eingestellte Format), die Hörer bleiben verbunden. Läuft die Automation gerade nicht, startet AirDeck den Sendebus für die Live-Sendung automatisch.</p>
+  <p>Oben auf <b>MIC LIVE</b> klicken. Das Studio sendet dein Mikrofon als Live-Quelle. Nach der Prioritätsregel übernimmt es die Automation (2 s Anti-Flapping). Beim Beenden kehrt die Automation zurück. Das Mikrofon läuft durch denselben Mixer wie die Musik: Der Stream bleibt MP3 (bzw. das eingestellte Format), die Hörer bleiben verbunden. Läuft die Automation gerade nicht, startet AnMaCha Cast den Sendebus für die Live-Sendung automatisch.</p>
   <h3>Betriebsarten</h3>
   <p>Der Knopf neben ON AIR zeigt die Betriebsart und schaltet per Klick zwischen <b>AUTO</b> und <b>MANUELL</b>.</p>
   <ul>
@@ -206,9 +206,9 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
     <li><b>LIVE</b> (automatisch): Eine Live-Quelle ist auf Sendung. Die Automation pausiert und verbraucht keine Titel. Titelanzeige: „Live: &lt;Quelle&gt;“.</li>
     <li><b>NOTFALL</b> (automatisch): Es gibt nichts Reguläres mehr zu spielen, der Notfall-Ordner läuft.</li>
   </ul>
-  <p>Stille auf der Live-Quelle: AirDeck fällt auf die Automation zurück. Die Live-Quelle muss sich danach neu verbinden.</p>
+  <p>Stille auf der Live-Quelle: AnMaCha Cast fällt auf die Automation zurück. Die Live-Quelle muss sich danach neu verbinden.</p>
   <h3>Externe Live-Quellen (z. B. BUTT, Mixxx, OBS)</h3>
-  <p>In „Quellen · Priorität“ ein Passwort für die Quelle setzen und im Programm eintragen: Server = AirDeck-Adresse, Mount <code>/ingest/&lt;sender&gt;/live</code>, Benutzer = Quellen-ID bzw. <code>source</code>. Icecast-kompatibel (PUT/SOURCE).</p>
+  <p>In „Quellen · Priorität“ ein Passwort für die Quelle setzen und im Programm eintragen: Server = AnMaCha Cast-Adresse, Mount <code>/ingest/&lt;sender&gt;/live</code>, Benutzer = Quellen-ID bzw. <code>source</code>. Icecast-kompatibel (PUT/SOURCE).</p>
   <div class="tip">Die kleinere Zahl gewinnt: Live-Studio 1, Remote 2, Android 3, Automation 10. „Freigeben“ gibt eine Übernahme wieder ab.</div>
 </section>
 
@@ -218,7 +218,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
     <li><b>Sendesignal mithören auf</b>: Lautsprecher oder Kopfhörer für den Kopfhörer-Knopf.</li>
     <li><b>Vorhören (CUE/PFL) auf</b>: ein anderes Gerät, zum Beispiel USB-Kopfhörer.</li>
     <li><b>Beim Start automatisch mithören</b>: Mithören startet mit dem Programm und verbindet sich nach Quellenwechseln neu.</li>
-    <li><b>Mikrofon / Line-In am AirDeck-PC</b>: Eingang für die Server-Automation.</li>
+    <li><b>Mikrofon / Line-In am AnMaCha Cast-PC</b>: Eingang für die Server-Automation.</li>
   </ul>
   <div class="warn">Gerätenamen erscheinen erst, wenn du einmal den Mikrofonzugriff erlaubst.</div>
 </section>
@@ -227,10 +227,10 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
   <h2>Nextcloud-Medien</h2>
   <ol>
     <li>In der Nextcloud unter Einstellungen → Sicherheit ein <b>App-Passwort</b> erstellen.</li>
-    <li>AirDeck → <b>Nextcloud-Medien</b> → Verbinden: Adresse, Benutzer und App-Passwort eintragen, optional einen Startordner wie <code>/Radio</code>. Nur dieser Ordner ist sichtbar.</li>
+    <li>AnMaCha Cast → <b>Nextcloud-Medien</b> → Verbinden: Adresse, Benutzer und App-Passwort eintragen, optional einen Startordner wie <code>/Radio</code>. Nur dieser Ordner ist sichtbar.</li>
     <li>Ordner antippen zum Öffnen. Dateien oder ganze Ordner anhaken, Kategorie wählen und „In die Bibliothek übernehmen“. Unterordner (bis 4 Ebenen, max. 500 Dateien) werden als Bibliotheks-Ordner übernommen.</li>
   </ol>
-  <p>Bereits übernommene Dateien werden nicht doppelt geladen. Im <b>Recorder</b> lädt ☁ einen Mitschnitt in den Ordner <code>AirDeck-Mitschnitte</code> der Nextcloud. Das App-Passwort liegt verschlüsselt auf dem AirDeck.</p>
+  <p>Bereits übernommene Dateien werden nicht doppelt geladen. Im <b>Recorder</b> lädt ☁ einen Mitschnitt in den Ordner <code>AnMaCha-Cast-Mitschnitte</code> der Nextcloud. Das App-Passwort liegt verschlüsselt auf dem AnMaCha Cast.</p>
 </section>
 
 <section id="automation">
@@ -276,7 +276,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
     <tr><th>Typ</th><th>Hinweise</th></tr>
     <tr><td>Icecast</td><td>HTTP PUT, Mount, Benutzer <code>source</code>. Optional <code>?prio=</code> (z. B. laut.fm).</td></tr>
     <tr><td>SHOUTcast v1/v2</td><td>Nur MP3/AAC. v2 mit Stream-ID.</td></tr>
-    <tr><td>laut.fm</td><td>Server, Mount und Passwort holt AirDeck aus dem Radioadmin (Ausgang anlegen → Typ „laut.fm“).</td></tr>
+    <tr><td>laut.fm</td><td>Server, Mount und Passwort holt AnMaCha Cast aus dem Radioadmin (Ausgang anlegen → Typ „laut.fm“).</td></tr>
   </table>
   <p>Hörerzahlen werden alle 30 s vom Server gelesen. Status, Fehler und Durchsatz stehen in der Kachel.</p>
 </section>
@@ -285,10 +285,10 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
   <h2>laut.fm</h2>
   <h3>Verbinden</h3>
   <ol>
-    <li><b>Mit laut.fm anmelden:</b> laut.fm → „Mit laut.fm anmelden“. Du meldest dich bei laut.fm an und landest automatisch wieder in AirDeck. Die Station wird selbst gewählt (bei mehreren fragt AirDeck nach).</li>
+    <li><b>Mit laut.fm anmelden:</b> laut.fm → „Mit laut.fm anmelden“. Du meldest dich bei laut.fm an und landest automatisch wieder in AnMaCha Cast. Die Station wird selbst gewählt (bei mehreren fragt AnMaCha Cast nach).</li>
     <li><b>Oder Token einfügen:</b> „Token einfügen …“ und ein vorhandenes Token eintragen. Auch „Bearer …“ oder Anführungszeichen stören nicht.</li>
   </ol>
-  <div class="warn">laut.fm akzeptiert ein Token nur zusammen mit dem Origin, für den es ausgestellt wurde. AirDeck findet ihn selbst heraus: Adresse des Studios, <code>airdeck</code>, <code>anmacha_dashboard</code> oder ein von dir angegebener Name aus „callback_url=…“. Lehnt laut.fm später ab, prüft AirDeck die Verbindung einmal neu, bevor es eine Fehlermeldung zeigt. Deine Tokens siehst du unter radioadmin.laut.fm/tokens.</div>
+  <div class="warn">laut.fm akzeptiert ein Token nur zusammen mit dem Origin, für den es ausgestellt wurde. AnMaCha Cast findet ihn selbst heraus: Adresse des Studios, <code>airdeck</code>, <code>anmacha_dashboard</code> oder ein von dir angegebener Name aus „callback_url=…“. Lehnt laut.fm später ab, prüft AnMaCha Cast die Verbindung einmal neu, bevor es eine Fehlermeldung zeigt. Deine Tokens siehst du unter radioadmin.laut.fm/tokens.</div>
   <h3>Bereiche</h3>
   <ul>
     <li><b>Übersicht:</b> Station, Streaming-Status, aktuelle Playlist, Hörer, Radioadmin-Status, zuletzt gespielt, nächste Interpreten.</li>
@@ -318,33 +318,33 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
 
 <section id="speicher">
   <h2>Datenspeicher &amp; Sync</h2>
-  <p>Standard ist lokal. Optional gleicht AirDeck mit <b>MySQL/MariaDB</b> oder <b>Firebase Firestore</b> ab, etwa für mehrere Standorte. Beim ersten Verbinden wählst du, ob der Stand aus der Datenbank übernommen oder dieser PC als Quelle genutzt wird. Bei Konflikten gewinnt der lokale Stand. Der entfernte Stand wird gesichert.</p>
+  <p>Standard ist lokal. Optional gleicht AnMaCha Cast mit <b>MySQL/MariaDB</b> oder <b>Firebase Firestore</b> ab, etwa für mehrere Standorte. Beim ersten Verbinden wählst du, ob der Stand aus der Datenbank übernommen oder dieser PC als Quelle genutzt wird. Bei Konflikten gewinnt der lokale Stand. Der entfernte Stand wird gesichert.</p>
 </section>
 
 <section id="benachrichtigungen">
   <h2>Benachrichtigungen</h2>
-  <p>Signierte Webhooks (<code>X-AirDeck-Signature</code>, HMAC-SHA256), Telegram-Alarme (OFF AIR, Stille, Encoder-/Stream-Fehler) und Now Playing als Text- und JSON-Datei, zum Beispiel für OBS oder die Website.</p>
+  <p>Signierte Webhooks (<code>X-AnMaCha-Cast-Signature</code>, HMAC-SHA256), Telegram-Alarme (OFF AIR, Stille, Encoder-/Stream-Fehler) und Now Playing als Text- und JSON-Datei, zum Beispiel für OBS oder die Website.</p>
 </section>
 
 <section id="updates">
   <h2>Updates</h2>
-  <p>Unter „Updates“ siehst du die installierte und die neueste Version. Das Windows-Programm installiert Updates per Klick und startet danach neu. Die Android-App lädt die neue APK über den verbundenen AirDeck. Bei privatem Repository ist ein Lese-Token nötig.</p>
+  <p>Unter „Updates“ siehst du die installierte und die neueste Version. Das Windows-Programm installiert Updates per Klick und startet danach neu. Die Android-App lädt die neue APK über den verbundenen AnMaCha Cast. Bei privatem Repository ist ein Lese-Token nötig.</p>
 </section>
 
 <section id="android">
   <h2>Android-App</h2>
   <ol>
-    <li>Im Studio am PC: <b>Android-App</b> → „Im Netzwerk erreichbar“ einschalten und AirDeck einmal neu starten. Windows fragt dann einmalig nach der Firewall-Freigabe, bitte zulassen.</li>
-    <li>Den angezeigten Download-Link (<code>http://&lt;PC-Adresse&gt;:8750/download/AirDeck-Android.apk</code>) im Browser des Handys öffnen. Das Handy muss im selben WLAN sein. Beim ersten Mal „Unbekannte Apps installieren“ erlauben.</li>
-    <li>Im Studio am PC: <b>Android-App</b> → „Gerät koppeln“. AirDeck zeigt einen <b>Kopplungscode</b> (6 Ziffern, 5 Minuten gültig, einmalig) und die Adresse des PCs.</li>
-    <li>In der App bei „Mit AirDeck verbinden“ die Adresse (z. B. <code>192.168.1.20</code>, der Port 8750 wird ergänzt) und den Code eingeben. Ein Benutzerkonto ist nicht nötig.</li>
-    <li>Klappt es nicht, zeigt die App Schritt für Schritt, woran es liegt (Adresse, erreichbar, AirDeck erkannt, Version, Anmeldung, Rechte), und sagt, was zu tun ist. Beispiel: <code>localhost</code> auf dem Handy ist das Handy selbst.</li>
+    <li>Im Studio am PC: <b>Android-App</b> → „Im Netzwerk erreichbar“ einschalten und AnMaCha Cast einmal neu starten. Windows fragt dann einmalig nach der Firewall-Freigabe, bitte zulassen.</li>
+    <li>Den angezeigten Download-Link (<code>http://&lt;PC-Adresse&gt;:8750/download/AnMaCha-Cast-Android.apk</code>) im Browser des Handys öffnen. Das Handy muss im selben WLAN sein. Beim ersten Mal „Unbekannte Apps installieren“ erlauben.</li>
+    <li>Im Studio am PC: <b>Android-App</b> → „Gerät koppeln“. AnMaCha Cast zeigt einen <b>Kopplungscode</b> (6 Ziffern, 5 Minuten gültig, einmalig) und die Adresse des PCs.</li>
+    <li>In der App bei „Mit AnMaCha Cast verbinden“ die Adresse (z. B. <code>192.168.1.20</code>, der Port 8750 wird ergänzt) und den Code eingeben. Ein Benutzerkonto ist nicht nötig.</li>
+    <li>Klappt es nicht, zeigt die App Schritt für Schritt, woran es liegt (Adresse, erreichbar, AnMaCha Cast erkannt, Version, Anmeldung, Rechte), und sagt, was zu tun ist. Beispiel: <code>localhost</code> auf dem Handy ist das Handy selbst.</li>
   </ol>
   <div class="warn">Die offizielle, signierte APK entsteht, sobald im GitHub-Repository der Signaturschlüssel hinterlegt ist (Secrets <code>ANDROID_KEYSTORE_B64</code>, <code>ANDROID_KEYSTORE_PASSWORD</code>, <code>ANDROID_KEY_ALIAS</code>, <code>ANDROID_KEY_PASSWORD</code>). Ohne Schlüssel entsteht eine Test-APK. Wechselst du von der Test- zur offiziellen APK, musst du die App einmal neu installieren.</div>
   <p>Die App bietet das komplette Studio mit Touch-Bedienung und MIC LIVE als Live-Quelle (Priorität 3).</p>
   <p><b>Geräte verwalten:</b> Unter „Android-App → Gekoppelte Geräte verwalten“ siehst du jedes Gerät mit Rechten und „zuletzt gesehen“ und kannst es einzeln widerrufen. <b>Mehrere Server:</b> Die App merkt sich jeden verbundenen Server. Wechseln geht über „Server wechseln“ im Menü.</p>
   <h3>Handy-Sender (ohne Server)</h3>
-  <p>Beim ersten Start fragt die App, wie du senden willst. Der <b>Handy-Sender</b> schickt Mikrofon und Musik vom Handy direkt an laut.fm oder Icecast, ganz ohne PC. Die Sendung läuft als eigener Dienst weiter, auch bei ausgeschaltetem Bildschirm. Die Benachrichtigung „AirDeck sendet live“ hat einen Knopf zum Beenden.</p>
+  <p>Beim ersten Start fragt die App, wie du senden willst. Der <b>Handy-Sender</b> schickt Mikrofon und Musik vom Handy direkt an laut.fm oder Icecast, ganz ohne PC. Die Sendung läuft als eigener Dienst weiter, auch bei ausgeschaltetem Bildschirm. Die Benachrichtigung „AnMaCha Cast sendet live“ hat einen Knopf zum Beenden.</p>
   <ol>
     <li>Unter „Sender-Zugang“ Server, Port, Mountpoint, Benutzer und Passwort eintragen. Bei laut.fm stehen die Daten im Radioadmin unter „Live“. Das Passwort bleibt nur in der App.</li>
     <li>„Live gehen“ antippen. Beim ersten Mal fragt Android nach dem Mikrofon.</li>
@@ -352,7 +352,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
     <li>„＋ Titel“ fügt Musik vom Handy hinzu (MP3, AAC, FLAC, OGG, WAV). ▶ startet einen Titel, danach läuft auf Wunsch der nächste.</li>
     <li>„Mithören“ nur mit Kopfhörer einschalten, sonst gibt es mit offenem Mikrofon eine Rückkopplung.</li>
   </ol>
-  <p>Bricht die Verbindung ab (Funkloch), verbindet sich die App von selbst neu. Ist das Netz zu langsam, verwirft sie lieber ein paar Daten, als immer weiter zu verzögern. Die App zeigt das an. Über „Mit AirDeck-Server verbinden“ bzw. „Handy-Sender“ im Menü wechselst du zwischen beiden Betriebsarten.</p>
+  <p>Bricht die Verbindung ab (Funkloch), verbindet sich die App von selbst neu. Ist das Netz zu langsam, verwirft sie lieber ein paar Daten, als immer weiter zu verzögern. Die App zeigt das an. Über „Mit AnMaCha Cast-Server verbinden“ bzw. „Handy-Sender“ im Menü wechselst du zwischen beiden Betriebsarten.</p>
 </section>
 
 <section id="rezepte">
@@ -392,7 +392,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
 </div>
 <section id="haftung" style="max-width:1200px;margin:0 auto 16px;">
   <h2>Haftungsausschluss &amp; Mitmachen</h2>
-  <p>AirDeck ist ein <b>privates Hobbyprojekt</b> und wird ohne Gewähr bereitgestellt. Die Nutzung erfolgt auf eigene Verantwortung. Für Sendeausfälle, Datenverlust, Kosten bei Drittanbietern (z. B. KI) und für gesendete Inhalte und Musikrechte wird keine Haftung übernommen, soweit gesetzlich zulässig. laut.fm, Nextcloud und die KI-Anbieter sind unabhängige Dienste. Den vollständigen Text findest du in <code>HAFTUNGSAUSSCHLUSS.md</code> im Programmordner bzw. Repository.</p>
+  <p>AnMaCha Cast ist ein <b>privates Hobbyprojekt</b> und wird ohne Gewähr bereitgestellt. Die Nutzung erfolgt auf eigene Verantwortung. Für Sendeausfälle, Datenverlust, Kosten bei Drittanbietern (z. B. KI) und für gesendete Inhalte und Musikrechte wird keine Haftung übernommen, soweit gesetzlich zulässig. laut.fm, Nextcloud und die KI-Anbieter sind unabhängige Dienste. Den vollständigen Text findest du in <code>HAFTUNGSAUSSCHLUSS.md</code> im Programmordner bzw. Repository.</p>
   <p><b>Webentwickler dürfen eigene Features einbauen.</b> Einstieg: <code>CONTRIBUTING.md</code> mit Aufbau, Regeln und Andockpunkten (REST-API, Live-Ereignisse, Webhooks, Studio-Module).</p>
 </section>
 <footer>Powered by AnMaCha Radioproduktion &amp; RicoReWi – für Broadcast, Automation, Live und laut.fm · Hobbyprojekt, Haftung ausgeschlossen</footer>

@@ -55,7 +55,7 @@ export function mountOverview(root, ctx) {
     root.replaceChildren(
       h('section', { class: 'ov-hero' },
         h('div', { class: 'ov-hero-copy' },
-          h('span', { class: 'ov-kicker' }, 'AIRDECK CONTROL'),
+          h('span', { class: 'ov-kicker' }, 'ANMACHA CAST CONTROL'),
           h('h1', {}, 'Dein Radio. Deine Kontrolle.'),
           h('p', {}, 'Sender, Automation, Streams und Studio auf einen Blick – ohne erfundene Statuswerte.')),
         h('div', { class: 'ov-hero-stats' },
@@ -65,7 +65,7 @@ export function mountOverview(root, ctx) {
       h('section', { class: 'panel ov-stations-panel' },
         h('div', { class: 'panel-head' },
           h('h2', {}, 'Senderübersicht'),
-          h('span', { class: 'muted' }, 'Live-Daten aus der aktuellen AirDeck-Instanz')),
+          h('span', { class: 'muted' }, 'Live-Daten aus der aktuellen AnMaCha Cast-Instanz')),
         h('div', { class: 'ov-grid' }, ...cards.map(card))));
   }
 

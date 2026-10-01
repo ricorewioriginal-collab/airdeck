@@ -17,13 +17,13 @@ export function mountBridges(root, ctx) {
     const list = /** @type {any[]} */ (await ctx.api.get(ctx.url('/bridges')));
     root.replaceChildren(
       h('div', { class: 'bridge-hero' },
-        h('div', {}, h('span', { class: 'ov-kicker' }, 'VERBINDUNGEN'), h('h1', {}, 'Streams & Anbindungen'), h('p', {}, 'Icecast, AzuraCast, Relays und externe Systeme mit AirDeck verbinden.')),
+        h('div', {}, h('span', { class: 'ov-kicker' }, 'VERBINDUNGEN'), h('h1', {}, 'Streams & Anbindungen'), h('p', {}, 'Icecast, AzuraCast, Relays und externe Systeme mit AnMaCha Cast verbinden.')),
         h('button', { class: 'btn small primary', onclick: () => edit(null) }, '＋ Anbindung')),
       card('So funktioniert die Brücke',
-        h('p', {}, 'Deine bestehende Technik läuft weiter, zum Beispiel AzuraCast mit Icecast, SAM Broadcaster, mAirList, RadioDJ oder ein reines Web-Relay. AirDeck verbindet sich damit, statt alles neu aufzubauen:'),
+        h('p', {}, 'Deine bestehende Technik läuft weiter, zum Beispiel AzuraCast mit Icecast, SAM Broadcaster, mAirList, RadioDJ oder ein reines Web-Relay. AnMaCha Cast verbindet sich damit, statt alles neu aufzubauen:'),
         h('ul', {},
-          h('li', {}, h('b', {}, 'Relay übernehmen: '), 'Der vorhandene Stream wird zur AirDeck-Quelle mit eigener Priorität. Priorität 5 macht ihn zum Hauptprogramm vor der AirDeck-Automation (10), 20 zum Notfall-Programm dahinter. Live-Sendungen (1–3) übernehmen wie gewohnt.'),
-          h('li', {}, h('b', {}, 'Status spiegeln: '), 'Titel, Hörer und Verlauf aus AzuraCast oder Icecast erscheinen in AirDeck, auf der Statusseite, im Widget und in den Webhooks.'),
+          h('li', {}, h('b', {}, 'Relay übernehmen: '), 'Der vorhandene Stream wird zur AnMaCha Cast-Quelle mit eigener Priorität. Priorität 5 macht ihn zum Hauptprogramm vor der AnMaCha Cast-Automation (10), 20 zum Notfall-Programm dahinter. Live-Sendungen (1–3) übernehmen wie gewohnt.'),
+          h('li', {}, h('b', {}, 'Status spiegeln: '), 'Titel, Hörer und Verlauf aus AzuraCast oder Icecast erscheinen in AnMaCha Cast, auf der Statusseite, im Widget und in den Webhooks.'),
           h('li', {}, h('b', {}, 'Für Entwickler: '), 'Die Bridge-API ordnet externe Schlüssel fest einem Sender zu. Wiederholte Synchronisierungen legen nichts doppelt an. Details in docs/BRIDGE.md.'))),
       ...(list.length ? list.map((b) => card(`${b.name} · ${KIND[b.kind] ?? b.kind}`,
         kv('Adresse', b.url + (b.station ? ` · ${b.station}` : '')),
@@ -44,9 +44,9 @@ export function mountBridges(root, ctx) {
       { name: 'station', label: 'AzuraCast: Sender-Kurzname/ID · Icecast: Mount', value: b?.station ?? '', hint: 'z. B. azuratest_radio bzw. /live' },
       { name: 'apiKey', label: `AzuraCast-API-Key (optional${b?.hasKey ? ', leer = unverändert, "-" = löschen' : ''})`, type: 'password', value: '', hint: 'Nur für nicht öffentliche Sender nötig – AzuraCast → Mein Konto → API-Schlüssel' },
       { name: 'mirror', label: 'Status spiegeln (Titel, Hörer, Verlauf)', type: 'checkbox', value: b?.mirror ?? true },
-      { name: 'pull', label: 'Stream als AirDeck-Quelle übernehmen (Relay)', type: 'checkbox', value: b?.pull ?? false },
+      { name: 'pull', label: 'Stream als AnMaCha Cast-Quelle übernehmen (Relay)', type: 'checkbox', value: b?.pull ?? false },
       { name: 'pullUrl', label: 'Stream-Adresse fürs Relay (optional, sonst aus dem Status)', value: b?.pullUrl ?? '' },
-      { name: 'priority', label: 'Priorität der Relay-Quelle (kleiner = wichtiger)', type: 'number', value: b?.priority ?? 20, hint: '5 = Hauptprogramm vor der AirDeck-Automation, 20 = Notfall dahinter' },
+      { name: 'priority', label: 'Priorität der Relay-Quelle (kleiner = wichtiger)', type: 'number', value: b?.priority ?? 20, hint: '5 = Hauptprogramm vor der AnMaCha Cast-Automation, 20 = Notfall dahinter' },
     ], 'Speichern & verbinden');
     if (!v) return;
     const body = { ...v, ...(v.apiKey ? { apiKey: v.apiKey === '-' ? '' : v.apiKey } : { apiKey: undefined }) };
