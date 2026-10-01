@@ -293,7 +293,7 @@ jobs:
 
           WALL=$(curl -fs -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8751/api/v1/stations/main/cardwall)
           printf '%s' "$WALL" | grep -q 'Demo Jingle' || (echo "Demo-Cardwall ist leer" && exit 1)
-          printf '%s' "$WALL" | grep -q 'AirDeck-FM ID' || (echo "Demo-Station-ID fehlt im Cardwall" && exit 1)
+          printf '%s' "$WALL" | grep -q 'AnMaCha-Cast-FM ID' || (echo "Demo-Station-ID fehlt im Cardwall" && exit 1)
 
           curl -fs -X POST -H "Authorization: Bearer $TOKEN"             http://127.0.0.1:8751/api/v1/stations/main/cardwall/cart1/trigger > /dev/null
           sleep 2
