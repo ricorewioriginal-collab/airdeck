@@ -1,31 +1,23 @@
 // @ts-check
 // Schlanker API-Client für AnMaCha Cast REST v1 + Server-Sent Events.
 
-const TOKEN_KEY = 'airdeck.token';
-const SERVER_KEY = 'airdeck.server';
+import { lsGet, lsSet } from './legacy-storage.js';
 
 /** Läuft das Studio in der Android-/Desktop-Hülle (Capacitor) statt vom AnMaCha Cast-Server geladen? */
 export const isNativeApp = () => !!(/** @type {any} */ (window).Capacitor?.isNativePlatform?.());
 
 /** Basis-URL des AnMaCha Cast-Servers ('' = gleicher Ursprung). */
 export function serverBase() {
-  try {
-    return (localStorage.getItem(SERVER_KEY) ?? '').replace(/\/+$/, '');
-  } catch {
-    return '';
-  }
+  return (lsGet('server') ?? '').replace(/\/+$/, '');
 }
 
 export function saveServer(/** @type {string} */ url) {
   const clean = url.trim().replace(/\/+$/, '');
-  try {
-    if (clean) localStorage.setItem(SERVER_KEY, clean);
-    else localStorage.removeItem(SERVER_KEY);
-  } catch {}
+  lsSet('server', clean || null);
 }
 
 /** Rückkehr vom laut.fm-Login (#lautfm_radioadmin_token=…): Token bis zum Verbinden kurz merken. */
-export const LAUTFM_PENDING = 'airdeck.lautfm.pending';
+export const LAUTFM_PENDING = 'anmacha_cast.lautfm.pending';
 
 export function readToken() {
   const lf = /[#&]lautfm_radioadmin_token=([^&]+)/.exec(location.hash);
@@ -40,24 +32,15 @@ export function readToken() {
   const m = /[#&]token=([^&]+)/.exec(location.hash);
   if (m) {
     const t = decodeURIComponent(m[1]);
-    try {
-      localStorage.setItem(TOKEN_KEY, t);
-    } catch {}
+    lsSet('token', t);
     history.replaceState(null, '', location.pathname + location.search);
     return t;
   }
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return lsGet('token');
 }
 
 export function saveToken(/** @type {string|null} */ t) {
-  try {
-    if (t) localStorage.setItem(TOKEN_KEY, t);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch {}
+  lsSet('token', t);
 }
 
 export class ApiError extends Error {

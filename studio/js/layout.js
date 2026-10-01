@@ -3,8 +3,8 @@
 // ausblenden, Layout pro Gerät speichern. Auf schmalen Bildschirmen bleibt das mobile Layout.
 
 import { h, icon } from './ui.js';
+import { lsGet, lsSet } from './legacy-storage.js';
 
-const KEY = 'airdeck.layout.v1';
 const COLS = 12;
 const ROW = 44;
 const GAP = 12;
@@ -35,7 +35,7 @@ export const JUMP_TO_WIN = /** @type {Record<string,string>} */ ({ decks: 'decks
 
 function load() {
   try {
-    const l = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const l = JSON.parse(lsGet('layout.v1') ?? 'null');
     if (l && Array.isArray(l.order) && l.wins) return /** @type {Layout} */ (l);
   } catch {}
   return null;
@@ -57,9 +57,7 @@ export function mountLayout(dash) {
   }
 
   function save() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(layout));
-    } catch {}
+    lsSet('layout.v1', JSON.stringify(layout));
   }
 
   /** Fehlende/neue Fenster ergänzen, unbekannte entfernen */

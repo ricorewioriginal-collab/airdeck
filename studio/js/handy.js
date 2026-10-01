@@ -18,7 +18,14 @@
   const cap = /** @type {any} */ (window).Capacitor;
   /** @type {any} */
   const E = cap?.isNativePlatform?.() ? (cap.registerPlugin ? cap.registerPlugin('AirDeckEngine') : cap.Plugins?.AirDeckEngine) : null;
-  const MODE_KEY = 'airdeck.mobileMode';
+  // kein ES-Modul hier (plain <script>) - schreibt beide Schlüssel direkt statt über legacy-storage.js zu
+  // importieren; app.js liest wahlweise über lsGet() mit Fallback.
+  const setMode = (/** @type {string} */ v) => {
+    try {
+      localStorage.setItem('anmacha_cast.mobileMode', v);
+      localStorage.setItem('airdeck.mobileMode', v);
+    } catch {}
+  };
 
   const fmt = (/** @type {number} */ ms) => {
     if (!(ms >= 0)) return '--:--';
@@ -196,14 +203,12 @@
   }
 
   async function start() {
-    $('to-server').addEventListener('click', () => {
-      try { localStorage.setItem(MODE_KEY, 'server'); } catch {}
-    });
+    $('to-server').addEventListener('click', () => setMode('server'));
     if (!E) {
       $('main').replaceChildren(h('div', { class: 'card' }, 'Der Handy-Sender ist Teil der AnMaCha Cast-App für Android. Im Browser gibt es ihn nicht – dort sendet das Studio über den AnMaCha Cast-Server.'));
       return;
     }
-    try { localStorage.setItem(MODE_KEY, 'handy'); } catch {}
+    setMode('handy');
     cfg = await E.getConfig();
     build();
     render(await E.status());
