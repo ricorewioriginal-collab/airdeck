@@ -1,9 +1,9 @@
 // Fernzugriff ohne Portfreigabe (docs/architecture/NETWORK.md „Fernzugriff über einen Vermittler“):
-// AirDeck baut selbst eine ausgehende HTTPS-Verbindung zu einem Vermittler (Hub) auf. Darüber kommen Anfragen herein,
-// Antworten und Live-Ereignisse gehen per POST zurück. So ist ein AirDeck hinter einem Router (Studio-PC) von
+// AnMaCha Cast baut selbst eine ausgehende HTTPS-Verbindung zu einem Vermittler (Hub) auf. Darüber kommen Anfragen herein,
+// Antworten und Live-Ereignisse gehen per POST zurück. So ist ein AnMaCha Cast hinter einem Router (Studio-PC) von
 // überall bedienbar, ohne Portfreigabe und ohne öffentliche Adresse.
 //
-// Protokoll (nur Bordmittel, ein Hub kann beliebig viele AirDecks vermitteln):
+// Protokoll (nur Bordmittel, ein Hub kann beliebig viele AnMaCha-Cast-Instanzen vermitteln):
 //   GET  <hub>?action=adl_agent&link=<id>   Header X-Link-Key → Server-Sent Events, Ereignis „req“: {rid, method, path, body}
 //   POST <hub>?action=adl_reply&link=<id>   {rid, status, body}
 //   POST <hub>?action=adl_events&link=<id>  [{type, stationId, payload}]
@@ -219,7 +219,7 @@ export class RemoteLinkService {
   }
 
   private headers(json = false): Record<string, string> {
-    return { 'X-Link-Key': this.app.secrets.get('remote-link:key') ?? '', 'User-Agent': `AirDeck/${this.app.version} RemoteLink`, ...(json ? { 'Content-Type': 'application/json' } : {}) };
+    return { 'X-Link-Key': this.app.secrets.get('remote-link:key') ?? '', 'User-Agent': `AnMaCha-Cast/${this.app.version} RemoteLink`, ...(json ? { 'Content-Type': 'application/json' } : {}) };
   }
 
   private sleep(ms: number): Promise<void> {
@@ -332,7 +332,7 @@ export class RemoteLinkService {
       }
     } catch (err) {
       status = 502;
-      body = { error: 'remote_link', message: `Anfrage im AirDeck fehlgeschlagen: ${(err as Error).message}` };
+      body = { error: 'remote_link', message: `Anfrage im AnMaCha Cast fehlgeschlagen: ${(err as Error).message}` };
     }
     try {
       await fetch(this.url('adl_reply'), { method: 'POST', headers: this.headers(true), body: JSON.stringify({ rid, status, body }), signal: AbortSignal.timeout(20_000) });

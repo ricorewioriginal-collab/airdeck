@@ -1,8 +1,8 @@
-# AirDeck – AI Development Guidelines
+# AnMaCha Cast – AI Development Guidelines
 
-> Leitfaden für den verantwortungsvollen Einsatz von KI-Werkzeugen bei der Entwicklung von AirDeck.
+> Leitfaden für den verantwortungsvollen Einsatz von KI-Werkzeugen bei der Entwicklung von AnMaCha Cast.
 
-AirDeck darf mit Unterstützung von Coding-Assistenten und KI-Agenten weiterentwickelt werden. Diese Datei schreibt **keinen bestimmten Anbieter, kein bestimmtes Modell und keinen reservierten Arbeitsbereich** vor. Sie beschreibt Empfehlungen, Qualitätsanforderungen und den Umgang mit KI-generierten Änderungen.
+AnMaCha Cast darf mit Unterstützung von Coding-Assistenten und KI-Agenten weiterentwickelt werden. Diese Datei schreibt **keinen bestimmten Anbieter, kein bestimmtes Modell und keinen reservierten Arbeitsbereich** vor. Sie beschreibt Empfehlungen, Qualitätsanforderungen und den Umgang mit KI-generierten Änderungen.
 
 Geeignete Werkzeuge können beispielsweise Coding-Assistenten, lokale Modelle, Cloud-Agenten, IDE-Assistenten oder andere automatisierte Entwicklungswerkzeuge sein. Welches Werkzeug verwendet wird, ist zweitrangig. Entscheidend ist die Qualität des Ergebnisses.
 
@@ -62,7 +62,7 @@ Große Änderungen möglichst in nachvollziehbare Teilaufgaben zerlegen. Das erl
 
 ## Bestehende Architektur respektieren
 
-Vor dem Erstellen neuer Komponenten prüfen, ob AirDeck bereits eine passende Implementierung besitzt.
+Vor dem Erstellen neuer Komponenten prüfen, ob AnMaCha Cast bereits eine passende Implementierung besitzt.
 
 Insbesondere nicht ohne technische Begründung ein zweites oder paralleles System für folgende Bereiche erzeugen:
 
@@ -79,7 +79,7 @@ Insbesondere nicht ohne technische Begründung ein zweites oder paralleles Syste
 - Secrets,
 - Events/SSE/WebSockets.
 
-KI neigt dazu, fehlenden Kontext durch neue Strukturen zu ersetzen. Bei AirDeck soll stattdessen grundsätzlich die vorhandene Architektur erweitert werden.
+KI neigt dazu, fehlenden Kontext durch neue Strukturen zu ersetzen. Bei AnMaCha Cast soll stattdessen grundsätzlich die vorhandene Architektur erweitert werden.
 
 ## Keine erfundenen Funktionen oder Daten
 
@@ -184,7 +184,7 @@ Wenn versehentlich ein Secret veröffentlicht wurde, reicht das Entfernen aus de
 
 ## Abhängigkeiten und fremder Code
 
-KI darf nicht ungeprüft fremden Code, Bibliotheken oder Assets in AirDeck übernehmen.
+KI darf nicht ungeprüft fremden Code, Bibliotheken oder Assets in AnMaCha Cast übernehmen.
 
 Vor Aufnahme prüfen:
 
@@ -193,7 +193,7 @@ Vor Aufnahme prüfen:
 - Wartungszustand,
 - Sicherheitsrisiken,
 - technische Notwendigkeit,
-- Kompatibilität mit der AirDeck-Lizenz.
+- Kompatibilität mit der AnMaCha Cast-Lizenz.
 
 Keine unbekannten Codeblöcke aus fremden Projekten übernehmen, nur weil ein KI-System sie vorgeschlagen hat.
 
@@ -245,7 +245,7 @@ Kein Force-Push auf gemeinsam genutzte Entwicklungsbranches und keine fremden Ä
 
 ## Qualitätsstatus
 
-Für AirDeck werden folgende Aussagen unterschieden:
+Für AnMaCha Cast werden folgende Aussagen unterschieden:
 
 ### Implementiert
 Code wurde geschrieben bzw. geändert.
@@ -278,7 +278,7 @@ Ein zweites KI-Modell ist jedoch ebenfalls keine menschliche Freigabe und kann d
 
 ## Offizielle Freigabe
 
-KI-generierter oder KI-unterstützter Code erhält keine Sonderstellung. Für die Aufnahme in offizielle AirDeck-Builds gelten dieselben Review-, Test-, Lizenz- und Maintainer-Regeln wie für jeden anderen Beitrag.
+KI-generierter oder KI-unterstützter Code erhält keine Sonderstellung. Für die Aufnahme in offizielle AnMaCha Cast-Builds gelten dieselben Review-, Test-, Lizenz- und Maintainer-Regeln wie für jeden anderen Beitrag.
 
 Die Freigabe eines offiziellen Builds oder Releases erfolgt durch den Maintainer nach Prüfung des jeweiligen Entwicklungsstands.
 
@@ -315,4 +315,4 @@ Diese Datei ist ein **allgemeiner KI-Entwicklungsleitfaden** und keine laufende 
 
 ---
 
-**Leitsatz:** KI kann AirDeck schneller weiterentwickeln. Verantwortung für Funktion, Sicherheit, Qualität und Veröffentlichung bleibt beim Menschen.
+**Leitsatz:** KI kann AnMaCha Cast schneller weiterentwickeln. Verantwortung für Funktion, Sicherheit, Qualität und Veröffentlichung bleibt beim Menschen.

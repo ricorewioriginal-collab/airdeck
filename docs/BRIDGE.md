@@ -1,6 +1,6 @@
 # Brücke zu bestehenden Systemen
 
-AirDeck muss nichts ersetzen. Läuft schon ein Sender, zum Beispiel AzuraCast mit Icecast, SAM Broadcaster, mAirList, RadioDJ, eine eigene Automation oder ein reines Web-Relay, dann verbindet sich AirDeck damit. **Sender werden dabei nie doppelt angelegt.** Jede Anbindung und jeder externe Schlüssel ist fest einem AirDeck-Sender zugeordnet, und jede Synchronisierung lässt sich beliebig oft wiederholen.
+AnMaCha Cast muss nichts ersetzen. Läuft schon ein Sender, zum Beispiel AzuraCast mit Icecast, SAM Broadcaster, mAirList, RadioDJ, eine eigene Automation oder ein reines Web-Relay, dann verbindet sich AnMaCha Cast damit. **Sender werden dabei nie doppelt angelegt.** Jede Anbindung und jeder externe Schlüssel ist fest einem AnMaCha Cast-Sender zugeordnet, und jede Synchronisierung lässt sich beliebig oft wiederholen.
 
 ## 1. Anbindungen im Studio (ohne Programmierung)
 
@@ -13,11 +13,11 @@ AirDeck muss nichts ersetzen. Läuft schon ein Sender, zum Beispiel AzuraCast mi
 | Stream-Adresse | vollständige Stream-URL | – | Nur Relay, etwa für SAM, mAirList oder RadioDJ, die per Encoder auf einen Server senden |
 
 - **Relay übernehmen:** Der vorhandene Stream wird als Quelle vom Typ `url_stream` mit eigener Priorität in die Source Priority Engine eingehängt.
-  - Priorität 5 macht ihn zum Hauptprogramm vor der AirDeck-Automation (10).
+  - Priorität 5 macht ihn zum Hauptprogramm vor der AnMaCha Cast-Automation (10).
   - Priorität 20 macht ihn zum Notfallprogramm dahinter.
-  - Live-Quellen (1–3) übernehmen wie gewohnt. AirDeck verteilt dann an alle eigenen Ausgänge und Aufnahmen.
-  - Bricht der fremde Stream ab, verbindet AirDeck selbst neu: 2 s Pause, bis 30 s ansteigend. Solange übernimmt die nächste Quelle nach Priorität.
-- **Status spiegeln:** Die Daten erscheinen in der Statusseite, im Player-Widget, im Stream-Status-JSON/XML und in AirDeck. Abgefragt wird höchstens alle 15 Sekunden.
+  - Live-Quellen (1–3) übernehmen wie gewohnt. AnMaCha Cast verteilt dann an alle eigenen Ausgänge und Aufnahmen.
+  - Bricht der fremde Stream ab, verbindet AnMaCha Cast selbst neu: 2 s Pause, bis 30 s ansteigend. Solange übernimmt die nächste Quelle nach Priorität.
+- **Status spiegeln:** Die Daten erscheinen in der Statusseite, im Player-Widget, im Stream-Status-JSON/XML und in AnMaCha Cast. Abgefragt wird höchstens alle 15 Sekunden.
 - Speichern ist idempotent. Priorität oder Adresse ändern verändert die bestehende Relay-Quelle und legt keine neue an.
 
 REST-Entsprechung (Scope `sources:read`/`sources:write`):
@@ -53,7 +53,7 @@ PUT /api/v1/bridge/stations/{key}
 
 ### Now Playing melden
 
-Für Systeme, deren Programm AirDeck nicht selbst mischt, etwa wenn SAM, mAirList oder RadioDJ direkt auf einen Icecast senden:
+Für Systeme, deren Programm AnMaCha Cast nicht selbst mischt, etwa wenn SAM, mAirList oder RadioDJ direkt auf einen Icecast senden:
 
 ```
 POST /api/v1/bridge/stations/{key}/now-playing
@@ -62,7 +62,7 @@ POST /api/v1/bridge/stations/{key}/now-playing
 ```
 
 Die Meldung wirkt so:
-- Der Titel geht als Titelanzeige an die AirDeck-Ausgänge des Senders.
+- Der Titel geht als Titelanzeige an die AnMaCha Cast-Ausgänge des Senders.
 - Das Live-Ereignis `now_playing.external` wird ausgelöst.
 - Titel, Verlauf (die letzten 10) und Stream-Adressen erscheinen auf der Statusseite, im Widget und in `/status/<sender>.json|xml`.
 
@@ -94,8 +94,8 @@ curl -X POST -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/jso
 
 Beide Aufrufe lassen sich beliebig wiederholen. Es entsteht weder ein zweiter Sender noch eine zweite Relay-Quelle.
 
-## 3. Umgekehrt: AirDeck in bestehende Systeme einspeisen
+## 3. Umgekehrt: AnMaCha Cast in bestehende Systeme einspeisen
 
-- **Als Live-DJ in AzuraCast:** In AzuraCast einen Streamer/DJ anlegen. In AirDeck einen Icecast-Ausgang auf den DJ-Port der Station einrichten (meist 8005, Mount `/`, Benutzer und Passwort des DJ-Kontos). AzuraCast schaltet dann automatisch auf AirDeck.
+- **Als Live-DJ in AzuraCast:** In AzuraCast einen Streamer/DJ anlegen. In AnMaCha Cast einen Icecast-Ausgang auf den DJ-Port der Station einrichten (meist 8005, Mount `/`, Benutzer und Passwort des DJ-Kontos). AzuraCast schaltet dann automatisch auf AnMaCha Cast.
 - **Auf einen bestehenden Icecast:** Einen Ausgang mit eigenem Mount anlegen. Mit `?prio=` geht das auch bei laut.fm-artigen Servern.
 - **Über Liquidsoap:** siehe [STREAMING.md](STREAMING.md).

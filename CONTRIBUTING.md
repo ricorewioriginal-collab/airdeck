@@ -1,23 +1,23 @@
-# Mitwirken an AirDeck
+# Mitwirken an AnMaCha Cast
 
-Danke für dein Interesse an **AirDeck – Radio Automation & Live Broadcast**.
+Danke für dein Interesse an **AnMaCha Cast – Radio Automation & Live Broadcast**.
 
-AirDeck wird aktiv weiterentwickelt. Beiträge sollen sich in die bestehende Architektur einfügen, reale Funktionen erweitern und durch Tests abgesichert sein. Bitte keine parallelen Ersatzsysteme, Mock-Funktionen oder erfundenen Betriebsdaten als fertige Features einreichen.
+AnMaCha Cast wird aktiv weiterentwickelt. Beiträge sollen sich in die bestehende Architektur einfügen, reale Funktionen erweitern und durch Tests abgesichert sein. Bitte keine parallelen Ersatzsysteme, Mock-Funktionen oder erfundenen Betriebsdaten als fertige Features einreichen.
 
 > **Vor dem Start:** Lies die [`README.md`](README.md) für Projektstatus und Funktionsüberblick. Die verbindlichen technischen Grundlagen liegen unter [`docs/architecture/`](docs/architecture/). Das GitHub Wiki ist für Benutzerhandbuch und Bedienungsdokumentation vorgesehen. `AI_HANDOVER.md` dient ausschließlich der Koordination von Coding-Agents und ist keine technische Spezifikation.
 
 ## Lizenz zuerst lesen
 
-AirDeck steht unter der projektspezifischen [`AirDeck Source Available License`](LICENSE).
+AnMaCha Cast steht unter der projektspezifischen [`AnMaCha Cast Source Available License`](LICENSE).
 
 Kurz gesagt:
 
-- normale AirDeck-Nutzung und eigener Betrieb sind unter den Lizenzbedingungen kostenlos;
-- AirDeck darf studiert, geklont, geforkt und verändert werden;
+- normale AnMaCha Cast-Nutzung und eigener Betrieb sind unter den Lizenzbedingungen kostenlos;
+- AnMaCha Cast darf studiert, geklont, geforkt und verändert werden;
 - eigene Radioeinnahmen lösen nicht allein deshalb eine Umsatzbeteiligung aus;
-- kostenpflichtiges AirDeck-Hosting, AirDeck-SaaS, AirDeck-Abos, Reselling oder White Label für Dritte benötigen vorab eine gesonderte Commercial Hosting License;
+- kostenpflichtiges AnMaCha Cast-Hosting, AnMaCha Cast-SaaS, AnMaCha Cast-Abos, Reselling oder White Label für Dritte benötigen vorab eine gesonderte Commercial Hosting License;
 - bei Weitergabe gelten die vorgeschriebenen Urheber- und Lizenzhinweise;
-- inoffizielle Forks dürfen nicht als offizielle AirDeck-Releases dargestellt werden.
+- inoffizielle Forks dürfen nicht als offizielle AnMaCha Cast-Releases dargestellt werden.
 
 Siehe auch [`COMMERCIAL.md`](COMMERCIAL.md) und [`BRANDING.md`](BRANDING.md).
 
@@ -34,7 +34,7 @@ eigener Feature-Branch
    ↓
 entwickeln + testen
    ↓
-Pull Request an AirDeck
+Pull Request an AnMaCha Cast
    ↓
 CI + Review
    ↓
@@ -45,16 +45,16 @@ Merge
 offizieller Build / versioniertes Release
 ```
 
-Ein Fork, Commit oder Pull Request wird **nicht automatisch** Bestandteil des offiziellen AirDeck-Projekts. Die Aufnahme in einen offiziellen Build oder ein versioniertes Release erfolgt erst nach ausdrücklicher Prüfung und Freigabe durch den AirDeck-Maintainer.
+Ein Fork, Commit oder Pull Request wird **nicht automatisch** Bestandteil des offiziellen AnMaCha Cast-Projekts. Die Aufnahme in einen offiziellen Build oder ein versioniertes Release erfolgt erst nach ausdrücklicher Prüfung und Freigabe durch den AnMaCha Cast-Maintainer.
 
-Community-Entwickler können ihre Arbeit unabhängig weiterführen; solange sie nicht offiziell freigegeben wurde, muss eine mögliche Verwechslungsgefahr mit einem offiziellen AirDeck-Build vermieden werden.
+Community-Entwickler können ihre Arbeit unabhängig weiterführen; solange sie nicht offiziell freigegeben wurde, muss eine mögliche Verwechslungsgefahr mit einem offiziellen AnMaCha Cast-Build vermieden werden.
 
 ## Entwicklungsbranch
 
-Die laufende AirDeck-Entwicklung findet derzeit auf folgendem Branch statt:
+Die laufende AnMaCha Cast-Entwicklung findet derzeit auf folgendem Branch statt:
 
 ```text
-AirDeck-Radio-Automation-&-Broadcast
+AnMaCha Cast-Radio-Automation-&-Broadcast
 ```
 
 Vor Änderungen immer den aktuellen Remote-Stand holen und sicherstellen, dass keine fremden Änderungen überschrieben werden.
@@ -64,7 +64,7 @@ Vor Änderungen immer den aktuellen Remote-Stand holen und sicherstellen, dass k
 ```bash
 git clone https://github.com/ricorewioriginal-collab/airdeck.git
 cd airdeck
-git checkout 'AirDeck-Radio-Automation-&-Broadcast'
+git checkout 'AnMaCha Cast-Radio-Automation-&-Broadcast'
 npm ci
 npm run check
 npm start
@@ -76,7 +76,7 @@ Für Broadcast-/Playout-Tests kann zusätzlich FFmpeg erforderlich sein.
 
 ## Architektur
 
-AirDeck ist kein einzelnes statisches Web-Frontend. Änderungen müssen die bestehende Trennung von Core, Server, Persistenz, Diensten, Studio und Plattformpaketen respektieren.
+AnMaCha Cast ist kein einzelnes statisches Web-Frontend. Änderungen müssen die bestehende Trennung von Core, Server, Persistenz, Diensten, Studio und Plattformpaketen respektieren.
 
 Wichtige Bereiche:
 
@@ -85,8 +85,8 @@ Wichtige Bereiche:
 | Core | `src/core/` | zentrale, möglichst I/O-unabhängige Radio-/Automation-Logik |
 | Server | `src/server/` | Laufzeit, APIs, Streaming, Integrationen und Dienste |
 | Datenhaltung | `src/server/db/`, `src/server/repo/` | Datenbanken, Migrationen und Repository-Schicht |
-| Studio | `studio/` | AirDeck-Weboberfläche und Studio-Ansichten |
-| Android | `apps/android/` | mobile AirDeck-Anwendung |
+| Studio | `studio/` | AnMaCha Cast-Weboberfläche und Studio-Ansichten |
+| Android | `apps/android/` | mobile AnMaCha Cast-Anwendung |
 | Windows | `packaging/windows/` | Windows-Paketierung und Installer |
 | Tests | `test/` | automatisierte Tests und Integrationsprüfungen |
 | Architektur | `docs/architecture/` | verbindliche technische Spezifikationen |
@@ -95,7 +95,7 @@ Die kanonische Architektur ist [`docs/architecture/ARCHITECTURE.md`](docs/archit
 
 ## Vor einer neuen Funktion
 
-Prüfe zuerst, ob AirDeck bereits ein passendes System besitzt.
+Prüfe zuerst, ob AnMaCha Cast bereits ein passendes System besitzt.
 
 Insbesondere keine zweite oder parallele Implementierung für:
 
@@ -114,7 +114,7 @@ Bestehende Komponenten werden erweitert statt ersetzt, sofern keine ausdrücklic
 
 ## Studio / UI
 
-Die Oberfläche ist Teil des realen AirDeck-Systems und darf keine Betriebszustände vortäuschen.
+Die Oberfläche ist Teil des realen AnMaCha Cast-Systems und darf keine Betriebszustände vortäuschen.
 
 Daher:
 
@@ -154,8 +154,8 @@ Externe Dienste wie Nextcloud, Icecast oder Provider-/Radio-Plattformen werden a
 - Keine API-Funktion allein aus Screenshots erraten.
 - Externe Providerdaten validieren.
 - Fehler und Nichtverfügbarkeit sauber behandeln.
-- AirDeck-interne Berechtigungen bleiben maßgeblich.
-- Nextcloud oder andere Storage-Anbieter ersetzen nicht AirDecks Benutzer-/Rechtesystem.
+- AnMaCha Cast-interne Berechtigungen bleiben maßgeblich.
+- Nextcloud oder andere Storage-Anbieter ersetzen nicht das Benutzer-/Rechtesystem von AnMaCha Cast.
 
 ## Tests
 
@@ -178,7 +178,7 @@ Bei UI-Änderungen zusätzlich die betroffenen Ansichten tatsächlich öffnen un
 
 ## Dokumentation
 
-AirDeck trennt Dokumentation bewusst nach Zweck:
+AnMaCha Cast trennt Dokumentation bewusst nach Zweck:
 
 - `README.md` – öffentliche Projektübersicht, Status, Screenshots, Demo und Downloads
 - GitHub Wiki – Benutzerhandbuch und ausführliche Bedienungsdokumentation
@@ -216,7 +216,7 @@ Ein Pull Request bzw. eine Übergabe sollte kurz angeben:
 4. Welche Tests wurden ausgeführt?
 5. Was wurde nur implementiert und was tatsächlich manuell/live verifiziert?
 6. Gibt es bekannte Einschränkungen oder Folgearbeiten?
-7. Soll die Änderung für einen offiziellen AirDeck-Build vorgeschlagen werden?
+7. Soll die Änderung für einen offiziellen AnMaCha Cast-Build vorgeschlagen werden?
 
 Keine unrelated Nebenänderungen in einen Feature-Commit mischen.
 
@@ -225,22 +225,22 @@ Keine unrelated Nebenänderungen in einen Feature-Commit mischen.
 Nur der Maintainer entscheidet im offiziellen Projekt über:
 
 - Annahme/Merge eines Beitrags;
-- Aufnahme in einen offiziellen AirDeck-Build;
+- Aufnahme in einen offiziellen AnMaCha Cast-Build;
 - Versionsnummer und Release-Zuordnung;
 - Kennzeichnung als offiziell unterstützt;
-- Veröffentlichung über die offiziellen AirDeck-Releasekanäle.
+- Veröffentlichung über die offiziellen AnMaCha Cast-Releasekanäle.
 
 ## Beiträge und Nutzungsrechte
 
 Beitragende behalten grundsätzlich ihre Rechte an ihren eigenen Beiträgen, soweit keine gesonderte Vereinbarung etwas anderes bestimmt.
 
-Da AirDeck sowohl kostenlos bereitgestellt als auch künftig unter zusätzlichen kommerziellen Bedingungen angeboten werden kann, kann für bestimmte Beiträge vor der Aufnahme eine zusätzliche Contributor-Vereinbarung erforderlich werden. Reiche nur Inhalte ein, für die du die erforderlichen Rechte besitzt.
+Da AnMaCha Cast sowohl kostenlos bereitgestellt als auch künftig unter zusätzlichen kommerziellen Bedingungen angeboten werden kann, kann für bestimmte Beiträge vor der Aufnahme eine zusätzliche Contributor-Vereinbarung erforderlich werden. Reiche nur Inhalte ein, für die du die erforderlichen Rechte besitzt.
 
-Ein Pull Request darf keine Lizenzbedingungen enthalten, die AirDeck daran hindern würden, den Beitrag innerhalb des bestehenden AirDeck-Lizenz- und Distributionsmodells zu verwenden.
+Ein Pull Request darf keine Lizenzbedingungen enthalten, die AnMaCha Cast daran hindern würden, den Beitrag innerhalb des bestehenden AnMaCha Cast-Lizenz- und Distributionsmodells zu verwenden.
 
 ## Builds und Releases
 
-Die GitHub-Actions-Workflows prüfen mehrere AirDeck-Ziele. Änderungen an Packaging-, Installer- oder Release-Workflows benötigen besondere Sorgfalt, weil sie Windows, Linux, Docker, Android oder Demo-Builds beeinflussen können.
+Die GitHub-Actions-Workflows prüfen mehrere AnMaCha Cast-Ziele. Änderungen an Packaging-, Installer- oder Release-Workflows benötigen besondere Sorgfalt, weil sie Windows, Linux, Docker, Android oder Demo-Builds beeinflussen können.
 
 Ein grüner lokaler Test ersetzt nicht die CI. Umgekehrt sollten Workflows nicht auf Verdacht umgebaut werden, wenn nur ein einzelner Plattformjob fehlschlägt – zuerst den konkreten fehlgeschlagenen Job und dessen Log untersuchen.
 

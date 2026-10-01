@@ -1,6 +1,6 @@
-# AirDeck – Sicheres paralleles Arbeiten
+# AnMaCha Cast – Sicheres paralleles Arbeiten
 
-Diese Datei beschreibt, wie mehrere Entwickler oder automatisierte Entwicklungswerkzeuge gleichzeitig an AirDeck arbeiten können, ohne Änderungen gegenseitig zu überschreiben.
+Diese Datei beschreibt, wie mehrere Entwickler oder automatisierte Entwicklungswerkzeuge gleichzeitig an AnMaCha Cast arbeiten können, ohne Änderungen gegenseitig zu überschreiben.
 
 ## Grundprinzip
 
@@ -9,7 +9,7 @@ Diese Datei beschreibt, wie mehrere Entwickler oder automatisierte Entwicklungsw
 Beispiele:
 
 ```text
-AirDeck-Radio-Automation-&-Broadcast
+AnMaCha Cast-Radio-Automation-&-Broadcast
         │
         ├── work/ui-navigation
         ├── work/installer-update
@@ -49,7 +49,7 @@ Vor Commit/Push/PR-Aktualisierung gilt:
 Jede parallele Aufgabe soll einen eigenen Pull Request gegen
 
 ```text
-AirDeck-Radio-Automation-&-Broadcast
+AnMaCha Cast-Radio-Automation-&-Broadcast
 ```
 
 verwenden.
@@ -147,7 +147,7 @@ Grund:
 A + B       = kann trotzdem inkompatibel sein
 ```
 
-Deshalb bleibt der normale AirDeck-Build die technische Integrationsprüfung.
+Deshalb bleibt der normale AnMaCha Cast-Build die technische Integrationsprüfung.
 
 ## Beziehung zu Last Known Good
 

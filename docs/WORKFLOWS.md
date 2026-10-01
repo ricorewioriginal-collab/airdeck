@@ -1,7 +1,7 @@
-# AirDeck – GitHub Actions / CI-CD Workflow-Handbuch
+# AnMaCha Cast – GitHub Actions / CI-CD Workflow-Handbuch
 
 > **Zweck dieses Dokuments**  
-> Diese Datei ist die technische Referenz für Entwickler, Maintainer und KI-Tools, die am AirDeck-Repository arbeiten. Sie beschreibt nicht nur einzelne GitHub-Actions-Dateien, sondern die **beabsichtigte Gesamtlogik** der Build-, Release-, Dokumentations-, Sicherheits- und Rollback-Automatisierung.
+> Diese Datei ist die technische Referenz für Entwickler, Maintainer und KI-Tools, die am AnMaCha-Cast-Repository arbeiten. Sie beschreibt nicht nur einzelne GitHub-Actions-Dateien, sondern die **beabsichtigte Gesamtlogik** der Build-, Release-, Dokumentations-, Sicherheits- und Rollback-Automatisierung.
 >
 > **Wichtig für KI-Tools:** Workflows nicht isoliert verändern. Vor Änderungen an `.github/workflows/**` zuerst dieses Dokument, `CONTRIBUTING.md`, `AI_HANDOUT.md` und die betroffenen Workflow-Dateien lesen. Bestehende Schutzmechanismen dürfen nicht stillschweigend entfernt oder umgangen werden.
 
@@ -9,7 +9,7 @@
 
 ## 1. Zentrale Grundsätze
 
-AirDeck verwendet GitHub Actions als zusammenhängende CI/CD-Kette.
+AnMaCha Cast verwendet GitHub Actions als zusammenhängende CI/CD-Kette.
 
 Die gewünschte Reihenfolge lautet vereinfacht:
 
@@ -173,7 +173,7 @@ Für einen manuellen Rollback ist die Bestätigung `ROLLBACK` erforderlich.
 
 ## 4. Release-Prozess
 
-Ein GitHub-Release ist die veröffentlichte Version von AirDeck. Ein Release darf nicht mit einem beliebigen Entwicklungscommit verwechselt werden.
+Ein GitHub-Release ist die veröffentlichte Version von AnMaCha Cast. Ein Release darf nicht mit einem beliebigen Entwicklungscommit verwechselt werden.
 
 Der Release-Prozess stößt mehrere Folgeprozesse an.
 
@@ -196,9 +196,9 @@ Zweck:
 
 - aktuelles veröffentlichtes GitHub-Release ermitteln,
 - Release-Tag als Versionsquelle verwenden,
-- AirDeck-eigenes `assets/readme/status/version.svg` aktualisieren,
+- AnMaCha-Cast-eigenes `assets/readme/status/version.svg` aktualisieren,
 - optional Release-/Codename darstellen,
-- README auf den eigenen AirDeck-Versionsbutton vereinheitlichen.
+- README auf den eigenen AnMaCha-Cast-Versionsbutton vereinheitlichen.
 
 ### Single Source of Truth
 
@@ -208,7 +208,7 @@ Beispiel:
 
 ```text
 GitHub Release Tag: v0.4.1
-Release Name: AirDeck Aurora v0.4.1
+Release Name: AnMaCha Cast Aurora v0.4.1
 
 => Badge: v0.4.1 / AURORA
 ```
@@ -251,7 +251,7 @@ Der Bereich `Unreleased` ist für bewusst dokumentierte, noch nicht veröffentli
 
 ## 7. Release-Screenshots
 
-AirDeck besitzt eine Screenshot-/Galerie-Logik für README und Projektseite.
+AnMaCha Cast besitzt eine Screenshot-/Galerie-Logik für README und Projektseite.
 
 Bei neuen Veröffentlichungen sollen die UI-Screenshots erneut überprüft bzw. generiert werden, damit Dokumentation und aktuelle Version nicht auseinanderlaufen.
 
@@ -387,9 +387,9 @@ Diese Versionen nicht unabhängig voneinander wild mischen.
 
 ---
 
-## 11. GitHub Pages / AirDeck-Projektseite
+## 11. GitHub Pages / AnMaCha-Cast-Projektseite
 
-Die AirDeck-Projektseite und Dokumentationsseite bilden eine öffentliche Oberfläche für das Repository.
+Die AnMaCha-Cast-Projektseite und Dokumentationsseite bilden eine öffentliche Oberfläche für das Repository.
 
 Die Dokumentation kann aktuelle Inhalte wie README, Changelog und Lizenz direkt aus GitHub laden.
 
@@ -578,4 +578,4 @@ Ein neuer Entwickler oder ein KI-Agent soll nach dem Lesen dieses Dokuments vers
 
 ---
 
-**AirDeck CI/CD-Dokumentation – diese Datei beschreibt die beabsichtigte Workflow-Substanz und ist bei Architekturänderungen mitzupflegen.**
+**AnMaCha Cast CI/CD-Dokumentation – diese Datei beschreibt die beabsichtigte Workflow-Substanz und ist bei Architekturänderungen mitzupflegen.**
