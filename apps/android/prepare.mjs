@@ -18,7 +18,7 @@ writeFileSync(join(www, 'build.json'), JSON.stringify({ build, version, platform
 if (!existsSync(join(here, 'android'))) run('npx cap add android');
 
 // Mikrofon (MIC LIVE), Handy-Sender (Vordergrund-Dienst), Kamera (QR-Code beim Koppeln scannen)
-// und Klartext-HTTP zum AirDeck-Server im lokalen Netz
+// und Klartext-HTTP zum AnMaCha-Cast-Server im lokalen Netz
 const manifest = join(here, 'android/app/src/main/AndroidManifest.xml');
 let xml = readFileSync(manifest, 'utf8');
 for (const perm of [
@@ -79,7 +79,7 @@ if (ks && !gradle.includes('signingConfigs {')) {
 if (!gradle.includes('de.sciss:jump3r')) gradle = gradle.replace(/dependencies \{/, "dependencies {\n    implementation 'de.sciss:jump3r:1.0.5'");
 writeFileSync(gradleFile, gradle);
 
-// AirDeck-App-Icons (Launcher, rund, Adaptive-Icon-Vordergrund) übernehmen
+// AnMaCha-Cast-App-Icons (Launcher, rund, Adaptive-Icon-Vordergrund) übernehmen
 cpSync(join(here, 'res'), join(here, 'android/app/src/main/res'), { recursive: true });
 
 run('npx cap sync android');

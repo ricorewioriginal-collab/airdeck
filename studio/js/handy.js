@@ -1,5 +1,5 @@
 // @ts-check
-// Handy-Sender: Oberfläche für die Engine in der Android-App (Plugin „AirDeckEngine“).
+// Handy-Sender: Oberfläche für die Engine in der Android-App (Plugin „AnMaChaCastEngine“).
 // Sendet Mikrofon und Musik vom Handy direkt an Icecast/laut.fm – ohne AnMaCha Cast-Server.
 (() => {
   const $ = (/** @type {string} */ id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -17,7 +17,7 @@
   };
   const cap = /** @type {any} */ (window).Capacitor;
   /** @type {any} */
-  const E = cap?.isNativePlatform?.() ? (cap.registerPlugin ? cap.registerPlugin('AirDeckEngine') : cap.Plugins?.AirDeckEngine) : null;
+  const E = cap?.isNativePlatform?.() ? (cap.registerPlugin ? cap.registerPlugin('AnMaChaCastEngine') : cap.Plugins?.AnMaChaCastEngine) : null;
   // kein ES-Modul hier (plain <script>) - schreibt beide Schlüssel direkt statt über legacy-storage.js zu
   // importieren; app.js liest wahlweise über lsGet() mit Fallback.
   const setMode = (/** @type {string} */ v) => {

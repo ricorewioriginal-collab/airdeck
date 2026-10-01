@@ -1,5 +1,5 @@
 // Sende-Engine des Handys: mischt im Echtzeit-Takt, kodiert MP3 und schickt es an den Sender.
-// Läuft ohne AirDeck-Server (z. B. unterwegs direkt zu laut.fm oder Icecast).
+// Läuft ohne AnMaCha-Cast-Server (z. B. unterwegs direkt zu laut.fm oder Icecast).
 package app.airdeck.engine;
 
 public final class LiveEngine {

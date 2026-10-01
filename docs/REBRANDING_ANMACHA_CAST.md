@@ -94,11 +94,8 @@ Gemäß Auftrag priorisiert, jeweils als eigener, kleiner PR mit eigenen Tests:
 2. ~~**Umgebungsvariablen**~~ – erledigt, siehe „Phase 3" unten. Offen bleiben nur die Compose-Interpolations-
    variablen in `docker-compose.yml` selbst (Teil von Punkt 6, Linux/Docker/Paketierung).
 3. ~~**LocalStorage-Schlüssel**~~ – erledigt, siehe „Phase 4" unten.
-4. **Android-App** (`apps/android/`): App-Label, Notification-Channel-Namen, Splash/Icons, String-Ressourcen.
-   Package-Identifier **nicht** blind ändern (Signing/Update-Kompatibilität prüfen, siehe Auftrag Abschnitt 6).
-   Capacitor-Plugin-Name `'AirDeckEngine'` (`studio/js/handy.js` + natives Android-Pendant) muss koordiniert
-   auf beiden Seiten zugleich geändert werden - in diesem Block unverändert gelassen, um die Bridge nicht zu
-   brechen.
+4. ~~**Android-App**~~ – erledigt, siehe „Phase 5" unten. `applicationId` bleibt bewusst `app.airdeck.studio`
+   (Signatur-/Update-Kompatibilität).
 5. **Windows-App** (`apps/windows/AirDeck.csproj`, Installer unter `packaging/windows/installer/`):
    Assembly-Metadaten (ProductName/Company/Description), Tray-Text, Installer-/Setup-Dateiname,
    Autostart/Registry/Firewall-Regeln, Update-Erkennung des laufenden `.exe`-Namens (`src/server/main.ts`/
@@ -186,6 +183,62 @@ beide. Zusätzlich echte Browser-Verifikation per Playwright (Chromium) gegen ei
 `AirDeckApp`-Server: alter `airdeck.token` im LocalStorage gesetzt → nach Neuladen der Seite ist
 `anmacha_cast.token` mit demselben Wert gefüllt und `airdeck.token` weiterhin vorhanden (kein Logout).
 `npm run typecheck` und die volle Testsuite grün (235 bestanden, 0 fehlgeschlagen, 6 übersprungen).
+
+## Phase 5: Android-App sichtbares Rebranding
+
+**Investigation zuerst** (wie vom Auftrag gefordert, kein blindes Umbenennen): `apps/android/android/`
+existiert nicht im Repository – das native Android-Projekt wird von `prepare.mjs` per
+`npx cap add android` zur Build-Zeit erzeugt. Quelle der Wahrheit sind `capacitor.config.json`
+(`appId`, `appName`), `apps/android/engine/` (reines Java, kein Android-Bezug) und
+`apps/android/native/` (Android-Schicht inkl. Capacitor-Plugin).
+
+**Bewusst unverändert** (signatur-/update-kritisch, siehe Auftrag Abschnitt 6):
+- `capacitor.config.json`s `appId: "app.airdeck.studio"` – das ist Androids `applicationId`. Ein
+  Update einer bestehenden Installation (ohne Deinstallation) verlangt identischen `applicationId`
+  **und** identisches Signatur-Zertifikat (`ANDROID_KEYSTORE_B64`-Secret, siehe `build.yml`). Eine
+  Änderung hier würde alle bestehenden Installationen von künftigen Updates abschneiden. Bleibt
+  unverändert.
+- Java-Pakete `app.airdeck.engine` (`engine/src/`) und `app.airdeck.engine.android` (`native/`) sowie
+  die Java-Klasse `AirDeckEnginePlugin`: rein interne Bezeichner ohne Nutzersichtbarkeit, unabhängig
+  vom `appId`. Eine Umbenennung wäre eine reine Verschiebe-/Umbenennungsaktion über 7 Dateien plus
+  Anpassung der in `prepare.mjs` generierten `AndroidManifest.xml`-Dienstreferenz – ohne jeden
+  Nutzerwert. Bleibt unverändert (wie die übrigen internen lowercase-Bezeichner dieser Umbenennung).
+- Notification-Channel-ID `"airdeck-live"` (`EngineService.java`): von Android pro App+Kanal-ID
+  persistiert (Stummschaltung/Priorität, die der Nutzer selbst gesetzt haben könnte). Eine Änderung
+  würde diese Einstellung für bestehende Nutzer zurücksetzen, ohne jeden funktionalen Vorteil.
+- Artefaktname `AirDeck-Android` in `README.md`: beschreibt den tatsächlichen, noch nicht umbenannten
+  CI-Artefaktnamen (Teil von Phase 8) – absichtlich nicht vorgezogen, damit die Dokumentation nicht auf
+  einen noch nicht existierenden Dateinamen verweist (gleiches Vorgehen wie in Phase 2 bei README.md).
+
+**Geändert** (rein sichtbar/kosmetisch, kein Einfluss auf `applicationId`/Signatur):
+- `capacitor.config.json`s `appName` → „AnMaCha Cast" (steuert den von Capacitor generierten
+  `app_name`-String-Ressourcenwert – reine Anzeige, keine Kennung).
+- Capacitor-Plugin-Name „AirDeckEngine" → „AnMaChaCastEngine": als **eine atomare** Änderung in
+  `AirDeckEnginePlugin.java`s `@CapacitorPlugin(name = …)` und `studio/js/handy.js`s
+  `registerPlugin(…)`-Aufruf zusammen geändert – beide Seiten werden immer gemeinsam in derselben
+  App-Version gebaut und ausgeliefert, es gibt keinen Versionsversatz zwischen Client und nativer
+  Schicht, der eine Fallback-Kompatibilität nötig gemacht hätte.
+- Sichtbare Benachrichtigungstexte in `EngineService.java`: Titel „AirDeck sendet live" →
+  „AnMaCha Cast sendet live", Kanalbeschreibung entsprechend; WakeLock-/WifiLock-Tags „AirDeck:live" →
+  „AnMaChaCast:live" (nur per `adb shell dumpsys power` sichtbar, keine Persistenz-/Kompatibilitätsfrage).
+- Standard-Sendername („AirDeck" als Vorbelegung, falls der Nutzer keinen eigenen Namen einträgt) in
+  `EngineHub.java`, `AirDeckEnginePlugin.java` (zwei Stellen) und `IcecastSource.java` → „AnMaCha Cast".
+- HTTP-`User-Agent`-Header beim Icecast-Quellanschluss (`IcecastSource.java`) „AirDeck-Android" →
+  „AnMaCha-Cast-Android" (reine Kennzeichnung, kein Icecast-Server verlangt ein bestimmtes Format –
+  gleiches Vorgehen wie bei `remote-link.ts`s `User-Agent` in Phase 2).
+- `package.json`-Beschreibung, `README.md` (Titel, Fließtext, Umgebungsvariable `AIRDECK_HOST` →
+  `ANMACHA_CAST_HOST` mit Hinweis auf den weiterhin funktionierenden Legacy-Fallback), Kommentare in
+  `prepare.mjs`, `LiveEngine.java`, `EngineTest.java`s Test-Sendernamen.
+
+**Tests:** `npm run typecheck` und die volle Testsuite grün (235 bestanden, 0 fehlgeschlagen,
+6 übersprungen – unverändert, da keine der Android-/Java-Dateien vom Node-Test-Harness erfasst wird).
+Zusätzlich die echte Engine-Testsuite (`apps/android/engine/test.sh`, reines Java gegen einen echten
+lokalen Icecast-Server, dieselbe Prüfung wie im `android`-CI-Job) lokal ausgeführt: „ALLE TESTS OK" –
+bestätigt, dass die umbenannten Dateien (inkl. des neuen `User-Agent`- und Sendernamen-Strings)
+weiterhin syntaktisch korrekt sind und sich erfolgreich mit einem echten Icecast-Server verbinden,
+senden und wieder trennen. Die Android-spezifischen Dateien unter `native/` (abhängig von
+Capacitor/Android-SDK, hier nicht lokal baubar) werden vom `android`-CI-Job der jeweiligen PR geprüft
+(echter `./gradlew assembleDebug`-Build).
 
 ## Fehler und Behebungen (Phase 1)
 

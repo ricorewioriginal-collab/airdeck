@@ -1,4 +1,4 @@
-// Brücke zwischen App-Oberfläche und Handy-Engine (Capacitor-Plugin „AirDeckEngine“).
+// Brücke zwischen App-Oberfläche und Handy-Engine (Capacitor-Plugin „AnMaChaCastEngine“).
 package app.airdeck.engine.android;
 
 import android.Manifest;
@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @CapacitorPlugin(
-    name = "AirDeckEngine",
+    name = "AnMaChaCastEngine",
     permissions = {
         @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO }),
         @Permission(alias = "notifications", strings = { "android.permission.POST_NOTIFICATIONS" }),
@@ -47,7 +47,7 @@ public class AirDeckEnginePlugin extends Plugin {
         r.put("tls", p.getBoolean("tls", false));
         r.put("mount", p.getString("mount", "/live"));
         r.put("user", p.getString("user", "source"));
-        r.put("name", p.getString("name", "AirDeck"));
+        r.put("name", p.getString("name", "AnMaCha Cast"));
         r.put("bitrate", p.getInt("bitrate", 128));
         r.put("hasPassword", !p.getString("password", "").isEmpty());
         r.put("micDb", p.getFloat("micDb", 0));
@@ -81,7 +81,7 @@ public class AirDeckEnginePlugin extends Plugin {
             .putBoolean("tls", Boolean.TRUE.equals(call.getBoolean("tls", false)))
             .putString("mount", mount.startsWith("/") ? mount : "/" + mount)
             .putString("user", call.getString("user", "source").trim())
-            .putString("name", call.getString("name", "AirDeck").trim())
+            .putString("name", call.getString("name", "AnMaCha Cast").trim())
             .putInt("bitrate", bitrate);
         String pw = call.getString("password", "");
         if (pw != null && !pw.isEmpty()) e.putString("password", pw);

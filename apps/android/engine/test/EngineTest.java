@@ -106,7 +106,7 @@ public class EngineTest {
         cfg.port = icePort;
         cfg.mount = "/handy";
         cfg.password = "quelle-geheim";
-        cfg.name = "AirDeck Test";
+        cfg.name = "AnMaCha Cast Test";
         List<String> states = new ArrayList<>();
         LiveEngine eng = new LiveEngine(cfg, 128, (st, err) -> states.add(st + (err != null ? ":" + err : "")));
         eng.start();
