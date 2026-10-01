@@ -1,6 +1,6 @@
 // @ts-check
 // KI-Automation im Studio: AI Radio Director pro Sender, Anbieter & API-Keys, Kosten/Budgets, Werkzeuge.
-// Alle KI-Aufrufe laufen über den AirDeck-Server – Keys verlassen ihn nie.
+// Alle KI-Aufrufe laufen über den AnMaCha Cast-Server – Keys verlassen ihn nie.
 
 import { clockTime, formDialog, h, run, status } from './ui.js';
 
@@ -189,7 +189,7 @@ export function mountAi(root, ctx) {
     const list = settings.providers;
     return [
       card('Anbieter & API-Keys',
-        h('p', { class: 'muted' }, 'Eigene Keys werden verschlüsselt auf diesem AirDeck gespeichert und nie angezeigt. Lokale Modelle (Ollama, LM Studio, Kokoro, Piper) funktionieren ohne Key und offline.'),
+        h('p', { class: 'muted' }, 'Eigene Keys werden verschlüsselt auf diesem AnMaCha Cast gespeichert und nie angezeigt. Lokale Modelle (Ollama, LM Studio, Kokoro, Piper) funktionieren ohne Key und offline.'),
         list.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'list' },
           h('thead', {}, h('tr', {}, h('th', {}, 'Name'), h('th', {}, 'Art'), h('th', {}, 'Typ'), h('th', {}, 'Key'), h('th', {}, ''))),
           h('tbody', {}, ...list.map((/** @type {any} */ p) => h('tr', {},

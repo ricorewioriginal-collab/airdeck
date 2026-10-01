@@ -1,5 +1,5 @@
 // @ts-check
-// AirDeckCast/Geräte-Pairing: echte QR-Grafik für einen Kopplungslink, statt nur Ziffern zum Abtippen.
+// Zusatz-Streams/Geräte-Pairing: echte QR-Grafik für einen Kopplungslink, statt nur Ziffern zum Abtippen.
 // Nutzt die unveränderte, mitgelieferte Bibliothek (vendor/qrcode.js) - kein CDN, kein Netzwerk nötig.
 import qrcode from './vendor/qrcode.js';
 

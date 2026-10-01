@@ -242,7 +242,7 @@ jobs:
           docker run -d --name airdeck -p 8750:8750 airdeck:ci
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8750/api/v1/health && break; sleep 1; done
           curl -fs http://127.0.0.1:8750/api/v1/health
-          curl -fs http://127.0.0.1:8750/ | grep -q AirDeck
+          curl -fs http://127.0.0.1:8750/ | grep -q "AnMaCha Cast"
           docker logs airdeck | tee log.txt
           grep -q "ffmpeg version" log.txt || (echo "ffmpeg fehlt im Container" && exit 1)
           grep -q "Admin-Token" log.txt || (echo "Admin-Token wird nicht ausgegeben" && exit 1)
@@ -404,7 +404,7 @@ jobs:
           # QEMU-Emulation ist deutlich langsamer als natives amd64 - großzügig warten (bis zu 6 Minuten)
           for i in $(seq 1 180); do curl -fs http://127.0.0.1:8751/api/v1/health && break; sleep 2; done
           curl -fs http://127.0.0.1:8751/api/v1/health
-          curl -fs http://127.0.0.1:8751/ | grep -q AirDeck
+          curl -fs http://127.0.0.1:8751/ | grep -q "AnMaCha Cast"
           docker exec airdeck-arm64 uname -m | grep -q aarch64
           docker logs airdeck-arm64 | tee log-arm64.txt
           grep -q "ffmpeg version" log-arm64.txt || (echo "ffmpeg fehlt/startet nicht unter arm64" && exit 1)

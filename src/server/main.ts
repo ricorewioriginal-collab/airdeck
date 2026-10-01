@@ -290,7 +290,7 @@ async function main(): Promise<void> {
     const { startResponder } = await import('./discovery.ts');
     const { hostname } = await import('node:os');
     discovery = await startResponder(() => ({
-      id: app.sync.instance, name: app.svc.stations.listStations({ id: 'discovery', tokenId: 'discovery', roles: ['admin'], stationIds: ['*'], scopes: ['*'] })[0]?.name ?? 'AirDeck',
+      id: app.sync.instance, name: app.svc.stations.listStations({ id: 'discovery', tokenId: 'discovery', roles: ['admin'], stationIds: ['*'], scopes: ['*'] })[0]?.name ?? 'AnMaCha Cast',
       host: hostname(), version: app.version, api: API_VERSION, port, lan: host === '0.0.0.0' || host === '::',
     }), { log: (m) => console.warn(m) });
   }

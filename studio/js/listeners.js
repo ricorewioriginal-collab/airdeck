@@ -25,7 +25,7 @@ export function mountListeners(root, ctx) {
         h('div', { class: 'listener-hero-actions' },
           h('span', { class: 'listener-count' }, `${d.unread} neu`),
           h('button', { class: 'btn small', onclick: () => settings(c) }, 'Einstellungen'))),
-      !any ? card('Hörerbereich ist aus', h('p', {}, 'Hörer können Musik wünschen, grüßen, abstimmen und Sprachnachrichten schicken – sobald du es unter „Einstellungen“ einschaltest. Alles läuft über AirDeck, mit Schutz vor Missbrauch.')) : null,
+      !any ? card('Hörerbereich ist aus', h('p', {}, 'Hörer können Musik wünschen, grüßen, abstimmen und Sprachnachrichten schicken – sobald du es unter „Einstellungen“ einschaltest. Alles läuft über AnMaCha Cast, mit Schutz vor Missbrauch.')) : null,
       any ? card('Hörerseite', h('p', { class: 'muted' }, 'Link für Hörer (auch auf deiner Webseite einbettbar):'),
         h('div', { class: 'row' }, h('code', {}, link), h('button', { class: 'btn small', onclick: () => navigator.clipboard?.writeText(link).then(() => status('Link kopiert')) }, 'Kopieren'),
           h('button', { class: 'btn small', onclick: () => navigator.clipboard?.writeText(`<iframe src="${link}" style="width:100%;height:640px;border:0" allow="microphone" title="Hörerbereich"></iframe>`).then(() => status('Einbettungs-Code kopiert')) }, 'Einbetten'))) : null,

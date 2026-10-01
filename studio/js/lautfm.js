@@ -1,6 +1,6 @@
 // @ts-check
-// laut.fm Radioadmin in AirDeck: Playlists, Titel, Sendeplan, Statistik, Benutzer, Station, Live.
-// Alle Aufrufe laufen über den lokalen AirDeck-Server (Token bleibt verschlüsselt dort), nur dokumentierte
+// laut.fm Radioadmin in AnMaCha Cast: Playlists, Titel, Sendeplan, Statistik, Benutzer, Station, Live.
+// Alle Aufrufe laufen über den lokalen AnMaCha Cast-Server (Token bleibt verschlüsselt dort), nur dokumentierte
 // Endpunkte der Radioadmin-API. Kein eigener PHP-Server nötig.
 
 import { DAYS, clockTime, fmt, formDialog, h, icon, run, status } from './ui.js';
@@ -60,7 +60,7 @@ export function mountLautfm(root, ctx) {
   /** @type {any[]} */ let playlists = [];
   /** @type {HTMLAudioElement|null} */ let pre = null;
 
-  /** Radioadmin-Aufruf über den AirDeck-Proxy; bei Ablehnung einmal die Verbindung prüfen (Origin neu ermitteln) und wiederholen. @param {string} method @param {string} path @param {any} [body] */
+  /** Radioadmin-Aufruf über den AnMaCha Cast-Proxy; bei Ablehnung einmal die Verbindung prüfen (Origin neu ermitteln) und wiederholen. @param {string} method @param {string} path @param {any} [body] */
   const ra = async (method, path, body) => {
     try {
       return await ctx.api.req(method, ctx.url(`/lautfm/ra${path}`), body);
@@ -125,10 +125,10 @@ export function mountLautfm(root, ctx) {
     root.replaceChildren(head, content);
     if (connected) renderTab();
     else content.replaceChildren(card('Mit laut.fm verbinden',
-      h('p', {}, 'AirDeck verwaltet deine laut.fm-Station direkt über die offizielle Radioadmin-API.'),
+      h('p', {}, 'AnMaCha Cast verwaltet deine laut.fm-Station direkt über die offizielle Radioadmin-API.'),
       h('ol', {},
         h('li', {}, h('b', {}, 'Mit laut.fm anmelden: '), 'Du meldest dich bei laut.fm an und kommst automatisch hierher zurück.'),
-        h('li', {}, h('b', {}, 'Oder Token einfügen: '), 'ein vorhandenes Token (z. B. von radioadmin.laut.fm/tokens) einfügen. Welcher Origin dazu gehört, findet AirDeck selbst heraus.')),
+        h('li', {}, h('b', {}, 'Oder Token einfügen: '), 'ein vorhandenes Token (z. B. von radioadmin.laut.fm/tokens) einfügen. Welcher Origin dazu gehört, findet AnMaCha Cast selbst heraus.')),
       h('p', { class: 'muted' }, 'Das Token wird verschlüsselt auf diesem Gerät gespeichert und nie an den Browser zurückgegeben.'),
       h('div', { class: 'row' },
         h('button', { class: 'btn primary', onclick: login }, 'Mit laut.fm anmelden'),
@@ -636,7 +636,7 @@ export function mountLautfm(root, ctx) {
       run(async () => { await ra('PUT', `${st()}/images/logo`, fd); status('Logo hochgeladen'); renderTab(); });
     } }));
     // Quick Actions im Stil des laut.fm-Radioadmin-Vorbilds (farblich getönte Aktionsboxen), aber mit
-    // AirDecks eigener Optik (--qa-card, dieselbe --c-Farblogik wie Schnellzugriff/Cardwall/Decks).
+    // AnMaCha Casts eigener Optik (--qa-card, dieselbe --c-Farblogik wie Schnellzugriff/Cardwall/Decks).
     const quickActions = card('Quick Actions',
       h('div', { class: 'qa-stack' },
         h('div', { class: `qa-card ${state?.active ? 'qa-success' : 'qa-warning'}` },
@@ -658,9 +658,9 @@ export function mountLautfm(root, ctx) {
     return [card('Live-Zugang (Encoder)',
       kv('Server', l.server), kv('Port', l.port), kv('Mountpoint', l.mountpoint), kv('Benutzer', l.user), kv('Format', `${l.format ?? ''} ${l.bitrate ?? ''} kbit/s ${l.samplerate ?? ''} Hz`),
       kv('Passwort', l.password ? '•••••••• (wird nicht angezeigt)' : '–'), kv('Status', l.active ? 'live verbunden' : 'nicht live'),
-      h('p', { class: 'muted' }, 'AirDeck kann diesen Zugang als Ausgang übernehmen: Das Sendesignal (Automation, Live, Mikrofon) geht dann direkt zu laut.fm. Mit Priorität (?prio=) verdrängt AirDeck eine niedrigere Quelle bzw. lässt sich von einer höheren verdrängen.'),
+      h('p', { class: 'muted' }, 'AnMaCha Cast kann diesen Zugang als Ausgang übernehmen: Das Sendesignal (Automation, Live, Mikrofon) geht dann direkt zu laut.fm. Mit Priorität (?prio=) verdrängt AnMaCha Cast eine niedrigere Quelle bzw. lässt sich von einer höheren verdrängen.'),
       h('button', { class: 'btn primary', onclick: async () => {
-        const v = await formDialog('Als AirDeck-Ausgang übernehmen', [{ name: 'priority', label: 'Priorität ?prio= (leer = ohne)', type: 'number', value: '' }], 'Übernehmen');
+        const v = await formDialog('Als AnMaCha Cast-Ausgang übernehmen', [{ name: 'priority', label: 'Priorität ?prio= (leer = ohne)', type: 'number', value: '' }], 'Übernehmen');
         if (v) await run(async () => { await ctx.api.post(ctx.url('/lautfm/live-output'), { priority: v.priority }); status('laut.fm-Ausgang angelegt – sendet, sobald eine Quelle auf Sendung ist'); });
       } }, 'Als Ausgang übernehmen'))];
   }

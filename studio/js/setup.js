@@ -17,15 +17,15 @@ const MODE_TEXT = /** @type {[string, string][]} */ ([
 /** @type {Step[]} */
 const STEPS = [
   {
-    id: 'welcome', title: 'Willkommen bei AirDeck',
+    id: 'welcome', title: 'Willkommen bei AnMaCha Cast',
     intro: 'In wenigen Schritten ist dein Sender eingerichtet. Jeder Schritt lässt sich überspringen und später unter „Einstellungen“ ändern.',
     fields: () => [
-      { name: 'info', label: 'Hinweis', type: 'info', value: 'AirDeck ist ein Hobbyprojekt (powered by AnMaCha Radioproduktion & RicoReWi). Nutzung auf eigene Verantwortung, ohne Gewähr – siehe Haftungsausschluss im Handbuch. Für GEMA/GVL und andere Rechte ist der Sender selbst verantwortlich.' },
+      { name: 'info', label: 'Hinweis', type: 'info', value: 'AnMaCha Cast ist ein Hobbyprojekt (powered by AnMaCha Radioproduktion & RicoReWi). Nutzung auf eigene Verantwortung, ohne Gewähr – siehe Haftungsausschluss im Handbuch. Für GEMA/GVL und andere Rechte ist der Sender selbst verantwortlich.' },
       { name: 'accept', label: 'Haftungsausschluss gelesen und akzeptiert', type: 'checkbox', value: false },
     ],
   },
   {
-    id: 'mode', title: 'Betriebsart', intro: 'Wo läuft AirDeck?',
+    id: 'mode', title: 'Betriebsart', intro: 'Wo läuft AnMaCha Cast?',
     fields: (s) => [{ name: 'mode', label: 'Betriebsart', value: s.current.mode, options: MODE_TEXT, hint: 'Änderung wirkt nach einem Neustart' }],
   },
   {
@@ -41,7 +41,7 @@ const STEPS = [
     id: 'storage', title: 'Speicher & Musik', intro: 'Wohin kommen hochgeladene Titel – und gibt es schon eine Musiksammlung?',
     fields: (s) => [
       { name: 'media', label: 'Medienordner', value: s.current.paths.media, hint: 'Änderung wirkt nach einem Neustart' },
-      { name: 'link', label: 'Vorhandenen Musikordner einbinden (optional)', value: '', hint: 'Vollständiger Pfad, z. B. D:\\Musik. Titel bleiben dort, AirDeck indiziert und überwacht den Ordner – nichts wird kopiert oder gelöscht.' },
+      { name: 'link', label: 'Vorhandenen Musikordner einbinden (optional)', value: '', hint: 'Vollständiger Pfad, z. B. D:\\Musik. Titel bleiben dort, AnMaCha Cast indiziert und überwacht den Ordner – nichts wird kopiert oder gelöscht.' },
       { name: 'category', label: 'Kategorie der eingebundenen Titel', value: 'music', options: [['music', 'Musik'], ['jingle', 'Jingles'], ['bed', 'Betten'], ['ad', 'Werbung']] },
     ],
   },
@@ -55,10 +55,10 @@ const STEPS = [
     ],
   },
   {
-    id: 'network', title: 'Netzwerk', intro: 'Wer darf AirDeck erreichen?',
+    id: 'network', title: 'Netzwerk', intro: 'Wer darf AnMaCha Cast erreichen?',
     fields: (s) => [
-      { name: 'access', label: 'Zugriff', value: s.current.network.lan ? 'lan' : 'local', options: [['local', 'Nur dieser PC'], ['lan', 'Im Netzwerk (Handy-App, andere PCs)']], hint: 'Für das Internet AirDeck hinter HTTPS (Reverse Proxy, z. B. Caddy) betreiben' },
-      { name: 'port', label: 'Port', type: 'number', value: s.current.network.port, hint: 'Windows: Bei LAN-Zugriff nach einer Portänderung die AirDeck-Firewallregel auf den neuen Port anpassen. Nur dieser PC benötigt keine eingehende Regel.' },
+      { name: 'access', label: 'Zugriff', value: s.current.network.lan ? 'lan' : 'local', options: [['local', 'Nur dieser PC'], ['lan', 'Im Netzwerk (Handy-App, andere PCs)']], hint: 'Für das Internet AnMaCha Cast hinter HTTPS (Reverse Proxy, z. B. Caddy) betreiben' },
+      { name: 'port', label: 'Port', type: 'number', value: s.current.network.port, hint: 'Windows: Bei LAN-Zugriff nach einer Portänderung die AnMaCha Cast-Firewallregel auf den neuen Port anpassen. Nur dieser PC benötigt keine eingehende Regel.' },
     ],
   },
   {
@@ -70,7 +70,7 @@ const STEPS = [
     ],
   },
   {
-    id: 'stream', title: 'Stream', intro: 'Wohin sendet AirDeck? Für laut.fm nach dem Assistenten unter „laut.fm“ verbinden – der Live-Zugang wird dann automatisch übernommen.',
+    id: 'stream', title: 'Stream', intro: 'Wohin sendet AnMaCha Cast? Für laut.fm nach dem Assistenten unter „laut.fm“ verbinden – der Live-Zugang wird dann automatisch übernommen.',
     auto: (s) => s.current.outputs > 0,
     fields: () => [
       { name: 'type', label: 'Ziel', value: 'icecast', options: [['icecast', 'Icecast (z. B. eigener Server, AzuraCast)'], ['shoutcast', 'SHOUTcast']] },
@@ -104,7 +104,7 @@ const STEPS = [
     id: 'finish', title: 'Fertig', intro: '',
     fields: (s) => [
       { name: 'summary', label: 'Zusammenfassung', type: 'info', value: summary(s) },
-      ...(s.restart.length ? [{ name: 'restart', label: s.canRestart ? 'AirDeck jetzt neu starten (nötig für die Änderungen)' : 'Bitte AirDeck neu starten, damit alle Änderungen gelten', type: s.canRestart ? 'checkbox' : 'info', value: s.canRestart ? true : '' }] : []),
+      ...(s.restart.length ? [{ name: 'restart', label: s.canRestart ? 'AnMaCha Cast jetzt neu starten (nötig für die Änderungen)' : 'Bitte AnMaCha Cast neu starten, damit alle Änderungen gelten', type: s.canRestart ? 'checkbox' : 'info', value: s.canRestart ? true : '' }] : []),
     ],
   },
 ];
@@ -211,7 +211,7 @@ export async function runSetup(ctx) {
       dlg.close();
       form.onsubmit = null;
       if (v.restart && s.canRestart) {
-        status('AirDeck wird neu gestartet …');
+        status('AnMaCha Cast wird neu gestartet …');
         await ctx.api.post('/system/restart').catch(() => {});
         setTimeout(() => location.reload(), 6000);
         return;

@@ -104,10 +104,13 @@ export class SystemService {
     });
   }
 
-  /** Mitgelieferte APK (Windows-Paket) oder null. */
+  /** Mitgelieferte APK (Windows-Paket) oder null. Legacy-Dateiname (vor der Umbenennung zu AnMaCha Cast gebaute Pakete) bleibt als Fallback erkannt. */
   localApk(): string | null {
-    const f = join(this.app.appRoot, 'android', 'AirDeck-Android.apk');
-    return existsSync(f) ? f : null;
+    for (const name of ['AnMaCha-Cast-Android.apk', 'AirDeck-Android.apk']) {
+      const f = join(this.app.appRoot, 'android', name);
+      if (existsSync(f)) return f;
+    }
+    return null;
   }
 
   appConnect(): unknown {

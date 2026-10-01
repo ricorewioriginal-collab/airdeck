@@ -433,7 +433,7 @@ export function mountRecorder(root, ctx) {
         act(iconBtn('Anhören', '▶', () => listen(r)), iconBtn('Herunterladen', '⭳', () => save(r)),
           r.endedAt ? iconBtn('In die Nextcloud hochladen', '☁', () => run(async () => {
             status('Lade Mitschnitt in die Nextcloud …');
-            const u = await ctx.api.post(ctx.url(`/recordings/${r.id}/nextcloud`), { dir: 'AirDeck-Mitschnitte' });
+            const u = await ctx.api.post(ctx.url(`/recordings/${r.id}/nextcloud`), { dir: 'AnMaCha-Cast-Mitschnitte' });
             status(`In der Nextcloud: ${u.uploaded}`);
           })) : null,
           iconBtn('Löschen', '✕', () => confirm(`„${r.label}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/recordings/${r.id}`)); await load(); }))))),

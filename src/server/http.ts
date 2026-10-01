@@ -217,7 +217,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('PATCH', '/api/v1/stations/:sid/outputs/:id', 'outputs:write', async (c) => app.saveOutput(c.p, sid(c), c.params.id!, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/outputs/:id', 'outputs:write', (c) => app.removeOutput(c.p, sid(c), c.params.id!));
 
-  // --- AirDeckCast: Zusatz-Stream-Profile (ein Programmbus, mehrere Encoder-Ausgänge) ---
+  // --- Zusatz-Streams: weitere Stream-Profile (ein Programmbus, mehrere Encoder-Ausgänge) ---
   add('GET', '/api/v1/stations/:sid/stream-profiles', 'outputs:read', (c) => app.listStreamProfiles(sid(c)));
   add('POST', '/api/v1/stations/:sid/stream-profiles', 'outputs:write', async (c) => app.saveStreamProfile(c.p, sid(c), null, await c.body()));
   add('PATCH', '/api/v1/stations/:sid/stream-profiles/:id', 'outputs:write', async (c) => app.saveStreamProfile(c.p, sid(c), c.params.id!, await c.body()));
@@ -329,7 +329,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, hasher.digest(), meta.title || name, meta.artist);
   });
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', async (c) => app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
-  // AirDeckCast-Preflight (Phase 4, erster Schritt): reine Prüfung, ob ein Hub-Titel für den Sender
+  // Sendefähigkeits-Preflight (Phase 4, erster Schritt): reine Prüfung, ob ein Hub-Titel für den Sender
   // sendefähig ist - noch kein Wiring in Queue/Planung/Cardwall, das folgt separat.
   add('GET', '/api/v1/music-hub/items/:id/preflight', 'media:read', (c) => app.svc.musikhub.broadcastPreflight(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
   // lautCast-Capability-Prüfung (Phase 5, erster Schritt): stellt nur fest, ob eine Übertragung an
@@ -441,7 +441,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/stations/:sid/playout/start', 'automation:write', async (c) => app.startPlayout(c.p, sid(c), (await c.body()) as never));
   add('POST', '/api/v1/stations/:sid/playout/stop', 'automation:write', (c) => app.stopPlayout(c.p, sid(c)));
   add('POST', '/api/v1/stations/:sid/playout/mic', 'automation:write', async (c) => app.setMic(sid(c), (await c.body()).on === true));
-  add('POST', '/api/v1/stations/:sid/airdeckcast-test', 'automation:write', (c) => app.runAirDeckCastTest(sid(c)));
+  add('POST', '/api/v1/stations/:sid/stream-profiles-test', 'automation:write', (c) => app.runAirDeckCastTest(sid(c)));
   // Zustandsberichte (angemeldet): Laufzeit, Abhängigkeiten, Datenbank, Audio, Encoder, Stream, KI
   add('GET', '/api/v1/system', null, () => ({ ...(app.svc.system.system() as object), ...app.health.system() }));
   add('GET', '/api/v1/database', null, () => app.databaseReport());
@@ -561,12 +561,12 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
       process.exit(0);
     });
   });
-  // APK für die Android-App über diesen AirDeck laden (funktioniert auch bei privatem Repository)
+  // APK für die Android-App über dieses AnMaCha Cast laden (funktioniert auch bei privatem Repository)
   add('GET', '/api/v1/update/apk', 'automation:read', async (c) => {
     const info = (await app.svc.system.checkUpdate()) as { assets: { apk?: import('./update.ts').UpdateAsset }; error?: string };
     if (!info.assets.apk) throw new AppError(404, 'no_apk', info.error ?? 'Keine APK im Release');
     const r = await app.updater.open(info.assets.apk, app.secrets.get('update:token'));
-    c.res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="AirDeck-Android.apk"', ...(info.assets.apk.size ? { 'Content-Length': info.assets.apk.size } : {}) });
+    c.res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="AnMaCha-Cast-Android.apk"', ...(info.assets.apk.size ? { 'Content-Length': info.assets.apk.size } : {}) });
     await pipeline(Readable.fromWeb(r.body as never), c.res);
     return STREAMED;
   });
@@ -900,18 +900,19 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
         return void res.end(JSON.stringify({ status: 'error', message: (err as Error).message }));
       }
     }
-    // Offizielle Android-App: mitgelieferte APK (Windows-Paket) oder aus dem Release – öffentlich, damit das Handy sie direkt laden kann
-    if (path === '/download/AirDeck-Android.apk' && req.method === 'GET') {
+    // Offizielle Android-App: mitgelieferte APK (Windows-Paket) oder aus dem Release – öffentlich, damit das Handy sie direkt laden kann.
+    // Legacy-Pfad /download/AirDeck-Android.apk bleibt als Alias erhalten (alte Lesezeichen/Download-Links funktionieren weiter).
+    if ((path === '/download/AnMaCha-Cast-Android.apk' || path === '/download/AirDeck-Android.apk') && req.method === 'GET') {
       const local = app.svc.system.localApk();
       if (local) {
-        res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="AirDeck-Android.apk"', 'Content-Length': statSync(local).size });
+        res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="AnMaCha-Cast-Android.apk"', 'Content-Length': statSync(local).size });
         return void createReadStream(local).pipe(res);
       }
       try {
         const info = (await app.svc.system.checkUpdate()) as { assets: { apk?: import('./update.ts').UpdateAsset }; error?: string };
         if (!info.assets.apk) return json(res, 404, { error: 'no_apk', message: info.error ?? 'Keine APK verfügbar' });
         const r = await app.updater.open(info.assets.apk, app.secrets.get('update:token'));
-        res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="AirDeck-Android.apk"', ...(info.assets.apk.size ? { 'Content-Length': info.assets.apk.size } : {}) });
+        res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="AnMaCha-Cast-Android.apk"', ...(info.assets.apk.size ? { 'Content-Length': info.assets.apk.size } : {}) });
         return void Readable.fromWeb(r.body as never).pipe(res);
       } catch (err) {
         return json(res, 502, { error: 'apk_unavailable', message: (err as Error).message });
@@ -939,7 +940,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
       return;
     }
 
-    // AirDeckCast: HLS-Playlist + -Segmente, direkt vom AirDeck-Server ausgeliefert (kein externer Icecast nötig)
+    // Zusatz-Streams: HLS-Playlist + -Segmente, direkt vom AnMaCha-Cast-Server ausgeliefert (kein externer Icecast nötig)
     if (path.startsWith('/hls/')) {
       const p = auth(app, req, url);
       if (!p || !AirDeckApp.hasScope(p, 'stream:read')) return json(res, 401, { error: 'unauthorized' });

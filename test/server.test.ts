@@ -84,7 +84,7 @@ test('ohne Token kein Zugriff, Health öffentlich', async () => {
   const h = await fetch(base + '/api/v1/health');
   assert.equal(h.status, 200);
   const body = (await h.json()) as Record<string, string>;
-  assert.equal(body.name, 'AirDeck');
+  assert.equal(body.name, 'AnMaCha Cast');
   assert.equal(body.api, '1.0');
   assert.match(body.version!, /^\d+\.\d+\.\d+/);
   for (const k of ['server', 'database', 'storage', 'audio', 'encoder', 'stream', 'ai', 'mode']) assert.ok(k in body, k);

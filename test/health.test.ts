@@ -11,7 +11,7 @@ const ff: FfmpegInfo = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', ffplay: null, ver
 
 function source(dir: string, over: Partial<HealthSource> = {}): HealthSource {
   return {
-    name: 'AirDeck', version: '1.2.3', build: 'dev', mode: 'local', packaged: false,
+    name: 'AnMaCha Cast', version: '1.2.3', build: 'dev', mode: 'local', packaged: false,
     paths: { config: dir, data: dir, media: dir, logs: join(dir, 'logs'), backups: join(dir, 'backups') },
     ffmpeg: () => ff,
     database: () => ({ provider: 'json', state: 'READY' }),

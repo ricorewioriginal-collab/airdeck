@@ -1,5 +1,5 @@
 // @ts-check
-// AirDeck Studio – Oberfläche: 4 Decks, Cardwall, Archiv, Queue, Quellen, Ausgänge, Automation.
+// AnMaCha Cast Studio – Oberfläche: 4 Decks, Cardwall, Archiv, Queue, Quellen, Ausgänge, Automation.
 // Sämtlicher Nutzerinhalt wird per textContent gesetzt (kein innerHTML) → kein XSS.
 
 import { Api, ApiError, isNativeApp, readToken, saveServer, saveToken, serverBase } from './api.js';
@@ -124,7 +124,7 @@ async function tryAutoPair() {
     return true;
   }
   saveToken(r.token ?? null);
-  if (r.base) saveProfile({ base: r.base, name: r.serverName ?? 'AirDeck', token: r.token ?? '', lastConnected: new Date().toISOString() });
+  if (r.base) saveProfile({ base: r.base, name: r.serverName ?? 'AnMaCha Cast', token: r.token ?? '', lastConnected: new Date().toISOString() });
   location.reload();
   return true;
 }
@@ -139,7 +139,7 @@ async function scanCodeFromCamera() {
   if (!raw) return null;
   const parsed = parsePairingPayload(raw);
   if (!parsed) {
-    status('QR-Code enthält keinen AirDeck-Kopplungscode', true);
+    status('QR-Code enthält keinen AnMaCha Cast-Kopplungscode', true);
     return null;
   }
   if (parsed.server) {
@@ -153,7 +153,7 @@ async function boot() {
   hydrateIcons();
   if (await tryAutoPair()) return;
   const token = readToken();
-  // Android-App ohne Server: Handy-Sender oder mit AirDeck verbinden
+  // Android-App ohne Server: Handy-Sender oder mit AnMaCha Cast verbinden
   if (isNativeApp() && !serverBase()) return chooseAppMode();
   if (!token) return askToken();
   api = new Api(token);
@@ -186,8 +186,8 @@ async function boot() {
     const st = await api.get('/setup').catch(() => null);
     if (st?.installerWelcome) {
       const c = st.current;
-      const choice = await formDialog('AirDeck ist eingerichtet', [
-        { name: 'summary', label: 'Ersteinrichtung', type: 'info', value: `Sender: ${c.station?.name ?? 'AirDeck Radio'}\nBetriebsart: ${c.mode}\nLokales Monitoring: ${c.automation?.localMonitoring ? 'AirDeckCast HLS vorbereitet' : 'nicht eingerichtet'}\nAudio-Engine: ${c.ffmpeg ? 'bereit' : 'noch nicht verfügbar'}\nExterne Streamziele: ${c.outputs ? `${c.outputs} eingerichtet` : 'noch nicht verbunden'}` },
+      const choice = await formDialog('AnMaCha Cast ist eingerichtet', [
+        { name: 'summary', label: 'Ersteinrichtung', type: 'info', value: `Sender: ${c.station?.name ?? 'AnMaCha Cast Radio'}\nBetriebsart: ${c.mode}\nLokales Monitoring: ${c.automation?.localMonitoring ? 'Zusatz-Streams HLS vorbereitet' : 'nicht eingerichtet'}\nAudio-Engine: ${c.ffmpeg ? 'bereit' : 'noch nicht verfügbar'}\nExterne Streamziele: ${c.outputs ? `${c.outputs} eingerichtet` : 'noch nicht verbunden'}` },
         { name: 'next', label: 'Weiter', value: 'studio', options: [['studio', 'Studio öffnen'], ['setup', 'Weitere Einstellungen öffnen']] },
       ], 'Weiter');
       if (choice) {
@@ -202,8 +202,8 @@ async function boot() {
 }
 
 /**
- * Mit AirDeck verbinden: Adresse + Kopplungscode (Standard), Benutzer/Passwort oder Verbindungslink.
- * Der Verbindungstest läuft in Stufen; bei einem Fehler zeigt AirDeck, welche Stufe scheiterte und was zu tun ist.
+ * Mit AnMaCha Cast verbinden: Adresse + Kopplungscode (Standard), Benutzer/Passwort oder Verbindungslink.
+ * Der Verbindungstest läuft in Stufen; bei einem Fehler zeigt AnMaCha Cast, welche Stufe scheiterte und was zu tun ist.
  * @param {string} [msg] @param {Record<string, any>} [prev] @param {boolean} [forceServer] Adressfeld auch im Browser zeigen (z. B. „Server hinzufügen“)
  */
 async function askToken(msg, prev, forceServer) {
@@ -211,9 +211,9 @@ async function askToken(msg, prev, forceServer) {
   const profiles = loadProfiles();
   // Im Browser reicht die eigene Serveradresse implizit (gleicher Ursprung) – sobald aber schon andere
   // Instanzen gespeichert sind oder ausdrücklich ein Server hinzugefügt werden soll, zeigen wir das Feld
-  // auch dort, damit sich mehrere selbst gehostete AirDeck-Server aus einem Browser heraus erreichen lassen.
+  // auch dort, damit sich mehrere selbst gehostete AnMaCha Cast-Server aus einem Browser heraus erreichen lassen.
   const needServer = native || !!serverBase() || profiles.length > 0 || !!forceServer;
-  const v = await formDialog('Mit AirDeck verbinden', [
+  const v = await formDialog('Mit AnMaCha Cast verbinden', [
     ...(msg ? [{ name: 'msg', label: 'Hinweis', type: 'info', value: msg }] : []),
     ...(needServer ? [{ name: 'server', label: 'Server-Adresse', value: prev?.server ?? (serverBase() || profiles[0]?.base || ''), suggest: profiles.map((p) => p.base), hint: 'z. B. 192.168.1.20 (Port 8750 wird ergänzt) oder https://radio.example.org' }] : []),
     {
@@ -243,19 +243,19 @@ async function askToken(msg, prev, forceServer) {
   }
   if (needServer || link) saveServer(r.base);
   saveToken(r.token ?? null);
-  if (r.base) saveProfile({ base: r.base, name: r.serverName ?? 'AirDeck', token: r.token ?? '', lastConnected: new Date().toISOString() });
+  if (r.base) saveProfile({ base: r.base, name: r.serverName ?? 'AnMaCha Cast', token: r.token ?? '', lastConnected: new Date().toISOString() });
   location.reload();
 }
 
-/** Android-App: ohne Server direkt vom Handy senden oder mit einem AirDeck-PC/-Server verbinden. */
+/** Android-App: ohne Server direkt vom Handy senden oder mit einem AnMaCha Cast-PC/-Server verbinden. */
 async function chooseAppMode() {
   let mode = null;
   try { mode = localStorage.getItem('airdeck.mobileMode'); } catch {}
   if (mode === 'handy') return location.replace('handy.html');
   if (mode === 'server') return askToken();
-  const v = await formDialog('AirDeck starten', [
-    { name: 'info', label: 'Wie möchtest du senden?', type: 'info', value: 'Handy-Sender: Mikrofon und Musik vom Handy gehen direkt an laut.fm oder Icecast – ohne PC. Mit AirDeck verbinden: das Studio eines AirDeck-PCs oder -Servers fernsteuern.' },
-    { name: 'mode', label: 'Betrieb', value: 'handy', options: [['handy', 'Handy-Sender (ohne Server)'], ['server', 'Mit AirDeck-PC/-Server verbinden']] },
+  const v = await formDialog('AnMaCha Cast starten', [
+    { name: 'info', label: 'Wie möchtest du senden?', type: 'info', value: 'Handy-Sender: Mikrofon und Musik vom Handy gehen direkt an laut.fm oder Icecast – ohne PC. Mit AnMaCha Cast verbinden: das Studio eines AnMaCha Cast-PCs oder -Servers fernsteuern.' },
+    { name: 'mode', label: 'Betrieb', value: 'handy', options: [['handy', 'Handy-Sender (ohne Server)'], ['server', 'Mit AnMaCha Cast-PC/-Server verbinden']] },
   ], 'Weiter');
   if (!v) return;
   try { localStorage.setItem('airdeck.mobileMode', v.mode); } catch {}
@@ -295,7 +295,7 @@ async function switchServer() {
   location.reload();
 }
 
-/** Weitere AirDeck-Instanzen im selben Netz finden (der Browser fragt den bereits verbundenen Server, der
+/** Weitere AnMaCha Cast-Instanzen im selben Netz finden (der Browser fragt den bereits verbundenen Server, der
  * stellvertretend per UDP-Broadcast sucht - der Browser selbst kann kein UDP). Findet nur Server im
  * gleichen LAN wie DIESER Server, nicht das Netz des Browsers/Handys selbst. */
 async function discoverServers() {
@@ -303,13 +303,13 @@ async function discoverServers() {
   const r = await run(() => api.get('/discover'));
   if (!r) return;
   const found = /** @type {any[]} */ (r.found).filter((f) => f.url && f.url !== location.origin);
-  if (!found.length) return status('Keine weiteren AirDeck-Server im Netz dieses Servers gefunden', true);
+  if (!found.length) return status('Keine weiteren AnMaCha Cast-Server im Netz dieses Servers gefunden', true);
   const v = await formDialog('Gefundene Server', [
     { name: 'base', label: 'Server', value: found[0].url, options: found.map((f) => /** @type {[string, string]} */ ([f.url, `${f.name} · ${f.url}${f.lan ? '' : ' (nur lokal)'}`])) },
   ], 'Übernehmen');
   if (!v) return;
   const chosen = found.find((f) => f.url === v.base);
-  saveProfile({ base: v.base, name: chosen?.name ?? 'AirDeck', token: '', lastConnected: new Date().toISOString() });
+  saveProfile({ base: v.base, name: chosen?.name ?? 'AnMaCha Cast', token: '', lastConnected: new Date().toISOString() });
   status(`„${chosen?.name}“ gespeichert – unter „Server wechseln“ auswählbar (Anmeldung/Kopplung beim ersten Wechsel nötig)`);
 }
 
@@ -343,9 +343,9 @@ let es = null;
 /** @type {ReturnType<typeof setInterval>|null} */
 let autoSourceTimer = null;
 
-/** Wer automatisiert den Sender gerade wirklich (AirDeck-Server-Playout oder laut.fm über den
- * Radioadmin)? Bei laut.fm zeigt AirDeck den echten aktuellen Titel statt leerer Decks - den
- * nächsten kennt AirDeck in dem Fall nicht, laut.fm veröffentlicht ihn nicht im Voraus. */
+/** Wer automatisiert den Sender gerade wirklich (AnMaCha Cast-Server-Playout oder laut.fm über den
+ * Radioadmin)? Bei laut.fm zeigt AnMaCha Cast den echten aktuellen Titel statt leerer Decks - den
+ * nächsten kennt AnMaCha Cast in dem Fall nicht, laut.fm veröffentlicht ihn nicht im Voraus. */
 /** laut.fm-Navigation nur zeigen, wenn dieser Sender wirklich mit laut.fm (Radioadmin) verbunden ist,
  * oder noch gar kein Sender verbunden ist (dann ist hier der Einstieg zum erstmaligen Verbinden) -
  * sonst verwirrt der Punkt Sender, die laut.fm höchstens als Ausgang nutzen (siehe Ausgänge). */
@@ -483,7 +483,7 @@ function onEvent(type, data) {
     case 'playout.state': if (S.playout) { S.playout.status = data; S.playoutAt = Date.now(); renderPlayout(); } break;
     case 'playout.level': S.srvLevel = data; S.srvLevelAt = Date.now(); break;
     case 'playout.log':
-      if (data.event === 'silence_manual') status('Stille auf Sendung – Deck starten oder Mikrofon einschalten (Manuell: AirDeck springt nicht selbst ein)', true);
+      if (data.event === 'silence_manual') status('Stille auf Sendung – Deck starten oder Mikrofon einschalten (Manuell: AnMaCha Cast springt nicht selbst ein)', true);
       else if (['encoder_crashed', 'silence_detected', 'decode_failed', 'autostart_failed'].includes(data.event)) status(`Engine: ${{ encoder_crashed: 'Encoder neu gestartet', silence_detected: 'Stille erkannt', decode_failed: 'Titel nicht lesbar', autostart_failed: 'Autostart fehlgeschlagen' }[/** @type {string} */ (data.event)]}${data.mediaId ? ` (${data.mediaId})` : ''}`, true);
       if (['playout_started', 'playout_stopped'].includes(data.event)) run(async () => { S.playout = await api.get(url('/playout')); S.mode = await api.get(url('/mode')); renderPlayout(); renderMode(); renderLibrary(); });
       break;
@@ -521,7 +521,7 @@ function applyBranding() {
     logo.textContent = S.station.name.split(/\s+/).map((/** @type {string} */ w) => w[0]).join('').slice(0, 3).toUpperCase();
     logo.classList.remove('has-img');
   }
-  document.title = `${S.station.name} · AirDeck Studio`;
+  document.title = `${S.station.name} · AnMaCha Cast Studio`;
 }
 
 function renderStationSelect() {
@@ -810,7 +810,7 @@ async function editPlayout() {
     { name: 'silenceMs', label: 'Stille-Alarm nach (ms)', type: 'number', value: c.silenceMs ?? 10000 },
     { name: 'sourceId', label: 'Sendet als Quelle', value: c.sourceId ?? '', options: [['', 'Automation (Standard)'], ...S.sources.map((s) => /** @type {[string,string]} */ ([s.id, `P${s.priority} · ${s.name}`]))] },
     { name: 'autostart', label: 'Nach Neustart automatisch senden', type: 'checkbox', value: c.autostart ?? true },
-    { name: 'hlsEnabled', label: 'AirDeckCast: zusätzlich als HLS ausliefern (Apple HTTP Live Streaming, direkt vom AirDeck-Server)', type: 'checkbox', value: !!c.hls?.enabled },
+    { name: 'hlsEnabled', label: 'Zusatz-Streams: zusätzlich als HLS ausliefern (Apple HTTP Live Streaming, direkt vom AnMaCha Cast-Server)', type: 'checkbox', value: !!c.hls?.enabled },
     { name: 'hlsBitrateKbps', label: 'HLS: Bitrate (kbit/s, AAC)', type: 'number', value: c.hls?.bitrateKbps ?? 128 },
     { name: 'hlsSegmentSeconds', label: 'HLS: Segmentlänge (Sekunden)', type: 'number', value: c.hls?.segmentSeconds ?? 6 },
   ]);
@@ -948,7 +948,7 @@ async function editAudio() {
     { name: 'program', label: 'Sendesignal mithören auf', value: pref(AUDIO_PREF.program), options: opts, hint: canSink ? '' : 'Dieser Browser kann kein Ausgabegerät wählen – es gilt das Standardgerät' },
     { name: 'cue', label: 'Vorhören (CUE/PFL) auf', value: pref(AUDIO_PREF.cue), options: opts },
     { name: 'auto', label: 'Beim Start automatisch mithören', type: 'checkbox', value: pref(AUDIO_PREF.auto) === '1' },
-    { name: 'input', label: 'Mikrofon / Line-In am AirDeck-PC (für die Server-Automation)', value: cfg.inputDevice ?? '', options: [['', '– kein Eingang –'], ...(dev.devices ?? []).map((/** @type {any} */ d) => /** @type {[string,string]} */ ([d.id, d.name]))], hint: dev.devices?.length ? 'Einschalten mit „Mic“ in der Server-Automation' : 'Keine Eingänge gefunden (ffmpeg nötig)' },
+    { name: 'input', label: 'Mikrofon / Line-In am AnMaCha Cast-PC (für die Server-Automation)', value: cfg.inputDevice ?? '', options: [['', '– kein Eingang –'], ...(dev.devices ?? []).map((/** @type {any} */ d) => /** @type {[string,string]} */ ([d.id, d.name]))], hint: dev.devices?.length ? 'Einschalten mit „Mic“ in der Server-Automation' : 'Keine Eingänge gefunden (ffmpeg nötig)' },
   ]);
   if (!v) return;
   setPref(AUDIO_PREF.program, v.program);
@@ -1603,7 +1603,7 @@ async function editOutput(o) {
   const isNew = !o;
   const v = await formDialog(isNew ? 'Ausgang anlegen' : `Ausgang: ${o.name}`, [
     { name: 'name', label: 'Name', value: o?.name ?? 'Hauptstream', required: true },
-    { name: 'type', label: 'Typ', value: o?.type ?? 'icecast', options: [['icecast', 'Icecast (HTTP PUT)'], ['shoutcast', 'SHOUTcast v1/v2 (nur MP3/AAC)'], ...(isNew ? /** @type {[string,string][]} */ ([['lautfm', 'laut.fm (Live-Zugang per Token übernehmen)']]) : [])], hint: isNew ? 'laut.fm: nur Name und Priority nötig – im nächsten Schritt einmal das laut.fm-Token eingeben, Server/Mount/Passwort holt AirDeck automatisch.' : '' },
+    { name: 'type', label: 'Typ', value: o?.type ?? 'icecast', options: [['icecast', 'Icecast (HTTP PUT)'], ['shoutcast', 'SHOUTcast v1/v2 (nur MP3/AAC)'], ...(isNew ? /** @type {[string,string][]} */ ([['lautfm', 'laut.fm (Live-Zugang per Token übernehmen)']]) : [])], hint: isNew ? 'laut.fm: nur Name und Priority nötig – im nächsten Schritt einmal das laut.fm-Token eingeben, Server/Mount/Passwort holt AnMaCha Cast automatisch.' : '' },
     { name: 'host', label: 'Host', value: o?.host ?? '' },
     { name: 'port', label: 'Port', type: 'number', value: o?.port ?? 8000 },
     { name: 'mount', label: 'Mountpoint', value: o?.mount ?? '/stream' },
@@ -1613,10 +1613,10 @@ async function editOutput(o) {
     { name: 'bitrateKbps', label: 'Angezeigte Bitrate (kbit/s)', type: 'number', value: o?.bitrateKbps ?? '' },
     ...(isNew ? [] : [{ name: 'profileId', label: 'Encoder-Profil', value: o?.profileId ?? '',
       options: /** @type {[string,string][]} */ ([['', 'Hauptstream (Standardprofil)'], ...S.streamProfiles.map((sp) => [sp.id, `${sp.name} (${sp.format.toUpperCase()} ${sp.bitrateKbps}k)`])]),
-      hint: 'AirDeckCast: statt des Hauptencoders ein zusätzliches Profil senden (z. B. Mobile AAC 64k), unter „Profile“ anlegen.' }]),
+      hint: 'Zusatz-Streams: statt des Hauptencoders ein zusätzliches Profil senden (z. B. Mobile AAC 64k), unter „Profile“ anlegen.' }]),
     ...(isNew ? [] : [{ name: 'failoverFor', label: 'Failover für', value: o?.failoverFor ?? '',
       options: /** @type {[string,string][]} */ ([['', '– kein Ersatzziel –'], ...S.outputs.filter((x) => x.id !== o.id).map((x) => [x.id, x.name])]),
-      hint: 'AirDeckCast: springt nur ein, solange der gewählte Ausgang nicht verbunden ist (Auth-/Netzwerkfehler) - z. B. ein Ersatzserver.' }]),
+      hint: 'Zusatz-Streams: springt nur ein, solange der gewählte Ausgang nicht verbunden ist (Auth-/Netzwerkfehler) - z. B. ein Ersatzserver.' }]),
     { name: 'priority', label: 'Priority-Parameter (optional)', type: 'number', value: o?.priority ?? '', hint: 'Hängt ?prio=<n> an den Mountpoint an (z. B. laut.fm). Leer = aus.' },
     { name: 'tls', label: 'TLS (https)', type: 'checkbox', value: !!o?.tls },
     { name: 'enabled', label: 'Aktiv', type: 'checkbox', value: o?.enabled ?? true },
@@ -1639,7 +1639,7 @@ async function editOutput(o) {
 }
 
 /**
- * AirDeckCast: Zusatz-Stream-Profile verwalten (z. B. Standard MP3 128k + Mobile AAC 64k gleichzeitig).
+ * Zusatz-Streams: Zusatz-Stream-Profile verwalten (z. B. Standard MP3 128k + Mobile AAC 64k gleichzeitig).
  * Ein Ausgang kann eines dieser Profile statt des Hauptencoders nutzen (siehe editOutput).
  */
 async function manageStreamProfiles() {
@@ -1654,7 +1654,7 @@ async function manageStreamProfiles() {
     ));
     form.replaceChildren(
       h('h3', {}, 'Zusatz-Stream-Profile'),
-      h('p', { class: 'muted' }, 'AirDeckCast: derselbe Programmbus, zusätzliche Encoder-Ausgaben – z. B. eine sparsame Mobilversion neben dem Hauptstream.'),
+      h('p', { class: 'muted' }, 'Zusatz-Streams: derselbe Programmbus, zusätzliche Encoder-Ausgaben – z. B. eine sparsame Mobilversion neben dem Hauptstream.'),
       h('ul', { class: 'outputs' }, ...(rows.length ? rows : [h('li', { class: 'muted' }, 'Noch kein Zusatzprofil – ＋ für z. B. Mobile AAC 64k')])),
       h('div', { class: 'dialog-actions' },
         h('button', { class: 'btn', value: 'cancel', formnovalidate: true }, 'Schließen'),
@@ -1672,20 +1672,20 @@ async function manageStreamProfiles() {
 }
 
 /**
- * AirDeckCast-Teststream: kurzer, echt hörbarer Testton läuft über den laufenden Sendebus (stört Queue/
+ * Zusatz-Streams-Teststream: kurzer, echt hörbarer Testton läuft über den laufenden Sendebus (stört Queue/
  * Automation nicht) und wird an jedem aktiven Ausgang/Profil/HLS auf echten Datenzuwachs geprüft.
  */
 async function runAirDeckCastTest() {
   if (!S.playout?.status?.running) return status('Server-Automation läuft nicht – Test nicht möglich', true);
-  status('AirDeckCast-Test läuft … (ca. 5 Sekunden)');
-  const r = /** @type {any} */ (await run(() => api.post(url('/airdeckcast-test'), {})));
+  status('Zusatz-Streams-Test läuft … (ca. 5 Sekunden)');
+  const r = /** @type {any} */ (await run(() => api.post(url('/stream-profiles-test'), {})));
   if (!r) return;
   const dlg = /** @type {HTMLDialogElement} */ ($('dialog'));
   const form = /** @type {HTMLFormElement} */ ($('dialog-form'));
   form.onsubmit = null;
   const row = (/** @type {string} */ label, /** @type {boolean} */ ok) => h('li', { class: 'out' }, h('span', { class: `pill ${ok ? 'connected' : 'error'}` }, ok ? 'ok' : 'kein Signal'), h('span', { class: 'out-name' }, label));
   form.replaceChildren(
-    h('h3', {}, r.ok ? 'AirDeckCast-Test: alles empfängt' : 'AirDeckCast-Test: nicht überall Signal'),
+    h('h3', {}, r.ok ? 'Zusatz-Streams-Test: alles empfängt' : 'Zusatz-Streams-Test: nicht überall Signal'),
     h('ul', { class: 'outputs' },
       ...r.outputs.map((/** @type {any} */ o) => row(`${o.name}${o.profileId ? ` (${S.streamProfiles.find((sp) => sp.id === o.profileId)?.name ?? o.profileId})` : ''} – ${o.bytesDelta} Bytes`, o.ok)),
       ...(r.hls ? [row(`HLS – ${r.hls.ok ? 'Segmente wachsen' : 'keine neuen Daten'}`, r.hls.ok)] : []),
@@ -1923,7 +1923,7 @@ function bindStatic() {
   const isAdmin = S.me?.roles?.includes('admin') && S.me?.stationIds?.includes('*');
   $('nav-users').hidden = !isAdmin;
   $('btn-logout').hidden = !S.me?.user;
-  // Auch im reinen Browser sichtbar: mehrere selbst gehostete AirDeck-Instanzen lassen sich so
+  // Auch im reinen Browser sichtbar: mehrere selbst gehostete AnMaCha Cast-Instanzen lassen sich so
   // speichern und wechseln, ohne die App/den Server neu aufzurufen (nicht nur in der Android-App).
   $('btn-server').hidden = false;
   // Android-App: jederzeit zum Handy-Sender (sendet ohne Server direkt vom Handy)
@@ -1942,12 +1942,12 @@ function bindStatic() {
   if (!isNativeApp() && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {
     $('btn-quit').hidden = false;
     $('btn-quit').addEventListener('click', async () => {
-      if (!confirm('AirDeck komplett beenden? Die Automation und alle Streams stoppen.')) return;
+      if (!confirm('AnMaCha Cast komplett beenden? Die Automation und alle Streams stoppen.')) return;
       // Im Windows-Programm beendet das Programm Engine und Fenster gemeinsam
       const host = /** @type {any} */ (window).chrome?.webview;
       if (host) return host.postMessage('quit');
       if (await run(() => api.post('/system/shutdown'))) {
-        document.body.replaceChildren(h('div', { class: 'empty', style: 'padding:40px' }, 'AirDeck wurde beendet. Dieses Fenster kann geschlossen werden.'));
+        document.body.replaceChildren(h('div', { class: 'empty', style: 'padding:40px' }, 'AnMaCha Cast wurde beendet. Dieses Fenster kann geschlossen werden.'));
       }
     });
   }
@@ -2108,10 +2108,10 @@ function showView(name) {
 
 async function liquidsoapDialog() {
   const v = await formDialog('Liquidsoap als Sendeweg', [
-    { name: 'info', label: 'Wofür?', type: 'info', value: 'Optional: AirDeck sendet an Liquidsoap, Liquidsoap verteilt an alle Ausgänge, zum Beispiel auf einem Server mit stabiler Anbindung, mit zusätzlicher Dynamik oder mehreren Zielen. Das Skript wird aus deinen Ausgängen erzeugt. Passwörter stehen nicht darin, sie kommen aus Umgebungsvariablen.' },
-    { name: 'port', label: 'Harbor-Port (Eingang von AirDeck)', type: 'number', value: 8005 },
+    { name: 'info', label: 'Wofür?', type: 'info', value: 'Optional: AnMaCha Cast sendet an Liquidsoap, Liquidsoap verteilt an alle Ausgänge, zum Beispiel auf einem Server mit stabiler Anbindung, mit zusätzlicher Dynamik oder mehreren Zielen. Das Skript wird aus deinen Ausgängen erzeugt. Passwörter stehen nicht darin, sie kommen aus Umgebungsvariablen.' },
+    { name: 'port', label: 'Harbor-Port (Eingang von AnMaCha Cast)', type: 'number', value: 8005 },
     { name: 'mount', label: 'Harbor-Mount', value: 'airdeck' },
-    { name: 'processing', label: 'Zusätzliche Liquidsoap-Dynamik (nrj)', type: 'checkbox', value: false, hint: 'Meist nicht nötig, weil die AirDeck-DSP schon verarbeitet' },
+    { name: 'processing', label: 'Zusätzliche Liquidsoap-Dynamik (nrj)', type: 'checkbox', value: false, hint: 'Meist nicht nötig, weil die AnMaCha Cast-DSP schon verarbeitet' },
   ], 'Skript herunterladen');
   if (!v) return;
   const q = `port=${v.port ?? 8005}&mount=${encodeURIComponent(v.mount)}&processing=${v.processing ? 1 : 0}`;
@@ -2119,16 +2119,16 @@ async function liquidsoapDialog() {
   if (!blob) return;
   download(blob, `airdeck-${S.station.id}.liq`);
   const info = await run(() => api.get(url(`/liquidsoap?${q}&format=json`)));
-  status(`Skript gespeichert. Umgebungsvariablen setzen: ${info?.env.join(', ') ?? ''} – dann in AirDeck einen Icecast-Ausgang auf Port ${v.port ?? 8005}, Mount /${v.mount} anlegen.`);
+  status(`Skript gespeichert. Umgebungsvariablen setzen: ${info?.env.join(', ') ?? ''} – dann in AnMaCha Cast einen Icecast-Ausgang auf Port ${v.port ?? 8005}, Mount /${v.mount} anlegen.`);
 }
 
-// ---------- Web-Fernsteuerung (Webseiten, die AirDeck im Browser bedienen und live mitlesen) ----------
+// ---------- Web-Fernsteuerung (Webseiten, die AnMaCha Cast im Browser bedienen und live mitlesen) ----------
 
 async function webRemote() {
   const cur = await run(() => api.get('/app/origins'));
   if (!cur) return;
   const v = await formDialog('Web-Fernsteuerung', [
-    { name: 'info', label: 'Wofür?', type: 'info', value: 'Webseiten aus dieser Liste dürfen AirDeck im Browser bedienen und den Sendebetrieb live mitlesen, z. B. ein Radio-Control-Center. Anmelden müssen sie sich trotzdem: per Kopplungscode oder Benutzerkonto.' },
+    { name: 'info', label: 'Wofür?', type: 'info', value: 'Webseiten aus dieser Liste dürfen AnMaCha Cast im Browser bedienen und den Sendebetrieb live mitlesen, z. B. ein Radio-Control-Center. Anmelden müssen sie sich trotzdem: per Kopplungscode oder Benutzerkonto.' },
     { name: 'origins', label: 'Erlaubte Webseiten (eine pro Zeile)', type: 'textarea', value: cur.webOrigins.join('\n'), hint: 'Nur die Adresse ohne Pfad, z. B. https://control.meinradio.de. Leer = keine Webseite erlaubt.' },
     { name: 'pair', label: 'Danach Kopplungscode für die Webseite anzeigen', type: 'checkbox', value: false },
     { name: 'role', label: 'Rechte der Webseite', value: 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
@@ -2146,25 +2146,25 @@ async function webRemote() {
   const addr = [location.origin, ...(c?.listening ? c.addresses : [])].filter((x, i, a) => a.indexOf(x) === i).join(' · ');
   await formDialog('Kopplungscode für die Webseite', [
     { name: 'code', label: 'Kopplungscode', type: 'info', value: `${p.code.slice(0, 3)} ${p.code.slice(3)}` },
-    { name: 'addr', label: 'AirDeck-Adresse', type: 'info', value: addr },
+    { name: 'addr', label: 'AnMaCha Cast-Adresse', type: 'info', value: addr },
     { name: 'valid', label: 'Gültig', type: 'info', value: `einmalig, bis ${until} Uhr` },
   ], 'Fertig');
 }
 
-// ---------- Fernzugriff ohne Portfreigabe (AirDeck verbindet sich selbst mit einem Vermittler) ----------
+// ---------- Fernzugriff ohne Portfreigabe (AnMaCha Cast verbindet sich selbst mit einem Vermittler) ----------
 
 async function remoteLink() {
   const cur = await run(() => api.get('/app/remote-link'));
   if (!cur) return;
   const STATE = { off: 'aus', connecting: 'verbindet …', online: '✓ verbunden', error: '⚠ Fehler' };
   const v = await formDialog('Fernzugriff ohne Portfreigabe', [
-    { name: 'info', label: 'Wofür?', type: 'info', value: 'AirDeck verbindet sich selbst mit einem Vermittler, z. B. deinem Radio-Control-Center. So ist dieses AirDeck auch hinter dem Router (Studio-PC) von überall live sichtbar und steuerbar, ohne Portfreigabe.' },
+    { name: 'info', label: 'Wofür?', type: 'info', value: 'AnMaCha Cast verbindet sich selbst mit einem Vermittler, z. B. deinem Radio-Control-Center. So ist dieses AnMaCha Cast auch hinter dem Router (Studio-PC) von überall live sichtbar und steuerbar, ohne Portfreigabe.' },
     ...(cur.configured ? [{ name: 'status', label: `Status${cur.name ? ` (${cur.name})` : ''}`, type: 'info', value: `${STATE[cur.state] ?? cur.state}${cur.error ? ` – ${cur.error}` : ''}` }] : []),
-    { name: 'code', label: cur.configured ? 'Neuer Verbindungscode (leer = unverändert)' : 'Verbindungscode', value: '', hint: 'Beginnt mit „adl1.“ – im Control Center unter „Mit AirDeck verbinden → Fernzugriff anlegen“ erzeugen' },
+    { name: 'code', label: cur.configured ? 'Neuer Verbindungscode (leer = unverändert)' : 'Verbindungscode', value: '', hint: 'Beginnt mit „adl1.“ – im Control Center unter „Mit AnMaCha Cast verbinden → Fernzugriff anlegen“ erzeugen' },
     { name: 'role', label: 'Rechte über den Fernzugriff', value: cur.role ?? 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
     { name: 'scope', label: 'Sender', value: !cur.configured || cur.stationIds.includes('*') ? 'all' : 'one', options: [['all', 'Alle Sender'], ['one', `Nur „${S.station.name}“`]] },
     { name: 'enabled', label: 'Fernzugriff aktiv', type: 'checkbox', value: cur.configured ? cur.enabled : true },
-    { name: 'feed', label: 'Sendesignal übergeben erlauben (der Vermittler darf das Programm dieses AirDeck auf Sendung nehmen)', type: 'checkbox', value: !!cur.feed },
+    { name: 'feed', label: 'Sendesignal übergeben erlauben (der Vermittler darf das Programm dieses AnMaCha Cast auf Sendung nehmen)', type: 'checkbox', value: !!cur.feed },
     ...(cur.feeding?.length ? [{ name: 'feeding', label: 'Übergabe läuft', type: 'info', value: `Sendesignal geht gerade an den Vermittler (${cur.feeding.join(', ')})` }] : []),
     ...(cur.configured ? [{ name: 'remove', label: 'Fernzugriff entfernen (Zugang widerrufen)', type: 'checkbox', value: false }] : []),
   ], 'Speichern');
@@ -2187,17 +2187,17 @@ async function androidApp() {
   if (!c) return;
   const base = c.addresses[0] ?? location.origin;
   const v = await formDialog('Android-App', [
-    { name: 'info', label: 'Offizielle AirDeck-App', type: 'info', value: 'Die App steuert diesen AirDeck per Touch und sendet mit MIC LIVE als Live-Quelle. Auf dem Handy im selben WLAN öffnen:' },
-    { name: 'dl', label: 'APK herunterladen (im Handy-Browser öffnen)', type: 'info', value: c.listening ? `${base}/download/AirDeck-Android.apk` : 'Erst „Im Netzwerk erreichbar“ einschalten und AirDeck neu starten' },
-    { name: 'lan', label: 'Im Netzwerk erreichbar (nötig für Handy und andere PCs)', type: 'checkbox', value: c.lan, hint: c.restartNeeded ? '⚠ Wird nach einem Neustart von AirDeck aktiv. Windows fragt einmalig nach der Firewall-Freigabe.' : c.listening ? `Erreichbar unter: ${c.addresses.join(' · ') || '–'}` : 'Zurzeit nur auf diesem PC erreichbar' },
-    { name: 'pair', label: 'Gerät koppeln (Kopplungscode anzeigen)', type: 'checkbox', value: c.listening, hint: 'In der App bei „Mit AirDeck verbinden“ Adresse und Code eingeben – ein Benutzerkonto ist nicht nötig' },
+    { name: 'info', label: 'Offizielle AnMaCha Cast-App', type: 'info', value: 'Die App steuert diesen AnMaCha Cast per Touch und sendet mit MIC LIVE als Live-Quelle. Auf dem Handy im selben WLAN öffnen:' },
+    { name: 'dl', label: 'APK herunterladen (im Handy-Browser öffnen)', type: 'info', value: c.listening ? `${base}/download/AnMaCha-Cast-Android.apk` : 'Erst „Im Netzwerk erreichbar“ einschalten und AnMaCha Cast neu starten' },
+    { name: 'lan', label: 'Im Netzwerk erreichbar (nötig für Handy und andere PCs)', type: 'checkbox', value: c.lan, hint: c.restartNeeded ? '⚠ Wird nach einem Neustart von AnMaCha Cast aktiv. Windows fragt einmalig nach der Firewall-Freigabe.' : c.listening ? `Erreichbar unter: ${c.addresses.join(' · ') || '–'}` : 'Zurzeit nur auf diesem PC erreichbar' },
+    { name: 'pair', label: 'Gerät koppeln (Kopplungscode anzeigen)', type: 'checkbox', value: c.listening, hint: 'In der App bei „Mit AnMaCha Cast verbinden“ Adresse und Code eingeben – ein Benutzerkonto ist nicht nötig' },
     { name: 'role', label: 'Rechte des Geräts', value: 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
     { name: 'devices', label: 'Gekoppelte Geräte verwalten', type: 'checkbox', value: false },
   ], 'Übernehmen');
   if (!v) return;
   if (v.lan !== c.lan) {
     const r = await run(() => api.put('/app/network', { lan: v.lan }));
-    if (r?.restartNeeded) status('Netzwerk-Einstellung gespeichert – bitte AirDeck neu starten (Tray/Fenster schließen und neu öffnen)');
+    if (r?.restartNeeded) status('Netzwerk-Einstellung gespeichert – bitte AnMaCha Cast neu starten (Tray/Fenster schließen und neu öffnen)');
   }
   if (v.pair) {
     const p = await run(() => api.post('/pairing', { role: v.role, stationIds: [S.station.id] }));
@@ -2211,10 +2211,10 @@ async function androidApp() {
       h('h3', {}, 'Gerät koppeln'),
       ...(addr ? [
         h('img', { src: qrDataUrl(`${addr}/#pair=${p.code}`), alt: 'QR-Code zum Koppeln', style: 'display:block;margin:0 auto 10px;image-rendering:pixelated;width:200px;height:200px' }),
-        h('p', { class: 'muted', style: 'text-align:center;margin:0 0 12px' }, 'Mit der Handy-Kamera scannen – öffnet AirDeck und koppelt automatisch.'),
+        h('p', { class: 'muted', style: 'text-align:center;margin:0 0 12px' }, 'Mit der Handy-Kamera scannen – öffnet AnMaCha Cast und koppelt automatisch.'),
       ] : []),
       h('div', { class: 'field' }, h('label', {}, 'Kopplungscode'), h('output', {}, `${p.code.slice(0, 3)} ${p.code.slice(3)}`)),
-      h('div', { class: 'field' }, h('label', {}, 'Server-Adresse in der App'), h('output', {}, p.listening ? (p.addresses.join(' · ') || base) : 'Erst „Im Netzwerk erreichbar“ einschalten und AirDeck neu starten')),
+      h('div', { class: 'field' }, h('label', {}, 'Server-Adresse in der App'), h('output', {}, p.listening ? (p.addresses.join(' · ') || base) : 'Erst „Im Netzwerk erreichbar“ einschalten und AnMaCha Cast neu starten')),
       h('div', { class: 'field' }, h('label', {}, 'Gültig'), h('output', {}, `einmalig, bis ${until} Uhr · Sender „${S.station.name}“`)),
       h('div', { class: 'dialog-actions' }, h('button', { class: 'btn primary', value: 'ok', formnovalidate: true }, 'Fertig')),
     );
@@ -2297,7 +2297,7 @@ async function editNotify() {
   const labels = /** @type {Record<string,string>} */ ({ now_playing: 'Now Playing', on_air_changed: 'Quelle gewechselt', off_air: 'OFF AIR', source_failed: 'Quelle ausgefallen', silence: 'Stille', silence_recovered: 'Stille beendet', encoder_crashed: 'Encoder-Absturz', stream_error: 'Stream-Fehler', stream_connected: 'Stream verbunden', schedule_fired: 'Zeitplan ausgelöst' });
   const v = await formDialog('Benachrichtigungen & Export', [
     { name: 'url', label: 'Webhook-URL (JSON per POST, leer = aus)', value: w?.url ?? '' },
-    { name: 'secret', label: `Webhook-Secret für Signatur (X-AirDeck-Signature)${w?.hasSecret ? ' – leer = unverändert' : ''}`, type: 'password', value: '' },
+    { name: 'secret', label: `Webhook-Secret für Signatur (X-AnMaCha-Cast-Signature)${w?.hasSecret ? ' – leer = unverändert' : ''}`, type: 'password', value: '' },
     ...cur.events.map((/** @type {string} */ e) => ({ name: `ev_${e}`, label: `Webhook: ${labels[e] ?? e}`, type: 'checkbox', value: w ? w.events.includes(e) : ['now_playing', 'off_air', 'silence', 'encoder_crashed', 'stream_error'].includes(e) })),
     { name: 'tgChat', label: 'Telegram: Chat-ID (Alarme)', value: cur.telegram?.chatId ?? '' },
     { name: 'tgToken', label: `Telegram: Bot-Token${cur.telegram?.hasToken ? ' (leer = unverändert)' : ''}`, type: 'password', value: '' },

@@ -29,9 +29,9 @@ export function mountNextcloud(root, ctx) {
   async function render() {
     if (!cfg?.url) {
       root.replaceChildren(head(), card('Nextcloud verbinden',
-        h('p', {}, 'Greife auf Musik, Jingles und Beiträge in deiner Nextcloud zu und übernimm sie per Fingertipp in die AirDeck-Bibliothek. Mitschnitte kannst du im Recorder direkt in die Cloud hochladen.'),
+        h('p', {}, 'Greife auf Musik, Jingles und Beiträge in deiner Nextcloud zu und übernimm sie per Fingertipp in die AnMaCha Cast-Bibliothek. Mitschnitte kannst du im Recorder direkt in die Cloud hochladen.'),
         h('ol', {},
-          h('li', {}, 'In der Nextcloud: Einstellungen → Sicherheit → „Neues App-Passwort erstellen“ (Name z. B. AirDeck).'),
+          h('li', {}, 'In der Nextcloud: Einstellungen → Sicherheit → „Neues App-Passwort erstellen“ (Name z. B. AnMaCha Cast).'),
           h('li', {}, 'Hier Adresse, Benutzername und App-Passwort eintragen, optional einen Startordner wie /Radio.')),
         h('button', { class: 'btn primary', onclick: configure }, 'Verbinden …')));
       return;

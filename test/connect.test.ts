@@ -41,12 +41,17 @@ test('Stufen: Handy-localhost, nicht erreichbar, kein AirDeck, Version, Anmeldun
   try {
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
     assert.equal(r.steps.at(-1).id, 'airdeck');
+    // Legacy-Server (vor der Umbenennung) melden sich noch mit 'AirDeck' - wird weiterhin erkannt (Kompatibilitäts-Alias).
     health = { name: 'AirDeck', version: '9.0.0', api: '2.0' };
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
     assert.equal(r.steps.at(-1).detail, 'Diese App benötigt ein Update');
     health = { name: 'AirDeck', version: '0.3.0' };
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
-    assert.equal(r.steps.at(-1).detail, 'AirDeck Server benötigt ein Update');
+    assert.equal(r.steps.at(-1).detail, 'AnMaCha Cast Server benötigt ein Update');
+    // Aktueller Server meldet sich mit dem neuen Produktnamen - ebenfalls erkannt.
+    health = { name: 'AnMaCha Cast', version: '0.3.0' };
+    r = await testConnection(fakeBase, { code: '1' }, { native: false });
+    assert.equal(r.steps.at(-1).detail, 'AnMaCha Cast Server benötigt ein Update');
   } finally {
     fake.close();
   }

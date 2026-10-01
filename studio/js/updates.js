@@ -1,5 +1,5 @@
 // @ts-check
-// Update-Funktion im Studio: Windows installiert über den AirDeck-Server, Android lädt die neue APK.
+// Update-Funktion im Studio: Windows installiert über den AnMaCha Cast-Server, Android lädt die neue APK.
 import { isNativeApp } from './api.js';
 import { $, formDialog, run, status } from './ui.js';
 
@@ -74,16 +74,16 @@ export function mountUpdates(api) {
       if (!(await run(() => api.put('/update/settings', body)))) return;
       await check(true);
     }
-    if (!available()) return status(info?.error ? `Update-Prüfung: ${info.error}` : 'AirDeck ist aktuell');
+    if (!available()) return status(info?.error ? `Update-Prüfung: ${info.error}` : 'AnMaCha Cast ist aktuell');
     if (android) {
-      // APK kommt über den verbundenen AirDeck-Server (Token bleibt dort) und wird vom System-Installer geöffnet
+      // APK kommt über den verbundenen AnMaCha Cast-Server (Token bleibt dort) und wird vom System-Installer geöffnet
       const url = `${api.base}/api/v1/update/apk?token=${encodeURIComponent(api.token)}`;
       window.open(url, '_system');
       status('APK wird geladen – danach „Installieren“ bestätigen (einmalig „Unbekannte Apps installieren“ erlauben)');
     } else if (cfg?.canInstall) {
-      if (!confirm(`Update ${info.latest} jetzt installieren? AirDeck wird kurz beendet und startet danach neu. Laufende Sendungen werden unterbrochen.`)) return;
+      if (!confirm(`Update ${info.latest} jetzt installieren? AnMaCha Cast wird kurz beendet und startet danach neu. Laufende Sendungen werden unterbrochen.`)) return;
       const r = await run(() => api.post('/update/install'));
-      if (r) status(`Update ${r.to} wird installiert – AirDeck startet gleich neu …`);
+      if (r) status(`Update ${r.to} wird installiert – AnMaCha Cast startet gleich neu …`);
     } else {
       status(`Neue Version ${info.latest}: bitte Setup bzw. Server-Paket manuell aktualisieren (Download im Release „${cfg?.tag ?? 'latest'}“)`);
     }

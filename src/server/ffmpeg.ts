@@ -236,7 +236,7 @@ export async function analyzeLoudness(ffmpeg: string, file: string, timeoutMs = 
   return r && r.lufs !== null ? { lufs: r.lufs, truePeakDb: r.truePeakDb } : null;
 }
 
-/** AirDeckCast-Teststream: kurzer Testton (nur bei Bedarf einmal erzeugt, danach wiederverwendet). */
+/** Zusatz-Streams-Teststream: kurzer Testton (nur bei Bedarf einmal erzeugt, danach wiederverwendet). */
 export function generateTestTone(ffmpeg: string, file: string, seconds = 3, freq = 1000): Promise<void> {
   return new Promise((resolve, reject) => {
     const p = spawn(ffmpeg, ['-y', '-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', `sine=f=${freq}:d=${seconds}`, file], { windowsHide: true });

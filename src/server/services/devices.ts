@@ -85,7 +85,7 @@ export class DeviceService {
     return {
       token,
       device: { id: info.id, name, role: pairing.role, stationIds: pairing.stationIds },
-      server: { name: 'AirDeck', version: this.app.version, api: API_VERSION },
+      server: { name: 'AnMaCha Cast', version: this.app.version, api: API_VERSION },
     };
   }
 

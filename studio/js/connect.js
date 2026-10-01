@@ -1,5 +1,5 @@
 // @ts-check
-// Verbindung zu einem AirDeck-Server (docs/architecture/NETWORK.md „Server hinzufügen“):
+// Verbindung zu einem AnMaCha Cast-Server (docs/architecture/NETWORK.md „Server hinzufügen“):
 // Verbindungstest in Stufen – jede Stufe meldet ein eigenes Ergebnis mit einem gezielten Hinweis –,
 // Kopplung per Code, Versionsprüfung und gespeicherte Serverprofile.
 
@@ -74,26 +74,26 @@ export async function testConnection(address, auth, opts) {
       id: 'reach', label: 'Server erreichbar', ok: false, detail: 'Keine Antwort',
       hint: base.startsWith('https:')
         ? 'Prüfe Adresse und Zertifikat (HTTPS über den Reverse Proxy).'
-        : 'Prüfe: gleiches WLAN? Am PC in AirDeck „Android-App → Im Netzwerk erreichbar“ eingeschaltet und AirDeck neu gestartet? Windows-Firewall-Freigabe bestätigt?',
+        : 'Prüfe: gleiches WLAN? Am PC in AnMaCha Cast „Android-App → Im Netzwerk erreichbar“ eingeschaltet und AnMaCha Cast neu gestartet? Windows-Firewall-Freigabe bestätigt?',
     });
     return done(base);
   }
 
-  // 3 Ist das AirDeck?
-  if (!health || health.name !== 'AirDeck') {
-    push({ id: 'airdeck', label: 'AirDeck erkannt', ok: false, detail: 'Unter dieser Adresse antwortet kein AirDeck', hint: 'Port prüfen (Standard 8750).' });
+  // 3 Ist das AnMaCha Cast? Legacy-Server (vor der Umbenennung) melden sich noch mit 'AirDeck' - beides gilt als erkannt.
+  if (!health || (health.name !== 'AnMaCha Cast' && health.name !== 'AirDeck')) {
+    push({ id: 'airdeck', label: 'AnMaCha Cast erkannt', ok: false, detail: 'Unter dieser Adresse antwortet kein AnMaCha Cast', hint: 'Port prüfen (Standard 8750).' });
     return done(base);
   }
-  push({ id: 'airdeck', label: 'AirDeck erkannt', ok: true, detail: `Version ${health.version ?? '?'}` });
+  push({ id: 'airdeck', label: 'AnMaCha Cast erkannt', ok: true, detail: `Version ${health.version ?? '?'}` });
 
   // 4 Version
   const major = Number(String(health.api ?? '0').split('.')[0]);
   if (!health.api || major < CLIENT_API_MAJOR) {
-    push({ id: 'version', label: 'Version passt', ok: false, detail: 'AirDeck Server benötigt ein Update', hint: 'Den PC/Server auf die aktuelle AirDeck-Version aktualisieren.' });
+    push({ id: 'version', label: 'Version passt', ok: false, detail: 'AnMaCha Cast Server benötigt ein Update', hint: 'Den PC/Server auf die aktuelle AnMaCha Cast-Version aktualisieren.' });
     return done(base);
   }
   if (major > CLIENT_API_MAJOR) {
-    push({ id: 'version', label: 'Version passt', ok: false, detail: 'Diese App benötigt ein Update', hint: 'Die aktuelle App direkt vom Server laden: …/download/AirDeck-Android.apk' });
+    push({ id: 'version', label: 'Version passt', ok: false, detail: 'Diese App benötigt ein Update', hint: 'Die aktuelle App direkt vom Server laden: …/download/AnMaCha Cast-Android.apk' });
     return done(base);
   }
   push({ id: 'version', label: 'Version passt', ok: true, detail: `API ${health.api}` });
@@ -112,7 +112,7 @@ export async function testConnection(address, auth, opts) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
         const st = await timed(`${base}/api/v1/auth/status`).then((x) => x.json()).catch(() => ({}));
-        const hint = st.users === false ? 'Auf diesem AirDeck gibt es keine Benutzerkonten – mit Kopplungscode verbinden (am PC: „Android-App → Gerät koppeln“).' : undefined;
+        const hint = st.users === false ? 'Auf diesem AnMaCha Cast gibt es keine Benutzerkonten – mit Kopplungscode verbinden (am PC: „Android-App → Gerät koppeln“).' : undefined;
         return push({ id: 'login', label: 'Anmeldung', ok: false, detail: d.message ?? `Fehler ${r.status}`, hint }), done(base);
       }
       token = d.token;
@@ -135,7 +135,7 @@ export async function testConnection(address, auth, opts) {
     // Bei gleicher Herkunft (Browser direkt auf dem Server) bleibt „base“ bisher leer – für die
     // Serverliste (mehrere Instanzen wechseln) braucht es aber eine feste Adresse, sonst taucht der
     // gerade genutzte Server selbst nie unter „Gespeicherte Server“ auf.
-    return done(base || (!opts.native ? location.origin : base), { token, serverName: stations[0]?.name ?? 'AirDeck' });
+    return done(base || (!opts.native ? location.origin : base), { token, serverName: stations[0]?.name ?? 'AnMaCha Cast' });
   } catch {
     push({ id: 'rights', label: 'Rechte', ok: false, detail: 'Abfrage fehlgeschlagen' });
     return done(base);
@@ -173,7 +173,7 @@ export function removeProfile(/** @type {string} */ base) {
 export function deviceName(/** @type {boolean} */ native) {
   const ua = navigator.userAgent;
   const model = /Android [\d.]+; ([^;)]+)/.exec(ua)?.[1]?.trim();
-  if (native) return model ? `AirDeck-App (${model})` : 'AirDeck-App';
+  if (native) return model ? `AnMaCha Cast-App (${model})` : 'AnMaCha Cast-App';
   const os = /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /Linux/.test(ua) ? 'Linux' : 'Browser';
   return `Browser (${os})`;
 }

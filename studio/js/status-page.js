@@ -20,7 +20,7 @@
     const list = await fetch('status.json').then((r) => r.json()).catch(() => ({ stations: [] }));
     const sel = /** @type {HTMLSelectElement} */ ($('sel'));
     sel.replaceChildren(...list.stations.flatMap((s) => [
-      h('option', { value: s.id }, `${s.name} (AirDeck)`),
+      h('option', { value: s.id }, `${s.name} (AnMaCha Cast)`),
       ...(s.lautfm ? [h('option', { value: `lautfm/${s.lautfm}` }, `${s.name} – laut.fm/${s.lautfm}`)] : []),
     ]));
     if (current && ![...sel.options].some((o) => o.value === current)) sel.append(h('option', { value: current }, current.replace('lautfm/', 'laut.fm/')));
@@ -73,7 +73,7 @@
     srcs.forEach((/** @type {any} */ s, /** @type {number} */ i) => {
       let mount = '';
       try { mount = new URL(s.listenurl).pathname; } catch {}
-      // Fortschritt nur, wenn der Mount wirklich den gezeigten Titel spielt (nicht laut.fm-Eigenprogramm neben AirDeck)
+      // Fortschritt nur, wenn der Mount wirklich den gezeigten Titel spielt (nicht laut.fm-Eigenprogramm neben AnMaCha Cast)
       const now = i === 0 && (s.kind !== 'laut.fm' || d.kind === 'laut.fm') ? d.now : null;
       const prog = now?.ends_at ? h('div', { class: 'prog' }, h('i', { id: `pg${i}` })) : null;
       out.push(h('div', { class: 'card' },

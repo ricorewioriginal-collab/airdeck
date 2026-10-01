@@ -109,7 +109,7 @@ export function dspFilter(d: DspOptions): string | null {
 
 const RAW_IN = ['-f', 's16le', '-ar', String(SAMPLE_RATE), '-ch_layout', 'stereo'];
 
-/** AirDeckCast-Zusatzprofil: eigenes Format/Bitrate, derselbe Programmbus wie der Hauptencoder. */
+/** Zusatz-Streams-Profil: eigenes Format/Bitrate, derselbe Programmbus wie der Hauptencoder. */
 export interface StreamProfileOpts {
   format: StreamFormat;
   bitrateKbps: number;
@@ -130,7 +130,7 @@ interface StreamProfileRuntime {
 }
 
 /**
- * AirDeckCast: HLS-Ausgabe (Apple HTTP Live Streaming) - eigener AAC-Encode desselben Programmbusses,
+ * Zusatz-Streams: HLS-Ausgabe (Apple HTTP Live Streaming) - eigener AAC-Encode desselben Programmbusses,
  * den ffmpeg selbst in Segmente + Playlist teilt (kein Byte-Stream über onStreamData, sondern Dateien
  * in einem Verzeichnis, das der HTTP-Server direkt ausliefert).
  */
@@ -351,10 +351,10 @@ export class Playout {
   private readonly live = new Map<string, LiveChannel>();
   private program: string | null = null;
   private automationOn = true;
-  /** AirDeckCast: zusätzliche Encoder-Profile (z. B. "Mobile AAC 64k"), alle aus demselben PCM-Programmbus
+  /** Zusatz-Streams: zusätzliche Encoder-Profile (z. B. "Mobile AAC 64k"), alle aus demselben PCM-Programmbus
    *  gespeist wie der Hauptencoder - ein Programmbus, mehrere Ausgänge, keine zweite Playout-Engine. */
   private readonly profiles = new Map<string, StreamProfileRuntime>();
-  /** AirDeckCast: HLS-Ausgaben (Segmente + Playlist in einem Verzeichnis), ebenfalls aus dem PCM-Programmbus */
+  /** Zusatz-Streams: HLS-Ausgaben (Segmente + Playlist in einem Verzeichnis), ebenfalls aus dem PCM-Programmbus */
   private readonly hlsOutputs = new Map<string, HlsRuntime>();
 
   constructor(ffmpeg: string, hooks: PlayoutHooks, opts: Partial<PlayoutOptions> = {}, extras: PlayoutExtras = {}) {
@@ -761,7 +761,7 @@ export class Playout {
     return undefined;
   }
 
-  /** Codec-Argumente für ein Encoder-Profil (Hauptencoder oder AirDeckCast-Zusatzprofil) - eine Umsetzung. */
+  /** Codec-Argumente für ein Encoder-Profil (Hauptencoder oder Zusatz-Streams-Profil) - eine Umsetzung. */
   private codecArgs(opts: StreamProfileOpts): string[] {
     const br = `${opts.bitrateKbps}k`;
     return opts.format === 'opus' ? ['-c:a', 'libopus', '-b:a', br, '-f', 'ogg', '-page_duration', '200000']
@@ -800,7 +800,7 @@ export class Playout {
   }
 
   /**
-   * AirDeckCast: ein zusätzliches Encoder-Profil starten (z. B. "Mobile AAC 64k"), gespeist aus
+   * Zusatz-Streams: ein zusätzliches Encoder-Profil starten (z. B. "Mobile AAC 64k"), gespeist aus
    * demselben Programmbus wie der Hauptencoder - ein Mix, mehrere Ausgänge. Läuft neben dem
    * Hauptencoder, unabhängig davon, ob dieser gerade neu startet.
    */
@@ -845,7 +845,7 @@ export class Playout {
   }
 
   /**
-   * AirDeckCast: HLS-Ausgabe starten/aktualisieren (z. B. für einen anderen Sender-Player). Ersetzt eine
+   * Zusatz-Streams: HLS-Ausgabe starten/aktualisieren (z. B. für einen anderen Sender-Player). Ersetzt eine
    * gleichnamige Ausgabe - dieselbe id mit neuen Optionen startet den Segmentierer neu.
    */
   addHls(id: string, opts: HlsOpts): void {

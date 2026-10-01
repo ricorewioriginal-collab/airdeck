@@ -1,6 +1,6 @@
 {
-  "name": "AirDeck Studio",
-  "short_name": "AirDeck",
+  "name": "AnMaCha Cast Studio",
+  "short_name": "AnMaCha Cast",
   "start_url": "./",
   "display": "standalone",
   "orientation": "any",

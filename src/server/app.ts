@@ -49,7 +49,7 @@ export class AirDeckApp {
   readonly svc: Services;
   readonly dataDir: string;
   readonly mediaDir: string;
-  /** AirDeckCast: Verzeichnis für HLS-Segmente + Playlists, je Sender ein Unterordner */
+  /** Zusatz-Streams: Verzeichnis für HLS-Segmente + Playlists, je Sender ein Unterordner */
   readonly hlsDir: string;
   readonly engine: SourcePriorityEngine;
   readonly secrets: SecretStore;
@@ -57,7 +57,7 @@ export class AirDeckApp {
   readonly stations = new Map<string, StationRuntime>();
   readonly outputs = new Map<string, BroadcastOutput>();
   readonly relays = new Map<string, RelayTarget>();
-  /** AirDeckCast: je Sender+Zusatzprofil ein eigenes Relay (fasst Ausgänge zusammen, die dieses Profil statt des Hauptencoders nutzen) */
+  /** Zusatz-Streams: je Sender+Zusatzprofil ein eigenes Relay (fasst Ausgänge zusammen, die dieses Profil statt des Hauptencoders nutzen) */
   readonly profileRelays = new Map<string, RelayTarget>();
   /** Sendebus je Sender; forLive = nur für eine Live-Sendung gestartet (endet mit ihr) */
   readonly playouts = new Map<string, { playout: Playout; source: SourceConfig; forLive?: boolean }>();
@@ -170,7 +170,7 @@ export class AirDeckApp {
     this.docs.bind('airdeck', () => this.snapshot());
     this.sync = opts.sync ?? new SyncManager(dataDir, this.secrets, (event, data) => this.audit.write({ kind: 'sync', event, ...data }));
     this.health = new HealthManager({
-      name: 'AirDeck',
+      name: 'AnMaCha Cast',
       version: this.version,
       build: opts.build ?? 'dev',
       mode: this.mode,
@@ -681,7 +681,7 @@ export class AirDeckApp {
     const key = relayKey(stationId, target);
     let r = this.relays.get(key);
     if (!r) {
-      // profileId-Ausgänge hängen an einem AirDeckCast-Zusatzprofil statt am Hauptbus dieses Targets (siehe profileRelayFor).
+      // profileId-Ausgänge hängen an einem Zusatz-Streams-Profil statt am Hauptbus dieses Targets (siehe profileRelayFor).
       // failoverFor-Ausgänge (Ersatzziel) hängen nur mit an, solange ihr Primärausgang nicht "connected" ist.
       r = new RelayTarget(() => [...this.outputs.values()].filter((o) => {
         if (o.cfg.stationId !== stationId || o.cfg.sourceTarget !== target || !o.cfg.enabled || o.cfg.profileId) return false;
@@ -707,7 +707,7 @@ export class AirDeckApp {
   }
 
   /**
-   * AirDeckCast-Failover: läuft nach jeder Statusänderung eines Ausgangs. Ausgänge mit failoverFor
+   * Zusatz-Streams-Failover: läuft nach jeder Statusänderung eines Ausgangs. Ausgänge mit failoverFor
    * springen ein, sobald ihr Primärziel nicht "connected" ist (Auth-Fehler, Netzwerkproblem, ...), und
    * werden wieder beendet, sobald das Primärziel zurück ist.
    */
@@ -799,7 +799,7 @@ export class AirDeckApp {
     this.changed();
   }
 
-  // ---------- AirDeckCast: Zusatz-Stream-Profile ----------
+  // ---------- Zusatz-Streams: weitere Stream-Profile ----------
 
   profileRelayFor(stationId: string, profileId: string): RelayTarget {
     const key = `profile:${stationId}:${profileId}`;
@@ -1306,7 +1306,7 @@ export class AirDeckApp {
   }
 
   /**
-   * AirDeckCast-Teststream: ein kurzer, echt hörbarer Testton läuft über den laufenden Sendebus (als
+   * Zusatz-Streams-Teststream: ein kurzer, echt hörbarer Testton läuft über den laufenden Sendebus (als
    * Cart über das Programm, ohne Queue/Automation zu stören) und wird an ALLEN aktivierten Zielen
    * (Hauptstream, Zusatzprofile, HLS) auf echten Datenzuwachs geprüft - "Verbindung besteht" allein zählt
    * nicht, es muss während des Tests tatsächlich mehr Bytes geflossen sein als vorher.
@@ -1322,7 +1322,7 @@ export class AirDeckApp {
     const seconds = 3;
     const file = join(this.mediaDir, stationId, '_airdeckcast_test.wav');
     if (!existsSync(file)) await generateTestTone(this.ffmpeg.ffmpeg, file, seconds);
-    const media: MediaItem = { id: '_airdeckcast_test', title: 'AirDeckCast Test', artist: '', category: 'station_id', file: '_airdeckcast_test.wav', durationMs: seconds * 1000, addedAt: Date.now() };
+    const media: MediaItem = { id: '_airdeckcast_test', title: 'Zusatz-Streams-Test', artist: '', category: 'station_id', file: '_airdeckcast_test.wav', durationMs: seconds * 1000, addedAt: Date.now() };
 
     const outs = [...this.outputs.values()].filter((o) => o.cfg.stationId === stationId && o.cfg.enabled);
     const before = new Map(outs.map((o) => [o.cfg.id, o.state.bytesSent]));
