@@ -3,6 +3,7 @@
 // Sämtlicher Nutzerinhalt wird per textContent gesetzt (kein innerHTML) → kein XSS.
 
 import { Api, ApiError, isNativeApp, readToken, saveServer, saveToken, serverBase } from './api.js';
+import { lsGet, lsSet } from './legacy-storage.js';
 import { deviceName, loadProfiles, removeProfile, saveProfile, testConnection } from './connect.js';
 import { runSetup } from './setup.js';
 import { mountListeners } from './listeners.js';
@@ -170,7 +171,7 @@ async function boot() {
   }
   if (S.me?.user?.mustChangePassword) return forcePasswordChange();
   S.stations = await api.get('/stations');
-  const saved = localStorage.getItem('airdeck.station');
+  const saved = lsGet('station');
   S.station = S.stations.find((s) => s.id === saved) ?? S.stations[0];
   if (!S.station) return status('Kein Sender verfügbar', true);
   renderStationSelect();
@@ -249,8 +250,7 @@ async function askToken(msg, prev, forceServer) {
 
 /** Android-App: ohne Server direkt vom Handy senden oder mit einem AnMaCha Cast-PC/-Server verbinden. */
 async function chooseAppMode() {
-  let mode = null;
-  try { mode = localStorage.getItem('airdeck.mobileMode'); } catch {}
+  const mode = lsGet('mobileMode');
   if (mode === 'handy') return location.replace('handy.html');
   if (mode === 'server') return askToken();
   const v = await formDialog('AnMaCha Cast starten', [
@@ -258,7 +258,7 @@ async function chooseAppMode() {
     { name: 'mode', label: 'Betrieb', value: 'handy', options: [['handy', 'Handy-Sender (ohne Server)'], ['server', 'Mit AnMaCha Cast-PC/-Server verbinden']] },
   ], 'Weiter');
   if (!v) return;
-  try { localStorage.setItem('airdeck.mobileMode', v.mode); } catch {}
+  lsSet('mobileMode', v.mode);
   if (v.mode === 'handy') return location.replace('handy.html');
   return askToken();
 }
@@ -371,7 +371,7 @@ async function refreshAutomationSource() {
 }
 
 async function loadStation() {
-  localStorage.setItem('airdeck.station', S.station.id);
+  lsSet('station', S.station.id);
   applyBranding();
   const [library, queue, carts, sources, outputs, streamProfiles, np, playout, mode] = await Promise.all([
     api.get(url('/media')), api.get(url('/queue')), api.get(url('/cardwall')),
@@ -878,9 +878,9 @@ async function toggleMic() {
 
 // ---------- Mithören / Audio-Routing ----------
 
-const AUDIO_PREF = { program: 'airdeck.progSink', cue: 'airdeck.pflSink', auto: 'airdeck.autoListen' };
-const pref = (/** @type {string} */ k) => { try { return localStorage.getItem(k) ?? ''; } catch { return ''; } };
-const setPref = (/** @type {string} */ k, /** @type {string} */ v) => { try { localStorage.setItem(k, v); } catch {} };
+const AUDIO_PREF = { program: 'progSink', cue: 'pflSink', auto: 'autoListen' };
+const pref = (/** @type {string} */ k) => lsGet(k) ?? '';
+const setPref = (/** @type {string} */ k, /** @type {string} */ v) => lsSet(k, v);
 
 /** Ausgabegerät setzen (Edge/Chrome: setSinkId), still ignorieren, wenn nicht unterstützt. @param {any} target @param {string} sink */
 async function applySink(target, sink) {
@@ -1929,7 +1929,7 @@ function bindStatic() {
   // Android-App: jederzeit zum Handy-Sender (sendet ohne Server direkt vom Handy)
   $('btn-handy').hidden = !isNativeApp();
   $('btn-handy').addEventListener('click', () => {
-    try { localStorage.setItem('airdeck.mobileMode', 'handy'); } catch {}
+    lsSet('mobileMode', 'handy');
     location.href = 'handy.html';
   });
   $('btn-setup').hidden = !isGlobalAdmin();

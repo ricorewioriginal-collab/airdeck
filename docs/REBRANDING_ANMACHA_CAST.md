@@ -93,10 +93,7 @@ Gemäß Auftrag priorisiert, jeweils als eigener, kleiner PR mit eigenen Tests:
    bleiben unverändert (keine Geschichtsfälschung), nur aktuelle Produkttexte ändern sich.
 2. ~~**Umgebungsvariablen**~~ – erledigt, siehe „Phase 3" unten. Offen bleiben nur die Compose-Interpolations-
    variablen in `docker-compose.yml` selbst (Teil von Punkt 6, Linux/Docker/Paketierung).
-3. **LocalStorage-Schlüssel** (`airdeck.token`, `airdeck.server`, `airdeck.mobileMode` in `studio/js/api.js`
-   u. a.): Migration auf neue Schlüssel beim ersten Start (neuen Schlüssel prüfen → wenn leer, alten lesen →
-   übernehmen → neuen schreiben), alte vorerst nicht löschen. Bewusst nicht blind umbenannt in diesem Block,
-   da ein reines Rename bestehende Logins/Einstellungen gelöscht hätte.
+3. ~~**LocalStorage-Schlüssel**~~ – erledigt, siehe „Phase 4" unten.
 4. **Android-App** (`apps/android/`): App-Label, Notification-Channel-Namen, Splash/Icons, String-Ressourcen.
    Package-Identifier **nicht** blind ändern (Signing/Update-Kompatibilität prüfen, siehe Auftrag Abschnitt 6).
    Capacitor-Plugin-Name `'AirDeckEngine'` (`studio/js/handy.js` + natives Android-Pendant) muss koordiniert
@@ -164,6 +161,31 @@ als auch „beide gesetzt, `ANMACHA_CAST_*` gewinnt" prüft. Alle bestehenden Te
 setzen (z. B. `test/setup.test.ts`, `test/installer-bootstrap.test.ts`, `test/automation-source.test.ts`),
 bleiben unverändert grün – sie beweisen live die Rückwärtskompatibilität über den Fallback-Pfad.
 `npm run typecheck` und die volle Testsuite grün (230 bestanden, 0 fehlgeschlagen, 6 übersprungen).
+
+## Phase 4: LocalStorage-Schlüssel `airdeck.*` → `anmacha_cast.*`
+
+**Umfang:** neuer Browser-seitiger Helfer `studio/js/legacy-storage.js` (`lsGet(key)`/`lsSet(key, value)`):
+`lsGet` liest zuerst `anmacha_cast.<key>`; ist der leer, wird `airdeck.<key>` übernommen, in den neuen
+Schlüssel geschrieben und zurückgegeben – der alte Schlüssel bleibt dabei bestehen (kein Rollback-Risiko).
+`lsSet` schreibt bei einem Wert nur den neuen Schlüssel; bei `null`/`undefined` (echtes Entfernen, z. B.
+Logout) werden **beide** Schlüssel gelöscht, damit ein gelöschter Wert nicht über den alten Schlüssel wieder
+auftaucht und ein Logout tatsächlich wirkt.
+
+Angewendet auf alle gefundenen `airdeck.*`-LocalStorage-Schlüssel: `token`, `server` (`api.js`), `profiles`
+(`connect.js`), `layout.v1` (`layout.js`), `station`, `mobileMode`, `progSink`, `pflSink`, `autoListen`
+(`app.js`). `handy.js` ist ein eigenständiges `<script>` ohne ES-Module (kann `legacy-storage.js` nicht
+importieren) und schreibt `mobileMode` deshalb direkt unter beiden Schlüsselnamen parallel. Der
+`sessionStorage`-Schlüssel `airdeck.lautfm.pending` (`api.js`) wurde ohne Migration direkt zu
+`anmacha_cast.lautfm.pending` umbenannt – er wird innerhalb desselben Seitenaufrufs sofort wieder gelesen
+und gelöscht (laut.fm-OAuth-Rückkehr), es gibt keinen Zustand, der über ein Upgrade hinweg bestehen müsste.
+
+**Tests:** `test/legacy-storage.test.ts` (neu, mit einer In-Memory-`localStorage`-Attrappe, da Node ohne
+Browser-Umgebung kein globales `localStorage` kennt) deckt alle vier Fälle ab: nur alter Schlüssel gesetzt
+(Übernahme + Schreiben des neuen, alter bleibt), nur neuer gesetzt, keiner gesetzt, und Entfernen löscht
+beide. Zusätzlich echte Browser-Verifikation per Playwright (Chromium) gegen einen laufenden
+`AirDeckApp`-Server: alter `airdeck.token` im LocalStorage gesetzt → nach Neuladen der Seite ist
+`anmacha_cast.token` mit demselben Wert gefüllt und `airdeck.token` weiterhin vorhanden (kein Logout).
+`npm run typecheck` und die volle Testsuite grün (235 bestanden, 0 fehlgeschlagen, 6 übersprungen).
 
 ## Fehler und Behebungen (Phase 1)
 

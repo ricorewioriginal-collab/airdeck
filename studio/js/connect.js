@@ -3,9 +3,10 @@
 // Verbindungstest in Stufen – jede Stufe meldet ein eigenes Ergebnis mit einem gezielten Hinweis –,
 // Kopplung per Code, Versionsprüfung und gespeicherte Serverprofile.
 
+import { lsGet, lsSet } from './legacy-storage.js';
+
 /** API-Hauptversion, die dieser Client spricht */
 export const CLIENT_API_MAJOR = 1;
-const PROFILES_KEY = 'airdeck.profiles';
 
 /**
  * @typedef {{ id: string, label: string, ok: boolean, detail?: string, hint?: string }} Step
@@ -147,7 +148,7 @@ export async function testConnection(address, auth, opts) {
 /** @returns {Profile[]} */
 export function loadProfiles() {
   try {
-    const v = JSON.parse(localStorage.getItem(PROFILES_KEY) ?? '[]');
+    const v = JSON.parse(lsGet('profiles') ?? '[]');
     return Array.isArray(v) ? v.filter((p) => p && typeof p.base === 'string') : [];
   } catch {
     return [];
@@ -158,15 +159,11 @@ export function loadProfiles() {
 export function saveProfile(p) {
   const list = loadProfiles().filter((x) => x.base !== p.base);
   list.unshift(p);
-  try {
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(list.slice(0, 10)));
-  } catch {}
+  lsSet('profiles', JSON.stringify(list.slice(0, 10)));
 }
 
 export function removeProfile(/** @type {string} */ base) {
-  try {
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(loadProfiles().filter((x) => x.base !== base)));
-  } catch {}
+  lsSet('profiles', JSON.stringify(loadProfiles().filter((x) => x.base !== base)));
 }
 
 /** Kurzer Gerätename für die Geräteliste am Server */
