@@ -40,7 +40,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\AirDeck.exe
 UninstallDisplayName=AnMaCha Cast
-SetupIconFile=..\..\assets\icons\airdeck-windows.ico
+SetupIconFile=..\..\assets\icons\anmacha-cast-windows.ico
 CloseApplications=yes
 RestartApplications=no
 
@@ -106,8 +106,8 @@ Source: "installer\haftung.txt"; DestDir: "{app}"; DestName: "HAFTUNGSAUSSCHLUSS
 
 [Icons]
 Name: "{group}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}"
-Name: "{group}\{cm:IconServer}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--headless"; WorkingDir: "{app}"; IconFilename: "{app}\icons\airdeck-server.ico"
-Name: "{group}\{cm:IconStop}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--stop"; WorkingDir: "{app}"; IconFilename: "{app}\icons\airdeck-server.ico"
+Name: "{group}\{cm:IconServer}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--headless"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmacha-cast-server.ico"
+Name: "{group}\{cm:IconStop}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--stop"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmacha-cast-server.ico"
 Name: "{group}\{cm:IconManual}"; Filename: "{app}\studio\handbuch.html"
 Name: "{group}\{cm:UninstallProgram,AirDeck}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}"; Tasks: desktopicon

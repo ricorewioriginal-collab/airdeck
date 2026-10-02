@@ -18,7 +18,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>AirDeck</AssemblyName>
     <RootNamespace>AirDeck</RootNamespace>
-    <ApplicationIcon>..\..\assets\icons\airdeck-windows.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\assets\icons\anmacha-cast-windows.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>0.0.0</Version>
     <Product>AnMaCha Cast</Product>

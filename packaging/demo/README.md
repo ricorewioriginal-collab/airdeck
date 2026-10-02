@@ -10,7 +10,7 @@ Die Demo setzt sich **alle 10 Minuten vollständig zurück** und ist von produkt
 
 Die Demo enthält ffmpeg und Icecast. AnMaCha Cast sendet intern an `127.0.0.1:8000/airdeck-demo.mp3`; dieser Encoder-Endpunkt bleibt privat. Für Besucher wird ausschließlich der Mount über den HTTPS-Reverse-Proxy veröffentlicht:
 
-`https://airdeck-demo.ricorewi-radio.de/stream/airdeck-demo.mp3`
+`https://anmachacast-demo.ricorewi-radio.de/stream/airdeck-demo.mp3`
 
 Damit können Player, Encoder, Automation, Queue, Now Playing und Streamstatus nicht nur optisch, sondern mit echter Audio-Ausgabe getestet werden. Die Testmedien sind synthetisch erzeugte Töne; produktive Streaming-Zugangsdaten werden nicht verwendet.
 
@@ -36,7 +36,7 @@ AnMaCha Cast selbst ist am Host nur über `127.0.0.1:8751` erreichbar. Icecast i
 
 ## Einrichtung
 
-1. `airdeck-demo.ricorewi-radio.de` per DNS auf den Demo-Server zeigen lassen.
+1. `anmachacast-demo.ricorewi-radio.de` per DNS auf den Demo-Server zeigen lassen.
 2. Passendes Reverse-Proxy-Snippet verwenden: [`nginx.demo.conf`](nginx.demo.conf), [`Caddyfile.demo`](Caddyfile.demo) oder [`apache.demo.conf`](apache.demo.conf).
 3. Demo starten:
    ```bash

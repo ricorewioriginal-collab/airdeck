@@ -71,7 +71,7 @@ if (sea) {
     const rcedit = /** @type {any} */ (rceditModule).rcedit ?? /** @type {any} */ (rceditModule).default;
     if (typeof rcedit !== 'function') throw new TypeError('rcedit export not found');
     await rcedit(exe, {
-      icon: join(root, 'assets', 'icons', 'airdeck-windows.ico'),
+      icon: join(root, 'assets', 'icons', 'anmacha-cast-windows.ico'),
       'file-version': version, 'product-version': version,
       'version-string': { ProductName: 'AirDeck', FileDescription: 'AirDeck Engine', CompanyName: 'AnMaCha Radioproduktion & RicoReWi', LegalCopyright: 'AirDeck – Powered by AnMaCha Radioproduktion & RicoReWi – für Broadcast, Automation, Live und laut.fm', OriginalFilename: 'airdeck-engine.exe' },
     });
@@ -107,7 +107,7 @@ if (sea) {
     // Hilfsskripte ins Programmverzeichnis – ohne Installer-Quelle und -Grafiken
     cpSync(join(root, 'packaging', 'windows'), out, { recursive: true, filter: (src) => !src.endsWith('.iss') && !src.includes(join('windows', 'installer')) });
     mkdirSync(join(out, 'icons'), { recursive: true });
-    for (const f of ['airdeck-windows.ico', 'airdeck-server.ico']) copyFileSync(join(root, 'assets', 'icons', f), join(out, 'icons', f));
+    for (const f of ['anmacha-cast-windows.ico', 'anmacha-cast-server.ico']) copyFileSync(join(root, 'assets', 'icons', f), join(out, 'icons', f));
   }
   mkdirSync(join(out, 'ffmpeg'), { recursive: true });
   console.log(`✓ ${exe}`);

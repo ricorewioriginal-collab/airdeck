@@ -2,11 +2,11 @@
 # Setzt die öffentliche AnMaCha-Cast-Demo komplett zurück. Die Instanz wird alle 10 Minuten verworfen.
 # Hostnamen, Mount-Pfade, Container-/Service-/Volume-Namen bleiben bewusst "airdeck(-demo)" (siehe
 # docs/REBRANDING_ANMACHA_CAST.md Phase 7): DNS und TLS-Zertifikat des laufenden Demo-Servers zeigen
-# bereits auf airdeck-demo.ricorewi-radio.de - eine Code-Änderung allein würde die echte Demo brechen.
+# bereits auf anmachacast-demo.ricorewi-radio.de - eine Code-Änderung allein würde die echte Demo brechen.
 set -e
 cd "$(dirname "$0")/../.."
 compose="docker compose -f packaging/demo/docker-compose.demo.yml"
-public_stream="${AIRDECK_DEMO_PUBLIC_STREAM_URL:-https://airdeck-demo.ricorewi-radio.de/stream/airdeck-demo.mp3}"
+public_stream="${AIRDECK_DEMO_PUBLIC_STREAM_URL:-https://anmachacast-demo.ricorewi-radio.de/stream/airdeck-demo.mp3}"
 
 echo "[$(date -Is)] Demo wird zurückgesetzt ..."
 $compose down -v --remove-orphans

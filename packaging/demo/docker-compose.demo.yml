@@ -1,6 +1,6 @@
 # Öffentliche AnMaCha-Cast-Demo (nur zum Ausprobieren, keine echte 24/7-Sendung, siehe README.md in diesem Ordner).
 # AnMaCha Cast und Icecast sind nur lokal am Host gebunden. Der bestehende Webserver macht HTTPS und leitet
-# airdeck-demo.ricorewi-radio.de an AnMaCha Cast sowie /stream/* gezielt an Icecast weiter.
+# anmachacast-demo.ricorewi-radio.de an AnMaCha Cast sowie /stream/* gezielt an Icecast weiter.
 # Service-/Container-/Volume-/Hostnamen bleiben bewusst "airdeck(-demo)" (siehe
 # docs/REBRANDING_ANMACHA_CAST.md Phase 7) - DNS und TLS-Zertifikat zeigen bereits darauf.
 #
@@ -24,7 +24,7 @@ services:
     environment:
       TZ: Europe/Berlin
       AIRDECK_DB: sqlite
-      AIRDECK_DEMO_PUBLIC_STREAM_URL: https://airdeck-demo.ricorewi-radio.de/stream/airdeck-demo.mp3
+      AIRDECK_DEMO_PUBLIC_STREAM_URL: https://anmachacast-demo.ricorewi-radio.de/stream/airdeck-demo.mp3
     # Begrenzt, wie lange das einmalige Admin-Einmalpasswort/-Token (siehe docker-compose.yml) nach
     # einem Neustart/Reset im Container-Log wiederauffindbar bleibt.
     logging:

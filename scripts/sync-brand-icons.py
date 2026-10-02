@@ -31,11 +31,11 @@ for platform, fraction in (("windows", 0.73), ("server", 0.73)):
         sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
     )
 
-general = symbol("airdeck-gesamt.png", 0.72)
+general = symbol("anmacha-cast-gesamt.png", 0.72)
 for size in (32, 180, 192, 512):
     square(general, size).save(ROOT / "studio" / "icons" / f"icon-{size}.png")
 
-android = symbol("airdeck-android.png", 0.71)
+android = symbol("anmacha-cast-android.png", 0.71)
 for folder in (ROOT / "apps" / "android" / "res").glob("mipmap-*dpi"):
     for filename in ("ic_launcher.png", "ic_launcher_round.png", "ic_launcher_foreground.png"):
         target = folder / filename
