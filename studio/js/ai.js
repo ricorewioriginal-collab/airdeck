@@ -4,14 +4,14 @@
 
 import { clockTime, formDialog, h, run, status } from './ui.js';
 
-const TABS = /** @type {const} */ ([['director', 'Director'], ['providers', 'Anbieter & Keys'], ['costs', 'Kosten & Budget'], ['tools', 'Werkzeuge']]);
+const TABS = /** @type {const} */ ([['director', 'Director'], ['tools', 'KI-Werkstatt'], ['providers', 'Anbieter & Keys'], ['costs', 'Kosten & Budget']]);
 const KIND_LABEL = /** @type {Record<string,string>} */ ({
   openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google Gemini', openai_compat: 'OpenAI-kompatibel (Ollama, LM Studio, Kokoro …)',
   elevenlabs: 'ElevenLabs', piper: 'Piper (lokal, offline)',
 });
 const DECISION = /** @type {Record<string,string>} */ ({ break: 'Moderation', news: 'Nachrichten', music: 'Musikplanung', approved: 'Freigegeben', rejected: 'Verworfen', source: 'Quelle' });
 
-/** @typedef {{ api: import('./api.js').Api, url: (p: string) => string, mediaUrl: (id: string) => string }} Ctx */
+/** @typedef {{ api: import('./api.js').Api, url: (p: string) => string, mediaUrl: (id: string) => string, library?: () => any[] }} Ctx */
 
 /** @param {HTMLElement} root @param {Ctx} ctx */
 export function mountAi(root, ctx) {
@@ -298,39 +298,127 @@ export function mountAi(root, ctx) {
     refresh();
   }
 
-  // ---------- Werkzeuge ----------
+  // ---------- KI-Werkstatt (nach ki-tools.html im Control Center) ----------
+
+  /** @type {any[]} */ let planRows = [];
+  /** @type {string} */ let spotText = '';
+  /** @type {any|null} */ let spotVoice = null;
+  /** @type {any|null} */ let transcript = null;
+
+  /** @param {string} id @param {string} title @param {string} color @param {string} desc @param {...any} body */
+  const tool = (id, title, color, desc, ...body) => h('section', { class: 'panel kt-tool', style: `--c:${color}`, id: `kt-${id}` },
+    h('div', { class: 'kt-head' }, h('span', { class: 'kt-badge' }, title.slice(0, 1)), h('div', {}, h('h2', {}, title), h('p', { class: 'muted small' }, desc))), ...body);
+  const libMedia = () => /** @type {any[]} */ (ctx.library?.() ?? []);
+  /** @param {(m: any) => boolean} filter @param {string} empty */
+  const mediaSelect = (filter, empty) => /** @type {HTMLSelectElement} */ (h('select', {}, h('option', { value: '' }, empty), ...libMedia().filter(filter).slice(0, 400).map((m) => h('option', { value: m.id }, `${m.artist ? `${m.artist} – ` : ''}${m.title}`))));
 
   async function tools() {
-    const prompt = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '5', placeholder: 'z. B. „Schreibe einen 20-Sekunden-Werbespot für die Bäckerei Müller, Angebot: 3 Brötchen 1 €“' }));
-    const out = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '8', placeholder: 'Ergebnis – hier auch direkt Text zum Vertonen eingeben' }));
-    const title = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Titel in der Bibliothek' }));
-    const cat = /** @type {HTMLSelectElement} */ (h('select', {}, ...[['tts', 'TTS'], ['ad', 'Werbung'], ['jingle', 'Jingle'], ['station_id', 'Station ID'], ['news', 'News'], ['voice_track', 'Voice Track'], ['drop', 'Drop']].map(([v, l]) => h('option', { value: v }, l))));
-    const presets = [
-      ['Werbespot', 'Schreibe einen gesprochenen Radio-Werbespot (ca. 20 Sekunden) für: '],
-      ['Station-ID', 'Schreibe 5 kurze Station-IDs (je max. 8 Wörter) für unseren Sender, Stil: '],
-      ['Sendungsidee', 'Plane eine einstündige Radiosendung mit Ablauf, Themen und Moderationsideen zum Thema: '],
-      ['Hörergruß', 'Formuliere einen kurzen, freundlichen Hörergruß für die Moderation: '],
-      ['Sendeablauf-Planer', 'Erstelle einen minutengenauen Sendeablauf als Tabelle (Spalten: Uhrzeit | Dauer | Segment | Inhalt/Moderationsstichpunkte) für eine Sendestunde zum Thema: '],
-    ];
-    return [
-      h('div', { class: 'view-grid' },
-        card('Assistent (Text)',
-          h('div', { class: 'row' }, ...presets.map(([l, p]) => h('button', { class: 'btn small', onclick: () => { prompt.value = p; prompt.focus(); } }, l))),
-          prompt,
-          h('button', { class: 'btn primary', onclick: async () => {
-            status('KI schreibt …');
-            const r = await run(() => ctx.api.post(ctx.url('/ai/text'), { prompt: prompt.value }));
-            if (r) { out.value = r.text; status(`Fertig (${r.model}${r.cost ? ` · ${money(r.cost)}` : ''})`); }
-          } }, 'Text erzeugen')),
-        card('Voice Studio (vertonen → Bibliothek)',
-          out,
-          h('div', { class: 'row' }, title, cat),
-          h('button', { class: 'btn primary', onclick: async () => {
-            status('KI spricht …');
-            const m = await run(() => ctx.api.post(ctx.url('/ai/speech'), { text: out.value, title: title.value, category: cat.value }));
-            if (m) { status(`„${m.title}“ liegt in der Bibliothek (Ordner KI-Studio)`); preview(m.id); }
-          } }, 'Vertonen & speichern'))),
-    ];
+    // --- KI-Assistent mit Verlauf ---
+    const chatLog = h('div', { class: 'kt-chat' });
+    const chatIn = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '3', placeholder: 'Frag die KI: Moderationstext, Social-Media-Post, Gewinnspiel-Idee, Recherche …' }));
+    const instr = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Eigene Anweisung (optional, z. B. „immer per Du, max. 60 Wörter“)' }));
+    const drawChat = (/** @type {any[]} */ msgs) => {
+      chatLog.replaceChildren(...(msgs.length ? msgs.map((m) => h('div', { class: `kt-msg ${m.role}` }, h('div', { class: 'kt-msg-text' }, m.text), h('span', { class: 'muted small' }, clockTime(m.at)))) : [h('div', { class: 'empty' }, 'Noch kein Verlauf – stell die erste Frage.')]));
+      chatLog.scrollTop = chatLog.scrollHeight;
+    };
+    drawChat(await ctx.api.get(ctx.url('/ai/chat')).catch(() => []));
+    const send = async () => {
+      const prompt = chatIn.value.trim(); if (!prompt) return;
+      status('KI antwortet …');
+      const r = await run(() => ctx.api.post(ctx.url('/ai/chat'), { prompt, instruction: instr.value }));
+      if (r) { chatIn.value = ''; status(`Fertig (${r.model}${r.cost ? ` · ${money(r.cost)}` : ''})`); drawChat(await ctx.api.get(ctx.url('/ai/chat'))); }
+    };
+    const assistant = tool('assistant', 'KI-Assistent', '#38bdf8', 'Chat mit Verlauf für Moderation, Social Media und Sendeplanung – Verlauf bleibt je Sender gespeichert.',
+      chatLog,
+      h('div', { class: 'kt-row' }, chatIn),
+      h('div', { class: 'kt-row' }, instr,
+        h('button', { class: 'btn small', title: 'Aus einer knappen Idee eine präzise Anweisung machen', onclick: async () => { const r = await run(() => ctx.api.post(ctx.url('/ai/improve'), { prompt: chatIn.value })); if (r) chatIn.value = r.text; } }, '✨ Prompt verbessern'),
+        h('button', { class: 'btn small', onclick: async () => { if (confirm('Verlauf löschen?')) { await run(() => ctx.api.del(ctx.url('/ai/chat'))); drawChat([]); } } }, 'Verlauf löschen'),
+        h('button', { class: 'btn primary', onclick: send }, 'Senden')));
+
+    // --- Spot-Werkstatt: 4 Schritte ---
+    const spotPrompt = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '2', placeholder: 'Stichpunkte: Was, für wen, Angebot, Datum … z. B. „Bäckerei Müller, 3 Brötchen 1 €, nur Samstag“' }));
+    const spotKind = /** @type {HTMLSelectElement} */ (h('select', {}, ...[['Werbespot (ca. 20 s)', 'Radio-Werbespot, gesprochen, ca. 20 Sekunden'], ['Ansage / Hinweis', 'kurze Senderansage'], ['Event-Trailer', 'Event-Trailer mit Datum, Ort, Call-to-Action'], ['Wetter-Ansage', 'Wetter-Ansage im Moderationston'], ['Gewinnspiel', 'Gewinnspiel-Aufruf mit Teilnahmehinweis']].map(([l, v]) => h('option', { value: v }, l))));
+    const spotOut = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '6', placeholder: 'Sprechertext – hier auch direkt eingeben oder nachbearbeiten', value: spotText, oninput: () => { spotText = spotOut.value; } }));
+    const toneBtn = (/** @type {string} */ tone, /** @type {string} */ label) => h('button', { class: 'btn small', onclick: async () => { const r = await run(() => ctx.api.post(ctx.url('/ai/rewrite'), { text: spotOut.value, tone })); if (r) { spotOut.value = r.text; spotText = r.text; } } }, label);
+    const spotTitle = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Titel in der Bibliothek', value: '' }));
+    const spotVoiceInfo = h('span', { class: 'muted small' }, spotVoice ? `Stimme: „${spotVoice.title}“` : 'noch keine Sprecher-Datei');
+    const bedSel = mediaSelect((m) => ['bed', 'music', 'jingle'].includes(m.category) && !m.url, '– Musikbett wählen (Kategorie Bett/Musik) –');
+    const bedDb = /** @type {HTMLInputElement} */ (h('input', { type: 'number', value: '-6', min: '-30', max: '0', class: 'kt-num', title: 'Bett-Pegel (dB)' }));
+    const duckDb = /** @type {HTMLInputElement} */ (h('input', { type: 'number', value: '-12', min: '-30', max: '-2', class: 'kt-num', title: 'Absenkung unter der Stimme (dB)' }));
+    const spot = tool('spot', 'Spot-Werkstatt', '#f59e0b', 'Vom Stichpunkt zum fertigen Spot in vier Schritten: Text → Ton → Stimme → Musikbett mit automatischer Absenkung.',
+      h('div', { class: 'kt-step' }, h('b', {}, '1'), h('span', {}, 'Text schreiben lassen'), spotKind, spotPrompt,
+        h('button', { class: 'btn small primary', onclick: async () => { status('KI schreibt …'); const r = await run(() => ctx.api.post(ctx.url('/ai/text'), { prompt: `Schreibe einen ${spotKind.value} für: ${spotPrompt.value}. Nur den Sprechertext ausgeben.` })); if (r) { spotOut.value = r.text; spotText = r.text; status('Text fertig'); } } }, 'Text erzeugen')),
+      h('div', { class: 'kt-step' }, h('b', {}, '2'), h('span', {}, 'Ton anpassen'), h('div', { class: 'kt-row' }, toneBtn('kuerzer', 'Kürzer'), toneBtn('laenger', 'Länger'), toneBtn('witziger', 'Witziger'), toneBtn('serioeser', 'Seriöser'), toneBtn('radio', 'Radio-Moderation')), spotOut),
+      h('div', { class: 'kt-step' }, h('b', {}, '3'), h('span', {}, 'Stimme'), h('div', { class: 'kt-row' }, spotTitle,
+        h('button', { class: 'btn small primary', onclick: async () => { status('KI spricht …'); const m = await run(() => ctx.api.post(ctx.url('/ai/speech'), { text: spotOut.value, title: spotTitle.value, category: 'tts' })); if (m) { spotVoice = m; spotVoiceInfo.textContent = `Stimme: „${m.title}“`; status('Sprecher-Datei liegt in der Bibliothek'); preview(m.id); } } }, 'Vertonen'), spotVoiceInfo)),
+      h('div', { class: 'kt-step' }, h('b', {}, '4'), h('span', {}, 'Musikbett mit Ducking'), h('div', { class: 'kt-row' }, bedSel, h('label', { class: 'kt-lbl' }, 'Bett', bedDb, 'dB'), h('label', { class: 'kt-lbl' }, 'Absenkung', duckDb, 'dB'),
+        h('button', { class: 'btn small primary', onclick: async () => {
+          if (!spotVoice) { status('Zuerst vertonen (Schritt 3)', true); return; }
+          if (!bedSel.value) { status('Musikbett wählen', true); return; }
+          status('Mische …');
+          const m = await run(() => ctx.api.post(ctx.url('/ai/spot-mix'), { voiceMediaId: spotVoice.id, bedMediaId: bedSel.value, bedDb: Number(bedDb.value), duckDb: Number(duckDb.value), title: spotTitle.value ? `${spotTitle.value} (mit Bett)` : '', category: 'ad' }));
+          if (m) { status(`„${m.title}“ liegt in der Bibliothek (Werbung)`); preview(m.id); }
+        } }, 'Mischen & speichern'))));
+
+    // --- Sendeablauf-Planer ---
+    const planTopic = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Sendung / Thema, z. B. „Samstags-Frühstück mit Oldies“' }));
+    const planMin = /** @type {HTMLInputElement} */ (h('input', { type: 'number', value: '60', min: '15', max: '360', class: 'kt-num' }));
+    const planStart = /** @type {HTMLInputElement} */ (h('input', { type: 'time', value: '10:00' }));
+    const planNotes = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Hinweise (Rubriken, Gäste, feste Termine …)' }));
+    const planTable = h('div', { class: 'kt-plan' });
+    const drawPlan = () => {
+      const total = planRows.reduce((a, r) => a + (Number(r.minutes) || 0), 0);
+      planTable.replaceChildren(planRows.length ? h('table', { class: 'tbl kt-tbl' }, h('thead', {}, h('tr', {}, h('th', {}, 'Uhrzeit'), h('th', {}, 'Min.'), h('th', {}, 'Segment'), h('th', {}, 'Inhalt'), h('th', {}))),
+        h('tbody', {}, ...planRows.map((r, i) => h('tr', { draggable: 'true', ondragstart: (/** @type {DragEvent} */ e) => e.dataTransfer?.setData('text/plain', String(i)), ondragover: (/** @type {DragEvent} */ e) => e.preventDefault(), ondrop: (/** @type {DragEvent} */ e) => { e.preventDefault(); const from = Number(e.dataTransfer?.getData('text/plain')); if (Number.isInteger(from) && from !== i) { const [x] = planRows.splice(from, 1); planRows.splice(i, 0, x); drawPlan(); } } },
+          h('td', {}, h('input', { value: r.time, class: 'kt-cell kt-time', oninput: (/** @type {Event} */ e) => { r.time = /** @type {HTMLInputElement} */ (e.target).value; } })),
+          h('td', {}, h('input', { type: 'number', value: String(r.minutes), class: 'kt-cell kt-num', oninput: (/** @type {Event} */ e) => { r.minutes = Number(/** @type {HTMLInputElement} */ (e.target).value) || 0; } })),
+          h('td', {}, h('input', { value: r.segment, class: 'kt-cell', oninput: (/** @type {Event} */ e) => { r.segment = /** @type {HTMLInputElement} */ (e.target).value; } })),
+          h('td', {}, h('input', { value: r.content, class: 'kt-cell kt-wide', oninput: (/** @type {Event} */ e) => { r.content = /** @type {HTMLInputElement} */ (e.target).value; } })),
+          h('td', { class: 'kt-actions' },
+            h('button', { class: 'btn small', title: 'Text in die Spot-Werkstatt übernehmen', onclick: () => { spotText = r.content; spotOut.value = r.content; document.getElementById('kt-spot')?.scrollIntoView({ behavior: 'smooth' }); } }, '→ Spot'),
+            h('button', { class: 'btn small danger', onclick: () => { planRows.splice(i, 1); drawPlan(); } }, '✕'))))),
+        h('div', { class: 'muted small' }, `Summe ${total} Minuten · Zeilen per Drag & Drop verschieben`)) : h('div', { class: 'empty' }, 'Noch kein Ablauf – Thema eingeben und planen lassen.'));
+    };
+    drawPlan();
+    const plan = tool('plan', 'Sendeablauf-Planer', '#818cf8', 'Die KI plant die Sendung Stunde für Stunde – Musikuhr, Moderation, Rubriken – als bearbeitbare Tabelle mit Export.',
+      h('div', { class: 'kt-row' }, planTopic, h('label', { class: 'kt-lbl' }, 'Länge', planMin, 'Min.'), h('label', { class: 'kt-lbl' }, 'Start', planStart)),
+      h('div', { class: 'kt-row' }, planNotes,
+        h('button', { class: 'btn primary', onclick: async () => { status('KI plant …'); const r = await run(() => ctx.api.post(ctx.url('/ai/plan'), { topic: planTopic.value, minutes: Number(planMin.value), startTime: planStart.value, notes: planNotes.value })); if (r) { planRows = r.rows; if (!r.rows.length) status('Keine Tabelle erkannt – Rohtext in der Konsole', true); drawPlan(); } } }, 'Ablauf planen'),
+        h('button', { class: 'btn small', onclick: () => { planRows.push({ time: '', minutes: 3, segment: 'Musik', content: '' }); drawPlan(); } }, '＋ Zeile'),
+        h('button', { class: 'btn small', disabled: !planRows.length, onclick: () => { const csv = ['Uhrzeit;Minuten;Segment;Inhalt', ...planRows.map((r) => [r.time, r.minutes, r.segment, r.content].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))].join('\r\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = `sendeablauf-${(planTopic.value || 'sendung').replace(/[^\w-]+/g, '_')}.csv`; a.click(); } }, '⬇ CSV'),
+        h('button', { class: 'btn small', disabled: !planRows.length, onclick: () => window.print() }, '🖨 Drucken')),
+      planTable);
+
+    // --- Transkription ---
+    const trSel = mediaSelect((m) => !m.url, '– Aufnahme / Titel wählen –');
+    const trLang = /** @type {HTMLSelectElement} */ (h('select', {}, ...[['de', 'Deutsch'], ['en', 'Englisch'], ['fr', 'Französisch'], ['es', 'Spanisch'], ['it', 'Italienisch'], ['tr', 'Türkisch']].map(([v, l]) => h('option', { value: v }, l))));
+    const trOut = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '8', placeholder: 'Transkript erscheint hier – Text editierbar', value: transcript?.text ?? '' }));
+    const trInfo = h('span', { class: 'muted small' }, transcript ? `Engine: ${transcript.engine} · ${transcript.segments.length} Abschnitte` : 'Whisper lokal (ANMACHA_CAST_WHISPER) oder OpenAI-/kompatibler Provider');
+    const dl = (/** @type {string} */ text, /** @type {string} */ name, /** @type {string} */ type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); };
+    const trans = tool('transcribe', 'Transkription', '#22d3ee', 'Aus Audio wird Text mit Zeitmarken – lokal per Whisper oder über deinen Provider. Export als TXT/SRT, Zusammenfassung per KI.',
+      h('div', { class: 'kt-row' }, trSel, trLang,
+        h('button', { class: 'btn primary', onclick: async () => { if (!trSel.value) { status('Datei wählen', true); return; } status('Transkribiere … (kann einige Minuten dauern)'); const r = await run(() => ctx.api.post(ctx.url('/ai/transcribe'), { mediaId: trSel.value, language: trLang.value })); if (r) { transcript = r; trOut.value = r.text; trInfo.textContent = `Engine: ${r.engine} · ${r.segments.length} Abschnitte`; status('Transkript fertig'); } } }, 'Transkribieren'), trInfo),
+      trOut,
+      h('div', { class: 'kt-row' },
+        h('button', { class: 'btn small', onclick: () => dl(trOut.value, 'transkript.txt', 'text/plain') }, '⬇ TXT'),
+        h('button', { class: 'btn small', onclick: () => dl(transcript?.srt ?? '', 'transkript.srt', 'text/plain') }, '⬇ SRT'),
+        h('button', { class: 'btn small', onclick: () => dl(JSON.stringify(transcript?.segments ?? [], null, 2), 'transkript.json', 'application/json') }, '⬇ JSON'),
+        h('button', { class: 'btn small', onclick: async () => { const r = await run(() => ctx.api.post(ctx.url('/ai/text'), { prompt: `Fasse dieses Transkript zusammen (5 Stichpunkte), dann Kapitelmarken und 2 Social-Media-Posts:\n\n${trOut.value.slice(0, 12000)}` })); if (r) { chatIn.value = r.text; document.getElementById('kt-assistant')?.scrollIntoView({ behavior: 'smooth' }); } } }, '✨ Zusammenfassung & Show-Notes')));
+
+    // --- Voice Studio (bestehend) ---
+    const vsText = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '4', placeholder: 'Text zum Vertonen – Station-ID, Ansage, Moderation …' }));
+    const vsTitle = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Titel in der Bibliothek' }));
+    const vsCat = /** @type {HTMLSelectElement} */ (h('select', {}, ...[['tts', 'TTS'], ['ad', 'Werbung'], ['jingle', 'Jingle'], ['station_id', 'Station ID'], ['news', 'News'], ['voice_track', 'Voice Track'], ['drop', 'Drop']].map(([v, l]) => h('option', { value: v }, l))));
+    const voiceStudio = tool('voice', 'Voice Studio', '#ec4899', 'Text → Sprache mit der Stimme aus „Anbieter & Keys“ (OpenAI, ElevenLabs, Piper lokal) direkt in die Bibliothek.',
+      vsText, h('div', { class: 'kt-row' }, vsTitle, vsCat,
+        h('button', { class: 'btn primary', onclick: async () => { status('KI spricht …'); const m = await run(() => ctx.api.post(ctx.url('/ai/speech'), { text: vsText.value, title: vsTitle.value, category: vsCat.value })); if (m) { status(`„${m.title}“ liegt in der Bibliothek (Ordner KI-Studio)`); preview(m.id); } } }, 'Vertonen & speichern')),
+      h('p', { class: 'muted small' }, 'Aufnahme, Schnitt und Effekte: unter „Aufnahmen“ (Mitschnitt) bzw. im Track-TÜV. Stimm-Klonen nur mit lokaler Engine (ElevenLabs-Voice-ID unter Anbieter eintragen).'));
+
+    const notYet = h('section', { class: 'panel kt-tool kt-dim', style: '--c:#64748b' },
+      h('div', { class: 'kt-head' }, h('span', { class: 'kt-badge' }, '…'), h('div', {}, h('h2', {}, 'Musik-Studio (Suno) & Office-Studio'), h('p', { class: 'muted small' }, 'Bewusst nicht enthalten: Songs komponieren (Suno) und Word/Excel/PowerPoint erzeugen brauchen externe Dienste mit eigenem Vertrag. Jingles und Betten entstehen über die Sendeuhr-Elemente, Berichte über „Berichte“ (CSV/E-Mail).'))));
+
+    return [h('div', { class: 'kt-grid' }, assistant, spot, plan, trans, voiceStudio, notYet)];
   }
 
   return {

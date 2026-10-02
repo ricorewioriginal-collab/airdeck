@@ -77,6 +77,8 @@ export interface StationData {
   lautfm?: LautfmConfig;
   integrations?: IntegrationsConfig;
   ai?: AiStationConfig;
+  /** KI-Assistent: Chatverlauf je Sender (Studio-Werkzeug), gekappt */
+  aiChat?: { at: number; role: 'user' | 'assistant'; text: string }[];
   bridges?: BridgeConfig[];
   /** Hörer-Interaktion: Einstellungen, Posteingang (Wünsche, Grüße, Sprachnachrichten), Stimmen je Titel */
   listener?: import('./services/listeners.ts').ListenerConfig;
