@@ -75,17 +75,58 @@ export function mountMediaManagement(root, ctx) {
     status(`„${media.title}“ zur Playlist hinzugefügt`);
   }
 
+  /**
+   * Aktionen je Titel: drei Haupt-Knöpfe (Vorhören, Warteschlange, Bearbeiten) und ein ⋯-Menü mit beschrifteten
+   * Einträgen für alles Weitere – statt zwölf Kürzel nebeneinander.
+   */
   function actions(m) {
+    const del = () => confirm(`„${m.title}“ endgültig löschen?`) && run(() => ctx.api.del(ctx.url(`/media/${encodeURIComponent(m.id)}`)).then(reload));
+    const measureKey = () => run(async () => { status('Messe Tonart …'); const r = await ctx.api.post(ctx.url(`/media/${encodeURIComponent(m.id)}/key`), {}); status(`Tonart: ${r.key} (${r.camelot})`); await reload(); });
+    const SEP = /** @type {const} */ ({ sep: true });
+    /** @type {({ label: string, icon: string, run: () => void, danger?: boolean } | { sep: true })[]} */
+    const items = [
+      ...['A', 'B', 'C', 'D'].map((d) => ({ label: `An Deck ${d} senden`, icon: d, run: () => ctx.sendToDeck(d, m) })),
+      SEP,
+      { label: 'Zu Playlist hinzufügen …', icon: '♫', run: () => pickPlaylist(m) },
+      { label: 'Auf die Cardwall legen …', icon: '▦', run: () => pickCart(m) },
+      ...(m.url ? [] : [
+        SEP,
+        { label: 'Tags & Cover online suchen', icon: '🔎', run: () => lookupOnline(m) },
+        { label: m.key ? `Tonart neu messen (${m.key}${m.camelot ? ` · ${m.camelot}` : ''})` : 'Tonart messen', icon: '♪', run: measureKey },
+      ]),
+      SEP,
+      { label: 'Löschen', icon: '🗑', run: del, danger: true },
+    ];
     return h('div', { class: 'row act' },
-      ...['A', 'B', 'C', 'D'].map((d) => h('button', { title: `An Deck ${d} senden`, onclick: () => ctx.sendToDeck(d, m) }, d)),
-      h('button', { title: 'In Queue', onclick: () => run(() => ctx.api.post(ctx.url('/queue'), { mediaId: m.id })) }, '＋Q'),
-      h('button', { title: 'Zu Playlist', onclick: () => pickPlaylist(m) }, '＋P'),
-      h('button', { title: 'An Cardwall', onclick: () => pickCart(m) }, '＋C'),
-      h('button', { title: 'Metadaten bearbeiten', onclick: () => editMeta(m) }, '✎'),
-      m.url ? null : h('button', { title: 'Tags & Cover online suchen (iTunes / MusicBrainz)', onclick: () => lookupOnline(m) }, '🔎'),
-      m.url ? null : h('button', { title: m.key ? `Tonart: ${m.key}${m.camelot ? ` (${m.camelot})` : ''} – neu messen` : 'Tonart messen (Track-TÜV)', onclick: () => run(async () => { status('Messe Tonart …'); const r = await ctx.api.post(ctx.url(`/media/${encodeURIComponent(m.id)}/key`), {}); status(`Tonart: ${r.key} (${r.camelot})`); await reload(); }) }, '♪'),
-      h('button', { title: 'Vorhören', onclick: () => preview(m) }, '▶'),
-      h('button', { title: 'Löschen', onclick: () => confirm(`„${m.title}“ endgültig löschen?`) && run(() => ctx.api.del(ctx.url(`/media/${encodeURIComponent(m.id)}`)).then(reload)) }, '✕'));
+      h('button', { class: 'act-main', title: 'Vorhören', onclick: () => preview(m) }, '▶'),
+      h('button', { class: 'act-main', title: 'In die Warteschlange', onclick: () => run(async () => { await ctx.api.post(ctx.url('/queue'), { mediaId: m.id }); status('In der Warteschlange'); }) }, '＋'),
+      h('button', { class: 'act-main', title: 'Bearbeiten', onclick: () => editMeta(m) }, '✎'),
+      actionMenu(items));
+  }
+
+  /** ⋯-Menü: öffnet eine Liste unter dem Knopf, schließt bei Klick daneben oder Esc. @param {any[]} items */
+  function actionMenu(items) {
+    const menu = h('div', { class: 'act-menu', hidden: true, role: 'menu' },
+      ...items.map((it) => 'sep' in it ? h('div', { class: 'act-sep' }) : h('button', { class: `act-item${it.danger ? ' danger' : ''}`, role: 'menuitem', onclick: () => { close(); it.run(); } }, h('span', { class: 'act-ico' }, it.icon), it.label)));
+    const btn = h('button', { class: 'act-more', title: 'Weitere Aktionen', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: (/** @type {Event} */ e) => { e.stopPropagation(); menu.hidden ? open() : close(); } }, '⋯');
+    const onDoc = (/** @type {Event} */ e) => { if (!menu.contains(/** @type {Node} */ (e.target))) close(); };
+    const onKey = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') close(); };
+    function open() {
+      document.querySelectorAll('.act-menu:not([hidden])').forEach((el) => { /** @type {HTMLElement} */ (el).hidden = true; });
+      menu.hidden = false; btn.setAttribute('aria-expanded', 'true');
+      // fest positioniert (Tabellenzellen schneiden sonst ab); nach oben aufklappen, wenn unten kein Platz ist
+      const r = btn.getBoundingClientRect();
+      const up = window.innerHeight - r.bottom < 280;
+      menu.style.left = `${Math.max(8, r.right - 236)}px`;
+      menu.style.top = up ? '' : `${r.bottom + 4}px`;
+      menu.style.bottom = up ? `${window.innerHeight - r.top + 4}px` : '';
+      setTimeout(() => { document.addEventListener('click', onDoc); document.addEventListener('keydown', onKey); }, 0);
+    }
+    function close() {
+      menu.hidden = true; btn.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey);
+    }
+    return h('span', { class: 'act-wrap' }, btn, menu);
   }
 
   /** @type {HTMLAudioElement|null} */ let previewEl = null;
@@ -132,10 +173,22 @@ export function mountMediaManagement(root, ctx) {
     await reload();
   }
 
+  /** Album-Cover (eingebettet oder online geholt); ohne Cover ein Platzhalter mit Note. @param {any} m */
+  function coverBox(m) {
+    const box = h('div', { class: 'mm-cover', title: m.album ? `Album: ${m.album}` : '' }, '♪');
+    if (!m.url) {
+      const img = /** @type {HTMLImageElement} */ (h('img', { alt: '', loading: 'lazy', src: ctx.api.coverUrl(ctx.stationId(), m.id) }));
+      img.addEventListener('load', () => { box.replaceChildren(img); box.classList.add('has-img'); });
+      img.addEventListener('error', () => { /* kein Cover – Platzhalter bleibt */ });
+    }
+    return box;
+  }
+
   function row(m) {
     const format = (m.linkedPath ?? m.file ?? '').split('.').pop()?.toUpperCase() || (m.url ? 'URL' : '–');
     const tr = h('tr', {},
       h('td', {}, h('input', { type: 'checkbox', checked: selected.has(m.id), onchange: (/** @type {Event} */ e) => { if (/** @type {HTMLInputElement} */ (e.target).checked) selected.add(m.id); else selected.delete(m.id); } })),
+      h('td', { class: 'mm-cover-cell' }, coverBox(m)),
       h('td', {}, m.title, m.check?.silent ? h('span', { class: 'track-warn', title: 'Datei ist still' }, ' ⚠') : null),
       h('td', {}, m.artist),
       h('td', {}, h('span', { class: 'tag cat', style: `--c:${CATEGORY_STYLE[m.category]?.color ?? '#2f8cff'}` }, CATEGORY_LABEL[m.category] ?? m.category)),
@@ -179,7 +232,7 @@ export function mountMediaManagement(root, ctx) {
     h('div', { class: 'panel-head' }, h('h2', {}, 'Track-TÜV'),
       h('button', { class: 'btn small', title: 'Alle noch ungeprüften Titel messen (Lautheit, Stille, Übersteuerung, Tonart)', onclick: () => run(async () => { const r = await ctx.api.post(ctx.url('/media/loudness'), {}); status(r.queued ? `${r.queued} Titel eingereiht` : 'Alles schon geprüft'); }) }, 'Ungeprüfte messen'),
       h('button', { class: 'btn small', title: 'Bericht: LUFS/True Peak vorher, Gain und Werte nach Angleichung, Tonart, Hinweise', onclick: async () => { const blob = await run(() => ctx.api.blob(ctx.url('/media/tuev.csv'))); if (blob) download(blob, `track-tuev-${ctx.stationId()}.csv`); } }, '⬇ Vorher/Nachher-Bericht (CSV)')),
-    h('p', { class: 'muted small', style: 'margin:0' }, 'Lautheit (EBU R128), True Peak, Stille/Cue-Punkte, Übersteuerung, Bitrate und Tonart (Krumhansl, Camelot) je Titel. 🔎 holt Tags und Cover von iTunes/MusicBrainz, ♪ misst die Tonart einzeln.'));
+    h('p', { class: 'muted small', style: 'margin:0' }, 'Lautheit (EBU R128), True Peak, Stille/Cue-Punkte, Übersteuerung, Bitrate und Tonart (Krumhansl, Camelot) je Titel. Im ⋯-Menü eines Titels: Tags & Cover online suchen, Tonart messen.'));
 
   const integrityBox = h('div', { class: 'panel', style: 'margin-top:12px' },
     h('div', { class: 'panel-head' }, h('h2', {}, 'Integritätsprüfung'), h('button', { class: 'btn small', onclick: () => refreshIntegrity() }, 'Prüfen')),
@@ -244,7 +297,7 @@ export function mountMediaManagement(root, ctx) {
     bulkBar,
     h('div', { class: 'table-wrap', id: 'mm-drop-table' },
       h('table', { class: 'list' },
-        h('thead', {}, h('tr', {}, h('th', {}), h('th', {}, 'Titel'), h('th', {}, 'Interpret'), h('th', {}, 'Kategorie'), h('th', {}, 'Ordner'), h('th', {}, 'Länge'), h('th', {}, 'Format'), h('th', {}, 'Lautheit'), h('th', {}, 'Aktionen'))),
+        h('thead', {}, h('tr', {}, h('th', {}), h('th', {}), h('th', {}, 'Titel'), h('th', {}, 'Interpret'), h('th', {}, 'Kategorie'), h('th', {}, 'Ordner'), h('th', {}, 'Länge'), h('th', {}, 'Format'), h('th', {}, 'Lautheit'), h('th', {}, 'Aktionen'))),
         tbody)),
     tuevBox,
     integrityBox);
