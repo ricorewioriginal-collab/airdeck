@@ -28,10 +28,13 @@ export function mountAi(root, ctx) {
   const money = (/** @type {number} */ v) => `${(v ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${settings?.currency ?? 'EUR'}`;
   const byRole = (/** @type {'text'|'voice'} */ r) => (settings?.providers ?? []).filter((/** @type {any} */ p) => p.role === r);
 
+  /** @type {any[]} */ let health = [];
+
   async function load() {
     // Einstellungen sind nur für globale Admins sichtbar; Sender-Ansicht auch für Redakteure
     settings = await ctx.api.get('/ai/settings').catch(() => null);
     station = await ctx.api.get(ctx.url('/ai'));
+    health = settings ? await ctx.api.get('/ai/health').catch(() => []) : [];
   }
 
   function render() {
@@ -187,18 +190,29 @@ export function mountAi(root, ctx) {
 
   async function providers() {
     const list = settings.providers;
+    const healthOf = (/** @type {string} */ id) => health.find((/** @type {any} */ x) => x.providerId === id);
+    const statusCell = (/** @type {any} */ p) => {
+      const hp = healthOf(p.id);
+      if (hp?.quarantinedUntil && hp.quarantinedUntil > Date.now()) {
+        return h('span', { class: 'pill failed', title: hp.lastError ?? '' }, `⛔ Quarantäne bis ${clockTime(hp.quarantinedUntil)}`);
+      }
+      if (hp?.consecutiveFailures) return h('span', { class: 'pill', title: hp.lastError ?? '' }, `⚠ ${hp.consecutiveFailures}× fehlgeschlagen`);
+      return h('span', { class: 'pill connected' }, 'OK');
+    };
     return [
       card('Anbieter & API-Keys',
-        h('p', { class: 'muted' }, 'Eigene Keys werden verschlüsselt auf diesem AnMaCha Cast gespeichert und nie angezeigt. Lokale Modelle (Ollama, LM Studio, Kokoro, Piper) funktionieren ohne Key und offline.'),
+        h('p', { class: 'muted' }, 'Eigene Keys werden verschlüsselt auf diesem AnMaCha Cast gespeichert und nie angezeigt. Lokale Modelle (Ollama, LM Studio, Kokoro, Piper) funktionieren ohne Key und offline. Nach mehreren Fehlern in Folge wird ein Anbieter automatisch für eine Weile übersprungen (Quarantäne) - der Fallback-Anbieter springt dann sofort ein, statt bei jeder Sendung erneut auf einen Timeout zu warten.'),
         list.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'list' },
-          h('thead', {}, h('tr', {}, h('th', {}, 'Name'), h('th', {}, 'Art'), h('th', {}, 'Typ'), h('th', {}, 'Key'), h('th', {}, ''))),
+          h('thead', {}, h('tr', {}, h('th', {}, 'Name'), h('th', {}, 'Art'), h('th', {}, 'Typ'), h('th', {}, 'Key'), h('th', {}, 'Status'), h('th', {}, ''))),
           h('tbody', {}, ...list.map((/** @type {any} */ p) => h('tr', {},
             h('td', {}, p.name, p.enabled ? '' : h('span', { class: 'muted' }, ' (aus)')),
             h('td', {}, p.role === 'voice' ? 'Sprache' : 'Text'),
             h('td', {}, KIND_LABEL[p.kind] ?? p.kind, p.baseUrl ? h('div', { class: 'muted small' }, p.baseUrl) : null),
             h('td', {}, p.hasKey ? '🔒 hinterlegt' : p.kind === 'openai_compat' || p.kind === 'piper' ? 'nicht nötig' : '⚠ fehlt'),
+            h('td', {}, statusCell(p)),
             h('td', { class: 'act' },
               h('button', { class: 'btn small', onclick: () => testProvider(p) }, 'Testen'),
+              healthOf(p.id)?.consecutiveFailures ? h('button', { class: 'btn small', onclick: () => run(async () => { await ctx.api.post(`/ai/providers/${encodeURIComponent(p.id)}/release`); status(`${p.name}: Quarantäne aufgehoben`); await refresh(); }) }, 'Freigeben') : null,
               h('button', { class: 'btn small', onclick: () => editProvider(p) }, 'Bearbeiten'))))))) : h('div', { class: 'empty' }, 'Noch kein Anbieter angelegt.'),
         h('div', { class: 'row' },
           h('button', { class: 'btn primary', onclick: () => editProvider(null, 'text') }, '＋ Text-Anbieter'),

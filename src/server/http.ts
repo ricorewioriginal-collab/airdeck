@@ -769,6 +769,8 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return aiCall(() => app.ai.update(b));
   });
   add('GET', '/api/v1/ai/usage', null, (c) => (globalAdmin(c), app.ai.usageView()));
+  add('GET', '/api/v1/ai/health', null, (c) => (globalAdmin(c), app.ai.healthView()));
+  add('POST', '/api/v1/ai/providers/:id/release', null, (c) => (globalAdmin(c), app.ai.releaseProvider(c.params.id!)));
   add('GET', '/api/v1/ai/providers/:id/models', null, (c) => (globalAdmin(c), aiCall(() => app.ai.models(c.params.id!))));
   add('GET', '/api/v1/ai/providers/:id/voices', null, (c) => (globalAdmin(c), aiCall(() => app.ai.voices(c.params.id!))));
   add('GET', '/api/v1/stations/:sid/ai', 'ai:read', (c) => ({ config: app.svc.ai.aiConfig(sid(c)), state: app.director.view(sid(c)) }));
