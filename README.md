@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-<a href="https://anmachacast-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" width="300" alt="Live Demo"></a>
+<a href="https://anmachacast-demo.ricorewi-radio.de/demo-login.html"><img src="assets/readme/actions/live-demo.svg" width="300" alt="Live Demo"></a>
 <a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest"><img src="assets/readme/actions/downloads.svg" width="300" alt="Downloads"></a>
 </p>
 <p align="center"><a href="https://ricorewioriginal-collab.github.io/anmacha_cast/"><strong>🌐 AnMaCha-Cast-Projektseite</strong></a> · <a href="CHANGELOG.md"><strong>📝 Was ist neu?</strong></a></p>
@@ -56,11 +56,19 @@ AnMaCha Cast ist eine eigenständige Radio-Automation und Live-Broadcast-Plattfo
 
 AnMaCha Cast kann direkt im Browser ausprobiert werden.
 
-<p align="center"><a href="https://anmachacast-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="AnMaCha Cast Demo starten" width="420"></a></p>
+<p align="center"><a href="https://anmachacast-demo.ricorewi-radio.de/demo-login.html"><img src="assets/readme/actions/live-demo.svg" alt="AnMaCha Cast Demo starten" width="420"></a></p>
 
-**Demo-Zugang:** `demo` / `anmachacast-demo`
+### 🔐 Öffentlicher Demo-Zugang
 
-> Die Instanz dient ausschließlich zum Testen. Bitte dort keine produktiven oder vertraulichen Daten hinterlegen.
+| | |
+|---|---|
+| **🌐 Live-Demo** | [anmachacast-demo.ricorewi-radio.de](https://anmachacast-demo.ricorewi-radio.de/demo-login.html) |
+| **👤 Benutzername** | `demo` |
+| **🔑 Passwort** | `anmachacast-demo` |
+
+<p align="center"><a href="https://anmachacast-demo.ricorewi-radio.de/"><strong>▶ Demo jetzt öffnen</strong></a></p>
+
+> **Hinweis:** Dieser Zugang ist ausschließlich für die öffentliche Testinstanz vorgesehen. Bitte keine produktiven, persönlichen oder vertraulichen Daten in der Demo hinterlegen.
 
 ---
 
@@ -72,7 +80,7 @@ AnMaCha Cast kann direkt im Browser ausprobiert werden.
 <p align="center"><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Setup.exe"><img src="assets/readme/downloads/windows-installer.svg" width="270" alt="Windows Installer"></a><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Windows-Portable.zip"><img src="assets/readme/downloads/windows-portable.svg" width="270" alt="Windows Portable"></a></p>
 <p align="center"><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Android.apk"><img src="assets/readme/downloads/android.svg" width="270" alt="Android APK"></a><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Linux.deb"><img src="assets/readme/downloads/linux.svg" width="270" alt="Linux DEB"></a></p>
 
-> Die Download-Links zeigen automatisch auf die Dateien des jeweils neuesten veröffentlichten GitHub-Releases (`AnMaCha-Cast-*`, siehe `docs/REBRANDING_ANMACHA_CAST.md` Phase 8). Ältere Releases vor dieser Umstellung tragen noch den Dateinamen `AnMaCha-Cast-*`.
+> Die Download-Links zeigen automatisch auf die Dateien des jeweils neuesten veröffentlichten GitHub-Releases (`AnMaCha-Cast-*`, siehe `docs/REBRANDING_ANMACHA_CAST.md` Phase 8). Ältere historische Releases können noch frühere Projektbezeichnungen oder Dateinamen enthalten; aktuelle Downloads und öffentliche Projektseiten verwenden ausschließlich AnMaCha Cast.
 
 ---
 
@@ -80,7 +88,7 @@ AnMaCha Cast kann direkt im Browser ausprobiert werden.
 
 AnMaCha Cast führt ein **automatisch gepflegtes Changelog**. Bei neuen offiziellen Veröffentlichungen werden Release, Datum und der Vergleich zur vorherigen Version ergänzt. So lässt sich nachvollziehen, was sich zwischen zwei veröffentlichten AnMaCha-Cast-Versionen geändert hat.
 
-<p align="center"><a href="CHANGELOG.md"><strong>📝 Vollständigen Changelog öffnen →</strong></a><br><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/compare/build-323...v0.4.1">Aktuell: Build 323 mit Aurora v0.4.1 vergleichen</a></p>
+<p align="center"><a href="CHANGELOG.md"><strong>📝 Vollständigen Changelog öffnen →</strong></a><br><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest"><strong>🚀 Aktuelle Release Notes öffnen →</strong></a></p>
 
 ---
 

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="885" height="355" viewBox="0 0 885 355">
 <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d1724"/><stop offset="1" stop-color="#1b2938"/></linearGradient><filter id="g"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
 <rect x="8" y="8" width="869" height="339" rx="30" fill="url(#bg)" stroke="#cbd5e1" stroke-width="4"/>
-<text x="54" y="78" font-family="Segoe UI,Arial" font-weight="700" font-size="36" fill="#fff">Air<tspan fill="#18b7ff">Deck</tspan></text>
+<text x="54" y="78" font-family="Segoe UI,Arial" font-weight="700" font-size="36" fill="#fff">AnMaCha <tspan fill="#18b7ff">Cast</tspan></text>
 <path d="M75 158l58-28 58 28-58 28zM75 158v70l58 28 58-28v-70M133 186v70" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linejoin="round"/>
 <text x="245" y="160" font-family="Segoe UI,Arial" font-weight="700" font-size="44" fill="#fff">Alle Releases</text>
 <text x="245" y="215" font-family="Segoe UI,Arial" font-size="25" fill="#cbd5e1">Versionen, Changelogs und weitere Downloads</text>

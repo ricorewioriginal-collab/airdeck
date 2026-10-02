@@ -46,22 +46,28 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 5. ~~[P2 · S] Ereignisse: Typen KI-Ansage und Nachrichten-/Werbe-Trigger, "Jetzt beenden"~~ - erledigt: Zeitplan/Stunden-Uhr
    kennen Kategorie (z. B. Werbung), laut.fm-Nachrichten und KI-Ansage (`kind: ai`, Moderation oder KI-Nachrichten über den
    Regisseur), Dialog zeigt nur die Felder der gewählten Art, „⏭ Jetzt beenden“ im Zeitplan, Preflight prüft alle Arten.
-6. [P2 · L] Rundown-/Sendeablauf-Planer mit Segmenttypen, Backtiming und Live-Modus.
 
 ### KI & Automatik
+8. ~~[P2 · M] News-Zentrale (Show-Prep): Feed-/Artikelwahl, Wetter-Block, KI-Vorschlag, Teleprompter~~ - erledigt: eigene
+   Ansicht (`studio/js/showprep.js`, `services/showprep.ts`): Standard-Feeds nach Kategorie + eigene, Artikel serverseitig
+   geholt (Cache), Auswahl per Haken → KI-Moderationsnotizen, Wetter-Block (Open-Meteo, sprechbarer Text), Leseansicht mit
+   Teleprompter (Größe, Serif, Tempo, Pause).
+9. ~~[P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export~~ - erledigt (KI-Werkstatt → Sendeablauf-Planer:
+   Zeilen per Drag & Drop, Zeile hinzufügen, CSV-Export, Drucken).
 7. ~~[P2 · M] KI-Studio-Tab wie `relay-pro6`: Ansage-Typen als Knöpfe, Meldungen zusammenfassen,
    Playlist per KI erstellen/neu ordnen, geplante KI-Ansagen mit Wochentagen~~ - erledigt: KI-Werkstatt → „KI-Studio“
    (8 Ansage-Typen, Ton, Länge, Text → Vertonen → Bibliothek → als Nächstes/sofort senden), „KI-Playlist“ (erstellen,
    neu ordnen/ergänzen, nur Bibliotheks-IDs, Liste mit ↑↓✕ und Speichern/Ersetzen), „Automatische KI-Ansagen“ (Uhr-Events
    Art „KI-Ansage“ mit Wochentagen, ▶ Jetzt).
-8. [P2 · M] News-Zentrale (Show-Prep): Feed-/Artikelwahl, Wetter-Block, KI-Vorschlag, Teleprompter.
-9. [P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export.
 
 ### Musik & Inhalte
 10. ~~[P1 · M] Cardwall → Soundboard~~ - erledigt: Tags (Filter-Chips) + Suche, Favoriten, Zuletzt gespielt,
     Tastenkürzel je Cart (eindeutig je Sender), Show-Modus (Vollbild mit großen Carts), Esc/„Alle stoppen“
     blendet alle Carts aus (`POST /playout/carts-stop`, auch Browser-Wiedergabe).
-11. [P2 · M] Track-TÜV: Tonart-Analyse, Online-Tag-/Cover-Suche, Vorher/Nachher-Export (LUFS-Messung existiert).
+11. ~~[P2 · M] Track-TÜV: Tonart-Analyse, Online-Tag-/Cover-Suche, Vorher/Nachher-Export~~ - erledigt: Tonart (Krumhansl-
+    Schmuckler, Camelot) im Track-Check für Musik und einzeln (♪), Online-Suche iTunes + MusicBrainz mit Cover-Download (🔎),
+    Panel „Track-TÜV“ in „Tracks“ mit Vorher/Nachher-Bericht (LUFS/True Peak gemessen → nach Angleichung, Gain, Limiter,
+    Tonart, Hinweise) als CSV.
 12. ~~[P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen~~ - erledigt: Podcast-Einstellungen
     → „Automatisch veröffentlichen“ (Vorlagen mit {label} {date} {time} {weekday} {duration} {station} {n}, Mindestdauer,
     nur Zeitfenster, sofort/Entwurf, fortlaufende Nummer); offen: [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
@@ -90,7 +96,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     nach Tageszeit) / Genre-Mix / Live-Plays. Backend: Play-Log trägt Hörerzahl + Live-Kennung (Kappe 5000),
     Stunden-Aggregat `listenerHours` über 100 Tage. Bewusst weggelassen: Rang (laut.fm-spezifisch) und
     DB-Abgleich (externe laut.fm-Datenbank).
-22. [P2 · L] Deep Stats: Heatmap Wochentag×Uhrzeit, Top/Flop, Artist-Anteile, Song-Verlauf, Excel/PDF/Mail.
+22. ~~[P2 · L] Deep Stats: Heatmap Wochentag×Uhrzeit, Top/Flop, Artist-Anteile, Song-Verlauf, Excel/PDF/Mail~~ - erledigt:
+    Hörerstatistik → Tabs Heatmap, Top/Flop (mit Vorperiode gleicher Länge), Interpreten (Donut + Anteile), Song-Verlauf
+    (Top 5 je Tag); Export ⬇ Excel (CSV), 🖨 PDF (Druckansicht), ✉ Mail (`/stats/deep`, `/stats/deep.csv`, `/stats/deep/email`).
 23. ~~[P2 · S] Berichte: Meistgespielt-Ranking; Protokoll-Filter~~ - erledigt: Sendungs-Rückblick mit Top-10 (JSON, CSV,
     E-Mail), Verlauf mit Suche und Art-Filter (CSV-Export folgt dem Filter).
 24. [P3 · M] Aktivitäts-Log (Admin), Stream-Status als M3U/XSPF/XML.

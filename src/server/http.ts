@@ -556,6 +556,14 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     sendFile(c.req, c.res, path, 'audio/mpeg');
     return STREAMED;
   });
+  // --- News-Zentrale (Show-Prep) ---
+  add('GET', '/api/v1/stations/:sid/showprep/feeds', 'automation:read', (c) => app.svc.showprep.feeds(sid(c)));
+  add('POST', '/api/v1/stations/:sid/showprep/feeds', 'automation:write', async (c) => app.svc.showprep.addFeed(sid(c), await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/showprep/feeds/:id', 'automation:write', (c) => app.svc.showprep.removeFeed(sid(c), c.params.id!));
+  add('POST', '/api/v1/stations/:sid/showprep/feeds/reset', 'automation:write', (c) => app.svc.showprep.resetFeeds(sid(c)));
+  add('GET', '/api/v1/stations/:sid/showprep/articles', 'automation:read', (c) => app.svc.showprep.articles(sid(c), { feedId: c.url.searchParams.get('feed') ?? undefined, category: c.url.searchParams.get('category') ?? undefined }, c.url.searchParams.get('force') === '1'));
+  add('GET', '/api/v1/stations/:sid/showprep/weather', 'automation:read', (c) => app.svc.showprep.weather(c.url.searchParams.get('city') ?? ''));
+  add('POST', '/api/v1/stations/:sid/showprep/notes', 'ai:write', async (c) => app.svc.showprep.notes(sid(c), await c.body()));
   add('POST', '/api/v1/stations/:sid/news/:id/air', 'automation:write', async (c) => { const b = await c.body(); return app.svc.news.air(sid(c), Number(c.params.id) as 1 | 2 | 3, b.mode === 'now' ? 'now' : 'track', 'manual'); });
   add('POST', '/api/v1/stations/:sid/clock-events', 'automation:write', async (c) => app.svc.planning.saveClockEvent(sid(c), null, await c.body()));
   add('PATCH', '/api/v1/stations/:sid/clock-events/:id', 'automation:write', async (c) => app.svc.planning.saveClockEvent(sid(c), c.params.id!, await c.body()));
@@ -601,6 +609,15 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
 
   // --- Hörerstatistik ---
   add('GET', '/api/v1/stations/:sid/stats', 'automation:read', (c) => app.svc.stats.stats(sid(c), c.url.searchParams.get('period') ?? '24h'));
+  add('GET', '/api/v1/stations/:sid/stats/deep', 'automation:read', (c) => app.svc.stats.deep(sid(c), c.url.searchParams.get('period') ?? '7d'));
+  add('GET', '/api/v1/stations/:sid/stats/deep.csv', 'automation:read', (c) => {
+    const period = c.url.searchParams.get('period') ?? '7d';
+    const csv = app.svc.stats.deepCsv(sid(c), period);
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="deep-stats-${sid(c)}-${period}.csv"` });
+    c.res.end('\ufeff' + csv);
+    return STREAMED;
+  });
+  add('POST', '/api/v1/stations/:sid/stats/deep/email', 'automation:write', async (c) => { const b = await c.body(); return { ok: await app.svc.stats.emailDeep(sid(c), String(b.period ?? '7d'), str(b.recipient)) }; });
 
   // --- Sendungs-Rückblick ---
   add('GET', '/api/v1/stations/:sid/recap', 'automation:read', (c) => {
@@ -731,6 +748,16 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   // --- Lautheitsanalyse & Klangprofile ---
   add('GET', '/api/v1/dsp/presets', 'automation:read', () => DSP_PRESETS);
   add('GET', '/api/v1/stations/:sid/media/loudness', 'media:read', (c) => app.svc.media.loudnessStatus(sid(c)));
+  // Track-TÜV: Tonart, Online-Tags/Cover, Vorher/Nachher-Bericht
+  add('GET', '/api/v1/stations/:sid/media/tuev', 'media:read', (c) => app.svc.media.tuevReport(sid(c)));
+  add('GET', '/api/v1/stations/:sid/media/tuev.csv', 'media:read', (c) => {
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="track-tuev-${sid(c)}.csv"` });
+    c.res.end('\ufeff' + app.svc.media.tuevCsv(sid(c)));
+    return STREAMED;
+  });
+  add('POST', '/api/v1/stations/:sid/media/:id/key', 'media:write', (c) => app.svc.media.analyzeKeyNow(sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/media/:id/lookup', 'media:read', (c) => app.svc.media.lookupTags(sid(c), c.params.id!, { artist: c.url.searchParams.get('artist') ?? undefined, title: c.url.searchParams.get('title') ?? undefined }));
+  add('POST', '/api/v1/stations/:sid/media/:id/lookup', 'media:write', async (c) => app.svc.media.applyLookup(sid(c), c.params.id!, await c.body()));
   add('POST', '/api/v1/stations/:sid/media/loudness', 'media:write', async (c) => app.svc.media.analyzeLibrary(sid(c), (await c.body()).force === true));
 
   // --- Nextcloud-Brücke ---

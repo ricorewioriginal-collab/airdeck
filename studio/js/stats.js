@@ -3,10 +3,43 @@
 // Untertabs Gespielt / Top-Songs / Hörer-Verlauf / Genre-Mix / Live-Plays. Daten: GET /stats?period=…
 // Diagramme als leichtes Inline-SVG (keine Bibliothek).
 
-import { fmt, h, mediaTitle, run } from './ui.js';
+import { download, fmt, formDialog, h, mediaTitle, run, status } from './ui.js';
 
 const PERIODS = /** @type {[string,string][]} */ ([['today', 'Heute'], ['24h', '24 h'], ['7d', '7 Tage'], ['30d', '30 Tage'], ['3m', '3 Monate']]);
-const TABS = /** @type {[string,string][]} */ ([['played', '▶ Gespielt'], ['top', '🏆 Top-Songs'], ['series', '📈 Hörer-Verlauf'], ['genres', '🏷 Genre-Mix'], ['live', '🔴 Live-Plays']]);
+const TABS = /** @type {[string,string][]} */ ([['played', '▶ Gespielt'], ['top', '🏆 Top-Songs'], ['series', '📈 Hörer-Verlauf'], ['genres', '🏷 Genre-Mix'], ['live', '🔴 Live-Plays'], ['heat', '🟦 Heatmap'], ['flop', '⚖ Top / Flop'], ['artists', '🎤 Interpreten'], ['trend', '📉 Song-Verlauf']]);
+const DEEP_TABS = new Set(['heat', 'flop', 'artists', 'trend']);
+const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const TREND_COLORS = ['#38bdf8', '#f59e0b', '#22c55e', '#ec4899', '#a78bfa'];
+
+/** Heatmap Wochentag × Uhrzeit als CSS-Raster. @param {(number|null)[][]} map @param {number} peak */
+export function heatmap(map, peak) {
+  if (!map.some((r) => r.some((v) => v != null))) return h('div', { class: 'empty' }, 'Noch keine Hörerdaten im Zeitraum – die Heatmap füllt sich, sobald ein Ausgang verbunden ist.');
+  return h('div', { class: 'st-heat' },
+    h('div', { class: 'st-heat-row st-heat-head' }, h('span'), ...Array.from({ length: 24 }, (_, i) => h('span', {}, i % 3 === 0 ? String(i) : ''))),
+    ...map.map((row, d) => h('div', { class: 'st-heat-row' }, h('span', { class: 'st-heat-day' }, WEEKDAYS[d]),
+      ...row.map((v, hr) => h('span', { class: 'st-heat-cell', title: `${WEEKDAYS[d]} ${hr}:00 – Ø ${v ?? '–'} Hörer`, style: v == null ? 'opacity:.18' : `background:rgba(56,189,248,${(0.12 + 0.88 * (peak ? v / peak : 0)).toFixed(2)})` })))),
+    h('div', { class: 'muted small' }, `Ø Hörer je Wochentag und Stunde · dunkel = wenig, hell = viel (Spitze ${peak})`));
+}
+
+/** Song-Verlauf (Einsätze je Tag) als Mehrlinien-SVG. @param {{ days: string[], songs: { title: string, artist: string, plays: number[] }[] }} t */
+export function trendChart(t) {
+  if (!t.songs.length || t.days.length < 2) return h('div', { class: 'empty' }, 'Noch zu wenig Daten für einen Verlauf (mindestens zwei Tage mit Musik).');
+  const W = 760, H = 200, L = 30, B = 24, T = 10;
+  const max = Math.max(1, ...t.songs.flatMap((s) => s.plays));
+  const x = (/** @type {number} */ i) => L + (i / (t.days.length - 1)) * (W - L - 8);
+  const y = (/** @type {number} */ v) => T + (1 - v / max) * (H - T - B);
+  const n = Math.min(7, t.days.length);
+  const labels = Array.from({ length: n }, (_, k) => Math.round((k / (n - 1)) * (t.days.length - 1)));
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="st-chart" preserveAspectRatio="none" role="img" aria-label="Song-Verlauf">
+    ${[0, Math.round(max / 2), max].map((v) => `<line x1="${L}" x2="${W - 8}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(56,189,248,.14)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" class="st-tick">${v}</text>`).join('')}
+    ${t.songs.map((s, i) => `<polyline points="${s.plays.map((v, k) => `${x(k).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}" fill="none" stroke="${TREND_COLORS[i % TREND_COLORS.length]}" stroke-width="2"/>`).join('')}
+    ${labels.map((i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" class="st-tick">${t.days[i].slice(5).split('-').reverse().join('.')}</text>`).join('')}
+  </svg>`;
+  const wrap = h('div', { class: 'st-chart-wrap' });
+  wrap.innerHTML = svg;
+  wrap.append(h('div', { class: 'st-legend' }, ...t.songs.map((s, i) => h('span', {}, h('i', { style: `background:${TREND_COLORS[i % TREND_COLORS.length]}` }), ` ${mediaTitle(s)}`))));
+  return wrap;
+}
 const CAT_LABEL = /** @type {Record<string,string>} */ ({ music: 'Musik', jingle: 'Jingle', sweeper: 'Sweeper', station_id: 'Sender-ID', ad: 'Werbung', news: 'Nachrichten', voice_track: 'Voice Track', tts: 'KI-Ansage', drop: 'Drop', bed: 'Bett', stream: 'Stream' });
 
 /** @param {number} t @param {'minutes'|'hours'|'days'} step */
@@ -63,10 +96,47 @@ export function mountStats(root, ctx) {
   let period = 'today';
   let tab = 'played';
   /** @type {any} */ let S = null;
+  /** @type {any} */ let D = null;
 
   async function load() {
     S = await ctx.api.get(ctx.url(`/stats?period=${period}`));
+    D = DEEP_TABS.has(tab) ? await ctx.api.get(ctx.url(`/stats/deep?period=${period}`)) : null;
     render();
+  }
+  async function selectTab(/** @type {string} */ id) {
+    tab = id;
+    if (DEEP_TABS.has(id) && (!D || D.period !== period)) { await run(async () => { D = await ctx.api.get(ctx.url(`/stats/deep?period=${period}`)); }); }
+    render();
+  }
+
+  async function emailDeep() {
+    const v = await formDialog('Deep Stats per E-Mail', [{ name: 'recipient', label: 'Empfänger (leer = Standard-Adresse unter Benachrichtigungen)', value: '' }], 'Senden');
+    if (!v) return;
+    const r = await run(() => ctx.api.post(ctx.url('/stats/deep/email'), { period, recipient: v.recipient || undefined }));
+    if (r) status(r.ok ? 'Deep Stats verschickt' : 'E-Mail konnte nicht gesendet werden', !r.ok);
+  }
+
+  function deepBody() {
+    if (!D) return h('div', { class: 'muted' }, 'Lade …');
+    const song = (/** @type {any} */ t, /** @type {number} */ i, /** @type {boolean} */ flop) => h('li', {}, h('span', { class: 'st-title' }, mediaTitle(t)), h('span', { class: 'muted num' }, flop ? `Ø ${t.avgListeners} · ${t.plays}×` : `${t.plays}×${t.avgListeners == null ? '' : ` · Ø ${t.avgListeners}`}`));
+    if (tab === 'heat') return h('div', {}, h('h4', {}, 'Hörer-Heatmap – Wochentag × Uhrzeit'), heatmap(D.heatmap, D.heatmapPeak));
+    if (tab === 'flop') {
+      return h('div', {},
+        h('div', { class: 'st-compare' }, ...D.compare.map((/** @type {any} */ c) => h('div', { class: 'ov-stat' }, h('span', {}, c.label), h('strong', {}, c.now == null ? '–' : String(c.now)),
+          h('small', { class: c.delta == null ? 'muted' : c.delta >= 0 ? 'st-up' : 'st-down' }, c.delta == null ? `Vorperiode: ${c.prev ?? '–'}` : `${c.delta > 0 ? '▲ +' : c.delta < 0 ? '▼ ' : '± '}${c.delta} % · vorher ${c.prev}`)))),
+        h('div', { class: 'st-cols' },
+          h('div', {}, h('h4', {}, '🏆 Top-Songs'), D.top.length ? h('ol', { class: 'st-ol' }, ...D.top.map((/** @type {any} */ t, /** @type {number} */ i) => song(t, i, false))) : h('div', { class: 'empty' }, 'Keine Musik im Zeitraum.')),
+          h('div', {}, h('h4', {}, '📉 Flop-Songs (wenigste Hörer)'), D.flop.length ? h('ol', { class: 'st-ol' }, ...D.flop.map((/** @type {any} */ t, /** @type {number} */ i) => song(t, i, true))) : h('div', { class: 'empty' }, 'Keine Hörerzahlen je Titel im Zeitraum.'))));
+    }
+    if (tab === 'artists') {
+      if (!D.artists.length) return h('div', { class: 'empty' }, 'Keine Musik im Zeitraum.');
+      let acc = 0;
+      const stops = D.artists.map((/** @type {any} */ a, /** @type {number} */ i) => { const from = acc; acc += a.share; return `${TREND_COLORS[i % TREND_COLORS.length]} ${from}% ${Math.min(100, acc)}%`; }).join(', ');
+      return h('div', { class: 'st-cols' },
+        h('div', { class: 'st-donut-wrap' }, h('div', { class: 'st-donut', style: `background: conic-gradient(${stops}, rgba(255,255,255,.06) ${Math.min(100, acc)}% 100%)` }, h('span', {}, `${D.artists.length}`, h('small', {}, 'Interpreten')))),
+        h('div', {}, h('h4', {}, 'Interpreten-Anteile'), h('div', { class: 'st-hbars' }, ...D.artists.map((/** @type {any} */ a, /** @type {number} */ i) => h('div', { class: 'st-hbar' }, h('span', { class: 'st-title' }, h('i', { class: 'st-dot', style: `background:${TREND_COLORS[i % TREND_COLORS.length]}` }), ` ${a.artist}`), h('div', { class: 'st-hfill', style: `width:${Math.round(a.share)}%;background:${TREND_COLORS[i % TREND_COLORS.length]}` }), h('span', { class: 'muted num' }, `${a.share} % · ${a.plays}×`))))));
+    }
+    return h('div', {}, h('h4', {}, 'Song-Verlauf – Einsätze je Tag (Top 5)'), trendChart(D.trend));
   }
 
   const time = (/** @type {number} */ t) => new Date(t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -83,6 +153,7 @@ export function mountStats(root, ctx) {
   }
 
   function body() {
+    if (DEEP_TABS.has(tab)) return deepBody();
     if (tab === 'played') {
       return S.played.length
         ? h('div', { class: 'st-table' }, ...S.played.map((/** @type {any} */ e) => h('div', { class: 'st-row' },
@@ -116,10 +187,13 @@ export function mountStats(root, ctx) {
           h('p', {}, `Hörerzahlen über alle verbundenen Ausgänge, gespielte Titel und Live-Anteile${S ? ` · ${new Date(S.from).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} – jetzt` : ''}.`)),
         h('div', { class: 'listener-hero-actions st-periods' },
           ...PERIODS.map(([id, l]) => h('button', { class: `btn small${period === id ? ' primary' : ''}`, 'aria-pressed': String(period === id), onclick: () => { period = id; run(load); } }, l)),
-          h('button', { class: 'btn small', onclick: () => run(load) }, '⟳'))),
+          h('button', { class: 'btn small', onclick: () => run(load) }, '⟳'),
+          h('button', { class: 'btn small', title: 'Deep Stats als Excel-taugliche CSV', onclick: async () => { const blob = await run(() => ctx.api.blob(ctx.url(`/stats/deep.csv?period=${period}`))); if (blob) download(blob, `deep-stats-${period}.csv`); } }, '⬇ Excel'),
+          h('button', { class: 'btn small', title: 'Aktuelle Ansicht drucken / als PDF speichern', onclick: () => window.print() }, '🖨 PDF'),
+          h('button', { class: 'btn small', title: 'Kurzfassung per E-Mail', onclick: emailDeep }, '✉ Mail'))),
       S ? tiles() : h('div', { class: 'muted' }, 'Lade …'),
       S ? h('section', { class: 'panel st-panel' },
-        h('div', { class: 'tabs st-tabs' }, ...TABS.map(([id, l]) => h('button', { 'aria-pressed': String(tab === id), onclick: () => { tab = id; render(); } }, l))),
+        h('div', { class: 'tabs st-tabs' }, ...TABS.map(([id, l]) => h('button', { 'aria-pressed': String(tab === id), class: DEEP_TABS.has(id) ? 'st-deep' : '', onclick: () => selectTab(id) }, l))),
         body(),
         h('div', { class: 'muted small st-foot' }, 'Berichte und CSV-Export unter „Berichte“; Ausfall- und Stille-Alarme unter „Regeln & Sicherung“.')) : null);
   }
