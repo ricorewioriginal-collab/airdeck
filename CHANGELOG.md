@@ -22,18 +22,10 @@ Dieser Bereich bleibt für bewusst dokumentierte Änderungen vorgesehen, die noc
 <!-- AUTO-CHANGELOG:START -->
 ## Veröffentlichte Versionen
 
-### AirDeck Aurora v0.4.1 — 28.09.2026
+### v0.5.0-beta.1 — 02.10.2026
 
-**Version:** `v0.4.1`  
-**Vergleich:** [build-323 → v0.4.1](https://github.com/ricorewioriginal-collab/anmacha_cast/compare/build-323...v0.4.1)  
-**Release:** [AirDeck Aurora v0.4.1](https://github.com/ricorewioriginal-collab/anmacha_cast/releases/tag/v0.4.1)
-
-Die detaillierte automatisch erzeugte Änderungsliste wird ab der nächsten Veröffentlichung aus dem tatsächlichen Commit-Vergleich ergänzt.
-
-### AirDeck – Build 323 (Beta) — 27.09.2026
-
-**Version:** `build-323`  
-**Release:** [Build 323](https://github.com/ricorewioriginal-collab/anmacha_cast/releases/tag/build-323)
+**Version:** `v0.5.0-beta.1`  
+**Release:** [v0.5.0-beta.1](https://github.com/ricorewioriginal-collab/anmacha_cast/releases/tag/v0.5.0-beta.1)
 <!-- AUTO-CHANGELOG:END -->
 
 ## Hinweise zur Historie
