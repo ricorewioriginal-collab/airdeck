@@ -101,6 +101,7 @@ gelesen, kein Code übernommen), mairlist.com/en/products/radio-automation, radi
 | Mehrere Sender/Stationen in einer Installation | ✅ | 🟡 (Multi-Instance) | ✗ | ✗ | ✅ |
 | Rollenbasierte Benutzerverwaltung | ✅ | 🟡 (Windows-Konten) | 🟡 (ein Admin-Login) | 🟡 | ✅ |
 | Web-Oberfläche (kein Windows nötig) | ✅ | ✗ (Windows) | ✗ (Windows) | ✗ (Windows) | ✅ (plus eigenständiges Windows-/Android-Programm) |
+| Windows-Programm: echte native Bedienoberfläche (kein Browser/WebView als Hauptoberfläche) | — | ✅ (nativ) | ✅ (nativ) | ✅ (nativ) | 🟡 primäre Sendebedienung nativ (WPF: Senderwahl, On-Air/Modus/Mikrofon/Sendung, Decks A–D, Cardwall), Rest (Mediathek, Playlisten, Sendeplan, Einstellungen, KI-Werkzeuge, Hörer-Statistik) noch über WebView2-Fallback-Fenster – siehe `docs/architecture/MULTI_PLATFORM.md` |
 | Remote-Relays / mehrere Ausgänge gleichzeitig | ✅ | 🟡 | 🟡 (externer Encoder) | ✅ | ✅ Ausgänge mit Priorität |
 | Webhooks/Integrationen | ✅ Slack/Discord/TuneIn | 🟡 (REST/Skripte) | ✗ | ✗ | ✅ signierte Webhooks, Telegram |
 | Sound-Prozessor (EQ/Kompressor/Lautheit) | 🟡 (Liquidsoap-Filter) | ✅ (VST/Winamp-Plugins) | ✅ (Plugin) | ✅ 5-Band | ✅ 10-Band-EQ, Multiband, EBU-R128-Lautheitsangleich pro Titel |

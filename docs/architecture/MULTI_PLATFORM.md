@@ -4,13 +4,30 @@
 
 ```
 ┌──────────── Windows-PC ─────────────────────────────────────────────┐
-│ Dienst „AirDeck Server“ (Session 0)   Studio (Desktop-Fenster)      │
-│  Core · API · SQLite · Encoder ◄─HTTP─► Oberfläche                  │
-│  Ausgänge ins Internet                  Mithören/CUE (Soundkarte)   │
-│                                         Mikrofon ─► Ingest an Core  │
+│ Dienst „AirDeck Server“ (Session 0)   AirDeck.exe (natives Fenster) │
+│  Core · API · SQLite · Encoder ◄─HTTP─► WPF: Sender/On-Air/Modus,   │
+│  Ausgänge ins Internet                  Decks A–D, Cardwall         │
+│                                         Mithören/CUE (Soundkarte)    │
+│                                         Mikrofon ─► Ingest an Core   │
 │ Tray-Symbol: Studio öffnen · Status · Beenden/Neustarten des Dienstes│
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+Das Windows-Programm (`apps/windows/`, Projekt `AirDeck.csproj`) ist **kein Browser-in-der-Box** mehr für die
+Kernbedienung: Das Hauptfenster (`MainWindow`) ist natives WPF – echte Windows-Bedienelemente (Buttons,
+Slider, ToggleButtons, ComboBox), kein HTML/WebView. Es deckt die primäre Sendebedienung ab:
+
+| Bereich | Umsetzung |
+|---|---|
+| Senderwahl, On-Air-Anzeige, 24/7↔Manuell, Mikrofon, Sendung start/stop, Uhr | nativ (WPF) |
+| Decks A–D (Play/Pause/Stopp, ±10 s, Fortschritt, Restzeit, lokale Monitor-Lautstärke) | nativ (WPF) |
+| Cardwall (Kacheln auslösen) | nativ (WPF) |
+| Mediathek, Playlists, Sendeplan, Einstellungen, KI-Werkzeuge, Hörer-Statistik, … | **noch WebView2** – eigener Knopf „Weitere Funktionen im Browser öffnen“ öffnet das bestehende Web-Studio in einem eingebetteten WebView2-Fenster (`BrowserForm`); kein Ersatz für die primäre Oberfläche, sondern bewusst getrennter Rest-Zugang für Ansichten, die noch nicht nativ nachgebaut sind |
+
+Das native Fenster spricht dieselbe REST-/SSE-Schnittstelle wie das Web-Studio (`/api/v1/...`,
+`/api/v1/events`) – die Engine bleibt maßgeblich, das Fenster ist Fernbedienung, genau wie bisher.
+Tray-Symbol, Prozessüberwachung der Engine und Einzel-Instanz-Logik (`Program.cs`, `Engine.cs`) sind
+unverändert geblieben.
 
 **Wichtig, Session-0-Isolation:** Ein Windows-Dienst hat keinen verlässlichen Zugriff auf die Soundkarte und das Mikrofon des angemeldeten Benutzers. Daraus folgt:
 - **Senden** (Dekodieren, Mischen, Kodieren, Streamen) braucht keine Soundkarte und läuft im Dienst.
