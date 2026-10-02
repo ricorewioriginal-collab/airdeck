@@ -609,6 +609,15 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
 
   // --- Hörerstatistik ---
   add('GET', '/api/v1/stations/:sid/stats', 'automation:read', (c) => app.svc.stats.stats(sid(c), c.url.searchParams.get('period') ?? '24h'));
+  add('GET', '/api/v1/stations/:sid/stats/deep', 'automation:read', (c) => app.svc.stats.deep(sid(c), c.url.searchParams.get('period') ?? '7d'));
+  add('GET', '/api/v1/stations/:sid/stats/deep.csv', 'automation:read', (c) => {
+    const period = c.url.searchParams.get('period') ?? '7d';
+    const csv = app.svc.stats.deepCsv(sid(c), period);
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="deep-stats-${sid(c)}-${period}.csv"` });
+    c.res.end('\ufeff' + csv);
+    return STREAMED;
+  });
+  add('POST', '/api/v1/stations/:sid/stats/deep/email', 'automation:write', async (c) => { const b = await c.body(); return { ok: await app.svc.stats.emailDeep(sid(c), String(b.period ?? '7d'), str(b.recipient)) }; });
 
   // --- Sendungs-Rückblick ---
   add('GET', '/api/v1/stations/:sid/recap', 'automation:read', (c) => {
