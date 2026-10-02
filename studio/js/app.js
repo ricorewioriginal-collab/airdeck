@@ -1865,7 +1865,7 @@ function bindStatic() {
   });
   const nav = (/** @type {Event} */ e) => {
     const b = /** @type {HTMLElement} */ (e.target).closest('button');
-    if (b?.dataset.view) showView(b.dataset.view);
+    if (b?.dataset.view) showView(b.dataset.view, b.dataset.sub);
     if (b?.dataset.jump) {
       showView('studio');
       const win = JUMP_TO_WIN[b.dataset.jump];
@@ -2119,14 +2119,37 @@ async function pollSystem() {
   }
 }
 
-/** @param {string} name */
-function showView(name) {
+// Unterpunkte der Seitenleiste (data-sub) zeigen auf Abschnitte innerhalb einer Ansicht: gesucht wird ein
+// Element mit data-sub, sonst die Panel-Überschrift anhand des Stichworts - und dorthin gescrollt.
+const SUB_HEADING = /** @type {Record<string, string>} */ ({
+  clock: 'Stunden-Uhr', events: 'Zeitplan', rotation: 'Rotation', news: 'Nachrichten', podcast: 'Podcast',
+  lifehacks: 'Lifehacks', recap: 'Rückblick', help: 'Hilfe',
+});
+
+/** @param {string} name @param {string} [sub] */
+function showView(name, sub) {
   currentView = name;
-  for (const b of document.querySelectorAll('#view-tabs button, #bottom-nav button')) b.setAttribute('aria-pressed', String(/** @type {HTMLElement} */ (b).dataset.view === name));
+  for (const b of document.querySelectorAll('#view-tabs button, #bottom-nav button')) {
+    const el = /** @type {HTMLElement} */ (b);
+    b.setAttribute('aria-pressed', String(el.dataset.view === name && (el.dataset.sub ?? '') === (sub ?? '')));
+  }
   $('sidebar').classList.remove('open');
   for (const id of ['overview', 'studio', 'planning', 'mediathek', 'jingles', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
-  if (name !== 'studio') views[name]?.show();
-  else void refreshStudioSchedule();
+  if (name !== 'studio') {
+    const shown = views[name]?.show();
+    if (sub) void Promise.resolve(shown).then(() => jumpToSub($(`view-${name}`), sub));
+  } else void refreshStudioSchedule();
+}
+
+/** @param {HTMLElement} root @param {string} sub */
+function jumpToSub(root, sub) {
+  const want = (SUB_HEADING[sub] ?? sub).toLowerCase();
+  const target = root.querySelector(`[data-sub="${sub}"]`)
+    ?? [...root.querySelectorAll('h2, h3, .panel-head, .lf-head strong')].find((el) => (el.textContent ?? '').toLowerCase().includes(want))?.closest('.panel, section, .algo') ?? null;
+  if (!target) return;
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  target.classList.add('sub-flash');
+  setTimeout(() => target.classList.remove('sub-flash'), 1600);
 }
 
 // ---------- Liquidsoap ----------
