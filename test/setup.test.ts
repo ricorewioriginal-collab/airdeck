@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { parseConf, resolveConfig, updateConf } from '../src/server/config.ts';
 import { openDatabase } from '../src/server/db/index.ts';
 import { DbDocStore } from '../src/server/repo/docs.ts';
@@ -11,14 +11,14 @@ import { DbDocStore } from '../src/server/repo/docs.ts';
 const admin = { id: 'admin', tokenId: 't', roles: ['admin'], stationIds: ['*'], scopes: ['*'] };
 
 function fresh() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-setup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-setup-'));
   const config = resolveConfig({ env: { AIRDECK_DATA: dir }, root: dir, packaged: false, desktop: true });
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null, config });
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null, config });
   return { dir, app, conf: () => parseConf(existsSync(config.configFile) ? readFileSync(config.configFile, 'utf8') : '') };
 }
 
 test('updateConf: Werte setzen, Kommentare behalten, neue Abschnitte, Entfernen', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-conf-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-conf-'));
   const f = join(dir, 'airdeck.conf');
   writeFileSync(f, '# Kopf\n# mode = local\n\n[network]\nport = 8750\n# bind = local\n');
   updateConf(f, { mode: 'server', 'network.port': 9000, 'database.provider': 'postgres' });
@@ -61,7 +61,7 @@ test('Setup-Assistent: frische Installation, Schritte, Neustart-Hinweise, besteh
     assert.equal(s.required, false);
     // nach Neustart abgeschlossen
     app.docs.flushSync();
-    const again = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const again = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     assert.equal((again.svc.setup.status() as { completed: boolean }).completed, true);
     again.shutdown();
   } finally {
@@ -94,7 +94,7 @@ test('Bestehende Installation (mit Titeln) bekommt keinen Assistenten aufgezwung
 
 test('Ordner einbinden: indizieren, überwachen, nie Originaldateien löschen', async () => {
   const { dir, app } = fresh();
-  const music = mkdtempSync(join(tmpdir(), 'airdeck-musik-'));
+  const music = mkdtempSync(join(tmpdir(), 'anmachacast-musik-'));
   try {
     mkdirSync(join(music, 'Pop'));
     writeFileSync(join(music, 'Pop', 'Band - Song.mp3'), 'x');
@@ -142,12 +142,12 @@ test('Ordner einbinden: indizieren, überwachen, nie Originaldateien löschen', 
   }
 });
 
-test('Datenbank wechseln: Verbindung testen, Daten übernehmen, Passwort verschlüsselt', { skip: !process.env.AIRDECK_TEST_PG && 'AIRDECK_TEST_PG nicht gesetzt' }, async () => {
+test('Datenbank wechseln: Verbindung testen, Daten übernehmen, Passwort verschlüsselt', { skip: !process.env.ANMACHA_CAST_TEST_PG && 'ANMACHA_CAST_TEST_PG nicht gesetzt' }, async () => {
   const { dir, app, conf } = fresh();
   try {
     await assert.rejects(app.svc.setup.apply(admin, 'database', { provider: 'postgres', url: 'postgres://x@127.0.0.1:1/x' }), /nicht erreichbar/);
     app.svc.stations.updateStation('main', { name: 'Umzugsradio' });
-    const u = new URL(process.env.AIRDECK_TEST_PG!);
+    const u = new URL(process.env.ANMACHA_CAST_TEST_PG!);
     const password = decodeURIComponent(u.password);
     u.password = '';
     await app.svc.setup.apply(admin, 'database', { provider: 'postgres', url: u.toString(), password });

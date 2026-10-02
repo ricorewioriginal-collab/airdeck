@@ -3,7 +3,7 @@
 Der Workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) rollt AnMaCha Cast per Knopfdruck
 („Run workflow“ unter **Actions → Deploy**) auf einen eigenen Server aus: Er verbindet sich per SSH mit dem
 Server und führt dort nach einer Sicherung `git fetch/checkout` + `docker compose up -d --build` aus.
-Ein Push auf den AirDeck-Branch löst den Rollout erst nach einem erfolgreichen **Build**-Workflow aus;
+Ein Push auf den AnMaCha-Cast-Branch löst den Rollout erst nach einem erfolgreichen **Build**-Workflow aus;
 „Run workflow“ erlaubt weiterhin einen manuellen Start.
 
 Kontonamen, Pfade (`airdeck-deploy`, `/opt/airdeck-demo`) und GitHub-Secret-Namen beschreiben die
@@ -81,5 +81,5 @@ dem Server und prüft danach den Health-Check, falls `DEPLOY_HEALTH_URL` gesetzt
 
 Einfach den Workflow erneut starten – `git merge --ff-only` holt den gewünschten Stand, sofern der
 Server-Checkout sauber ist. Vor dem Update werden Datenbank und `/data` nach
-`~/airdeck-backups/<UTC-Zeitstempel>/` gesichert. Docker baut nur das, was sich geändert hat. Daten liegen in Docker-Volumes und bleiben erhalten
+`~/anmachacast-backups/<UTC-Zeitstempel>/` gesichert. Docker baut nur das, was sich geändert hat. Daten liegen in Docker-Volumes und bleiben erhalten
 (siehe [docs/DOCKER.md](DOCKER.md#daten--updates)).

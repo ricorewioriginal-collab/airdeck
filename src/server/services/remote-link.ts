@@ -13,7 +13,7 @@
 // „Geräte“ sichtbar und einzeln widerrufbar. Verbindungscode und Token liegen nur im Secret Store.
 
 import { join } from 'node:path';
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import type { RelayTap } from '../relay.ts';
 import { AppError, type Principal } from '../model.ts';
 import { readJson, writeFileAtomic } from '../store.ts';
@@ -102,7 +102,7 @@ export function parseLinkCode(code: string): { hub: string; link: string; key: s
 }
 
 export class RemoteLinkService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
   private readonly file: string;
   private running = false;
   private abort: AbortController | null = null;
@@ -116,7 +116,7 @@ export class RemoteLinkService {
   private error: string | null = null;
   private since: string | null = null;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
     this.file = join(app.dataDir, 'remote-link.json');
   }

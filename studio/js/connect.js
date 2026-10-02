@@ -82,10 +82,10 @@ export async function testConnection(address, auth, opts) {
 
   // 3 Ist das AnMaCha Cast? Legacy-Server (vor der Umbenennung) melden sich noch mit 'AirDeck' - beides gilt als erkannt.
   if (!health || (health.name !== 'AnMaCha Cast' && health.name !== 'AirDeck')) {
-    push({ id: 'airdeck', label: 'AnMaCha Cast erkannt', ok: false, detail: 'Unter dieser Adresse antwortet kein AnMaCha Cast', hint: 'Port prüfen (Standard 8750).' });
+    push({ id: 'anmachacast', label: 'AnMaCha Cast erkannt', ok: false, detail: 'Unter dieser Adresse antwortet kein AnMaCha Cast', hint: 'Port prüfen (Standard 8750).' });
     return done(base);
   }
-  push({ id: 'airdeck', label: 'AnMaCha Cast erkannt', ok: true, detail: `Version ${health.version ?? '?'}` });
+  push({ id: 'anmachacast', label: 'AnMaCha Cast erkannt', ok: true, detail: `Version ${health.version ?? '?'}` });
 
   // 4 Version
   const major = Number(String(health.api ?? '0').split('.')[0]);

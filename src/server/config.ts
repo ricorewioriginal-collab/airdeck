@@ -14,7 +14,7 @@ export const MODES: readonly Mode[] = ['local', 'server', 'hybrid'];
 /** API-Hauptversion: Client und Server vergleichen sie (NETWORK.md „Kompatibilität“) */
 export const API_VERSION = '1.0';
 
-export interface AirDeckConfig {
+export interface AnMaChaCastConfig {
   mode: Mode;
   port: number;
   host: string;
@@ -59,15 +59,23 @@ export function parseConf(text: string): Record<string, string> {
   return out;
 }
 
-/** Bisheriger Datenordner (vor airdeck.conf) – bleibt Standard für Benutzerinstallationen. */
+/**
+ * Bisheriger Datenordner (vor airdeck.conf) – bleibt Standard für Benutzerinstallationen. Die Ordnernamen
+ * selbst ("AirDeck"/".airdeck") bleiben bewusst unverändert: hier liegen bei bestehenden Installationen
+ * bereits echte Senderdaten (Musik, Datenbank, verschlüsselte Passwörter); ein Umbenennen ohne Migration
+ * würde sie beim nächsten Start als leer erscheinen lassen (siehe docs/REBRANDING_ANMACHA_CAST.md).
+ */
 export function legacyDataDir(root: string, packaged: boolean, platform: NodeJS.Platform, env: NodeJS.ProcessEnv, home: string): string {
   if (!packaged) return join(root, 'data');
   if (platform === 'win32') return join(env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'AirDeck', 'data');
   return join(home, '.airdeck', 'data');
 }
 
-/** Systemweite Orte (Dienst/Paket). Nur verwendet, wenn dort eine airdeck.conf liegt. */
-function systemLayout(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): AirDeckConfig['paths'] {
+/**
+ * Systemweite Orte (Dienst/Paket). Nur verwendet, wenn dort eine airdeck.conf liegt. Bleiben bewusst
+ * "airdeck"/"AirDeck" (siehe packaging/linux/control, postinst): dieselbe Begründung wie legacyDataDir.
+ */
+function systemLayout(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): AnMaChaCastConfig['paths'] {
   if (platform === 'win32') {
     const base = join(env.ProgramData ?? env.PROGRAMDATA ?? 'C:\\ProgramData', 'AirDeck');
     return { config: join(base, 'config'), data: join(base, 'data'), media: join(base, 'media'), logs: join(base, 'logs'), backups: join(base, 'backups') };
@@ -75,7 +83,7 @@ function systemLayout(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): AirDec
   return { config: '/etc/airdeck', data: '/var/lib/airdeck', media: '/var/lib/airdeck/media', logs: '/var/log/airdeck', backups: '/var/lib/airdeck/backups' };
 }
 
-export function resolveConfig(input: ResolveInput): AirDeckConfig {
+export function resolveConfig(input: ResolveInput): AnMaChaCastConfig {
   const { env, root, packaged, desktop } = input;
   const platform = input.platform ?? process.platform;
   const home = input.home ?? homedir();
@@ -142,7 +150,7 @@ function readLan(file: string, exists: (p: string) => boolean, read: (p: string)
 }
 
 /** Legt beim ersten Start eine kommentierte airdeck.conf an (nur wenn keine existiert). */
-export function writeDefaultConf(cfg: AirDeckConfig): boolean {
+export function writeDefaultConf(cfg: AnMaChaCastConfig): boolean {
   if (existsSync(cfg.configFile)) return false;
   try {
     mkdirSync(dirname(cfg.configFile), { recursive: true });

@@ -19,9 +19,9 @@ function mockFetch(opts: { status?: number; digest?: string } = {}) {
       return Response.json({
         body: `Automatisch gebaut aus ${SHA}`, published_at: '2026-09-24T10:00:00Z',
         assets: [
-          { name: 'AirDeck-Setup.exe', size: payload.length, digest: opts.digest ?? digest, url: 'https://api.github.com/repos/x/y/releases/assets/1' },
-          { name: 'AirDeck-Windows-Portable.zip', size: 5, url: 'https://api.github.com/repos/x/y/releases/assets/2' },
-          { name: 'AirDeck-Android.apk', size: 7, url: 'https://api.github.com/repos/x/y/releases/assets/3' },
+          { name: 'AnMaCha-Cast-Setup.exe', size: payload.length, digest: opts.digest ?? digest, url: 'https://api.github.com/repos/x/y/releases/assets/1' },
+          { name: 'AnMaCha-Cast-Windows-Portable.zip', size: 5, url: 'https://api.github.com/repos/x/y/releases/assets/2' },
+          { name: 'AnMaCha-Cast-Android.apk', size: 7, url: 'https://api.github.com/repos/x/y/releases/assets/3' },
         ],
       });
     }
@@ -45,9 +45,9 @@ test('GitHub-Release wird gelesen, Token nur als Header', async () => {
   const info = await u.check(DEFAULT_SOURCE, 'geheim');
   assert.equal(info.latest, 'aaaaaaa');
   assert.equal(info.available, true);
-  assert.equal(info.assets.setup?.name, 'AirDeck-Setup.exe');
+  assert.equal(info.assets.setup?.name, 'AnMaCha-Cast-Setup.exe');
   assert.equal(info.assets.portable?.size, 5);
-  assert.equal(info.assets.apk?.name, 'AirDeck-Android.apk');
+  assert.equal(info.assets.apk?.name, 'AnMaCha-Cast-Android.apk');
   assert.equal(m.calls[0]!.headers.Authorization, 'Bearer geheim');
   assert.ok(!m.calls[0]!.url.includes('geheim'));
   await u.check(DEFAULT_SOURCE);
@@ -61,7 +61,7 @@ test('Privates Repository ohne Token: verständliche Fehlermeldung statt leerer 
 });
 
 test('Download prüft SHA-256, manipulierte Datei wird verworfen', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-upd-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-upd-'));
   try {
     const ok = new Updater('1234567', mockFetch().fn);
     const info = await ok.check(DEFAULT_SOURCE);
@@ -93,5 +93,5 @@ test('Release-Kanal: „latest“ und der eingefrorene Kanal „nightly“ nutze
   const { fn, calls } = mockFetch();
   const info = await new Updater('1234567', fn).check({ repo: 'x/y', tag: 'nightly' });
   assert.ok(calls[0]!.url.endsWith('/repos/x/y/releases/latest'));
-  assert.equal(info.assets.setup?.name, 'AirDeck-Setup.exe');
+  assert.equal(info.assets.setup?.name, 'AnMaCha-Cast-Setup.exe');
 });

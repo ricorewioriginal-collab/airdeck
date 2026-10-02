@@ -1,15 +1,15 @@
 // Nextcloud-Brücke: Medien per WebDAV durchsuchen und übernehmen, Mitschnitte hochladen.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { extname, join } from 'node:path';
 import { MEDIA_CATEGORIES, parseFileName, type MediaItem } from '../../core/automation.ts';
 import { AUDIO_FILE_RE, AppError, newId } from '../model.ts';
 import { Nextcloud, NextcloudError, cleanPath, type NextcloudConfig } from '../nextcloud.ts';
 
 export class NextcloudService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -119,7 +119,7 @@ export class NextcloudService {
     const { path, rec } = this.app.svc.recorder.recordingFile(stationId, recId);
     const ext = rec.contentType.includes('ogg') ? 'ogg' : rec.contentType.includes('aac') ? 'aac' : rec.contentType.includes('webm') ? 'webm' : 'mp3';
     const name = `${new Date(rec.startedAt).toISOString().slice(0, 16).replace(/[:T]/g, '-')} ${rec.label}`.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120);
-    const target = cleanPath(`${root}/${targetDir || 'AirDeck-Mitschnitte'}/${name}.${ext}`);
+    const target = cleanPath(`${root}/${targetDir || 'AnMaCha-Cast-Mitschnitte'}/${name}.${ext}`);
     await this.ncCall(() => client.upload(path, target, rec.contentType));
     this.app.audit.write({ kind: 'nextcloud', event: 'upload', stationId, recId });
     return { uploaded: target };

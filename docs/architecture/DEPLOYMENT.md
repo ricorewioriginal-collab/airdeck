@@ -7,7 +7,7 @@
 | Paket | Laufzeit | ffmpeg |
 |---|---|---|
 | Windows (Installer/portable) | Node als Einzelprogramm eingebettet (`AirDeck.exe`, heute schon so) | mitgeliefert (inkl. LAME/Opus), wahlweise System oder eigener Pfad |
-| Linux (`.deb`) | Node als Einzelprogramm eingebettet (SEA, wie Windows), `/opt/airdeck/airdeck-server` | System-ffmpeg (`Recommends: ffmpeg`), Automation läuft ohne ffmpeg nicht |
+| Linux (`.deb`) | Node als Einzelprogramm eingebettet (SEA, wie Windows), `/opt/anmachacast/anmachacast-server` | System-ffmpeg (`Recommends: ffmpeg`), Automation läuft ohne ffmpeg nicht |
 | Docker | im Image | im Image |
 | Entwicklung | Node ≥ 22.18 aus dem System | System-ffmpeg |
 
@@ -17,10 +17,10 @@ Der **Dependency-Manager** meldet für Laufzeit, ffmpeg, Datenbank, Audio-Backen
 
 | Plattform | Dienst | Start | Neustart |
 |---|---|---|---|
-| Windows | `AirDeck Server` (Windows-Dienst) | automatisch, auch ohne Anmeldung | bei Fehler (Dienst-Wiederherstellung) |
+| Windows | `AnMaCha Cast Server` (Windows-Dienst) | automatisch, auch ohne Anmeldung | bei Fehler (Dienst-Wiederherstellung) |
 | Windows (Einfach-Modus) | Hintergrundprozess mit Tray, wie heute | bei Anmeldung | über den Tray |
-| Linux | `airdeck-server.service` (systemd, eigener Benutzer `airdeck`) | automatisch (`apt install`/`dpkg -i` aktiviert und startet ihn) | `Restart=on-failure` + `RestartForceExitStatus=75` (Neustart aus dem Programm) |
-| Docker | Container `airdeck` | `restart: unless-stopped` | Docker |
+| Linux | `anmachacast-server.service` (systemd, eigener Benutzer `anmachacast`) | automatisch (`apt install`/`dpkg -i` aktiviert und startet ihn) | `Restart=on-failure` + `RestartForceExitStatus=75` (Neustart aus dem Programm) |
+| Docker | Container `anmachacast` | `restart: unless-stopped` | Docker |
 
 Nach einem Rechnerneustart wird der vorherige Zustand wiederhergestellt: Modus, Queue-Position, laufende Automation, Ausgänge verbinden neu, Encoder startet neu. Das ist heute schon für die Automation umgesetzt und wird auf den Mode-Manager übertragen.
 
@@ -28,13 +28,13 @@ Nach einem Rechnerneustart wird der vorherige Zustand wiederhergestellt: Modus, 
 
 ```yaml
 services:
-  airdeck:   { image: airdeck, ports: ["8750:8750"], volumes: [data:/data, media:/media], depends_on: [postgres] }
+  anmachacast:   { image: anmachacast, ports: ["8750:8750"], volumes: [data:/data, media:/media], depends_on: [postgres] }
   postgres:  { image: postgres:17, volumes: [pg:/var/lib/postgresql/data] }
   # optional: caddy (HTTPS) – Profil "https"
 ```
 
-- **Minimal:** `airdeck` plus `postgres`, alternativ `airdeck` allein mit SQLite.
-- **Redis wird nicht verwendet.** AirDeck braucht ihn nicht, und unnötige Dienste kommen nicht dazu.
+- **Minimal:** `anmachacast` plus `postgres`, alternativ `anmachacast` allein mit SQLite.
+- **Redis wird nicht verwendet.** AnMaCha Cast braucht ihn nicht, und unnötige Dienste kommen nicht dazu.
 - Caddy ist ein optionales Profil für automatisches HTTPS.
 
 ## Updates

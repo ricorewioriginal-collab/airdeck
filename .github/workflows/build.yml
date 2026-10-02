@@ -15,11 +15,11 @@ permissions:
 # Pro Branch darf nur der neueste Build Ressourcen verbrauchen. Bei mehreren schnellen Commits
 # werden aeltere queued/running Runs automatisch abgebrochen statt parallel weiterzubauen.
 concurrency:
-  group: airdeck-build-${{ github.workflow }}-${{ github.ref }}
+  group: anmachacast-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 # docker/build-push-action legt sonst pro Build ein zusaetzliches .dockerbuild-Record-Artefakt an.
-# Fuer AirDeck reichen Logs und normale Build-Artefakte; das spart Actions-Speicher.
+# Fuer AnMaCha Cast reichen Logs und normale Build-Artefakte; das spart Actions-Speicher.
 env:
   DOCKER_BUILD_RECORD_UPLOAD: false
 
@@ -33,9 +33,9 @@ jobs:
         image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: root-pw
-          MYSQL_DATABASE: airdeck_test
-          MYSQL_USER: airdeck
-          MYSQL_PASSWORD: airdeck-pw
+          MYSQL_DATABASE: anmachacast_test
+          MYSQL_USER: anmachacast
+          MYSQL_PASSWORD: anmachacast-pw
         ports: ['3306:3306']
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-pw"
@@ -44,28 +44,28 @@ jobs:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_USER: airdeck
-          POSTGRES_PASSWORD: airdeck-pw
-          POSTGRES_DB: airdeck_test
+          POSTGRES_USER: anmachacast
+          POSTGRES_PASSWORD: anmachacast-pw
+          POSTGRES_DB: anmachacast_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd="pg_isready -U airdeck" --health-interval=5s --health-timeout=5s --health-retries=20
+          --health-cmd="pg_isready -U anmachacast" --health-interval=5s --health-timeout=5s --health-retries=20
       mariadb:
         image: mariadb:11
         env:
           MARIADB_ROOT_PASSWORD: root-pw
-          MARIADB_DATABASE: airdeck_test
-          MARIADB_USER: airdeck
-          MARIADB_PASSWORD: airdeck-pw
+          MARIADB_DATABASE: anmachacast_test
+          MARIADB_USER: anmachacast
+          MARIADB_PASSWORD: anmachacast-pw
         ports: ['3307:3306']
         options: >-
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=20
     env:
-      AIRDECK_TEST_MYSQL: 127.0.0.1:3306:airdeck:airdeck-pw:airdeck_test
-      AIRDECK_TEST_PG: postgres://airdeck:airdeck-pw@127.0.0.1:5432/airdeck_test
-      AIRDECK_TEST_MYSQL_URL: mysql://airdeck:airdeck-pw@127.0.0.1:3306/airdeck_test
-      AIRDECK_TEST_MARIADB_URL: mysql://airdeck:airdeck-pw@127.0.0.1:3307/airdeck_test
+      ANMACHA_CAST_TEST_MYSQL: 127.0.0.1:3306:anmachacast:anmachacast-pw:anmachacast_test
+      ANMACHA_CAST_TEST_PG: postgres://anmachacast:anmachacast-pw@127.0.0.1:5432/anmachacast_test
+      ANMACHA_CAST_TEST_MYSQL_URL: mysql://anmachacast:anmachacast-pw@127.0.0.1:3306/anmachacast_test
+      ANMACHA_CAST_TEST_MARIADB_URL: mysql://anmachacast:anmachacast-pw@127.0.0.1:3307/anmachacast_test
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
@@ -87,7 +87,7 @@ jobs:
       - run: npm ci
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '8.0.x' }
-      - name: AirDeck bauen (Engine als Node Single Executable + Windows-Programm)
+      - name: AnMaCha Cast bauen (Engine als Node Single Executable + Windows-Programm)
         run: node scripts/build.mjs --sea
       - name: Programme signieren (nur mit hinterlegtem Zertifikat)
         if: env.HAS_CERT == 'true'
@@ -100,7 +100,7 @@ jobs:
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_B64))
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match 'x64' } | Select-Object -Last 1
           foreach ($f in @('dist/AirDeck/AirDeck.exe', 'dist/AirDeck/airdeck-engine.exe')) {
-            & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d AirDeck $f
+            & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "AnMaCha Cast" $f
             if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen: $f" }
           }
           Remove-Item $pfx
@@ -154,7 +154,7 @@ jobs:
           $p.WaitForExit(8000) | Out-Null
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force; throw 'AirDeck --stop hat die Instanz nicht beendet' }
           if (-not $r.ok) { throw 'Health-Check fehlgeschlagen' }
-          if ($page.StatusCode -ne 200 -or -not ($page.Content -match 'AirDeck')) { throw 'Studio-Startseite wird nicht ausgeliefert' }
+          if ($page.StatusCode -ne 200 -or -not ($page.Content -match 'AnMaCha Cast')) { throw 'Studio-Startseite wird nicht ausgeliefert' }
           if ($js.StatusCode -ne 200) { throw 'Studio-Skripte werden nicht ausgeliefert' }
           Write-Host 'Engine startet und antwortet.'
           # Windows-Programm: startet die Engine selbst (nur Infobereich, ohne Fenster)
@@ -191,7 +191,7 @@ jobs:
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_B64))
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match 'x64' } | Select-Object -Last 1
           foreach ($f in @((Get-ChildItem dist/AnMaCha-Cast-Setup-*.exe).FullName)) {
-            & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d AirDeck $f
+            & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "AnMaCha Cast" $f
             if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen: $f" }
           }
           Remove-Item $pfx
@@ -205,7 +205,7 @@ jobs:
           if (Test-Path "$env:LOCALAPPDATA/AirDeck/data/installer-bootstrap.json") { throw 'Silent-Setup darf keine leeren Admin-Zugangsdaten anlegen' }
           if (-not (Test-Path "$env:LOCALAPPDATA/Programs/AirDeck/AirDeck.exe")) { throw 'AirDeck.exe nach Installation nicht gefunden' }
           $exe = "$env:LOCALAPPDATA/Programs/AirDeck/airdeck-engine.exe"
-          if (-not (Test-Path $exe)) { throw 'airdeck-engine.exe nach Installation nicht gefunden' }
+          if (-not (Test-Path $exe)) { throw 'anmachacast-engine.exe nach Installation nicht gefunden' }
           $env:AIRDECK_DATA = "$env:RUNNER_TEMP/airdeck-inst"
           $env:AIRDECK_PORT = '8755'
           $p = Start-Process $exe -ArgumentList '--headless', '--no-tray' -PassThru
@@ -236,14 +236,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Image bauen
-        run: docker build -t airdeck:ci .
+        run: docker build -t anmachacast:ci .
       - name: Container starten und prüfen
         run: |
-          docker run -d --name airdeck -p 8750:8750 airdeck:ci
+          docker run -d --name anmachacast -p 8750:8750 anmachacast:ci
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8750/api/v1/health && break; sleep 1; done
           curl -fs http://127.0.0.1:8750/api/v1/health
           curl -fs http://127.0.0.1:8750/ | grep -q "AnMaCha Cast"
-          docker logs airdeck | tee log.txt
+          docker logs anmachacast | tee log.txt
           grep -q "ffmpeg version" log.txt || (echo "ffmpeg fehlt im Container" && exit 1)
           grep -q "Admin-Token" log.txt || (echo "Admin-Token wird nicht ausgegeben" && exit 1)
           # Liquidsoap-Skript aus der laufenden Instanz erzeugen und mit echtem Liquidsoap prüfen
@@ -251,25 +251,25 @@ jobs:
           curl -fs -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
             -d '{"name":"Test","type":"icecast","host":"127.0.0.1","port":8000,"mount":"/stream","username":"source","password":"x-geheim-1","priority":5}' \
             http://127.0.0.1:8750/api/v1/stations/main/outputs > /dev/null
-          curl -fs -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8750/api/v1/stations/main/liquidsoap -o airdeck.liq
-          cat airdeck.liq
-          ! grep -q "x-geheim-1" airdeck.liq || (echo "Passwort im Skript!" && exit 1)
-          docker run --rm -v "$PWD:/s" --entrypoint liquidsoap savonet/liquidsoap:v2.2.5 --check /s/airdeck.liq
-          docker stop -t 10 airdeck
-          test "$(docker inspect -f '{{.State.ExitCode}}' airdeck)" = "0" || (echo "Container wurde nicht sauber beendet" && exit 1)
+          curl -fs -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8750/api/v1/stations/main/liquidsoap -o anmachacast.liq
+          cat anmachacast.liq
+          ! grep -q "x-geheim-1" anmachacast.liq || (echo "Passwort im Skript!" && exit 1)
+          docker run --rm -v "$PWD:/s" --entrypoint liquidsoap savonet/liquidsoap:v2.2.5 --check /s/anmachacast.liq
+          docker stop -t 10 anmachacast
+          test "$(docker inspect -f '{{.State.ExitCode}}' anmachacast)" = "0" || (echo "Container wurde nicht sauber beendet" && exit 1)
       - name: docker compose mit PostgreSQL
         run: |
-          docker rm -f airdeck > /dev/null
+          docker rm -f anmachacast > /dev/null
           docker compose up -d
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:8750/api/v1/health && break; sleep 1; done
-          docker compose logs airdeck | tee log.txt
+          docker compose logs anmachacast | tee log.txt
           grep -q "Datenbank: postgres" log.txt || (echo "PostgreSQL wird nicht genutzt" && exit 1)
-          # compose setzt „airdeck  | “ vor jede Zeile – Token direkt am Muster erkennen
+          # compose setzt „anmachacast  | “ vor jede Zeile – Token direkt am Muster erkennen
           TOKEN=$(grep -A1 "Admin-Token" log.txt | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
           test -n "$TOKEN" || (echo "Admin-Token nicht gefunden" && exit 1)
           curl -fs -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"id":"ci","name":"CI Radio"}' http://127.0.0.1:8750/api/v1/stations > /dev/null
           # Neustart: Daten müssen aus PostgreSQL kommen
-          docker compose restart airdeck
+          docker compose restart anmachacast
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:8750/api/v1/health > /dev/null && break; sleep 1; done
           curl -fs -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8750/api/v1/stations | grep -q '"id":"ci"' || (echo "Sender nach Neustart verloren" && exit 1)
           curl -fs -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8750/api/v1/database | tee db.json | grep -q '"engine":"PostgreSQL"'
@@ -326,14 +326,14 @@ jobs:
           # Der oeffentliche Demo-Login bleibt demo / anmachacast-demo und senderbeschraenkt.
           TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs anmachacast-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
           test -n "$TOKEN"
-          echo "AIRDECK_SCREENSHOT_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "ANMACHA_CAST_SCREENSHOT_TOKEN=$TOKEN" >> "$GITHUB_ENV"
       - name: Browser-Funktionen gegen echte Demo pruefen
         env:
-          AIRDECK_SCREENSHOT_URL: http://127.0.0.1:8751
+          ANMACHA_CAST_SCREENSHOT_URL: http://127.0.0.1:8751
         run: node scripts/browser-smoke.mjs
       - name: README-Screenshots neu erzeugen
         env:
-          AIRDECK_SCREENSHOT_URL: http://127.0.0.1:8751
+          ANMACHA_CAST_SCREENSHOT_URL: http://127.0.0.1:8751
         run: |
           node scripts/screenshots.mjs
           # README-Bilder sind Dokumentation, kein verlustfreies Screenshot-Archiv: Metadaten entfernen
@@ -360,7 +360,7 @@ jobs:
       - name: Screenshots nur bei Aenderungen committen
         if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
         run: |
-          git config user.name "AirDeck CI"
+          git config user.name "AnMaCha Cast CI"
           git config user.email "actions@users.noreply.github.com"
           git fetch origin "$GITHUB_REF_NAME"
           REMOTE=$(git rev-parse "origin/$GITHUB_REF_NAME")
@@ -397,23 +397,23 @@ jobs:
           context: .
           platforms: linux/arm64
           load: true
-          tags: airdeck:ci-arm64
+          tags: anmachacast:ci-arm64
       - name: Container starten und prüfen (arm64 unter QEMU)
         run: |
-          docker run -d --name airdeck-arm64 --platform linux/arm64 -p 8751:8750 airdeck:ci-arm64
+          docker run -d --name anmachacast-arm64 --platform linux/arm64 -p 8751:8750 anmachacast:ci-arm64
           # QEMU-Emulation ist deutlich langsamer als natives amd64 - großzügig warten (bis zu 6 Minuten)
           for i in $(seq 1 180); do curl -fs http://127.0.0.1:8751/api/v1/health && break; sleep 2; done
           curl -fs http://127.0.0.1:8751/api/v1/health
           curl -fs http://127.0.0.1:8751/ | grep -q "AnMaCha Cast"
-          docker exec airdeck-arm64 uname -m | grep -q aarch64
-          docker logs airdeck-arm64 | tee log-arm64.txt
+          docker exec anmachacast-arm64 uname -m | grep -q aarch64
+          docker logs anmachacast-arm64 | tee log-arm64.txt
           grep -q "ffmpeg version" log-arm64.txt || (echo "ffmpeg fehlt/startet nicht unter arm64" && exit 1)
           grep -q "Admin-Token" log-arm64.txt || (echo "Admin-Token wird nicht ausgegeben" && exit 1)
-          docker stop -t 10 airdeck-arm64
-          test "$(docker inspect -f '{{.State.ExitCode}}' airdeck-arm64)" = "0" || (echo "Container wurde nicht sauber beendet" && exit 1)
+          docker stop -t 10 anmachacast-arm64
+          test "$(docker inspect -f '{{.State.ExitCode}}' anmachacast-arm64)" = "0" || (echo "Container wurde nicht sauber beendet" && exit 1)
 
-  # Linux-Paket: .deb mit systemd-Dienst „airdeck-server“ (Schritt 7 der Architektur, eigener Benutzer,
-  # Daten unter /var/lib/airdeck). Läuft auf einem echten ubuntu-latest-Runner (VM mit systemd als PID 1).
+  # Linux-Paket: .deb (Paketname/Benutzer/Pfade bleiben bewusst "airdeck") mit systemd-Dienst
+  # „anmachacast-server.service“, Daten unter /var/lib/airdeck. Läuft auf einem echten ubuntu-latest-Runner (VM mit systemd als PID 1).
   linux:
     needs: test
     runs-on: ubuntu-latest
@@ -434,27 +434,27 @@ jobs:
           sudo apt-get install -y -q --no-install-recommends "./dist/airdeck_${VER}_amd64.deb"
           command -v ffmpeg >/dev/null || (echo "ffmpeg wurde nicht als Paket-Abhängigkeit installiert" && exit 1)
           ffmpeg -version | head -1
-          sudo systemctl is-active airdeck-server.service
+          sudo systemctl is-active anmachacast-server.service
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8750/api/v1/health > /dev/null && break; sleep 1; done
           curl -fs http://127.0.0.1:8750/api/v1/health | tee health.json
           grep -q '"ok":true' health.json || (echo "Health-Check fehlgeschlagen" && exit 1)
           # journalctl stellt jeder Zeile Zeitstempel/Host/Diensteinheit voran – nur das Token-Muster herausziehen
-          TOKEN=$(sudo journalctl -u airdeck-server --no-pager | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
-          test -n "$TOKEN" || (echo "Admin-Token nicht im Protokoll gefunden" && sudo journalctl -u airdeck-server --no-pager && exit 1)
-          # Neustart über die API (wie Setup-Assistent/Update): AirDeck erkennt systemd (INVOCATION_ID) und
+          TOKEN=$(sudo journalctl -u anmachacast-server --no-pager | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
+          test -n "$TOKEN" || (echo "Admin-Token nicht im Protokoll gefunden" && sudo journalctl -u anmachacast-server --no-pager && exit 1)
+          # Neustart über die API (wie Setup-Assistent/Update): AnMaCha Cast erkennt systemd (INVOCATION_ID) und
           # beendet sich mit Exit-Code 75 – RestartForceExitStatus muss den Dienst neu starten (nicht nur beenden).
-          PID1=$(sudo systemctl show -p MainPID --value airdeck-server.service)
+          PID1=$(sudo systemctl show -p MainPID --value anmachacast-server.service)
           curl -fs -X POST -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8750/api/v1/system/restart > /dev/null \
             || (echo "Neustart-Aufruf abgelehnt (Token: '${TOKEN:0:6}…')" && exit 1)
           PID2=""
           for i in $(seq 1 30); do
             sleep 1
-            PID2=$(sudo systemctl show -p MainPID --value airdeck-server.service)
+            PID2=$(sudo systemctl show -p MainPID --value anmachacast-server.service)
             [ -n "$PID2" ] && [ "$PID2" != "0" ] && [ "$PID2" != "$PID1" ] && curl -fs http://127.0.0.1:8750/api/v1/health > /dev/null 2>&1 && break
           done
           if [ "$PID2" = "$PID1" ] || [ -z "$PID2" ] || [ "$PID2" = "0" ]; then
             echo "systemd hat den Dienst nach dem Neustart-Aufruf nicht neu gestartet"
-            sudo systemctl status airdeck-server.service --no-pager || true
+            sudo systemctl status anmachacast-server.service --no-pager || true
             exit 1
           fi
           curl -fs http://127.0.0.1:8750/api/v1/health | grep -q '"ok":true'
@@ -464,8 +464,8 @@ jobs:
           # der Runner-Benutzer selbst darf ohne sudo gar nicht hineinschauen. Genau das war die eigentliche
           # Ursache des bisherigen Fehlschlags: „test -f“ ohne sudo meldete „nicht gefunden“, obwohl die
           # Datenbank die ganze Zeit da war (siehe Diagnose: „Permission denied“ statt einer leeren Liste).
-          sudo test -f /var/lib/airdeck/airdeck.db || (echo "Diagnose: airdeck.db fehlt schon vor dem Stopp/Purge" && sudo ls -la /var/lib/airdeck && sudo journalctl -u airdeck-server --no-pager -n 100 && exit 1)
-          sudo systemctl stop airdeck-server.service
+          sudo test -f /var/lib/airdeck/airdeck.db || (echo "Diagnose: airdeck.db fehlt schon vor dem Stopp/Purge" && sudo ls -la /var/lib/airdeck && sudo journalctl -u anmachacast-server --no-pager -n 100 && exit 1)
+          sudo systemctl stop anmachacast-server.service
           sudo dpkg -P airdeck
           test ! -e /opt/airdeck
           test ! -e /etc/airdeck/airdeck.conf
@@ -499,8 +499,8 @@ jobs:
         run: |
           mkdir -p out
           if [ -n "$KEYSTORE_B64" ] && [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_REF" == "refs/heads/main" ]]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/airdeck.jks"
-            export ANDROID_KEYSTORE="$RUNNER_TEMP/airdeck.jks"
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/anmachacast.jks"
+            export ANDROID_KEYSTORE="$RUNNER_TEMP/anmachacast.jks"
             ./gradlew assembleRelease --no-daemon
             cp app/build/outputs/apk/release/app-release.apk out/AnMaCha-Cast-Android.apk
             echo "Release-APK (offiziell signiert)"
@@ -535,7 +535,7 @@ jobs:
           cp artifacts/AnMaCha-Cast-Windows-Installer/*.exe out/AnMaCha-Cast-Setup.exe
           mv artifacts/AnMaCha-Cast-Windows artifacts/AirDeck && (cd artifacts && zip -qr ../out/AnMaCha-Cast-Windows-Portable.zip AirDeck)
           cp artifacts/AnMaCha-Cast-Android/AnMaCha-Cast-Android.apk out/AnMaCha-Cast-Android.apk
-          # stabiler Dateiname für den "latest"-Downloadlink; der Paketname (im Innern, für apt) bleibt "airdeck"
+          # stabiler Dateiname für den "latest"-Downloadlink; der Paketname (im Innern, für apt) bleibt "anmachacast"
           cp artifacts/AnMaCha-Cast-Linux-Deb/airdeck_*.deb out/AnMaCha-Cast-Linux.deb
           ls -la out
       - name: Release-Tag bestimmen (Tag-Push oder Version aus package.json)

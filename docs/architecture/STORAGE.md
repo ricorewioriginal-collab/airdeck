@@ -4,14 +4,14 @@
 
 | Zweck | Windows (Dienst/alle Benutzer) | Windows (portable) | Linux (Paket) | Docker |
 |---|---|---|---|---|
-| Programm | `C:\Program Files\AirDeck` | Ordner der ZIP | `/opt/airdeck` | Image |
-| Konfiguration | `%ProgramData%\AirDeck\config` | `.\data\config` | `/etc/airdeck` | `/data/config` |
-| Daten (SQLite, Secrets, Cache) | `%ProgramData%\AirDeck\data` | `.\data` | `/var/lib/airdeck` | `/data` |
-| Medien (frei wählbar) | Standard `C:\AirDeck\Media` | `.\media` | `/var/lib/airdeck/media` | Volume `/media` |
-| Logs | `%ProgramData%\AirDeck\logs` | `.\data\logs` | `/var/log/airdeck` | stdout und `/data/logs` |
-| Sicherungen | `%ProgramData%\AirDeck\backups` | `.\data\backups` | `/var/lib/airdeck/backups` | `/data/backups` |
+| Programm | `C:\Program Files\AnMaChaCast` | Ordner der ZIP | `/opt/anmachacast` | Image |
+| Konfiguration | `%ProgramData%\AnMaChaCast\config` | `.\data\config` | `/etc/anmachacast` | `/data/config` |
+| Daten (SQLite, Secrets, Cache) | `%ProgramData%\AnMaChaCast\data` | `.\data` | `/var/lib/anmachacast` | `/data` |
+| Medien (frei wählbar) | Standard `C:\AnMaChaCast\Media` | `.\media` | `/var/lib/anmachacast/media` | Volume `/media` |
+| Logs | `%ProgramData%\AnMaChaCast\logs` | `.\data\logs` | `/var/log/anmachacast` | stdout und `/data/logs` |
+| Sicherungen | `%ProgramData%\AnMaChaCast\backups` | `.\data\backups` | `/var/lib/anmachacast/backups` | `/data/backups` |
 
-Alle Pfade stehen in `airdeck.conf` (Konfigurationsverzeichnis) und lassen sich im Setup-Assistenten ändern. Die bisherige Ablage unter `%LOCALAPPDATA%\AirDeck\data` wird beim ersten Start der neuen Version erkannt und übernommen.
+Alle Pfade stehen in `airdeck.conf` (Konfigurationsverzeichnis) und lassen sich im Setup-Assistenten ändern. Die bisherige Ablage unter `%LOCALAPPDATA%\AnMaChaCast\data` wird beim ersten Start der neuen Version erkannt und übernommen.
 
 ## Medienverzeichnis
 
@@ -28,7 +28,7 @@ Media/
 
 ## Sicherung
 
-Inhalt einer Sicherung (`airdeck-backup-<datum>.tar.gz`):
+Inhalt einer Sicherung (`anmachacast-backup-<datum>.tar.gz`):
 
 | Teil | Immer | Optional |
 |---|---|---|

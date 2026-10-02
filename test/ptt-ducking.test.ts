@@ -68,7 +68,7 @@ test(
   'Push-to-Talk: Ducking senkt die Musik real ab, und das Mikrofonsignal landet wirklich im gesendeten Signal',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-ptt-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-ptt-'));
     try {
       const file = join(dir, 'music.mp3');
       execFileSync(ff!.ffmpeg, ['-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=f=440:d=6', file]);

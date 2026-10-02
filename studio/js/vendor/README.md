@@ -26,7 +26,7 @@ IIFE in the unused Kanji-mode branch - no other change, runtime behavior identic
   minified UMD bundle itself - see upstream repository for the full text)
 
 Used by `../qrscan.js` to decode a QR code live from the device camera (device pairing:
-scan the same QR code that `qr.js` renders on the AirDeck server, no manual code entry).
+scan the same QR code that `qr.js` renders on the AnMaCha Cast server, no manual code entry).
 Loaded as a classic (non-module) `<script>` in `index.html` before `app.js`, so it sets
 the global `window.jsQR` the way the upstream UMD wrapper expects - no bundler needed.
 

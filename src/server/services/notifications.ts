@@ -1,13 +1,13 @@
 // Benachrichtigungen: interne Ereignisse → Webhooks, Telegram, Now-Playing-Datei.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, newId, type Principal } from '../model.ts';
 import { NOTIFY_EVENTS, validateExportPath, validateWebhookUrl, type IntegrationsConfig, type NotifyEvent } from '../notify.ts';
 
 export class NotificationService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -125,9 +125,9 @@ export class NotificationService {
   async testIntegrations(stationId: string): Promise<unknown> {
     const cfg = this.app.rt(stationId).data.integrations;
     if (!cfg) return { webhooks: [], telegram: null, email: null };
-    const payload = { event: 'schedule_fired' as const, station: stationId, at: new Date().toISOString(), data: { test: true, label: 'AirDeck Testmeldung' } };
+    const payload = { event: 'schedule_fired' as const, station: stationId, at: new Date().toISOString(), data: { test: true, label: 'AnMaCha Cast Testmeldung' } };
     const webhooks = await Promise.all(cfg.webhooks.map(async (w) => ({ id: w.id, ok: await this.app.notifier.deliverWebhook(w, payload) })));
-    const telegram = cfg.telegram ? await this.app.notifier.deliverTelegram(cfg.telegram.chatId, cfg.telegram.botTokenRef, `✅ AirDeck ${stationId}: Testmeldung`) : null;
+    const telegram = cfg.telegram ? await this.app.notifier.deliverTelegram(cfg.telegram.chatId, cfg.telegram.botTokenRef, `✅ AnMaCha Cast ${stationId}: Testmeldung`) : null;
     const email = cfg.email ? await this.app.notifier.deliverEmail(cfg.email, `✅ AnMaCha Cast ${stationId}: Testmeldung`) : null;
     return { webhooks, telegram, email };
   }

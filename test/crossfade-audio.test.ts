@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -64,7 +64,7 @@ test(
   'Crossfade mit echtem Audio: Musik->Musik, Musik->Jingle, Jingle->Musik ohne vollständige Stille am Übergang',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-xfade-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-xfade-'));
     const got: Buffer[] = [];
     const ice = createServer((req, res) => {
       if (req.url?.startsWith('/admin/')) return void res.end('ok');
@@ -74,7 +74,7 @@ test(
     });
     await new Promise<void>((r) => ice.listen(0, '127.0.0.1', r));
     const port = (ice.address() as { port: number }).port;
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       for (const [name, secs, freq, cat] of [
         ['a.wav', 4, 440, 'music'], ['b.wav', 4, 550, 'music'], ['j.wav', 2, 1200, 'jingle'], ['a2.wav', 4, 440, 'music'],

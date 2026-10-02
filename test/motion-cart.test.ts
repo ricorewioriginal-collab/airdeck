@@ -6,11 +6,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-motioncart-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-motioncart-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   app.svc.media.addMedia('main', { id: 'j1', title: 'Sweeper 1', artist: '', category: 'sweeper', file: 'j1.mp3', durationMs: 20_000, addedAt: 0 });
   return { app, done: () => { app.shutdown(); rmSync(dir, { recursive: true, force: true }); } };
 }

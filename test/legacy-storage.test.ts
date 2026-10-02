@@ -1,4 +1,4 @@
-// LocalStorage-Migration airdeck.* → anmacha_cast.* (studio/js/legacy-storage.js, docs/REBRANDING_ANMACHA_CAST.md Phase 4).
+// LocalStorage-Migration anmachacast.* → anmacha_cast.* (studio/js/legacy-storage.js, docs/REBRANDING_ANMACHA_CAST.md Phase 4).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -22,16 +22,16 @@ async function freshModule() {
 
 test('neuer Schlüssel leer, alter gesetzt: alter Wert wird übernommen und in den neuen Schlüssel geschrieben, alter bleibt bestehen', async () => {
   const { lsGet } = await freshModule();
-  localStorage.setItem('airdeck.token', 'ad_alt123');
+  localStorage.setItem('anmachacast.token', 'ad_alt123');
   assert.equal(lsGet('token'), 'ad_alt123');
   assert.equal(localStorage.getItem('anmacha_cast.token'), 'ad_alt123');
-  assert.equal(localStorage.getItem('airdeck.token'), 'ad_alt123');
+  assert.equal(localStorage.getItem('anmachacast.token'), 'ad_alt123');
 });
 
 test('neuer Schlüssel gesetzt: hat Vorrang vor dem alten', async () => {
   const { lsGet } = await freshModule();
   localStorage.setItem('anmacha_cast.token', 'neu');
-  localStorage.setItem('airdeck.token', 'alt');
+  localStorage.setItem('anmachacast.token', 'alt');
   assert.equal(lsGet('token'), 'neu');
 });
 
@@ -42,19 +42,19 @@ test('weder neuer noch alter Schlüssel gesetzt: null, kein Logout-Fehlverhalten
 
 test('lsSet schreibt nur den neuen Schlüssel, alter bleibt für ein Rollback bestehen', async () => {
   const { lsGet, lsSet } = await freshModule();
-  localStorage.setItem('airdeck.server', 'http://alt:8750');
+  localStorage.setItem('anmachacast.server', 'http://alt:8750');
   lsSet('server', 'http://neu:8750');
   assert.equal(localStorage.getItem('anmacha_cast.server'), 'http://neu:8750');
-  assert.equal(localStorage.getItem('airdeck.server'), 'http://alt:8750');
+  assert.equal(localStorage.getItem('anmachacast.server'), 'http://alt:8750');
   assert.equal(lsGet('server'), 'http://neu:8750');
 });
 
 test('lsSet mit null/undefined entfernt beide Schlüssel (echter Logout statt Wiederauftauchen über den alten Schlüssel)', async () => {
   const { lsGet, lsSet } = await freshModule();
   localStorage.setItem('anmacha_cast.token', 'neu');
-  localStorage.setItem('airdeck.token', 'alt');
+  localStorage.setItem('anmachacast.token', 'alt');
   lsSet('token', null);
   assert.equal(localStorage.getItem('anmacha_cast.token'), null);
-  assert.equal(localStorage.getItem('airdeck.token'), null);
+  assert.equal(localStorage.getItem('anmachacast.token'), null);
   assert.equal(lsGet('token'), null);
 });

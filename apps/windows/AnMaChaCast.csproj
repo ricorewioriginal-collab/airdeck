@@ -6,12 +6,14 @@
     Sendeplan, Einstellungen, KI-Werkzeuge, Hörer-Statistik), öffnet ein eigener Knopf das bestehende
     Web-Studio in einem eingebetteten WebView2-Fenster – siehe docs/architecture/MULTI_PLATFORM.md.
     .NET Framework 4.8 ist auf jedem Windows 10/11 vorhanden – keine zusätzliche Laufzeit nötig.
-    Bauen: dotnet build apps/windows/AirDeck.csproj -c Release -p:Version=0.4.0
-    AssemblyName/Dateiname bleiben bewusst "AirDeck" (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 6):
-    eine Änderung würde den Update-/Neustart-Mechanismus (src/server/main.ts, update.ts, Installer-
-    Verknüpfungen) brechen, solange diese nicht koordiniert mitgeändert werden. Product/Description/
-    Copyright (sichtbar in Windows' Dateieigenschaften/Task-Manager) sind bereits auf AnMaCha Cast
-    umgestellt.
+    Bauen: dotnet build apps/windows/AnMaChaCast.csproj -c Release -p:Version=0.4.0
+    AssemblyName/RootNamespace/Dateiname bleiben bewusst "AirDeck" (siehe docs/REBRANDING_ANMACHA_CAST.md
+    Phase 6): eine Änderung würde den Update-/Neustart-Mechanismus (src/server/main.ts, update.ts,
+    Installer-Verknüpfungen, Registry-Autostart, Firewall-Regel, %LOCALAPPDATA%\AirDeck-Datenordner)
+    brechen, solange diese nicht koordiniert mitgeändert und auf einem echten Windows-System geprüft
+    werden - außerhalb des Umfangs dieser Umbenennung. Nur die Projektdatei selbst (.csproj) wurde
+    umbenannt; Product/Description/Copyright (sichtbar in Windows' Dateieigenschaften/Task-Manager)
+    sind bereits auf AnMaCha Cast umgestellt.
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -23,7 +25,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>AirDeck</AssemblyName>
     <RootNamespace>AirDeck</RootNamespace>
-    <ApplicationIcon>..\..\assets\icons\airdeck-windows.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\assets\icons\anmachacast-windows.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>0.0.0</Version>
     <Product>AnMaCha Cast</Product>

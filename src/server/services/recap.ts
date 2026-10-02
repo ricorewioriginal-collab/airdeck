@@ -3,7 +3,7 @@
 // Play-Log und einer leichten 30-s-Stichprobe (Hörer/Bytes), nicht auf einer vollständigen Aufzeichnung
 // (dafür ist der Recorder da, siehe services/recorder.ts).
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, type PlayLogEntry } from '../model.ts';
 
 export interface RecapReport {
@@ -21,9 +21,9 @@ export interface RecapReport {
 const csvField = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 export class RecapService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

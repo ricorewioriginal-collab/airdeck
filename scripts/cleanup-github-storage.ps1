@@ -1,4 +1,4 @@
-# AirDeck GitHub Storage Cleanup
+# AnMaCha Cast GitHub Storage Cleanup
 # Loescht alle alten Actions-Artefakte (behaelt je Typ nur den neuesten)
 # und auf Wunsch auch alte Releases.
 #
@@ -24,7 +24,7 @@ if (-not $Token) {
 
 $headers = @{
     "Authorization" = "Bearer $Token"
-    "User-Agent"    = "AirDeck-Cleanup"
+    "User-Agent"    = "AnMaCha-Cast-Cleanup"
     "Accept"        = "application/vnd.github+json"
     "X-GitHub-Api-Version" = "2022-11-28"
 }

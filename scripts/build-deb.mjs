@@ -1,5 +1,6 @@
 // Baut aus dist/AirDeck/ (zuvor: node scripts/build.mjs --sea, unter Linux) ein Debian-Paket
-// dist/airdeck_<version>_amd64.deb – Dienst „airdeck-server“ (systemd), Daten unter /var/lib/airdeck.
+// dist/airdeck_<version>_amd64.deb – Dienst „airdeck-server“ (systemd-Diensteinheit „anmachacast-server.service“),
+// Daten unter /var/lib/airdeck. Paketname/Pfade/Binärname bleiben bewusst „airdeck“ (siehe packaging/linux/control).
 // Aufruf: node scripts/build.mjs --sea && node scripts/build-deb.mjs
 import { execFileSync } from 'node:child_process';
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -36,10 +37,10 @@ mkdirSync(bin, { recursive: true });
 writeFileSync(join(bin, 'airdeck-server'), '#!/bin/sh\nexec /opt/airdeck/airdeck-server "$@"\n');
 chmodSync(join(bin, 'airdeck-server'), 0o755);
 
-// systemd-Dienst
+// systemd-Dienst (Diensteinheit heißt seit der AirDeck→AnMaCha-Cast-Umbenennung "anmachacast-server.service")
 const systemdDir = join(pkgRoot, 'usr', 'lib', 'systemd', 'system');
 mkdirSync(systemdDir, { recursive: true });
-cpSync(join(root, 'packaging', 'linux', 'airdeck-server.service'), join(systemdDir, 'airdeck-server.service'));
+cpSync(join(root, 'packaging', 'linux', 'anmachacast-server.service'), join(systemdDir, 'anmachacast-server.service'));
 
 // Paket-Doku (Debian-Konvention)
 const docDir = join(pkgRoot, 'usr', 'share', 'doc', 'airdeck');

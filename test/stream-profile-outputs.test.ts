@@ -1,4 +1,4 @@
-// Masterprompt V1 Beta, P3 #28 (AirDeckCast: alternative Profile über die API/UI nutzbar): #26 gab dem
+// Masterprompt V1 Beta, P3 #28 (AnMaCha Cast: alternative Profile über die API/UI nutzbar): #26 gab dem
 // Sendebus (Playout) die Fähigkeit, mehrere Encoder-Profile gleichzeitig aus demselben Programmbus zu
 // speisen - aber ein Nutzer konnte das noch nirgends konfigurieren. Dieser Test prüft die komplette
 // Kette von außen: ein Zusatzprofil per API anlegen, einen zweiten Ausgang darauf verweisen lassen,
@@ -11,7 +11,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -75,13 +75,13 @@ function fakeIcecast(): { server: import('node:http').Server; port: Promise<numb
 }
 
 test(
-  'AirDeckCast API: Zusatzprofil per Ausgang nutzbar - Hauptstream und Zusatzprofil senden gleichzeitig echtes, unabhängiges Audio',
+  'AnMaCha Cast API: Zusatzprofil per Ausgang nutzbar - Hauptstream und Zusatzprofil senden gleichzeitig echtes, unabhängiges Audio',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-profile-api-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-profile-api-'));
     const main = fakeIcecast();
     const mobile = fakeIcecast();
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 6, 440);
       app.svc.media.addMedia('main', { id: 'a.wav', title: 'a', artist: 'A', category: 'music', file: 'a.wav', durationMs: null, addedAt: 0 });

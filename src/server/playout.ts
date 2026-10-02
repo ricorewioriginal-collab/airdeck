@@ -1,4 +1,4 @@
-// Sendebus (24/7, headless): ffmpeg dekodiert, AirDeck mischt (Crossfade, Carts, Ducking, Limiter,
+// Sendebus (24/7, headless): ffmpeg dekodiert, AnMaCha Cast mischt (Crossfade, Carts, Ducking, Limiter,
 // Stilleerkennung), ffmpeg kodiert den Sendestream in EINEM festen Format.
 // Neben den Titeln der Automation werden auch alle Live-Quellen (Encoder, Studio-Mikrofon, App, Relay)
 // dekodiert und hier gemischt – ein Quellenwechsel ändert das Format der Ausgänge nie (AUDIT 5.2).

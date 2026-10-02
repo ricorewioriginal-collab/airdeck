@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { UserStore, hashPassword, verifyPassword } from '../src/server/users.ts';
 import { storedText } from './helpers.ts';
@@ -21,8 +21,8 @@ test('Passwörter werden mit scrypt gesalzen gespeichert und geprüft', async ()
 });
 
 test('Benutzerverwaltung: Login/Logout, Rollen, Passwortwechsel, Sperre, letzter Admin', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-users-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-users-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

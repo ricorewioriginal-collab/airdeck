@@ -29,6 +29,10 @@ val appVersionName = file("../../../package.json").let { pkg ->
 }
 
 android {
+    // namespace/applicationId bleiben bewusst "app.airdeck.studio" (siehe docs/REBRANDING_ANMACHA_CAST.md
+    // Phase 5): sie müssen exakt zu den Kotlin-"package"-Deklarationen passen (scoped aus dieser
+    // Umbenennung ausgenommen, siehe apps/android/app/src/main/kotlin/app/airdeck/) und applicationId ist
+    // zusätzlich Androids Signatur-/Update-Kennung bestehender Installationen.
     namespace = "app.airdeck.studio"
     compileSdk = 35
 

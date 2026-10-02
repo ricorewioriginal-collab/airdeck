@@ -1,45 +1,45 @@
 # lautCast – überprüfbarer Entwicklungsstand
 
-Stand: 2026-10-01. Auftrag: der AirDeck-Menüpunkt „laut.fm" heißt künftig **lautCast** (reine AirDeck-Funktionsbezeichnung;
+Stand: 2026-10-01. Auftrag: der AnMaCha-Cast-Menüpunkt „laut.fm" heißt künftig **lautCast** (reine AnMaCha-Cast-Funktionsbezeichnung;
 „laut.fm" bleibt unverändert der Name des externen Dienstes). Zusätzlich soll die bestehende lautCast-Ansicht
 (`studio/js/lautfm.js`, Radioadmin-Panel: Playlists/Titel/Algorithmen/Sendeplan/Statistik/Benutzer/Station/Live) funktional
 an `automation.html` aus dem AnMaCha-Control-Projekt (`/home/user/anmacha_control_center/automation.html`, 439 KB,
-„laut.fm Automation"-Tab) angeglichen werden - **1:1 als Funktionsreferenz**, nicht als visuelle Vorlage (AirDeck behält
+„laut.fm Automation"-Tab) angeglichen werden - **1:1 als Funktionsreferenz**, nicht als visuelle Vorlage (AnMaCha Cast behält
 sein eigenes Neon-Dark-Design).
 
 ## Methodik
 
 Ein Research-Subagent hat `automation.html` (Zeilen ~1300-6460, alle laut.fm-bezogenen Abschnitte) gegen den aktuellen
-AirDeck-Stand (`src/server/services/lautfm.ts`, `src/server/http.ts`, `studio/js/lautfm.js`, `studio/js/lautfm-algos.js`)
+AnMaCha-Cast-Stand (`src/server/services/lautfm.ts`, `src/server/http.ts`, `studio/js/lautfm.js`, `studio/js/lautfm-algos.js`)
 abgeglichen und eine konkrete, mit Zeilennummern belegte Lückenliste erstellt. Diese Liste ist die Arbeitsgrundlage für
 die folgenden Phasen. Bereits vorhandene Funktionsparität (Stationsverwaltung, Playlist-/Titel-CRUD, alle 16
 Algorithmus-Vorlagen, Sendeplan-Raster, Statistik, Benutzerverwaltung, Live-Zugangsdaten, Logo-Upload) wird **nicht**
 erneut implementiert - nur echte Lücken.
 
-## Lückenliste (Referenz → AirDeck), priorisiert
+## Lückenliste (Referenz → AnMaCha Cast), priorisiert
 
 1. **Menüpunkt-Umbenennung** „laut.fm" → „lautCast" im linken Navigationsmenü und in der Automations-Banner-Anzeige.
    Interne Bezeichner (View-Key `lautfm`, DOM-IDs, API-Pfade) bleiben unverändert - reine Label-Änderung, kein
    Identifier-Rename, um unnötige Umbau-Risiken zu vermeiden.
 2. **Keine gebündelten Playlist-Änderungen.** Referenz sammelt Titel-Hinzufügen/-Entfernen in einer Playlist clientseitig
-   (`plPendingAdds`/`plPendingRemoves`) und sendet sie erst gesammelt bei Klick auf „Speichern (N)". AirDeck sendet jede
+   (`plPendingAdds`/`plPendingRemoves`) und sendet sie erst gesammelt bei Klick auf „Speichern (N)". AnMaCha Cast sendet jede
    Änderung sofort einzeln. Das ist die **einzige dokumentierte Ausnahme** von der Referenz-Regel „jede Aktion ist sofort
-   live" (die sonst für alles andere gilt und in AirDeck bereits so funktioniert).
+   live" (die sonst für alles andere gilt und in AnMaCha Cast bereits so funktioniert).
 3. **Kein Verarbeitungs-Poll beim Titel-Upload.** Referenz: `waitForNewTrack()` mit exponentiellem Backoff
    (800 ms → ×1,4 je Versuch → Deckel 4000 ms, max. 90 s Gesamtwartezeit), Status „Warte auf laut.fm-Verarbeitung…",
    danach automatisches Setzen der Metadaten (Künstler/Titel/Genre/Jahr/Privat) und optionales Hinzufügen zur gewählten
-   Playlist. AirDeck lädt hoch und meldet nur grob „N/M Datei(en) übertragen", ohne Metadaten-Felder im Upload-Dialog
+   Playlist. AnMaCha Cast lädt hoch und meldet nur grob „N/M Datei(en) übertragen", ohne Metadaten-Felder im Upload-Dialog
    und ohne Nachbearbeitung.
 4. **Kein Bearbeiten-/Löschen-Dialog für bestehende Titel.** Referenz hat ein Bearbeiten-Modal für Künstler/Titel/Genre/
-   Jahr/Privat/Typ (song/jingle) plus Löschen. AirDeck kann bisher nur Tags bearbeiten (`editTags()`), sonst nichts.
+   Jahr/Privat/Typ (song/jingle) plus Löschen. AnMaCha Cast kann bisher nur Tags bearbeiten (`editTags()`), sonst nichts.
 5. **Keine reichhaltige „Jetzt auf laut.fm"-Kachel.** Referenz zeigt Cover, einen aus `started_at`+`duration`
    berechneten Live-Fortschrittsbalken, der sich selbst exakt zum erwarteten Songende neu lädt, plus eine
-   Stream-Vorhörfunktion (`https://stream.laut.fm/{name}` als Audio-Element). AirDeck zeigt nur eine reine Textzeile.
+   Stream-Vorhörfunktion (`https://stream.laut.fm/{name}` als Audio-Element). AnMaCha Cast zeigt nur eine reine Textzeile.
 6. **Kein lokaler Algorithmus-Testlauf.** Referenz lässt eine selbstgeschriebene Algorithmus-Funktion vor dem Speichern
-   clientseitig gegen die aktuell geladenen Titel testen (`algoTest()`, reiner Dry-Run, kein API-Aufruf). AirDeck prüft
+   clientseitig gegen die aktuell geladenen Titel testen (`algoTest()`, reiner Dry-Run, kein API-Aufruf). AnMaCha Cast prüft
    nur grob Klammern-/Funktionskopf-Struktur, führt aber nichts aus.
 7. **Keine In-App-Referenz für Tags/Felder.** Referenz erklärt im UI selbst, welche Felder (`type`, `genre`,
-   `release_year`, `popularity`, `tags`) welche Algorithmen beeinflussen, mit konkreten Beispielwerten. AirDeck hat dazu
+   `release_year`, `popularity`, `tags`) welche Algorithmen beeinflussen, mit konkreten Beispielwerten. AnMaCha Cast hat dazu
    keine In-App-Dokumentation.
 8. **Lifehacks fehlen:** Massen-Tagger (Playlist-weites Bulk-Tagging), „Jahr Batch-Füllen" (fehlende `release_year`-Werte
    automatisch ergänzen), Top-24h-Playlist-Builder (`/tracks/stats/24h` → automatische Playlist aus den meistgespielten

@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { lautfmStatus, listenUrlOf, toIcecastXml, toM3u, toXspf } from '../src/server/status.ts';
 
@@ -44,9 +44,9 @@ test('Hör-Adressen der Ausgänge', () => {
   assert.equal(listenUrlOf({ type: 'shoutcast', host: 'a.b', port: 8010, mount: '', tls: false, streamId: 2 }), 'http://a.b:8010/stream/2/');
 });
 
-test('Öffentlicher Status eines AirDeck-Senders (JSON/XML), abschaltbar', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-status-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+test('Öffentlicher Status eines AnMaCha-Cast-Senders (JSON/XML), abschaltbar', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-status-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;

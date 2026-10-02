@@ -4,7 +4,7 @@
 // statt fremdem Bild-/Videomaterial. Läuft als Hintergrundjob (ffmpeg-Rendering braucht bei längeren
 // Mixes Zeit), gleiches queued/running/succeeded/failed-Muster wie die MusikHub-Importjobs.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -49,10 +49,10 @@ interface TrackSegment {
 }
 
 export class MotionMixService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
   private readonly running = new Set<string>();
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

@@ -21,7 +21,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: airdeck-last-known-good
+  group: anmachacast-last-known-good
   cancel-in-progress: false
 
 env:

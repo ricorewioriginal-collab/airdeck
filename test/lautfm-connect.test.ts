@@ -25,7 +25,7 @@ const mock = createServer((req, res) => {
 await new Promise<void>((r) => mock.listen(0, '127.0.0.1', r));
 process.env.AIRDECK_RADIOADMIN_URL = `http://127.0.0.1:${(mock.address() as { port: number }).port}`;
 
-const { AirDeckApp } = await import('../src/server/app.ts');
+const { AnMaChaCastApp } = await import('../src/server/app.ts');
 const { createHttpServer } = await import('../src/server/http.ts');
 const { cleanToken, normalizeStations } = await import('../src/server/lautfm.ts');
 
@@ -37,8 +37,8 @@ test('laut.fm: Token säubern und Stationslisten beider Formate verstehen', () =
 });
 
 test('laut.fm verbinden: Origin wird selbst ermittelt, Station gewählt, Anfragen laufen mit dem richtigen Origin', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-lautfm-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-lautfm-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const root = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -63,12 +63,12 @@ test('laut.fm verbinden: Origin wird selbst ermittelt, Station gewählt, Anfrage
     assert.equal(cfg.stations.length, 2);
 
     // Nutzerbericht: laut.fm-Sender fehlten im Dropdown "Meine Sender" - der zweite Sender des Kontos
-    // ("anderes", id 9, noch keinem AirDeck-Sender zugeordnet) muss jetzt automatisch als eigener
-    // AirDeck-Sender angelegt werden (nur weil hier mit einem globalen Admin-Token verbunden wurde).
+    // ("anderes", id 9, noch keinem AnMaCha-Cast-Sender zugeordnet) muss jetzt automatisch als eigener
+    // AnMaCha-Cast-Sender angelegt werden (nur weil hier mit einem globalen Admin-Token verbunden wurde).
     const listStations = () => fetch(`${root}/api/v1/stations`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()) as Promise<Array<{ id: string; name: string; lautfmConnected: boolean }>>;
     const allStations = await listStations();
     const auto = allStations.find((s) => s.id === 'anderes');
-    assert.ok(auto, 'zweiter laut.fm-Sender wurde automatisch als eigener AirDeck-Sender angelegt');
+    assert.ok(auto, 'zweiter laut.fm-Sender wurde automatisch als eigener AnMaCha-Cast-Sender angelegt');
     assert.equal(auto?.name, 'anderes');
     // Nutzerbericht: laut.fm-Navigation soll sich nur bei tatsächlich verbundenen Sendern zeigen
     assert.equal(allStations.find((s) => s.id === 'main')?.lautfmConnected, true);

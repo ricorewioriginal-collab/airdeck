@@ -8,11 +8,11 @@ import { createServer } from 'node:net';
 import { openSqliteSync } from '../src/server/db/index.ts';
 import { DbDocStore } from '../src/server/repo/docs.ts';
 import { UserStore } from '../src/server/users.ts';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
 test('Installer-Bootstrap wird sofort importiert, entfernt und beim Repair nicht erneut angewandt', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-installer-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-installer-'));
   const file = join(dir, 'installer-bootstrap.json');
   const password = 'Installer-Geheimnis9';
   const run = () => spawnSync(process.execPath, ['src/server/main.ts', '--headless', '--import-installer-bootstrap'], {
@@ -41,7 +41,7 @@ test('Installer-Bootstrap wird sofort importiert, entfernt und beim Repair nicht
     await db.close();
     assert.equal(readFileSync(join(dir, 'config', 'airdeck.conf'), 'utf8').includes(password), false);
 
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     try {
@@ -77,7 +77,7 @@ test('Installer-Bootstrap wird sofort importiert, entfernt und beim Repair nicht
 });
 
 test('Installer-Portprüfung erkennt einen belegten Port ohne Datenbankänderung', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-installer-port-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-installer-port-'));
   const server = createServer();
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   try {

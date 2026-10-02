@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 import type { SourceConfig } from '../src/core/source-priority.ts';
 
@@ -38,7 +38,7 @@ function wav(file: string, seconds: number, freq: number): void {
 }
 
 /** Live-Encoder wie BUTT/Studio-Mikrofon: Opus in Ogg in Echtzeit, direkt in den Ingest der App */
-function liveEncoder(app: AirDeckApp, src: SourceConfig, input: string): ChildProcess {
+function liveEncoder(app: AnMaChaCastApp, src: SourceConfig, input: string): ChildProcess {
   const p = spawn(ff!.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-re', '-f', 'lavfi', '-i', input, '-c:a', 'libopus', '-b:a', '64k', '-f', 'ogg', 'pipe:1'], { stdio: ['ignore', 'pipe', 'ignore'] });
   app.ingestOpen(src, 'audio/ogg');
   p.stdout!.on('data', (d: Buffer) => app.ingestData(src, d));
@@ -74,7 +74,7 @@ test(
   'Crossfade mit echtem Audio: Live-Quelle übernimmt das Programm und gibt es zurück, ohne Stille-Lücke am Übergang',
   { skip, timeout: 90_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-xfade-live-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-xfade-live-'));
     const got: Buffer[] = [];
     const ice = createServer((req, res) => {
       if (req.url?.startsWith('/admin/') || req.method === 'GET') return void res.end('ok');
@@ -85,7 +85,7 @@ test(
     await new Promise<void>((r) => ice.listen(0, '127.0.0.1', r));
     const port = (ice.address() as { port: number }).port;
 
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     let enc: ChildProcess | null = null;
     try {
       // Ein langer, durchgehender Titel, damit die Automation vor UND nach der Live-Sendung im

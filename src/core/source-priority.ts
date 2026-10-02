@@ -1,4 +1,4 @@
-// AirDeck Source Priority Engine
+// AnMaCha Cast Source Priority Engine
 // Regel: positive Ganzzahl, kleinere Zahl = höhere Priorität.
 // Priorität allein ist keine Berechtigung – jede Übernahme wird autorisiert.
 

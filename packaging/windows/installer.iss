@@ -40,7 +40,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\AirDeck.exe
 UninstallDisplayName=AnMaCha Cast
-SetupIconFile=..\..\assets\icons\airdeck-windows.ico
+SetupIconFile=..\..\assets\icons\anmachacast-windows.ico
 CloseApplications=yes
 RestartApplications=no
 
@@ -106,8 +106,8 @@ Source: "installer\haftung.txt"; DestDir: "{app}"; DestName: "HAFTUNGSAUSSCHLUSS
 
 [Icons]
 Name: "{group}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}"
-Name: "{group}\{cm:IconServer}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--headless"; WorkingDir: "{app}"; IconFilename: "{app}\icons\airdeck-server.ico"
-Name: "{group}\{cm:IconStop}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--stop"; WorkingDir: "{app}"; IconFilename: "{app}\icons\airdeck-server.ico"
+Name: "{group}\{cm:IconServer}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--headless"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmachacast-server.ico"
+Name: "{group}\{cm:IconStop}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--stop"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmachacast-server.ico"
 Name: "{group}\{cm:IconManual}"; Filename: "{app}\studio\handbuch.html"
 Name: "{group}\{cm:UninstallProgram,AirDeck}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}"; Tasks: desktopicon
@@ -281,7 +281,7 @@ begin
   MysqlPage.Add('Datenbank:', False);
   MysqlPage.Values[0] := 'localhost';
   MysqlPage.Values[1] := '3306';
-  MysqlPage.Values[4] := 'airdeck';
+  MysqlPage.Values[4] := 'anmachacast';
 
   FirebasePage := CreateInputFilePage(MysqlPage.ID,
     'Firebase', 'Service-Account-Schlüssel auswählen',
@@ -534,7 +534,7 @@ begin
     RaiseException('AnMaCha-Cast-Netzwerkeinstellungen konnten nicht geschrieben werden.');
 
   ResultCode := -1;
-  if (not Exec(ExpandConstant('{app}\airdeck-engine.exe'), '--headless --check-port',
+  if (not Exec(ExpandConstant('{app}\anmachacast-engine.exe'), '--headless --check-port',
     ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
   begin
     DeleteFile(ConfigDir + '\airdeck.conf');
@@ -586,7 +586,7 @@ begin
       Engine importiert die Datei sofort, hasht den Admin und löscht sie auch
       im Fehlerfall. Der Installer meldet nur einen nachweislich fertigen Import. }
     ResultCode := -1;
-    if (not Exec(ExpandConstant('{app}\airdeck-engine.exe'),
+    if (not Exec(ExpandConstant('{app}\anmachacast-engine.exe'),
       '--headless --import-installer-bootstrap', ExpandConstant('{app}'),
       SW_HIDE, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) or
       FileExists(BootstrapFile) then

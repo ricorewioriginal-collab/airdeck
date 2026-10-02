@@ -61,13 +61,13 @@ const mock = createServer((req, res) => {
 await new Promise<void>((r) => mock.listen(0, '127.0.0.1', r));
 process.env.AIRDECK_RADIOADMIN_URL = `http://127.0.0.1:${(mock.address() as { port: number }).port}`;
 
-const { AirDeckApp } = await import('../src/server/app.ts');
+const { AnMaChaCastApp } = await import('../src/server/app.ts');
 const { createHttpServer } = await import('../src/server/http.ts');
 const { mkdirSync, writeFileSync } = await import('node:fs');
 
 test('MusikHub: lautCast-Übertragung - Upload, Polling, Zwei-Treffer-Wiederverwendung, ehrliches "processing"', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-lautcast-transfer-'));
-  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-lautcast-transfer-'));
+  const app = new AnMaChaCastApp(dir, { ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

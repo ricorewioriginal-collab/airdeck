@@ -1,5 +1,5 @@
 // Stream-Status wie die Icecast-Statusseite – für jeden Sendeweg:
-//  • AirDeck-Sender: alle verbundenen Ausgänge (Icecast/SHOUTcast/laut.fm) + interner Relay
+//  • AnMaCha-Cast-Sender: alle verbundenen Ausgänge (Icecast/SHOUTcast/laut.fm) + interner Relay
 //  • laut.fm-Sender: Icecast-Status nachgebaut aus der öffentlichen laut.fm-API
 // Formate: JSON (Aufbau wie status-json.xsl), Icecast-XML, M3U, XSPF.
 
@@ -16,7 +16,7 @@ export interface IceSource {
   artist?: string;
   stream_start_iso8601?: string | null;
   /** Herkunft dieses Mounts */
-  kind: 'icecast' | 'shoutcast' | 'laut.fm' | 'airdeck' | 'azuracast' | 'extern';
+  kind: 'icecast' | 'shoutcast' | 'laut.fm' | 'anmachacast' | 'azuracast' | 'extern';
 }
 
 export interface NowPlayingInfo {
@@ -28,7 +28,7 @@ export interface NowPlayingInfo {
 }
 
 export interface StreamStatus {
-  kind: 'airdeck' | 'laut.fm';
+  kind: 'anmachacast' | 'laut.fm';
   station: string;
   name: string;
   description?: string;
@@ -79,7 +79,7 @@ interface LautSong { title?: string; artist?: { name?: string }; album?: string;
 export async function lautfmStatus(name: string, api: string, fetchFn: Fetch = fetch): Promise<StreamStatus> {
   if (!/^[a-z0-9_-]{1,60}$/.test(name)) throw new Error('Ungültiger laut.fm-Sendername');
   const get = async <T>(path: string): Promise<T | null> => {
-    const r = await fetchFn(`${api}/station/${name}${path}`, { headers: { 'User-Agent': 'AirDeck-Status' }, signal: AbortSignal.timeout(8000) }).catch(() => null);
+    const r = await fetchFn(`${api}/station/${name}${path}`, { headers: { 'User-Agent': 'AnMaCha-Cast-Status' }, signal: AbortSignal.timeout(8000) }).catch(() => null);
     if (!r?.ok) return null;
     return (await r.json().catch(() => null)) as T | null;
   };
@@ -94,7 +94,7 @@ export async function lautfmStatus(name: string, api: string, fetchFn: Fetch = f
     name: display,
     description: info.description,
     icestats: {
-      admin: '', host: 'stream.laut.fm', location: 'laut.fm', server_id: 'laut.fm (nachgebaut von AirDeck)', server_start_iso8601: '',
+      admin: '', host: 'stream.laut.fm', location: 'laut.fm', server_id: 'laut.fm (nachgebaut von AnMaCha Cast)', server_start_iso8601: '',
       source: [{
         kind: 'laut.fm', listenurl, server_name: display, server_description: info.description ?? info.format ?? '', server_type: 'audio/mpeg',
         genre: (info.genres ?? []).join(', '), bitrate: null, listeners: typeof listeners === 'number' ? listeners : null, listener_peak: null,

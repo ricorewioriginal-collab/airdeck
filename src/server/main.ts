@@ -1,9 +1,10 @@
-// AirDeck Server – Einstiegspunkt.
+// AnMaCha Cast Server – Einstiegspunkt.
 //   node src/server/main.ts               Server (Entwicklung, Node >= 22.18)
-//   airdeck-engine.exe                    Windows: Engine + Studio-Fenster (öffnet AirDeck.exe, das eigentliche Programm)
-//   airdeck-engine.exe --headless         nur Engine, z. B. für Autostart/24/7 ohne Fenster
-//   airdeck-engine.exe --shell            vom Windows-Programm gestartet: kein eigenes Fenster, kein eigenes Tray-Symbol
-//   airdeck-engine.exe --print-url        Adresse fürs Studio-Fenster ausgeben (für AirDeck.exe), Exit 0 = läuft
+//   airdeck-engine.exe                     Windows: Engine + Studio-Fenster (öffnet AirDeck.exe, das eigentliche Programm;
+//                                           Programmname bleibt bewusst "AirDeck", siehe apps/windows/AnMaChaCast.csproj)
+//   airdeck-engine.exe --headless          nur Engine, z. B. für Autostart/24/7 ohne Fenster
+//   airdeck-engine.exe --shell             vom Windows-Programm gestartet: kein eigenes Fenster, kein eigenes Tray-Symbol
+//   airdeck-engine.exe --print-url         Adresse fürs Studio-Fenster ausgeben (für AirDeck.exe), Exit 0 = läuft
 //   … --new-admin-token                   neues Admin-Token ausgeben
 //   … --import-installer-bootstrap        einmalige, lokale Installer-Daten übernehmen und beenden
 
@@ -19,7 +20,7 @@ import type { DatabaseProvider } from './db/types.ts';
 import { DbDocStore, importJsonFiles } from './repo/docs.ts';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AirDeckApp } from './app.ts';
+import { AnMaChaCastApp } from './app.ts';
 import { envVar } from './legacy-branding.ts';
 import { SecretStore } from './secrets.ts';
 import { SyncManager } from './sync.ts';
@@ -78,11 +79,11 @@ function portInUse(p: number, h: string): Promise<boolean> {
   });
 }
 
-/** Windows-Programm ohne Konsole: Ausgaben zusätzlich in data/logs/airdeck.log (mit einfacher Rotation). */
+/** Windows-Programm ohne Konsole: Ausgaben zusätzlich in data/logs/anmachacast.log (mit einfacher Rotation). */
 function logToFile(): string {
   const dir = config.paths.logs;
   mkdirSync(dir, { recursive: true });
-  const file = join(dir, 'airdeck.log');
+  const file = join(dir, 'anmachacast.log');
   try {
     if (statSync(file).size > 5 * 1024 * 1024) renameSync(file, `${file}.1`);
   } catch {
@@ -106,21 +107,21 @@ function startTray(logFile: string): void {
   const script = `
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 $exe = '${q(exe)}'
-$airdeckPid = ${process.pid}
+$anmachacastPid = ${process.pid}
 $icon = New-Object System.Windows.Forms.NotifyIcon
 $icon.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
-$icon.Text = 'AirDeck läuft (Port ${port})'
+$icon.Text = 'AnMaCha Cast läuft (Port ${port})'
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $open = $menu.Items.Add('Studio öffnen'); $open.add_Click({ Start-Process $exe })
 $log = $menu.Items.Add('Protokoll anzeigen'); $log.add_Click({ Start-Process notepad.exe '${q(logFile)}' })
 [void]$menu.Items.Add('-')
-$quit = $menu.Items.Add('AirDeck beenden'); $quit.add_Click({ $icon.Text = 'AirDeck wird beendet …'; Start-Process $exe -ArgumentList '--stop' })
+$quit = $menu.Items.Add('AnMaCha Cast beenden'); $quit.add_Click({ $icon.Text = 'AnMaCha Cast wird beendet …'; Start-Process $exe -ArgumentList '--stop' })
 $icon.ContextMenuStrip = $menu
 $icon.add_DoubleClick({ Start-Process $exe })
 $icon.Visible = $true
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 2000
-$timer.add_Tick({ if (-not (Get-Process -Id $airdeckPid -ErrorAction SilentlyContinue)) { $icon.Visible = $false; $icon.Dispose(); [System.Windows.Forms.Application]::Exit() } })
+$timer.add_Tick({ if (-not (Get-Process -Id $anmachacastPid -ErrorAction SilentlyContinue)) { $icon.Visible = $false; $icon.Dispose(); [System.Windows.Forms.Application]::Exit() } })
 $timer.Start()
 [System.Windows.Forms.Application]::Run()
 `;
@@ -130,7 +131,7 @@ $timer.Start()
   p.unref();
 }
 
-/** Server-Datenbanken starten im Container oft später als AirDeck: bis zu 1 Minute erneut versuchen. */
+/** Server-Datenbanken starten im Container oft später als AnMaCha Cast: bis zu 1 Minute erneut versuchen. */
 async function connectDatabase(): Promise<DatabaseProvider> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -150,7 +151,7 @@ async function connectDatabase(): Promise<DatabaseProvider> {
 
 async function main(): Promise<void> {
   if (argv.includes('--check-port')) {
-    if (await portInUse(port, host)) throw new Error(`AirDeck-Port ${port} ist bereits belegt`);
+    if (await portInUse(port, host)) throw new Error(`AnMaCha-Cast-Port ${port} ist bereits belegt`);
     return;
   }
   const logFile = packaged ? logToFile() : '';
@@ -162,7 +163,7 @@ async function main(): Promise<void> {
   // AirDeck.exe --stop: laufende Instanz sauber beenden (Tray, Startmenü „AirDeck beenden“)
   if (argv.includes('--stop')) {
     const r = await fetch(`http://${localHost}:${port}/api/v1/system/shutdown`, { method: 'POST', headers: { Authorization: `Bearer ${runningToken()}` }, signal: AbortSignal.timeout(5000) }).catch(() => null);
-    console.log(r?.ok ? 'AirDeck wird beendet.' : 'Keine laufende AirDeck-Instanz gefunden.');
+    console.log(r?.ok ? 'AnMaCha Cast wird beendet.' : 'Keine laufende AnMaCha-Cast-Instanz gefunden.');
     process.exit(r?.ok ? 0 : 1);
   }
 
@@ -172,7 +173,7 @@ async function main(): Promise<void> {
     process.stdout.write(`${JSON.stringify({
       url: `http://${localHost}:${port}/#token=${runningToken()}`,
       health: `http://${localHost}:${port}/api/v1/health`,
-      log: join(config.paths.logs, 'airdeck.log'),
+      log: join(config.paths.logs, 'anmachacast.log'),
       running,
     })}\n`, () => process.exit(running ? 0 : 3));
     return;
@@ -204,10 +205,10 @@ async function main(): Promise<void> {
     console.log(`Datenspeicher: ${sync.config.backend} – Abgleich: ${decision ?? 'nicht möglich'}${sync.status.lastError ? ` (${sync.status.lastError})` : ''}`);
   }
   if (writeDefaultConf(config)) console.log(`Grundeinstellungen angelegt: ${config.configFile}`);
-  const app = new AirDeckApp(dataDir, { appRoot: root, secrets, sync, build: globalThis.__AIRDECK_BUILD ?? 'dev', packaged, headless: !desktop, config, docs });
+  const app = new AnMaChaCastApp(dataDir, { appRoot: root, secrets, sync, build: globalThis.__AIRDECK_BUILD ?? 'dev', packaged, headless: !desktop, config, docs });
   app.listenHost = host;
   app.listenPort = port;
-  console.log(`AirDeck ${app.version} · Betriebsart: ${config.mode} · Konfiguration: ${config.configFile}`);
+  console.log(`AnMaCha Cast ${app.version} · Betriebsart: ${config.mode} · Konfiguration: ${config.configFile}`);
   console.log(`Datenbank: ${config.database.provider} (${safeUrl(config.database)})`);
   console.log(app.ffmpeg ? `ffmpeg: ${app.ffmpeg.version} (${app.ffmpeg.source})` : 'ffmpeg nicht gefunden – neuer Versuch im Hintergrund, bis dahin kein Server-Playout');
 
@@ -249,7 +250,7 @@ async function main(): Promise<void> {
       docs.set('setup', { ...setup, installerWelcomeAt: new Date().toISOString() });
       await docs.flush();
       importedBootstrap = true;
-      console.log('Installer-Einstellungen in AirDeck übernommen.');
+      console.log('Installer-Einstellungen in AnMaCha Cast übernommen.');
     } catch (err) {
       console.warn('Installer-Admin konnte nicht angelegt werden:', (err as Error).message);
       if (importOnly) throw err;
@@ -298,7 +299,7 @@ async function main(): Promise<void> {
 
   server.listen(port, host, () => {
     app.start();
-    console.log(`AirDeck läuft auf http://${host}:${port}  (Daten: ${dataDir})`);
+    console.log(`AnMaCha Cast läuft auf http://${host}:${port}  (Daten: ${dataDir})`);
     // nach einem Neustart aus dem Programm heraus ist das Studio-Fenster schon offen
     if (desktop && !shell && !process.env.ANMACHA_CAST_RESTARTED) openStudio(`http://${localHost}:${port}/#token=${app.svc.auth.desktopToken()}`);
     // Tray-Symbol hat das Windows-Programm; das PowerShell-Symbol nur ohne AirDeck.exe (ältere portable Fassung)
@@ -307,7 +308,7 @@ async function main(): Promise<void> {
 
   let exitCode = 0;
   const stop = () => {
-    console.log('AirDeck wird beendet …');
+    console.log('AnMaCha Cast wird beendet …');
     discovery?.close();
     app.shutdown();
     server.close();
@@ -318,8 +319,8 @@ async function main(): Promise<void> {
     void final.then(() => sync.close()).then(() => db.close()).finally(() => process.exit(exitCode));
   };
   /**
-   * Neustart (z. B. nach dem Setup-Assistenten): Unter Docker/systemd beendet sich AirDeck mit Code 75 und der
-   * Dienst-Manager startet neu. Sonst startet AirDeck sich selbst neu – erst beim Beenden, wenn der Port frei ist.
+   * Neustart (z. B. nach dem Setup-Assistenten): Unter Docker/systemd beendet sich AnMaCha Cast mit Code 75 und der
+   * Dienst-Manager startet neu. Sonst startet AnMaCha Cast sich selbst neu – erst beim Beenden, wenn der Port frei ist.
    */
   app.requestRestart = () => {
     const supervised = process.pid === 1 || !!process.env.INVOCATION_ID || envVar(process.env, 'SUPERVISED') === '1';

@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: airdeck-release-health
+  group: anmachacast-release-health
   cancel-in-progress: true
 
 jobs:
@@ -79,7 +79,7 @@ jobs:
             AnMaCha-Cast-Android.apk
             AnMaCha-Cast-Linux.deb
           )
-          mkdir -p /tmp/airdeck-release
+          mkdir -p /tmp/anmachacast-release
           for FILE in "${REQUIRED[@]}"; do
             URL="$(jq -r --arg f "$FILE" '.assets[] | select(.name==$f) | .browser_download_url' <<<"$JSON" | head -1)"
             SIZE="$(jq -r --arg f "$FILE" '.assets[] | select(.name==$f) | .size' <<<"$JSON" | head -1)"
@@ -92,16 +92,16 @@ jobs:
               exit 1
             fi
             echo "$FILE: $SIZE Bytes"
-            curl -fL --retry 3 --retry-delay 2 -o "/tmp/airdeck-release/$FILE" "$URL"
-            test -s "/tmp/airdeck-release/$FILE"
+            curl -fL --retry 3 --retry-delay 2 -o "/tmp/anmachacast-release/$FILE" "$URL"
+            test -s "/tmp/anmachacast-release/$FILE"
           done
 
-          unzip -t /tmp/airdeck-release/AnMaCha-Cast-Windows-Portable.zip >/dev/null
-          file /tmp/airdeck-release/AnMaCha-Cast-Setup.exe
-          file /tmp/airdeck-release/AnMaCha-Cast-Android.apk
-          file /tmp/airdeck-release/AnMaCha-Cast-Linux.deb
-          dpkg-deb --info /tmp/airdeck-release/AnMaCha-Cast-Linux.deb >/dev/null
-          unzip -t /tmp/airdeck-release/AnMaCha-Cast-Android.apk >/dev/null
+          unzip -t /tmp/anmachacast-release/AnMaCha-Cast-Windows-Portable.zip >/dev/null
+          file /tmp/anmachacast-release/AnMaCha-Cast-Setup.exe
+          file /tmp/anmachacast-release/AnMaCha-Cast-Android.apk
+          file /tmp/anmachacast-release/AnMaCha-Cast-Linux.deb
+          dpkg-deb --info /tmp/anmachacast-release/AnMaCha-Cast-Linux.deb >/dev/null
+          unzip -t /tmp/anmachacast-release/AnMaCha-Cast-Android.apk >/dev/null
           echo "Alle Release-Dateien vorhanden und strukturell lesbar."
 
   public-health:

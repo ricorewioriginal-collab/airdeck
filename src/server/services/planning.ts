@@ -1,7 +1,7 @@
 // Planung: Playlists, Zeitplan-Jobs, Stunden-Uhr, Sendeplan und deren Ausführung im Takt des Kerns.
 
 import { existsSync } from 'node:fs';
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { pickNext as pickFromPool, shuffleSeparated, type MediaItem } from '../../core/automation.ts';
 import {
   activeWindow, clockDue, dueJobs, nextOccurrence, validateClock, validateWindow,
@@ -26,9 +26,9 @@ export interface PreflightReport {
 }
 
 export class PlanningService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

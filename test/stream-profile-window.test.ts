@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 import { weekday } from '../src/core/scheduler.ts';
 
@@ -25,8 +25,8 @@ function wav(file: string, seconds: number): void {
 }
 
 test('Zusatz-Stream-Profil mit Zeitfenster: validiert, läuft nur innerhalb des Fensters, Zeitplan schaltet um', { skip: !ff && 'ffmpeg nicht installiert' }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-sp-window-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-sp-window-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
   try {
     wav(join(app.mediaDir, 'main', 'a.wav'), 2);
     app.svc.media.addMedia('main', { id: 'a.wav', title: 'a', artist: 'A', category: 'music', file: 'a.wav', durationMs: null, addedAt: 0 });

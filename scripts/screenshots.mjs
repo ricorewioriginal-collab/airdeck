@@ -1,16 +1,16 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 
-const base = process.env.AIRDECK_SCREENSHOT_URL || 'http://127.0.0.1:8751';
-const token = process.env.AIRDECK_SCREENSHOT_TOKEN;
-if (!token) throw new Error('AIRDECK_SCREENSHOT_TOKEN fehlt');
+const base = process.env.ANMACHA_CAST_SCREENSHOT_URL || 'http://127.0.0.1:8751';
+const token = process.env.ANMACHA_CAST_SCREENSHOT_TOKEN;
+if (!token) throw new Error('ANMACHA_CAST_SCREENSHOT_TOKEN fehlt');
 
 const out = new URL('../docs/screenshots/', import.meta.url);
 await mkdir(out, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1050 }, deviceScaleFactor: 1 });
-await page.addInitScript((t) => localStorage.setItem('airdeck.token', t), token);
+await page.addInitScript((t) => localStorage.setItem('anmachacast.token', t), token);
 await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#view-overview:not([hidden])', { timeout: 20_000 });
 await page.waitForTimeout(800);
@@ -68,4 +68,4 @@ for (const [win, file] of [
 }
 
 await browser.close();
-console.log('AirDeck-Screenshots aktualisiert.');
+console.log('AnMaCha-Cast-Screenshots aktualisiert.');

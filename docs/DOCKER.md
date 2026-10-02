@@ -2,22 +2,35 @@
 
 Der Container ist AnMaCha Cast als Server für den 24/7-Betrieb, zum Beispiel auf einem VPS, einem NAS oder einem Raspberry Pi 4/5 mit 64 Bit. ffmpeg mit LAME (MP3), AAC und Opus ist enthalten.
 
-Container-/Volume-/Dienstnamen (`airdeck`, `airdeck-postgres`, `airdeck-data`, `airdeck-pg`) und die
-Umgebungsvariablen `AIRDECK_DB*` bleiben bewusst unverändert (siehe docs/REBRANDING_ANMACHA_CAST.md
-Phase 7) - eine Änderung würde bei bestehenden Installationen neue, leere Volumes anlegen bzw. einen
-per `.env` gesetzten Namen stillschweigend überstimmen.
+Container-/Volume-/Dienstnamen heißen jetzt `anmachacast`, `anmachacast-postgres`, `anmachacast-data`,
+`anmachacast-pg` (vorher `airdeck`/`airdeck-postgres`/`airdeck-data`/`airdeck-pg`). Die Umgebungsvariablen
+`AIRDECK_DB*` selbst bleiben bewusst unverändert (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 3/7) - eine
+Änderung würde einen per `.env` gesetzten Namen stillschweigend überstimmen.
+
+**Migration einer bestehenden Installation** (Volume-Namen werden von Docker nicht automatisch umbenannt):
+nach `git pull` zuerst die Daten in die neuen Volume-Namen kopieren, dann erst `docker compose up -d --build`
+ausführen (sonst legt Compose neue, leere Volumes an und die bisherigen Daten scheinen "weg"):
+
+```bash
+docker compose down   # alten Stack (Namen airdeck/airdeck-postgres) anhalten
+docker run --rm -v airdeck-data:/from -v anmachacast_anmachacast-data:/to busybox cp -a /from/. /to/
+docker run --rm -v airdeck-pg:/from -v anmachacast_anmachacast-pg:/to busybox cp -a /from/. /to/
+docker compose up -d --build   # neuer Stack (Namen anmachacast/anmachacast-postgres)
+```
+
+Die alten Volumes (`airdeck-data`, `airdeck-pg`) lassen sich danach mit `docker volume rm` entfernen.
 
 ## Start
 
 ```bash
-git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git airdeck
-cd airdeck && git checkout "main"
+git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git anmachacast
+cd anmachacast && git checkout "main"
 echo "AIRDECK_DB_PASSWORD=$(openssl rand -hex 24)" > .env   # Passwort der Datenbank, einmalig
 docker compose up -d
-docker compose logs airdeck | grep -A1 -e "Admin-Token" -e "Einmal-Passwort"
+docker compose logs anmachacast | grep -A1 -e "Admin-Token" -e "Einmal-Passwort"
 ```
 
-Gestartet werden zwei Container: `airdeck` und `airdeck-postgres` (PostgreSQL 17, nur intern erreichbar). Redis wird nicht gebraucht.
+Gestartet werden zwei Container: `anmachacast` und `anmachacast-postgres` (PostgreSQL 17, nur intern erreichbar). Redis wird nicht gebraucht.
 
 **Ohne PostgreSQL** (kleine Installation): in `docker-compose.yml` den Dienst `postgres`, den Abschnitt `depends_on` und die drei `AIRDECK_DB`-Zeilen entfernen. AnMaCha Cast nutzt dann SQLite im Datenordner.
 
@@ -25,12 +38,12 @@ Danach das Studio unter `http://<server>:8750/#token=<Admin-Token>` öffnen. Die
 
 ## Daten & Updates
 
-- Sender, Bibliothek, Planung, Benutzer und Einstellungen liegen in PostgreSQL (Volume `airdeck-pg`). Mediendateien, Aufnahmen, verschlüsselte Zugangsdaten und Logs liegen im Volume `airdeck-data` (`/data` im Container).
+- Sender, Bibliothek, Planung, Benutzer und Einstellungen liegen in PostgreSQL (Volume `anmachacast-pg`). Mediendateien, Aufnahmen, verschlüsselte Zugangsdaten und Logs liegen im Volume `anmachacast-data` (`/data` im Container).
 - Umstieg von einer älteren Version: Die bisherigen JSON-Dateien in `/data` werden beim ersten Start übernommen und als `*.imported` aufbewahrt.
 - Update: `git pull && docker compose up -d --build`. Die Daten bleiben erhalten.
 - Sicherung (bis Backup/Restore im Programm fertig ist):
-  - Datenbank: `docker compose exec postgres pg_dump -U airdeck airdeck > airdeck-db.sql`
-  - Dateien: `docker run --rm -v airdeck_airdeck-data:/data -v "$PWD":/backup busybox tar czf /backup/airdeck-data.tgz /data`
+  - Datenbank: `docker compose exec postgres pg_dump -U anmachacast anmachacast > anmachacast-db.sql`
+  - Dateien: `docker run --rm -v anmachacast_anmachacast-data:/data -v "$PWD":/backup busybox tar czf /backup/anmachacast-data.tgz /data`
 
 ## Demo-Stack
 

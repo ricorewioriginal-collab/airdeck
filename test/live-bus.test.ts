@@ -7,7 +7,7 @@ import { createServer, type Server } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 import type { SourceConfig } from '../src/core/source-priority.ts';
 
@@ -51,7 +51,7 @@ async function iceMock(): Promise<{ server: Server; port: number; conns: string[
 }
 
 /** Live-Encoder wie BUTT/Studio-Mikrofon: Opus in Ogg in Echtzeit, direkt in den Ingest der App */
-function liveEncoder(app: AirDeckApp, src: SourceConfig, input: string, container: 'ogg' | 'webm' = 'ogg'): ChildProcess {
+function liveEncoder(app: AnMaChaCastApp, src: SourceConfig, input: string, container: 'ogg' | 'webm' = 'ogg'): ChildProcess {
   const p = spawn(ff!.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-re', '-f', 'lavfi', '-i', input, '-c:a', 'libopus', '-b:a', '64k', '-f', container, 'pipe:1'], { stdio: ['ignore', 'pipe', 'ignore'] });
   // Browser-MediaRecorder (Studio-Mikrofon, Android-App) sendet WebM/Opus
   app.ingestOpen(src, container === 'webm' ? 'audio/webm;codecs=opus' : 'audio/ogg');
@@ -60,7 +60,7 @@ function liveEncoder(app: AirDeckApp, src: SourceConfig, input: string, containe
 }
 
 async function setup(dir: string, port: number) {
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
   for (const [name, freq] of [['a.wav', 440], ['b.wav', 550], ['c.wav', 660]] as const) {
     wav(join(app.mediaDir, 'main', name), 4, freq);
     app.svc.media.addMedia('main', { id: name, title: name, artist: 'Test', category: 'music', file: name, durationMs: 4000, addedAt: 0 });
@@ -80,7 +80,7 @@ async function setup(dir: string, port: number) {
 }
 
 test('Sendebus: Live-Quelle wird gemischt – Format und Verbindung bleiben, Automation pausiert, MANUAL', { skip, timeout: 90_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-bus-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-bus-'));
   const ice = await iceMock();
   const { app, live, events, loudSince } = await setup(dir, ice.port);
   let enc: ChildProcess | null = null;
@@ -134,7 +134,7 @@ test('Sendebus: Live-Quelle wird gemischt – Format und Verbindung bleiben, Aut
 });
 
 test('Live ohne laufenden Bus (WebM wie Studio-Mikrofon/App): Bus startet automatisch in MP3 und endet mit der Sendung', { skip, timeout: 60_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-bus-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-bus-'));
   const ice = await iceMock();
   const { app, live, loudSince } = await setup(dir, ice.port);
   let enc: ChildProcess | null = null;
@@ -165,7 +165,7 @@ test('Live ohne laufenden Bus (WebM wie Studio-Mikrofon/App): Bus startet automa
 });
 
 test('Stille auf der Live-Quelle: Rückfall auf die Automation', { skip, timeout: 60_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-bus-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-bus-'));
   const ice = await iceMock();
   const { app, live } = await setup(dir, ice.port);
   let enc: ChildProcess | null = null;

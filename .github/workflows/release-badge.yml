@@ -11,7 +11,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: airdeck-release-badge
+  group: anmachacast-release-badge
   cancel-in-progress: true
 
 jobs:

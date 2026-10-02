@@ -125,7 +125,7 @@ export class Updater {
 
   /** Lädt eine Datei, prüft Größe und SHA-256 und gibt den lokalen Pfad zurück. */
   async download(asset: UpdateAsset, token?: string, dir = tmpdir()): Promise<string> {
-    const file = join(dir, `airdeck-update-${Date.now()}-${asset.name.replace(/[^\w.-]/g, '_')}`);
+    const file = join(dir, `anmachacast-update-${Date.now()}-${asset.name.replace(/[^\w.-]/g, '_')}`);
     const r = await this.open(asset, token);
     const hash = createHash('sha256');
     let size = 0;
@@ -147,7 +147,7 @@ export class Updater {
     return file;
   }
 
-  /** Windows: Setup still starten; es beendet AirDeck, ersetzt die Dateien und startet AirDeck neu. */
+  /** Windows: Setup still starten; es beendet AnMaCha Cast, ersetzt die Dateien und startet AnMaCha Cast neu. */
   runWindowsSetup(file: string, headless: boolean): void {
     const args = ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/UPDATE=1', ...(headless ? ['/HEADLESSRUN=1'] : [])];
     // Programmfenster (AirDeck.exe) vorher schließen, damit das Setup es ersetzen kann – es startet danach neu

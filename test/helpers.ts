@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AirDeckApp } from '../src/server/app.ts';
+import type { AnMaChaCastApp } from '../src/server/app.ts';
 
 /** Alles, was im Datenordner liegt (Datenbank samt WAL, JSON, Logs) als Text – für „nie im Klartext“-Prüfungen. */
-export function storedText(app: AirDeckApp): string {
+export function storedText(app: AnMaChaCastApp): string {
   app.docs.flushSync();
   return readdirSync(app.dataDir)
     .filter((f) => statSync(join(app.dataDir, f)).isFile())

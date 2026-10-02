@@ -59,7 +59,8 @@ namespace AirDeck
         void Setup(CoreWebView2 core)
         {
             var s = core.Settings;
-            s.AreDevToolsEnabled = Environment.GetEnvironmentVariable("AIRDECK_DEVTOOLS") == "1";
+            // ANMACHA_CAST_DEVTOOLS hat Vorrang, AIRDECK_DEVTOOLS bleibt als Legacy-Fallback (wie envVar() serverseitig)
+            s.AreDevToolsEnabled = Environment.GetEnvironmentVariable("ANMACHA_CAST_DEVTOOLS") == "1" || Environment.GetEnvironmentVariable("AIRDECK_DEVTOOLS") == "1";
             s.IsStatusBarEnabled = false;
             s.IsGeneralAutofillEnabled = false;
             s.IsPasswordAutosaveEnabled = false;

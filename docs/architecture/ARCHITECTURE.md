@@ -1,15 +1,15 @@
-# AirDeck – Zielarchitektur (verbindlich)
+# AnMaCha Cast – Zielarchitektur (verbindlich)
 
-Grundlage: [AUDIT.md](AUDIT.md). Dieses Dokument legt fest, **wie** AirDeck aufgebaut ist. Code, der dem widerspricht, wird angepasst, nicht umgekehrt.
+Grundlage: [AUDIT.md](AUDIT.md). Dieses Dokument legt fest, **wie** AnMaCha Cast aufgebaut ist. Code, der dem widerspricht, wird angepasst, nicht umgekehrt.
 Details: [DEPLOYMENT](DEPLOYMENT.md) · [DATABASE](DATABASE.md) · [INSTALLATION](INSTALLATION.md) · [NETWORK](NETWORK.md) · [STORAGE](STORAGE.md) · [SECURITY](SECURITY.md) · [MULTI_PLATFORM](MULTI_PLATFORM.md)
 
 ## Antworten auf die Grundfragen
 
 | Frage | Festlegung |
 |---|---|
-| Was ist **AirDeck Core**? | Der Sendekern als eigenständiger Prozess: Mode-Manager, Source Priority, Audio-Engine (Decoder, Mixer, DSP, Encoder), Ausgänge, Scheduler, Playlist/Queue, Cardwall, Metadaten, Stille-Wächter, Notfall, KI/TTS, Event-Bus, API. Läuft **ohne** Oberfläche |
-| Was ist der **Server**? | Core plus Verwaltungsdienste: Auth, Benutzer, Sender, Medien, Datenbank, Speicher, Sync, Monitoring, Plugins, Widget-API. Technisch **derselbe Prozess** `airdeck-server`, der je nach Betriebsart mehr oder weniger Dienste aktiviert |
-| Was ist der **Client**? | AirDeck Studio (Web-UI im Desktop-Fenster, Browser oder Android-App). Hat **keinen** eigenen Sendezustand und spricht ausschließlich über die API mit einem Server |
+| Was ist **AnMaCha Cast Core**? | Der Sendekern als eigenständiger Prozess: Mode-Manager, Source Priority, Audio-Engine (Decoder, Mixer, DSP, Encoder), Ausgänge, Scheduler, Playlist/Queue, Cardwall, Metadaten, Stille-Wächter, Notfall, KI/TTS, Event-Bus, API. Läuft **ohne** Oberfläche |
+| Was ist der **Server**? | Core plus Verwaltungsdienste: Auth, Benutzer, Sender, Medien, Datenbank, Speicher, Sync, Monitoring, Plugins, Widget-API. Technisch **derselbe Prozess** `anmachacast-server`, der je nach Betriebsart mehr oder weniger Dienste aktiviert |
+| Was ist der **Client**? | AnMaCha Cast Studio (Web-UI im Desktop-Fenster, Browser oder Android-App). Hat **keinen** eigenen Sendezustand und spricht ausschließlich über die API mit einem Server |
 | Was läuft **lokal**? | Betriebsart Local: alles auf einem PC. Hybrid: Core und SQLite lokal, Verwaltung zusätzlich zentral |
 | Was läuft **zentral**? | Betriebsart Self-Hosted: Server mit Datenbank und Medien. Der Core läuft dort, wenn der Sender vom Server senden soll (konfigurierbar pro Sender: `broadcastOn = server | client`) |
 | Wer braucht eine **Datenbank**? | Jeder Server. Local: SQLite (eingebettet, nichts zu installieren). Self-Hosted: PostgreSQL empfohlen, SQLite/MariaDB/MySQL möglich |
@@ -22,13 +22,13 @@ Details: [DEPLOYMENT](DEPLOYMENT.md) · [DATABASE](DATABASE.md) · [INSTALLATION
 | **Internetausfall**? | Der Core sendet weiter an lokale bzw. LAN-Ausgänge. Internet-Ausgänge verbinden sich mit Backoff neu. Die Sendeuhr läuft ohne KI weiter (KI-Rückfall) |
 | **Datenbankausfall**? | Der Core behält den aktuellen Sendeplan und die Queue im Speicher und sendet weiter. Schreibende Verwaltungsaktionen werden abgelehnt (klare Meldung), die Health zeigt „database: error“, und der Core verbindet sich neu |
 | Wie wird **aktualisiert**? | Semantische Version und API-Version. Vor jeder Datenbankmigration wird automatisch gesichert. Rollback über die Sicherung plus die vorherige Version |
-| Wie wird **migriert**? | Nummerierte Migrationen pro Datenbank-Dialekt, beim Start oder über `airdeck migrate` |
-| Wie wird **gesichert/wiederhergestellt**? | AirDeck-Sicherung (datenbankneutraler Export + Konfiguration, optional Medien), dazu ein Wiederherstellungs-Assistent. Siehe [STORAGE](STORAGE.md) |
+| Wie wird **migriert**? | Nummerierte Migrationen pro Datenbank-Dialekt, beim Start oder über `anmachacast migrate` |
+| Wie wird **gesichert/wiederhergestellt**? | AnMaCha-Cast-Sicherung (datenbankneutraler Export + Konfiguration, optional Medien), dazu ein Wiederherstellungs-Assistent. Siehe [STORAGE](STORAGE.md) |
 
 ## 1. Bausteine
 
 ```
-                       ┌────────────────────────── airdeck-server ──────────────────────────┐
+                       ┌────────────────────────── anmachacast-server ──────────────────────────┐
                        │  API-Schicht  (REST /api/v1 · SSE /events · Ingest · Status/Widget)│
  Studio (Desktop/Web) ─┤  Auth · RBAC · Geräte-Kopplung · Rate-Limit · Audit                 │
  Android-App ──────────┤  Verwaltung: Sender · Benutzer · Medien · Planung · Integrationen    │
@@ -53,8 +53,8 @@ Regeln:
 ```
 A) LOCAL                         B) SELF-HOSTED                    C) HYBRID
 ┌─────────── PC ───────────┐     ┌────────── Server ──────────┐     ┌──── PC ────┐        ┌── Server ──┐
-│ Studio ─► airdeck-server │     │ airdeck-server (+Core)     │     │ Studio      │        │ airdeck-   │
-│           Core + SQLite  │     │ PostgreSQL · Medien        │     │ airdeck-    │◄─Sync─►│ server     │
+│ Studio ─► anmachacast-server │     │ anmachacast-server (+Core)     │     │ Studio      │        │ anmachacast-   │
+│           Core + SQLite  │     │ PostgreSQL · Medien        │     │ anmachacast-    │◄─Sync─►│ server     │
 │           Medien lokal   │     │ Caddy (HTTPS)              │     │ server+Core │        │ PostgreSQL │
 └──────────┬───────────────┘     └──────────┬─────────────────┘     │ SQLite      │        │ Medien     │
            ▼                                ▼                        └─────┬──────┘        └────────────┘
@@ -118,7 +118,7 @@ Mode-Manager/Scheduler ─► AI Director ─► Text-Provider (Cloud-Key oder l
 Fehler/Budget ─► Rückfall: Sendeuhr läuft ohne KI weiter
 ```
 
-Lokale KI ist eine **optionale Komponente** des Installers (Piper und deutsche Stimmen, klein). Große Sprachmodelle laufen über Ollama, AirDeck erkennt sie und hilft bei der Einrichtung. Sie werden nicht still mitgeliefert, weil sie Gigabytes groß sind.
+Lokale KI ist eine **optionale Komponente** des Installers (Piper und deutsche Stimmen, klein). Große Sprachmodelle laufen über Ollama, AnMaCha Cast erkennt sie und hilft bei der Einrichtung. Sie werden nicht still mitgeliefert, weil sie Gigabytes groß sind.
 
 ## 7. Authentifizierung
 

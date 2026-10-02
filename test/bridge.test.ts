@@ -4,7 +4,7 @@ import { createServer, type ServerResponse } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { fetchAzuracast, fetchIcecastMount } from '../src/server/bridge.ts';
 
@@ -54,7 +54,7 @@ test('AzuraCast- und Icecast-Status werden einheitlich gelesen', async () => {
   }
 });
 
-test('Pull-Relay: bestehender Stream wird AirDeck-Quelle mit Priorität, geht an die Ausgänge, verbindet neu', async () => {
+test('Pull-Relay: bestehender Stream wird AnMaCha-Cast-Quelle mit Priorität, geht an die Ausgänge, verbindet neu', async () => {
   let connections = 0;
   let current: ServerResponse | null = null;
   const stream = createServer((req, res) => {
@@ -73,8 +73,8 @@ test('Pull-Relay: bestehender Stream wird AirDeck-Quelle mit Priorität, geht an
   });
   await new Promise<void>((r) => stream.listen(0, '127.0.0.1', r));
   await new Promise<void>((r) => ice.listen(0, '127.0.0.1', r));
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-bridge-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-bridge-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const admin = { id: 't', tokenId: 't', roles: ['admin'], stationIds: ['*'], scopes: ['*'] };
   try {
     app.saveOutput(admin, 'main', null, { name: 'Ice', type: 'icecast', host: '127.0.0.1', port: (ice.address() as { port: number }).port, mount: '/radio', username: 'source', password: 'ice-geheim-1', sourceTarget: '/live' });
@@ -105,8 +105,8 @@ test('Pull-Relay: bestehender Stream wird AirDeck-Quelle mit Priorität, geht an
 });
 
 test('Bridge-API: gleicher Schlüssel = gleicher Sender, Now Playing erscheint im Status', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-bapi-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-bapi-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const token = app.svc.auth.createToken({ name: 'bridge', scopes: ['bridge:write'], roles: [], stationIds: ['*'] }).token;
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));

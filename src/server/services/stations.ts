@@ -1,15 +1,15 @@
 // Sender verwalten: anlegen (mit Grundausstattung), bearbeiten, Logo, löschen.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SourceConfig } from '../../core/source-priority.ts';
 import { AppError, SLUG, canSee, newId, safeColor, type Principal, type Station } from '../model.ts';
 
 export class StationService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -30,7 +30,7 @@ export class StationService {
         ['Live Studio', 'live_studio', 1, 'auto'],
         ['Remote Studio', 'remote_studio', 2, 'auto'],
         ['Android Live', 'mobile', 3, 'auto'],
-        ['AirDeck Automation', 'automation', 10, 'auto'],
+        ['AnMaCha Cast Automation', 'automation', 10, 'auto'],
       ];
       for (const [name, type, priority, takeoverPolicy] of defaults) {
         this.app.engine.addSource({

@@ -32,7 +32,7 @@ const STEPS = [
     id: 'database', title: 'Datenbank', intro: 'Für einen PC reicht SQLite (nichts zu installieren). Für Server mit mehreren Personen empfiehlt sich PostgreSQL.',
     fields: (s) => [
       { name: 'provider', label: 'Datenbank', value: s.current.database.provider, options: [['sqlite', 'SQLite (Standard, Datei im Datenordner)'], ['postgres', 'PostgreSQL'], ['mysql', 'MariaDB / MySQL']] },
-      { name: 'url', label: 'Verbindungsadresse (nur PostgreSQL/MariaDB/MySQL)', value: s.current.database.provider === 'sqlite' ? '' : s.current.database.url.replace('***@', '@'), hint: 'z. B. postgres://airdeck@localhost:5432/airdeck' },
+      { name: 'url', label: 'Verbindungsadresse (nur PostgreSQL/MariaDB/MySQL)', value: s.current.database.provider === 'sqlite' ? '' : s.current.database.url.replace('***@', '@'), hint: 'z. B. postgres://anmachacast@localhost:5432/anmachacast' },
       { name: 'password', label: 'Passwort der Datenbank', type: 'password', value: '', hint: 'Wird verschlüsselt gespeichert, nicht in der Konfigurationsdatei' },
       { name: 'copy', label: 'Bisherige Daten in die neue Datenbank übernehmen', type: 'checkbox', value: true },
     ],

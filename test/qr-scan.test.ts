@@ -45,7 +45,7 @@ test('parsePairingPayload: Server-Adresse und Kopplungscode werden aus dem gesca
   assert.deepEqual(parsePairingPayload('#pair=000001'), { code: '000001', server: null });
 });
 
-test('parsePairingPayload: beliebiger anderer QR-Inhalt (kein AirDeck-Kopplungslink) wird abgelehnt statt einen falschen Code zu liefern', () => {
+test('parsePairingPayload: beliebiger anderer QR-Inhalt (kein AnMaCha-Cast-Kopplungslink) wird abgelehnt statt einen falschen Code zu liefern', () => {
   for (const bad of ['https://example.org/', 'http://x/#token=abc123', '#pair=12345', '#pair=1234567', 'zufälliger Text']) {
     assert.equal(parsePairingPayload(bad), null, `"${bad}" ist kein gültiger Kopplungslink`);
   }

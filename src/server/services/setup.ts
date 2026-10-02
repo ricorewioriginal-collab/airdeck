@@ -4,7 +4,7 @@
 
 import { accessSync, constants, mkdirSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, type Principal } from '../model.ts';
 import { MODES, updateConf } from '../config.ts';
 import { PROVIDERS, openDatabase, safeUrl, type Provider } from '../db/index.ts';
@@ -26,10 +26,10 @@ interface SetupState {
 type Fetch = typeof fetch;
 
 export class SetupService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
   fetchFn: Fetch = fetch;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -241,7 +241,7 @@ export class SetupService {
       return;
     }
     const url = String(input.url ?? '').trim();
-    if (!/^(postgres|postgresql|mysql|mariadb):\/\//i.test(url)) throw new AppError(400, 'invalid_url', 'Verbindungsadresse, z. B. postgres://airdeck@localhost:5432/airdeck');
+    if (!/^(postgres|postgresql|mysql|mariadb):\/\//i.test(url)) throw new AppError(400, 'invalid_url', 'Verbindungsadresse, z. B. postgres://anmachacast@localhost:5432/anmachacast');
     const password = typeof input.password === 'string' && input.password ? input.password : undefined;
     let db;
     try {

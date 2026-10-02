@@ -8,7 +8,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync, writeFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, newId, type Principal } from '../model.ts';
 
 export interface ListenerConfig {
@@ -51,13 +51,13 @@ function clean(v: unknown, max: number): string {
 }
 
 export class ListenerService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
   /** Salz nur für diesen Prozess – Hashes sind nach einem Neustart nicht mehr zuordenbar */
   private readonly salt = randomBytes(16);
   private readonly hits = new Map<string, number[]>();
   private readonly votes = new Map<string, number>();
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

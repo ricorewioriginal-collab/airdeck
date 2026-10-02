@@ -1,4 +1,4 @@
-// Masterprompt V1 Beta, P3 #32 (AirDeckCast-Failover): bisher galt "ein Ausgang verbindet sich neu, wenn
+// Masterprompt V1 Beta, P3 #32 (AnMaCha-Cast-Failover): bisher galt "ein Ausgang verbindet sich neu, wenn
 // die Verbindung abbricht" - aber bei einem dauerhaften Problem (falsches Passwort, Zielserver dauerhaft
 // weg) blieb der Sender auf diesem Ziel einfach stumm, ohne Ersatz. Ein Ausgang kann jetzt failoverFor
 // einen anderen Ausgang setzen: er springt nur ein, solange dessen Primärziel nicht "connected" ist, und
@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -52,14 +52,14 @@ function authIcecast(expectedAuth: string): { server: import('node:http').Server
 }
 
 test(
-  'AirDeckCast-Failover: Ersatzziel springt ein, solange das Primärziel nicht verbunden ist, und tritt bei Erholung automatisch zurück',
+  'AnMaCha-Cast-Failover: Ersatzziel springt ein, solange das Primärziel nicht verbunden ist, und tritt bei Erholung automatisch zurück',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-failover-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-failover-'));
     const goodAuth = 'Basic ' + Buffer.from('source:richtig-123456').toString('base64');
     const primary = authIcecast(goodAuth);
     const backup = authIcecast(goodAuth);
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 30, 440);
       app.svc.media.addMedia('main', { id: 'a.wav', title: 'a', artist: 'A', category: 'music', file: 'a.wav', durationMs: null, addedAt: 0 });

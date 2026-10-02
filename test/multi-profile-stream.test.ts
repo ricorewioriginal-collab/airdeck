@@ -1,4 +1,4 @@
-// Masterprompt V1 Beta, P3 #26/28 (AirDeckCast: ein Programmbus, mehrere Encoder-Ausgänge): bisher lief
+// Masterprompt V1 Beta, P3 #26/28 (AnMaCha Cast: ein Programmbus, mehrere Encoder-Ausgänge): bisher lief
 // pro Sender genau EIN Encoder-Prozess (ein Format/eine Bitrate) - für "alternative Stream-Profile"
 // (z. B. Standard MP3 128k + Mobile AAC 64k gleichzeitig) hätte es eine zweite komplette Playout-Instanz
 // gebraucht. Audit ergab: Der interne Mixer (Playout) schreibt bereits rohe PCM-Daten in einen separaten
@@ -48,10 +48,10 @@ function rms(pcm: Int16Array): number {
 }
 
 test(
-  'AirDeckCast: ein Programmbus speist gleichzeitig zwei unabhängige Encoder-Profile (Standard MP3 + Mobile AAC)',
+  'AnMaCha Cast: ein Programmbus speist gleichzeitig zwei unabhängige Encoder-Profile (Standard MP3 + Mobile AAC)',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-multiprofile-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-multiprofile-'));
     try {
       const file = join(dir, 'song.mp3');
       execFileSync(ff!.ffmpeg, ['-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=f=440:d=6', file]);
