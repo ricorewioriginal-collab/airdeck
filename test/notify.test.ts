@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AirDeckApp } from '../src/server/app.ts';
-import { alertText, sign, validateExportPath, validateWebhookUrl } from '../src/server/notify.ts';
+import { alertText, Notifier, sign, validateExportPath, validateWebhookUrl } from '../src/server/notify.ts';
 
 const admin = { id: 'admin', tokenId: 't', roles: ['admin'], stationIds: ['*'], scopes: ['*'] };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -70,6 +70,38 @@ test('Webhook (signiert), Now-Playing-Datei und Stream-Ereignisse', async () => 
   } finally {
     app.shutdown();
     hook.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('E-Mail-Alarm: Konfiguration, Secret-Handling und Versand (SMTP gemockt)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'airdeck-mail-'));
+  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  try {
+    const cfg = app.svc.notifications.setIntegrations(admin, 'main', {
+      email: { to: 'alarm@example.com', smtpHost: 'smtp.example.com', smtpPort: 587, secure: false, user: 'bot@example.com', password: 'geheim', from: 'bot@example.com' },
+    }) as { email: { to: string; hasPassword: boolean } };
+    assert.equal(cfg.email.to, 'alarm@example.com');
+    assert.equal(cfg.email.hasPassword, true);
+    assert.ok(!JSON.stringify(cfg).includes('geheim'));
+
+    const sent: { subject: string; body: string }[] = [];
+    const notifier = new Notifier(
+      (ref) => app.secrets.get(ref),
+      () => {},
+      fetch,
+      async (_cfg, subject, body) => { sent.push({ subject, body }); },
+    );
+    const email = app.rt('main').data.integrations!.email!;
+    const ok = await notifier.deliverEmail(email, alertText({ event: 'off_air', station: 'main', at: '', data: {} }));
+    assert.equal(ok, true);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]!.body, /OFF AIR/);
+
+    const t = (await app.svc.notifications.testIntegrations('main')) as { email: boolean | null };
+    assert.equal(typeof t.email, 'boolean');
+  } finally {
+    app.shutdown();
     rmSync(dir, { recursive: true, force: true });
   }
 });

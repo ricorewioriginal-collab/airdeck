@@ -2301,6 +2301,13 @@ async function editNotify() {
     ...cur.events.map((/** @type {string} */ e) => ({ name: `ev_${e}`, label: `Webhook: ${labels[e] ?? e}`, type: 'checkbox', value: w ? w.events.includes(e) : ['now_playing', 'off_air', 'silence', 'encoder_crashed', 'stream_error'].includes(e) })),
     { name: 'tgChat', label: 'Telegram: Chat-ID (Alarme)', value: cur.telegram?.chatId ?? '' },
     { name: 'tgToken', label: `Telegram: Bot-Token${cur.telegram?.hasToken ? ' (leer = unverändert)' : ''}`, type: 'password', value: '' },
+    { name: 'mailTo', label: 'E-Mail: Empfänger (Alarme)', value: cur.email?.to ?? '' },
+    { name: 'mailHost', label: 'E-Mail: SMTP-Server', value: cur.email?.smtpHost ?? '' },
+    { name: 'mailPort', label: 'E-Mail: SMTP-Port', type: 'number', value: cur.email?.smtpPort ?? 587 },
+    { name: 'mailSecure', label: 'E-Mail: SSL/TLS direkt (Port 465, sonst STARTTLS)', type: 'checkbox', value: !!cur.email?.secure },
+    { name: 'mailUser', label: 'E-Mail: Benutzer', value: cur.email?.user ?? '' },
+    { name: 'mailPass', label: `E-Mail: Passwort${cur.email?.hasPassword ? ' (leer = unverändert)' : ''}`, type: 'password', value: '' },
+    { name: 'mailFrom', label: 'E-Mail: Absender (leer = Benutzer)', value: cur.email?.from ?? '' },
     { name: 'npFile', label: 'Now Playing als Datei (absoluter Pfad, z. B. C:\\Radio\\nowplaying.txt)', value: cur.nowPlayingFile ?? '' },
   ]);
   if (!v) return;
@@ -2308,13 +2315,14 @@ async function editNotify() {
   const body = {
     webhooks: v.url ? [{ id: w?.id, url: v.url, events, secret: v.secret || undefined, enabled: true }] : [],
     telegram: v.tgChat ? { chatId: v.tgChat, botToken: v.tgToken || undefined, enabled: true } : null,
+    email: v.mailTo ? { to: v.mailTo, smtpHost: v.mailHost, smtpPort: v.mailPort, secure: v.mailSecure, user: v.mailUser, password: v.mailPass || undefined, from: v.mailFrom || undefined, enabled: true } : null,
     nowPlayingFile: v.npFile || null,
   };
   const r = await run(() => api.put(url('/integrations'), body));
   if (!r) return;
   if (confirm('Gespeichert. Testmeldung jetzt senden?')) {
     const t = await run(() => api.post(url('/integrations/test')));
-    if (t) status(`Test: Webhook ${t.webhooks.map((/** @type {any} */ x) => (x.ok ? 'OK' : 'Fehler')).join(', ') || '–'} · Telegram ${t.telegram === null ? '–' : t.telegram ? 'OK' : 'Fehler'}`);
+    if (t) status(`Test: Webhook ${t.webhooks.map((/** @type {any} */ x) => (x.ok ? 'OK' : 'Fehler')).join(', ') || '–'} · Telegram ${t.telegram === null ? '–' : t.telegram ? 'OK' : 'Fehler'} · E-Mail ${t.email === null ? '–' : t.email ? 'OK' : 'Fehler'}`);
   }
 }
 
