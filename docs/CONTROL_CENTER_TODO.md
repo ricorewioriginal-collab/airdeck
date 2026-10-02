@@ -41,7 +41,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
    Reihenfolge, Begrenzen auf N Titel/Minuten, Elemente einbeziehen), Vorschau, dynamische Playlist (⚡, bei
    jedem Durchlauf frisch) vs. Momentaufnahme; „Allgemeine Rotation“ = Playlisten nach Gewicht, wenn der
    Sendeplan nichts vorgibt (`/smart-blocks`, `/rotation-pool`, `src/core/smartblocks.ts`).
-5. [P2 · S] Ereignisse: Typen KI-Ansage und Nachrichten-/Werbe-Trigger, "Jetzt beenden".
+5. ~~[P2 · S] Ereignisse: Typen KI-Ansage und Nachrichten-/Werbe-Trigger, "Jetzt beenden"~~ - erledigt: Zeitplan/Stunden-Uhr
+   kennen Kategorie (z. B. Werbung), laut.fm-Nachrichten und KI-Ansage (`kind: ai`, Moderation oder KI-Nachrichten über den
+   Regisseur), Dialog zeigt nur die Felder der gewählten Art, „⏭ Jetzt beenden“ im Zeitplan, Preflight prüft alle Arten.
 6. [P2 · L] Rundown-/Sendeablauf-Planer mit Segmenttypen, Backtiming und Live-Modus.
 
 ### KI & Automatik
@@ -82,7 +84,8 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     Stunden-Aggregat `listenerHours` über 100 Tage. Bewusst weggelassen: Rang (laut.fm-spezifisch) und
     DB-Abgleich (externe laut.fm-Datenbank).
 22. [P2 · L] Deep Stats: Heatmap Wochentag×Uhrzeit, Top/Flop, Artist-Anteile, Song-Verlauf, Excel/PDF/Mail.
-23. [P2 · S] Berichte: Meistgespielt-Ranking; Protokoll-Filter.
+23. ~~[P2 · S] Berichte: Meistgespielt-Ranking; Protokoll-Filter~~ - erledigt: Sendungs-Rückblick mit Top-10 (JSON, CSV,
+    E-Mail), Verlauf mit Suche und Art-Filter (CSV-Export folgt dem Filter).
 24. [P3 · M] Aktivitäts-Log (Admin), Stream-Status als M3U/XSPF/XML.
 
 ### Verknüpfungen / öffentliche Seiten

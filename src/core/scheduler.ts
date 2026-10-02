@@ -3,7 +3,8 @@
 
 export type Repeat = 'none' | 'hourly' | 'daily' | 'weekdays' | 'weekly';
 /** category = zufälliger Titel einer Medienkategorie (Jingle, Sweeper, Station-ID, Werbung …) nach Rotationsregeln */
-export type JobKind = 'media' | 'folder' | 'url' | 'playlist' | 'category' | 'news';
+/** ai = KI-Ansage (Moderation oder KI-Nachrichten) über den KI-Regisseur, zur Startzeit erzeugt */
+export type JobKind = 'media' | 'folder' | 'url' | 'playlist' | 'category' | 'news' | 'ai';
 /** now = sofort per Crossfade, track = nach dem laufenden Titel, fx = über der Musik (Ducking) */
 export type JobMode = 'now' | 'track' | 'fx';
 
@@ -14,6 +15,8 @@ export interface JobTarget {
   category?: string;
   /** news = laut.fm-Beitrag: 1 Nachrichten + Wetter, 2 Nachrichten, 3 Wetter (zur Startzeit frisch geholt) */
   newsId?: number;
+  /** ai: break = kurze Moderation zwischen zwei Titeln, news = KI-Nachrichten aus den KI-Quellen */
+  aiKind?: 'break' | 'news';
   url?: string;
   /** Laufzeit für URL-Streams (sonst endlos, bis weitergeschaltet wird) */
   durationMs?: number;

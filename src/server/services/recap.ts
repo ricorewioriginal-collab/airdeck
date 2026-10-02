@@ -16,6 +16,27 @@ export interface RecapReport {
   listenersPeak: number;
   /** null = zu wenige Stichproben im Zeitraum für eine verlässliche Schätzung */
   bytesSent: number | null;
+  /** Meistgespielt im Zeitraum (nur Musik), absteigend nach Einsätzen */
+  topTracks: TopTrack[];
+}
+
+export interface TopTrack {
+  mediaId: string;
+  title: string;
+  artist: string;
+  plays: number;
+}
+
+/** Meistgespielt-Ranking aus Play-Log-Einträgen (gleicher Titel = gleiche mediaId). */
+export function topTracks(entries: PlayLogEntry[], limit = 10): TopTrack[] {
+  const map = new Map<string, TopTrack>();
+  for (const e of entries) {
+    if (e.category !== 'music') continue;
+    const t = map.get(e.mediaId) ?? { mediaId: e.mediaId, title: e.title, artist: e.artist, plays: 0 };
+    t.plays++;
+    map.set(e.mediaId, t);
+  }
+  return [...map.values()].sort((a, b) => b.plays - a.plays || a.title.localeCompare(b.title, 'de')).slice(0, limit);
 }
 
 const csvField = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -34,7 +55,7 @@ export class RecapService {
     const samples = (rt.data.recapSamples ?? []).filter((s) => s.at >= from && s.at <= to).sort((a, b) => a.at - b.at);
     const listenersPeak = samples.reduce((max, s) => Math.max(max, s.listeners), 0);
     const bytesSent = samples.length >= 2 ? Math.max(0, samples[samples.length - 1]!.bytesTotal - samples[0]!.bytesTotal) : null;
-    return { stationId, from, to, durationMs: to - from, tracks, trackCount: tracks.length, listenersPeak, bytesSent };
+    return { stationId, from, to, durationMs: to - from, tracks, trackCount: tracks.length, listenersPeak, bytesSent, topTracks: topTracks(tracks) };
   }
 
   /** Semikolon-CSV (Excel-tauglich) mit Kopfzeile und Titelliste. */
@@ -48,6 +69,11 @@ export class RecapService {
     lines.push(`Anzahl Titel;${report.trackCount}`);
     lines.push(`Hörer-Spitze;${report.listenersPeak}`);
     lines.push(`Gesendete Datenmenge (MB);${report.bytesSent == null ? 'unbekannt' : (report.bytesSent / 1_048_576).toFixed(1)}`);
+    if (report.topTracks.length) {
+      lines.push('');
+      lines.push(['Platz', 'Interpret', 'Titel', 'Einsätze'].map(csvField).join(';'));
+      report.topTracks.forEach((t, i) => lines.push([i + 1, t.artist, t.title, t.plays].map(csvField).join(';')));
+    }
     lines.push('');
     lines.push(['Uhrzeit', 'Interpret', 'Titel', 'Kategorie'].map(csvField).join(';'));
     for (const t of report.tracks) {
@@ -62,6 +88,7 @@ export class RecapService {
       `Sendungs-Rückblick – ${rt.station.name}`,
       `Von ${new Date(report.from).toLocaleString('de-DE')} bis ${new Date(report.to).toLocaleString('de-DE')} (${Math.round(report.durationMs / 60_000)} Minuten)`,
       `${report.trackCount} Titel · Hörer-Spitze ${report.listenersPeak} · gesendete Datenmenge ${report.bytesSent == null ? 'unbekannt' : `${(report.bytesSent / 1_048_576).toFixed(1)} MB`}`,
+      ...(report.topTracks.length ? ['', 'Meistgespielt:', ...report.topTracks.map((t, i) => `${i + 1}. ${t.artist ? `${t.artist} – ` : ''}${t.title} (${t.plays}×)`)] : []),
       '',
       ...report.tracks.map((t) => `${new Date(t.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}  ${t.artist ? `${t.artist} – ` : ''}${t.title}`),
     ];

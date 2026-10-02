@@ -249,8 +249,13 @@ export class PlanningService {
         if (!this.app.svc.news.creds(stationId)) throw new AppError(409, 'no_lautfm', 'Kein laut.fm-Zugang: zuerst den laut.fm-Live-Stream als Ausgang anlegen');
         return { kind, newsId, mode: mode === 'fx' ? 'track' : mode, label: label ?? NEWS_LABEL[newsId as 1 | 2 | 3] };
       }
+      case 'ai': {
+        const aiKind = input.aiKind === 'news' ? 'news' : 'break';
+        if (!this.app.svc.ai.aiConfig(stationId).enabled) throw new AppError(409, 'ai_disabled', 'KI-Regisseur ist aus: zuerst unter KI einen Text- und Stimm-Anbieter einrichten und einschalten');
+        return { kind, aiKind, mode: 'track', label: label ?? (aiKind === 'news' ? 'KI-Nachrichten' : 'KI-Ansage') };
+      }
       default:
-        throw new AppError(400, 'invalid_kind', 'Art: media, folder, url, playlist, category oder news');
+        throw new AppError(400, 'invalid_kind', 'Art: media, folder, url, playlist, category, news oder ai');
     }
   }
 
@@ -295,6 +300,16 @@ export class PlanningService {
           return;
         }
         items.push({ source, id, label, status: 'ok', message: `Playlist „${pl.name}“ (${valid.length} Titel)` });
+      } else if (t.kind === 'category') {
+        const pool = lib.filter((m) => m.category === t.category && available(m));
+        if (!pool.length) { items.push({ source, id, label, status: 'empty', message: `Kategorie „${t.category}“ ist leer` }); return; }
+        items.push({ source, id, label, status: 'ok', message: `Kategorie „${t.category}“ (${pool.length} Titel)` });
+      } else if (t.kind === 'news') {
+        if (!this.app.svc.news.creds(stationId)) { items.push({ source, id, label, status: 'missing', message: 'Kein laut.fm-Zugang (Ausgang fehlt)' }); return; }
+        items.push({ source, id, label, status: 'ok', message: 'laut.fm-Nachrichten (zur Startzeit geholt)' });
+      } else if (t.kind === 'ai') {
+        if (!this.app.svc.ai.aiConfig(stationId).enabled) { items.push({ source, id, label, status: 'warning', message: 'KI-Regisseur ist aus – Ansage entfällt' }); return; }
+        items.push({ source, id, label, status: 'ok', message: t.aiKind === 'news' ? 'KI-Nachrichten (zur Startzeit erzeugt)' : 'KI-Ansage (zur Startzeit erzeugt)' });
       }
     };
 
@@ -449,6 +464,13 @@ export class PlanningService {
       // Datei wird zur Startzeit frisch geholt; air() führt danach selbst executeTarget(media) aus.
       this.app.svc.news.air(stationId, (t.newsId ?? 1) as 1 | 2 | 3, t.mode === 'fx' ? 'track' : t.mode, origin)
         .catch((err: Error) => this.app.audit.write({ kind: 'schedule', event: 'news_failed', stationId, label: t.label, error: err.message }));
+      return;
+    }
+    if (t.kind === 'ai') {
+      // Text + Stimme werden zur Startzeit erzeugt; der Regisseur hängt das Ergebnis vorn in die Warteschlange (oder zur Freigabe).
+      this.app.director.produce(stationId, t.aiKind ?? 'break')
+        .then((r) => { if (!r) this.app.audit.write({ kind: 'schedule', event: 'ai_busy', stationId, label: t.label }); })
+        .catch((err: Error) => this.app.audit.write({ kind: 'schedule', event: 'ai_failed', stationId, label: t.label, error: err.message }));
       return;
     }
     if (t.kind === 'playlist') {
