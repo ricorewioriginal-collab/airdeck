@@ -205,7 +205,7 @@ jobs:
           if (Test-Path "$env:LOCALAPPDATA/AirDeck/data/installer-bootstrap.json") { throw 'Silent-Setup darf keine leeren Admin-Zugangsdaten anlegen' }
           if (-not (Test-Path "$env:LOCALAPPDATA/Programs/AirDeck/AirDeck.exe")) { throw 'AirDeck.exe nach Installation nicht gefunden' }
           $exe = "$env:LOCALAPPDATA/Programs/AirDeck/airdeck-engine.exe"
-          if (-not (Test-Path $exe)) { throw 'anmachacast-engine.exe nach Installation nicht gefunden' }
+          if (-not (Test-Path $exe)) { throw 'airdeck-engine.exe nach Installation nicht gefunden' }
           $env:AIRDECK_DATA = "$env:RUNNER_TEMP/airdeck-inst"
           $env:AIRDECK_PORT = '8755'
           $p = Start-Process $exe -ArgumentList '--headless', '--no-tray' -PassThru

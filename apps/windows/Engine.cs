@@ -1,4 +1,4 @@
-// Verbindung zur AnMaCha-Cast-Engine (anmachacast-engine.exe im selben Ordner): Adresse erfragen, starten, beenden.
+// Verbindung zur AnMaCha-Cast-Engine (airdeck-engine.exe im selben Ordner - Dateiname bleibt aus Kompatibilitätsgründen): Adresse erfragen, starten, beenden.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -19,7 +19,7 @@ namespace AirDeck
     static class Engine
     {
         public static readonly string Dir = AppDomain.CurrentDomain.BaseDirectory;
-        public static readonly string Exe = Path.Combine(Dir, "anmachacast-engine.exe");
+        public static readonly string Exe = Path.Combine(Dir, "airdeck-engine.exe");
 
         public static bool Installed => File.Exists(Exe);
 
