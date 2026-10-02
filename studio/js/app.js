@@ -416,7 +416,7 @@ async function loadStation() {
     lautfm: mountLautfm($('view-lautfm'), { ...ctx, onLautfmConnected: () => run(async () => { S.stations = await api.get('/stations'); S.station = S.stations.find((/** @type {any} */ s) => s.id === S.station.id) ?? S.station; renderStationSelect(); updateLautfmNav(); }) }),
     ai: mountAi($('view-ai'), ctx),
     nextcloud: mountNextcloud($('view-nextcloud'), ctx),
-    bridges: mountBridges($('view-bridges'), ctx),
+    bridges: mountBridges($('view-bridges'), { ...ctx, stationId: () => S.station.id }),
     listeners: mountListeners($('view-listeners'), { ...ctx, stationId: () => S.station.id, onUnread: (n) => { const b = $('listener-badge'); b.hidden = !n; b.textContent = String(n); } }),
     users: mountUsers($('view-users'), { api, stations: () => S.stations, me: () => S.me }),
     overview: mountOverview($('view-overview'), {

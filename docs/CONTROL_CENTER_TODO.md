@@ -104,7 +104,7 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 24. [P3 · M] Aktivitäts-Log (Admin), Stream-Status als M3U/XSPF/XML.
 
 ### Verknüpfungen / öffentliche Seiten
-25. [P2 · M] Öffentliche Sender-/Sendeplan-Seite, Netzwerk-Liste, Charts-Seite, Widget-Konfigurator (Layout/Theme/Akzent).
+25. ~~[P2 · M] Öffentliche Sender-/Sendeplan-Seite, Netzwerk-Liste, Charts-Seite, Widget-Konfigurator (Layout/Theme/Akzent)~~ - erledigt: `sender.html`, `sendeplan.html`, `charts.html`, `netzwerk.html` (ohne Login, `?station=…&theme=light&accent=rrggbb`), API `/api/v1/public/stations/:id/{page,schedule,charts}` + `/api/v1/public/network` (CORS), Widget-Konfigurator unter „Streams & Anbindungen“ (Layout Player/Senderseite/Charts/Sendeplan, Theme, Akzent, Verlauf, Höhe → iframe-Code + Vorschau).
 26. [P3 · M] Umfragen, Formulare, Auslosung (Normal/Multi/Elimination, Gewinner-Log, CSV).
 27. [P3 · M] Profilseite (Social Links, API-Keys), In-App-API-Doku mit "Live ausprobieren", Admin-Banner/Wartungsmeldung.
 28. [P3 · S] Handbuch: Suchfeld, Drucken/PDF, Rezepte.
