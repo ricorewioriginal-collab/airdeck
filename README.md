@@ -88,7 +88,7 @@ AnMaCha Cast kann direkt im Browser ausprobiert werden.
 
 AnMaCha Cast führt ein **automatisch gepflegtes Changelog**. Bei neuen offiziellen Veröffentlichungen werden Release, Datum und der Vergleich zur vorherigen Version ergänzt. So lässt sich nachvollziehen, was sich zwischen zwei veröffentlichten AnMaCha-Cast-Versionen geändert hat.
 
-<p align="center"><a href="CHANGELOG.md"><strong>📝 Vollständigen Changelog öffnen →</strong></a><br><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/compare/build-323...v0.4.1">Aktuell: Build 323 mit Aurora v0.4.1 vergleichen</a></p>
+<p align="center"><a href="CHANGELOG.md"><strong>📝 Vollständigen Changelog öffnen →</strong></a><br><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest"><strong>🚀 Aktuelle Release Notes öffnen →</strong></a></p>
 
 ---
 
