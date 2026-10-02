@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.airdeck.studio.ui.theme.BrandBad
 import app.airdeck.studio.ui.theme.BrandGood
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoLiveScreen(viewModel: GoLiveViewModel = viewModel()) {
     val ui by viewModel.ui.collectAsState()
