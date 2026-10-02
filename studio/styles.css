@@ -606,6 +606,11 @@ tr.active-row td { background: rgba(34,197,94,.08); }
 
 /* Uhr-Vorlage (Kategorien-Takt) */
 .clock-slots { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.ins-wrap { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 4px; }
+.ins-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.ins-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.ins-row input[type=text], .ins-row input[type=number], .ins-row select { background: var(--panel-2); border: 1px solid var(--line); color: inherit; border-radius: 7px; padding: 4px 7px; font-size: 12px; }
+.ins-label { width: 150px; } .ins-num { width: 58px; }
 .clock-chip { display: flex; align-items: center; gap: 6px; background: color-mix(in srgb, var(--c, #38bdf8) 22%, transparent); border: 1px solid color-mix(in srgb, var(--c, #38bdf8) 55%, transparent); color: color-mix(in srgb, var(--c, #38bdf8) 65%, #fff); border-radius: 20px; padding: 4px 6px 4px 12px; font-size: 13px; cursor: grab; }
 .clock-chip button { background: none; border: 0; color: inherit; opacity: .7; cursor: pointer; border-radius: 50%; width: 18px; height: 18px; line-height: 1; }
 .clock-chip button:hover { opacity: 1; background: rgba(255, 255, 255, .12); }

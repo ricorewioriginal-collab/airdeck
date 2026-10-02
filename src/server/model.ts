@@ -64,6 +64,9 @@ export interface StationData {
   playlists?: Playlist[];
   jobs?: ScheduledJob[];
   clockEvents?: ClockEvent[];
+  /** Einschübe „nach N Songs aus Ordner“ (Regeln & Sicherung) + Zähler je Regel */
+  inserts?: import('../core/automation.ts').InsertRule[];
+  insertCounters?: Record<string, number>;
   /** Nachrichten & Wetter (laut.fm): gewählter Ausgang als Zugangsquelle */
   news?: import('./services/news.ts').NewsConfig;
   plans?: ProgramPlan[];

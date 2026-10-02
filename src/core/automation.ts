@@ -336,6 +336,19 @@ export interface FillDeadline {
   startAt: number;
 }
 
+/**
+ * Einschub-Regel (Regeln & Sicherung im Control Center): nach jeweils `every` Musiktiteln folgt ein zufälliger
+ * Titel aus dem Ordner - unabhängig von der Kategorie, deshalb neben dem Kategorien-Takt der Sendeuhr
+ * nützlich (z. B. Ordner „Sommer-Spots“ alle 6 Songs).
+ */
+export interface InsertRule {
+  id: string;
+  label: string;
+  folder: string;
+  every: number;
+  enabled: boolean;
+}
+
 export function fillFromClock(
   queue: PlayQueue,
   library: readonly MediaItem[],
@@ -346,6 +359,8 @@ export function fillFromClock(
   rules: RotationRules = DEFAULT_ROTATION,
   random: () => number = Math.random,
   deadline?: FillDeadline | null,
+  inserts: readonly InsertRule[] = [],
+  insertCounters: Record<string, number> = {},
 ): number {
   if (clock.slots.length === 0) return cursor;
   const recent = [...queue.list().map((q) => q.mediaId).reverse(), ...history];
@@ -363,6 +378,20 @@ export function fillFromClock(
     queue.add(m.id, 'clock');
     recent.unshift(m.id);
     elapsed += playLength(m) ?? 0;
+    if (cat !== 'music') continue;
+    // Einschübe: Zähler je Regel, bei Erreichen ein Titel aus dem Ordner direkt hinter dem Musiktitel
+    for (const r of inserts) {
+      if (!r.enabled || r.every < 1) continue;
+      const n = (insertCounters[r.id] ?? 0) + 1;
+      if (n < r.every) { insertCounters[r.id] = n; continue; }
+      const pool = library.filter((x) => (x.folder ?? '') === r.folder);
+      const pick = pickNext(pool.map((x) => ({ ...x, category: 'music' as const })), 'music', recent, rules, random);
+      insertCounters[r.id] = 0;
+      if (!pick) continue;
+      queue.add(pick.id, 'clock');
+      recent.unshift(pick.id);
+      elapsed += playLength(byId.get(pick.id) ?? pick) ?? 0;
+    }
   }
   return cursor;
 }

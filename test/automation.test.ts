@@ -134,3 +134,24 @@ test('SilenceDetector löst nach Dauer aus und meldet Erholung', () => {
   assert.equal(d.feed(-10, 2100), 'recovered');
   assert.equal(d.isSilent, false);
 });
+
+test('fillFromClock: Einschübe „nach N Songs aus Ordner“ laufen zwischen den Musiktiteln, Zähler bleibt über Aufrufe', () => {
+  const lib = [m('s1', 'A'), m('s2', 'B'), m('s3', 'C'), m('s4', 'D'), { ...m('spot', 'Werbung'), folder: 'Spots' }];
+  const q = new PlayQueue();
+  const counters: Record<string, number> = {};
+  const rules = [{ id: 'r1', label: 'Spots', folder: 'Spots', every: 2, enabled: true }];
+  fillFromClock(q, lib, { id: 'c', name: 'c', slots: ['music'] }, [], 0, 3, { artistSeparation: 0, titleSeparation: 0 }, () => 0, null, rules, counters);
+  const ids = q.list().map((x) => x.mediaId);
+  // nach 2 Musiktiteln folgt der Spot
+  assert.equal(ids[2], 'spot');
+  assert.ok(ids.slice(0, 2).every((id) => id !== 'spot'));
+  // Regel aus → keine Einschübe
+  const q2 = new PlayQueue();
+  fillFromClock(q2, lib, { id: 'c', name: 'c', slots: ['music'] }, [], 0, 4, { artistSeparation: 0, titleSeparation: 0 }, () => 0, null, [{ ...rules[0]!, enabled: false }], {});
+  assert.ok(q2.list().every((x) => x.mediaId !== 'spot'));
+  // Zähler wird fortgeführt: 1 Musiktitel in diesem Aufruf, Zähler steht danach auf 1
+  const q3 = new PlayQueue();
+  const c3: Record<string, number> = {};
+  fillFromClock(q3, lib, { id: 'c', name: 'c', slots: ['music'] }, [], 0, 1, { artistSeparation: 0, titleSeparation: 0 }, () => 0, null, rules, c3);
+  assert.equal(c3.r1, 1);
+});
