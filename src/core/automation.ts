@@ -98,9 +98,15 @@ export interface RotationRules {
   titleSeparation: number;
   /** Mindestabstand gleiches Genre (Anzahl Titel), 0 = keine Trennung nach Genre */
   genreSeparation?: number;
+  /**
+   * Energie-Fluss: begrenzt den BPM-Sprung zum zuletzt gespielten Titel, damit das Tempo sich
+   * sanft entwickelt statt zufällig zwischen ruhig und treibend zu springen (bei Titeln ohne BPM-
+   * Angabe wirkungslos). 0 = aus.
+   */
+  maxBpmJump?: number;
 }
 
-export const DEFAULT_ROTATION: RotationRules = { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0 };
+export const DEFAULT_ROTATION: RotationRules = { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0, maxBpmJump: 0 };
 
 /** Effektive Laufzeit unter Berücksichtigung von Cue-In/Out und Segue. */
 export function playLength(m: MediaItem): number | null {
@@ -172,8 +178,13 @@ export function pickNext(
   const passArtist = (m: MediaItem) => !(m.artist && recentArtists(rules.artistSeparation).has(m.artist.toLowerCase()));
   const passGenre = (m: MediaItem) => !rules.genreSeparation || !(m.genre && recentGenres(rules.genreSeparation).has(m.genre.toLowerCase()));
   const fitsDeadline = (m: MediaItem) => maxLengthMs == null || (playLength(m) ?? Infinity) <= maxLengthMs;
+  // Energie-Fluss: letzter gespielter BPM-Wert als Bezugspunkt, nur wenn beide Seiten eine BPM-Angabe haben.
+  const lastBpm = history.map((id) => byId.get(id)?.bpm).find((b): b is number => typeof b === 'number');
+  const passEnergy = (m: MediaItem) =>
+    !rules.maxBpmJump || lastBpm == null || m.bpm == null || Math.abs(m.bpm - lastBpm) <= rules.maxBpmJump;
   const attempts: Array<(m: MediaItem) => boolean> = [
-    (m) => passTitle(m) && passArtist(m) && passGenre(m) && fitsDeadline(m),
+    (m) => passTitle(m) && passArtist(m) && passGenre(m) && passEnergy(m) && fitsDeadline(m),
+    (m) => passTitle(m) && passArtist(m) && passEnergy(m) && fitsDeadline(m),
     (m) => passTitle(m) && passArtist(m) && fitsDeadline(m),
     (m) => passTitle(m) && fitsDeadline(m),
     (m) => lastPlayedIndex(m.id) > 0 && fitsDeadline(m),

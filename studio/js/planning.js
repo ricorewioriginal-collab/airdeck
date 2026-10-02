@@ -80,7 +80,7 @@ export function mountPlanning(root, ctx) {
   /** @type {any[]} */ let playlists = [];
   /** @type {any[]} */ let history = [];
   /** @type {string[]} */ let folders = [];
-  /** @type {any} */ let automation = { rotation: { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0 } };
+  /** @type {any} */ let automation = { rotation: { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0, maxBpmJump: 0 } };
   /** @type {any|null} */ let preflight = null;
   let openPl = /** @type {string|null} */ (null);
 
@@ -91,9 +91,9 @@ export function mountPlanning(root, ctx) {
     render();
   }
 
-  /** @param {HTMLInputElement} artistEl @param {HTMLInputElement} titleEl @param {HTMLInputElement} genreEl */
-  async function saveRotation(artistEl, titleEl, genreEl) {
-    const rotation = { artistSeparation: Number(artistEl.value) || 0, titleSeparation: Number(titleEl.value) || 0, genreSeparation: Number(genreEl.value) || 0 };
+  /** @param {HTMLInputElement} artistEl @param {HTMLInputElement} titleEl @param {HTMLInputElement} genreEl @param {HTMLInputElement} bpmEl */
+  async function saveRotation(artistEl, titleEl, genreEl, bpmEl) {
+    const rotation = { artistSeparation: Number(artistEl.value) || 0, titleSeparation: Number(titleEl.value) || 0, genreSeparation: Number(genreEl.value) || 0, maxBpmJump: Number(bpmEl.value) || 0 };
     await run(async () => { automation = await ctx.api.patch(ctx.url('/automation'), { rotation }); });
     status('Rotationsregeln gespeichert');
   }
@@ -131,15 +131,18 @@ export function mountPlanning(root, ctx) {
           iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/clock-events/${e.id}`)); await load(); }))))),
       'Wiederkehrende Elemente zur vollen Minute, z. B. Station-ID zu :00, Jingle zu :30.'));
     // --- Rotation & Regeln ---
-    const rot = automation.rotation ?? { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0 };
+    const rot = automation.rotation ?? { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0, maxBpmJump: 0 };
     const rotArtist = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: '0', max: '500', value: String(rot.artistSeparation) }));
     const rotTitle = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: '0', max: '5000', value: String(rot.titleSeparation) }));
     const rotGenre = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: '0', max: '500', value: String(rot.genreSeparation ?? 0) }));
+    const rotBpm = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: '0', max: '200', value: String(rot.maxBpmJump ?? 0) }));
     const rotation = panel('Rotation & Regeln', [], h('div', { class: 'row', style: 'flex-wrap:wrap;gap:12px 20px' },
       h('label', {}, h('div', { class: 'muted' }, 'Interpret erst wieder nach … Titeln'), rotArtist),
       h('label', {}, h('div', { class: 'muted' }, 'Titel erst wieder nach … Titeln'), rotTitle),
       h('label', {}, h('div', { class: 'muted' }, 'Genre erst wieder nach … Titeln (0 = aus)'), rotGenre),
-      h('button', { class: 'btn small primary', style: 'align-self:flex-end', onclick: () => saveRotation(rotArtist, rotTitle, rotGenre) }, 'Speichern')));
+      h('label', { title: 'Begrenzt den Tempo-Sprung zum vorherigen Titel (BPM), damit sich das Tempo sanft entwickelt statt zufällig zu springen. Wirkt nur bei Titeln mit BPM-Angabe.' },
+        h('div', { class: 'muted' }, 'Energie-Fluss: max. BPM-Sprung (0 = aus)'), rotBpm),
+      h('button', { class: 'btn small primary', style: 'align-self:flex-end', onclick: () => saveRotation(rotArtist, rotTitle, rotGenre, rotBpm) }, 'Speichern')));
     // --- Uhr-Vorlage (Kategorien-Takt, wiederholt sich, treibt den Auto-Fill) ---
     const slots = automation.clock?.slots ?? [];
     const addSlotSel = /** @type {HTMLSelectElement} */ (h('select', {}, ...Object.entries(CLOCK_CAT_LABEL).map(([v, l]) => h('option', { value: v }, l))));
