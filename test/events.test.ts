@@ -22,7 +22,13 @@ test('Ereignis-Typen: Kategorie, KI-Ansage (nur bei aktivem Regisseur), Prefligh
 
     // KI-Ansage: Regisseur aus → 409, an → Eintrag mit Standard-Bezeichnung, Modus immer „nach dem Titel“
     assert.throws(() => pl.saveClockEvent('main', null, { kind: 'ai', aiKind: 'break', minutes: [30] }), /KI-Regisseur ist aus/);
+    // eingeschaltet, aber ohne Anbieter bzw. ohne Nachrichtenquelle → klare Meldung statt stiller Fehlschlag zur Sendezeit
     app.rt('main').data.ai = { ...app.svc.ai.aiConfig('main'), enabled: true };
+    assert.throws(() => pl.saveClockEvent('main', null, { kind: 'ai', aiKind: 'break', minutes: [30] }), /Text- und einen Stimm-Anbieter/);
+    const ready = { ...app.svc.ai.aiConfig('main'), enabled: true, text: { providerId: 'p1', model: 'm' }, voice: { providerId: 'p2', voice: 'v' } };
+    app.rt('main').data.ai = ready;
+    assert.throws(() => pl.saveClockEvent('main', null, { kind: 'ai', aiKind: 'news', minutes: [58] }), /Nachrichtenquelle/);
+    app.rt('main').data.ai = { ...ready, sources: [{ id: 'n1', name: 'News', url: 'https://example.org/rss', kind: 'rss', use: 'news' }] };
     const ai = pl.saveClockEvent('main', null, { kind: 'ai', aiKind: 'news', minutes: [58], mode: 'fx' });
     assert.equal(ai.kind, 'ai');
     assert.equal(ai.aiKind, 'news');
@@ -41,7 +47,10 @@ test('Ereignis-Typen: Kategorie, KI-Ansage (nur bei aktivem Regisseur), Prefligh
     app.rt('main').data.ai = { ...app.svc.ai.aiConfig('main'), enabled: false };
     assert.equal(pl.preflight('main').items.find((i) => i.label === 'KI-Ansage')?.status, 'warning');
 
-    // Auslösen ohne Anbieter: Regisseur meldet Fehler ins Audit, nichts stürzt ab
+    // Regisseur inzwischen aus → Auslösen wird übersprungen und protokolliert, nichts wird produziert
+    pl.fireClockEvent('main', ai2.id);
+    assert.ok((app.audit.tail(50) as { event?: string }[]).some((e) => e.event === 'ai_skipped'), 'ai_skipped im Audit');
+    // Auslösen ohne erreichbaren Anbieter: Regisseur meldet Fehler ins Audit, nichts stürzt ab
     app.rt('main').data.ai = { ...app.svc.ai.aiConfig('main'), enabled: true };
     pl.fireClockEvent('main', ai2.id);
     app.shutdown();

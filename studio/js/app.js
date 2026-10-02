@@ -489,8 +489,7 @@ function onEvent(type, data) {
     case 'now_playing.changed': S.nowPlaying = { ...S.nowPlaying, ...data }; renderNowPlaying(); break;
     case 'library.changed': run(async () => { setLibrary(await api.get(url('/media'))); renderLibrary(); renderCarts(); }); break;
     case 'cardwall.changed': S.carts = data; renderCarts(); break;
-    case 'cardwall.triggered': if (data?.id) noteCartPlayed(data.id); break;
-    case 'cardwall.triggered': if (!data.server) playCart(data); break; // Fernauslösung ohne Server-Playout: lokal spielen
+    case 'cardwall.triggered': if (data?.id) noteCartPlayed(data.id); if (!data?.server) playCart(data); break; // Fernauslösung ohne Server-Playout: lokal spielen
     case 'playout.state': if (S.playout) { S.playout.status = data; S.playoutAt = Date.now(); renderPlayout(); } break;
     case 'playout.level': S.srvLevel = data; S.srvLevelAt = Date.now(); break;
     case 'playout.log':
@@ -1018,9 +1017,12 @@ async function editAudio() {
   const nextDsp = chosen ? { ...chosen, preset: v.preset } : { ...dsp, preset: v.preset, bassDb: v.bassDb ?? 0, trebleDb: v.trebleDb ?? 0, stereoWidth: v.stereoWidth ?? 100, agc: !!v.agc };
   const body = { inputDevice: v.input, micGainDb: v.micGainDb ?? 0, dsp: nextDsp, mic: { gate: v.micGate ?? 0, compressor: v.micComp ?? 0, eq: v.micEq, deesser: !!v.micDeesser, highpass: !!v.micHighpass } };
   S.playout = (await run(() => api.patch(url('/playout'), body))) ?? S.playout;
-  if (serverMode() && (nextDsp !== dsp || (v.input || '') !== (cfg.inputDevice ?? '')) && confirm('Playout jetzt mit neuem Sound/Mikrofon neu starten? (Kurzer Fallback auf die nächste Quelle)')) {
+  // Neustart nur anbieten, wenn sich am Encoder wirklich etwas geändert hat (Werte vergleichen, nicht Objekt-Identität)
+  const snap = (/** @type {any} */ c) => JSON.stringify([c?.dsp ?? null, c?.mic ?? null, c?.micGainDb ?? 0]);
+  const dspChanged = snap(S.playout?.config) !== snap(cfg);
+  if (serverMode() && (dspChanged || (v.input || '') !== (cfg.inputDevice ?? '')) && confirm('Playout jetzt mit neuem Sound/Mikrofon neu starten? (Kurzer Fallback auf die nächste Quelle)')) {
     await run(() => api.post(url('/playout/stop')));
-    S.playout = (await run(() => api.post(url('/playout/start'), {}))) ?? S.playout;
+    S.playout = (await run(() => api.post(url('/playout/start'), { autostart: cfg.autostart ?? true }))) ?? S.playout;
   }
   renderPlayout();
   status('Sound & Stimme gespeichert');
@@ -2007,7 +2009,7 @@ function bindStatic() {
   // Tastatur: Alt+1…4 wechselt die Bereiche
   // Soundboard: Tastenkürzel (ohne Modifier, nicht in Eingabefeldern), Esc = alle Carts stoppen
   addEventListener('keydown', (e) => {
-    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.repeat) return; // gehaltene Taste feuert den Cart nicht im Dauerlauf
     const t = /** @type {HTMLElement|null} */ (e.target);
     if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)) return;
     if (document.querySelector('dialog[open]')) return;
@@ -2499,6 +2501,7 @@ async function switchStation(id) {
   const st = S.stations.find((s) => s.id === id);
   if (!st) return;
   S.station = st;
+  S.cartRecent = []; // „Zuletzt“ gehört zum Sender
   await run(loadStation);
   renderStationSelect();
 }

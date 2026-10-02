@@ -86,7 +86,7 @@ function applyCors(req: IncomingMessage, res: ServerResponse, extra: (origin: st
  */
 export const ON_AIR_OPS = new RegExp('^/api/v1/(?:' + [
   'stations/[^/]+/sources/[^/]+/(?:chunks|health|release|takeover)',
-  'stations/[^/]+/playout/(?:mic|skip|start|stop)',
+  'stations/[^/]+/playout/(?:mic|skip|start|stop|carts-stop|loop-advance)',
   'stations/[^/]+/(?:mode|onair)',
   'stations/[^/]+/(?:decks/[^/]+(?:/[a-z]+)?|now-playing|metadata)',
   'stations/[^/]+/queue(?:/.*)?',

@@ -53,3 +53,9 @@ test('Titel werden automatisch gemessen (EBU R128)', { skip: !ff && 'ffmpeg nich
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('dspFilter: Stereo-Breite nahe 0 bleibt im gültigen stereotools-Bereich, alle Encoder bekommen die Kette', () => {
+  assert.match(dspFilter({ ...DSP_PRESETS.pop!.dsp, stereoWidth: 1 })!, /stereotools=mlev=1:slev=0\.016/);
+  assert.match(dspFilter({ ...DSP_PRESETS.pop!.dsp, stereoWidth: 150 })!, /slev=1\.500/);
+  assert.match(dspFilter({ ...DSP_PRESETS.pop!.dsp, stereoWidth: 0 })!, /pan=stereo/);
+});

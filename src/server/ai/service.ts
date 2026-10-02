@@ -366,6 +366,7 @@ export class AiService {
     const errors: string[] = [];
     for (const p of this.transcribers()) {
       if (this.quarantined(p.id)) { errors.push(`${p.name}: in Quarantäne nach wiederholten Fehlern`); continue; }
+      if (this.budgetState(p.id, stationId) === 'hard') { errors.push(`${p.name}: Monatsbudget ausgeschöpft`); continue; }
       const started = Date.now();
       try {
         const r = await transcribe(p, this.getKey(`ai:${p.id}`), audio, filename, { language, timeoutMs }, this.fetchFn);

@@ -393,9 +393,14 @@ export function fillFromClock(
       const n = (insertCounters[r.id] ?? 0) + 1;
       if (n < r.every) { insertCounters[r.id] = n; continue; }
       const pool = library.filter((x) => (x.folder ?? '') === r.folder);
-      const pick = pickNext(pool.map((x) => ({ ...x, category: 'music' as const })), 'music', recent, rules, random);
-      insertCounters[r.id] = 0;
-      if (!pick) continue;
+      // Einschub darf den Termin genauso wenig überschreiten wie ein Uhr-Titel
+      const insertMax = deadline && deadline.startAt + elapsed < deadline.at ? deadline.at - (deadline.startAt + elapsed) : undefined;
+      const pick = pickNext(pool.map((x) => ({ ...x, category: 'music' as const })), 'music', recent, rules, random, insertMax);
+      // Passt wegen des Termins nichts mehr (pickNext würde sonst „sanft landen“ und überziehen):
+      // Zähler bleibt auf „fällig“ stehen, der Einschub kommt nach dem Termin dran
+      const fits = !!pick && (insertMax === undefined || (playLength(pick) ?? 0) <= insertMax);
+      insertCounters[r.id] = pick && !fits ? n : 0;
+      if (!fits) continue;
       queue.add(pick.id, 'clock');
       recent.unshift(pick.id);
       elapsed += playLength(byId.get(pick.id) ?? pick) ?? 0;

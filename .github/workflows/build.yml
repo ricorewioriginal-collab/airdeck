@@ -560,7 +560,7 @@ jobs:
           body: |
             Gebaut und getestet aus ${{ github.sha }}.
             • AnMaCha-Cast-Setup.exe – Windows-Installer (ohne Adminrechte, Deutsch/English, mit Audio-Engine und Android-APK)
-            • AnMaCha-Cast-Windows-Portable.zip – ohne Installation: entpacken, AirDeck.exe starten
+            • AnMaCha-Cast-Windows-Portable.zip – ohne Installation: entpacken und AnMaCha Cast starten
             • AnMaCha-Cast-Android.apk – Android-App: Handy-Sender (Mikrofon + Musik direkt zu laut.fm/Icecast, ohne Server) oder Studio-Fernbedienung für AnMaCha Cast auf PC/Server
             • AnMaCha-Cast-Linux.deb – Linux-Server als systemd-Dienst: `sudo apt install ./AnMaCha-Cast-Linux.deb` (Debian/Ubuntu, x86_64)
             • Server: docker compose up -d (siehe docs/DOCKER.md)

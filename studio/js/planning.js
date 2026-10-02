@@ -348,7 +348,7 @@ export function mountPlanning(root, ctx) {
     const histCats = [...new Set(history.map((x) => x.category))].sort();
     const histQuery = /** @type {HTMLInputElement} */ (h('input', { type: 'search', placeholder: 'Suchen …', value: histFilter.q, 'aria-label': 'Verlauf durchsuchen', oninput: () => { histFilter.q = histQuery.value; renderHist(); } }));
     const histCat = /** @type {HTMLSelectElement} */ (h('select', { 'aria-label': 'Art', onchange: () => { histFilter.cat = histCat.value; renderHist(); } },
-      h('option', { value: '' }, 'Alle Arten'), ...histCats.map((c) => h('option', { value: c, selected: histFilter.cat === c }, CLOCK_CAT_LABEL[c] ?? c))));
+      h('option', { value: '' }, 'Alle Arten'), ...(histFilter.cat && !histCats.includes(histFilter.cat) ? [...histCats, histFilter.cat] : histCats).map((c) => h('option', { value: c, selected: histFilter.cat === c }, CLOCK_CAT_LABEL[c] ?? c))));
     const renderHist = () => {
       const rows = filteredHistory();
       histBody.replaceChildren(table(['Zeit', 'Titel', 'Art'], rows.slice(0, 200).map((x) => h('tr', {},
@@ -809,5 +809,5 @@ export function mountRecorder(root, ctx) {
     if (blob) download(blob, `${r.label}.${r.file.split('.').pop()}`);
   }
 
-  return { show: () => run(load), onEvent: (/** @type {string} */ t) => { if ((t === 'recorder.changed' || t === 'motionmix.changed') && !root.hidden) run(load); } };
+  return { show: () => run(load), onEvent: (/** @type {string} */ t) => { if ((t === 'recorder.changed' || t === 'motionmix.changed' || t === 'podcast.changed') && !root.hidden) run(load); } };
 }
