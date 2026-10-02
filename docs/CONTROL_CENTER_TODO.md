@@ -29,7 +29,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 ### Überblick
 1. ~~[P1 · S] `data-sub`-Navigation verdrahten~~ - erledigt: Unterpunkte springen zum Abschnitt
    (data-sub-Element oder Panel-Überschrift) und heben ihn kurz hervor.
-2. [P2 · M] Sendezentrale: Netzwerk-Senderkarten mit Sortierung Live (Meiste/Wenigste), Ø 24h, Ø 7 Tage, A–Z; Sync.
+2. ~~[P2 · M] Sendezentrale: Netzwerk-Senderkarten mit Sortierung Live (Meiste/Wenigste), Ø 24h, Ø 7 Tage, A–Z; Sync~~ -
+   erledigt: `GET /network` liefert je sichtbarem Sender Live/Ø 24h/Ø 7 Tage (Stichproben + Stunden-Aggregat), Karten
+   zeigen die Zahlen, Sortierleiste (gemerkt), „⟳ Sync“ mit Zeitstempel.
 
 ### Programm planen
 3. ~~[P1 · M] Nachrichten & Wetter (laut.fm)~~ - erledigt: eigene Ansicht (`studio/js/news.js`,
