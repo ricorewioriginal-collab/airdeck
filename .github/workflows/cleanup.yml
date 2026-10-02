@@ -29,6 +29,21 @@ jobs:
       GH_REPO: ${{ github.repository }}
       KEEP: 2
     steps:
+      - name: Alte generierte Automation-Branches entfernen
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/branches?per_page=100" --jq '.[].name' |
+          while read -r branch; do
+            case "$branch" in
+              automation/release-badge-*|automation/changelog-*|automation/screenshots-*)
+                echo "Loesche alten Automation-Branch: $branch"
+                encoded="${branch//\//%2F}"
+                gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$encoded" >/dev/null ||
+                  echo "::warning::Branch $branch konnte nicht geloescht werden"
+                ;;
+            esac
+          done
       - name: Alte Releases und Tags entfernen (letzte 2 bleiben)
         run: |
           gh release list --limit 200 --json tagName,createdAt \
