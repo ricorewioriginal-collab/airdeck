@@ -988,8 +988,22 @@ export class AnMaChaCastApp {
     this.publishQueue(stationId);
   }
 
-  setAutomation(stationId: string, patch: { autoFill?: boolean; minQueue?: number; clock?: ClockTemplate; rotation?: Partial<RotationRules> }): unknown {
+  setAutomation(stationId: string, patch: { autoFill?: boolean; minQueue?: number; clock?: ClockTemplate; rotation?: Partial<RotationRules>; inserts?: unknown }): unknown {
     const rt = this.rt(stationId);
+    if (Array.isArray(patch.inserts)) {
+      const folders = new Set(rt.data.library.map((m) => m.folder ?? ''));
+      rt.data.inserts = patch.inserts.slice(0, 12).map((x: Record<string, unknown>, i) => ({
+        id: typeof x.id === 'string' && x.id ? x.id.slice(0, 20) : `ins_${Date.now().toString(36)}_${i}`,
+        label: String(x.label ?? '').slice(0, 40),
+        folder: String(x.folder ?? '').slice(0, 80),
+        every: Math.max(1, Math.min(60, Math.floor(Number(x.every)) || 4)),
+        enabled: x.enabled !== false,
+      }));
+      const missing = rt.data.inserts.find((r) => !folders.has(r.folder));
+      if (missing) throw new AppError(400, 'empty_folder', `Ordner „${missing.folder || '(ohne Ordner)'}“ enthält keine Titel`);
+      const live = new Set(rt.data.inserts.map((r) => r.id));
+      for (const k of Object.keys(rt.data.insertCounters ?? {})) if (!live.has(k)) delete rt.data.insertCounters![k];
+    }
     if (typeof patch.autoFill === 'boolean') rt.data.autoFill = patch.autoFill;
     if (typeof patch.minQueue === 'number' && patch.minQueue >= 1 && patch.minQueue <= 100) rt.data.minQueue = Math.floor(patch.minQueue);
     if (patch.clock && Array.isArray(patch.clock.slots)) {
@@ -1014,7 +1028,7 @@ export class AnMaChaCastApp {
 
   automationView(stationId: string): unknown {
     const d = this.rt(stationId).data;
-    return { autoFill: d.autoFill, minQueue: d.minQueue, clock: d.clock, rotation: d.rotation };
+    return { autoFill: d.autoFill, minQueue: d.minQueue, clock: d.clock, rotation: d.rotation, inserts: d.inserts ?? [] };
   }
 
   /** Live aus dem ICY-Metadatenstrom eines externen Streams gelesener Titel, je Sender (nicht persistiert). */
@@ -1558,7 +1572,7 @@ export class AnMaChaCastApp {
     const now = Date.now();
     const hardMark = nextHardMark(rt.data.clockEvents ?? [], rt.data.jobs ?? [], now, HARD_MARK_LOOKAHEAD_MS);
     const deadline = hardMark !== null ? { at: hardMark, startAt: now } : null;
-    rt.data.clockCursor = fillFromClock(rt.queue, rt.data.library, rt.data.clock, rt.data.history, rt.data.clockCursor, rt.data.minQueue, rt.data.rotation, undefined, deadline);
+    rt.data.clockCursor = fillFromClock(rt.queue, rt.data.library, rt.data.clock, rt.data.history, rt.data.clockCursor, rt.data.minQueue, rt.data.rotation, undefined, deadline, rt.data.inserts ?? [], (rt.data.insertCounters ??= {}));
   }
 
   publishQueue(stationId: string): void {

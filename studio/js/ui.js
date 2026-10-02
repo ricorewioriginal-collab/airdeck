@@ -62,22 +62,38 @@ export async function run(fn) {
 
 /**
  * @param {string} title
- * @param {Array<{name:string,label:string,type?:string,value?:any,options?:Array<[string,string]>,hint?:string,required?:boolean,suggest?:string[],action?:{label:string,run:()=>Promise<string|null>}}>} fields
+ * @param {Array<{name?:string,label:string,type?:string,value?:any,options?:Array<[string,string]>,hint?:string,required?:boolean,suggest?:string[],full?:boolean,action?:{label:string,run:()=>Promise<string|null>}}>} fields
  * @param {string} [submitLabel]
+ * @param {{ wide?: boolean, subtitle?: string }} [opts]  wide = breiter Dialog mit zweispaltigem Raster (automatisch bei Abschnitten)
  * @returns {Promise<Record<string, any>|null>}
  */
-export function formDialog(title, fields, submitLabel = 'Speichern') {
+export function formDialog(title, fields, submitLabel = 'Speichern', opts = {}) {
   const dlg = /** @type {HTMLDialogElement} */ ($('dialog'));
   const form = /** @type {HTMLFormElement} */ ($('dialog-form'));
   // Verteidigung gegen einen liegen gebliebenen onsubmit-Handler (z. B. vom Einrichtungs-Assistenten,
   // der denselben Dialog wiederverwendet): sonst würde method="dialog" nie schließen und dieser
   // Aufruf nie auflösen - der Nutzer sähe einfach gar keine Reaktion auf "Speichern"/"Verbinden".
   form.onsubmit = null;
-  form.replaceChildren(h('h3', {}, title));
+  const hasSections = fields.some((f) => f.type === 'section');
+  const wide = opts.wide ?? hasSections;
+  dlg.classList.toggle('wide', wide);
+  const body = h('div', { class: `fd-body${wide ? ' fd-grid' : ''}` });
+  form.replaceChildren(h('div', { class: 'fd-head' }, h('h3', {}, title), opts.subtitle ? h('p', { class: 'muted small' }, opts.subtitle) : null), body);
   for (const f of fields) {
-    const id = `f-${f.name}`;
+    const id = `f-${f.name ?? f.label}`;
     /** @type {HTMLElement} */
     let input;
+    if (f.type === 'section') {
+      body.append(h('div', { class: 'fd-section' }, h('h4', {}, f.label), f.hint ? h('small', {}, f.hint) : null));
+      continue;
+    }
+    if (f.type === 'checkbox') {
+      // Schalter-Zeile: Beschriftung links, Toggle rechts - lesbarer als eine nackte Checkbox
+      body.append(h('label', { class: 'field fd-switch', for: id },
+        h('span', { class: 'fd-switch-text' }, f.label, f.hint ? h('small', {}, f.hint) : null),
+        h('input', { id, name: f.name, type: 'checkbox', role: 'switch', checked: !!f.value })));
+      continue;
+    }
     if (f.type === 'days') {
       const set = new Set(Array.isArray(f.value) ? f.value : []);
       input = h('div', { class: 'days', id }, ...DAYS.map((d, i) => h('label', { class: 'chk' }, h('input', { type: 'checkbox', name: `${f.name}_${i}`, checked: set.has(i) }), d)));
@@ -89,8 +105,6 @@ export function formDialog(title, fields, submitLabel = 'Speichern') {
       input = h('textarea', { id, name: f.name, rows: '8', value: f.value ?? '' });
     } else if (f.options) {
       input = h('select', { id, name: f.name }, ...f.options.map(([v, l]) => h('option', { value: v, selected: String(f.value) === v }, l)));
-    } else if (f.type === 'checkbox') {
-      input = h('input', { id, name: f.name, type: 'checkbox', checked: !!f.value });
     } else {
       input = h('input', { id, name: f.name, type: f.type ?? 'text', value: f.value ?? '', required: !!f.required, autocomplete: 'off', ...(f.suggest?.length ? { list: `${id}-list` } : {}) });
       if (f.suggest?.length) input = h('div', { class: 'with-list' }, input, h('datalist', { id: `${id}-list` }, ...f.suggest.map((x) => h('option', { value: x }))));
@@ -105,7 +119,8 @@ export function formDialog(title, fields, submitLabel = 'Speichern') {
         }, f.action.label));
       }
     }
-    form.append(h('div', { class: 'field' }, h('label', { for: id }, f.label), input, f.hint ? h('small', {}, f.hint) : null));
+    const full = f.type === 'textarea' || f.type === 'info' || f.type === 'days' || f.type === 'file' || f.full;
+    body.append(h('div', { class: `field${full ? ' full' : ''}` }, h('label', { for: id }, f.label), input, f.hint ? h('small', {}, f.hint) : null));
   }
   form.append(
     h('div', { class: 'dialog-actions' },
@@ -118,7 +133,7 @@ export function formDialog(title, fields, submitLabel = 'Speichern') {
       /** @type {Record<string, any>} */
       const out = {};
       for (const f of fields) {
-        if (f.type === 'info') continue;
+        if (f.type === 'info' || f.type === 'section') continue;
         if (f.type === 'file') {
           out[f.name] = /** @type {HTMLInputElement} */ (form.elements.namedItem(f.name)).files?.[0] ?? null;
           continue;

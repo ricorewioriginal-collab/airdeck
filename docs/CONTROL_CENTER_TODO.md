@@ -62,7 +62,8 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     linear / Equal-Power / S in der Engine, getrennte Zeiten für Deck-Stopp, Skip, Sendungsende und
     Jingles/IDs/Spots, Kurztitel-Regel; `POST /playout/stop` blendet jetzt aus statt hart zu schneiden.
     Offen bleibt nur die grafische Kurvenvorschau (P3 · S).
-17. **[P1 · M] Regeln & Sicherung**: Einschübe-Liste "nach N Songs aus Ordner" im Rotation-Panel.
+17. ~~[P1 · M] Regeln & Sicherung: Einschübe-Liste "nach N Songs aus Ordner"~~ - erledigt: Regel-Editor im
+    Rotation-Panel (Bezeichnung, Ordner, alle N Songs, an/aus), Fülllogik in `fillFromClock` mit Zähler je Regel.
 18. [P2 · M] Sound & Stimme: Presets Radio/Warm/Hell/Laut/Sprache, Stereo-Breite, Bass/Höhen, Mikro-Gate/De-Esser.
 19. [P2 · L] Verbreitung: bis zu 2 eigene Mount-Streams mit Bitrate, SFTP-Eingang, Video-Radiostream (Visualizer, RTMP).
 20. [P3 · L] Decks erweitert: Loop, Tempo, Wellenform-Springen.
@@ -85,10 +86,17 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 28. [P3 · S] Handbuch: Suchfeld, Drucken/PDF, Rezepte.
 29. [P3 · L] Team-Hub (Feed/Chat/DM) - nur wenn Teamkommunikation gewünscht.
 
-### KI-Studio-Werkzeuge
-30. [P2 · S–M] Spot-Werkstatt: Ton-Knöpfe Kürzer/Länger/Witziger/Seriöser, RSS-Quelle, Ducking-Mix.
-31. [P3 · M] KI-Assistent: Chatverlauf mit Suche, eigene Anweisung, Prompt-Verbesserer.
-32. [P3 · L] Office-Studio.
+### KI-Studio-Werkzeuge (Abgleich mit `ki-tools.html`, Stand 2026-10-02)
+30. ~~Spot-Werkstatt~~ - erledigt: 4 Schritte (Text → Ton-Knöpfe Kürzer/Länger/Witziger/Seriöser/Radio → Stimme →
+    Musikbett mit Sidechain-Ducking per ffmpeg, `POST /ai/spot-mix`). Offen: RSS-Quelle als Textbasis (P3 · S).
+31. ~~KI-Assistent~~ - erledigt: Chat mit gespeichertem Verlauf je Sender, eigene Anweisung, Prompt-Verbesserer
+    (`/ai/chat`, `/ai/improve`). Offen: Wikipedia-gestützte Antworten mit Quellen, Bild-/Cover-Generierung (P3 · M).
+33. ~~Sendeablauf-Planer~~ - erledigt als KI-Werkstatt-Karte: JSON-Tabelle (`/ai/plan`), Zeilen bearbeiten/verschieben,
+    CSV/Druck, „→ Spot“. Offen: Deezer-Abgleich (P3).
+34. ~~Transkription~~ - erledigt: lokales `whisper` (ANMACHA_CAST_WHISPER) oder Whisper-API eines OpenAI(-kompatiblen)
+    Providers, Export TXT/SRT/JSON, Zusammenfassung/Show-Notes per KI. Offen: Suche im Transkript (P3 · S).
+35. Voice Studio: Text→Sprache in die Bibliothek vorhanden; **offen** Wellenform-Schnitt, Effekte, Stimm-Klonen (siehe 14).
+32. [P3 · L] Office-Studio und Musik-Studio (Suno): bewusst nicht enthalten - externe Dienste mit eigenem Vertrag.
 
 ## lautCast (laut.fm-Radioadmin) - Feinheiten gegenüber `automation.html`
 

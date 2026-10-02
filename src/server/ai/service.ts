@@ -2,7 +2,7 @@
 // Preise werden NICHT vorgegeben – sie trägt der Betreiber pro Modell ein. Ohne Preis wird nur gezählt.
 
 import { FileDocStore, type DocStore } from '../repo/docs.ts';
-import { AiError, TEXT_KINDS, VOICE_KINDS, chat, listModels, listVoices, speak, type ChatResult, type ProviderConfig, type SpeechResult } from './providers.ts';
+import { AiError, TEXT_KINDS, VOICE_KINDS, chat, listModels, listVoices, speak, transcribe, type ChatResult, type ProviderConfig, type SpeechResult, type TranscriptResult } from './providers.ts';
 
 export interface Pricing {
   providerId: string;
@@ -355,6 +355,31 @@ export class AiService {
       }
     }
     throw new AiError('all_failed', errors.length ? errors.join(' · ') : 'Kein Sprach-Provider konfiguriert');
+  }
+
+  /** Provider, die Audio transkribieren können (Whisper-Endpunkt): OpenAI oder OpenAI-kompatibel, egal welche Rolle. */
+  transcribers(): ProviderConfig[] {
+    return this.settings.providers.filter((p) => p.enabled && (p.kind === 'openai' || p.kind === 'openai_compat'));
+  }
+
+  async transcribe(stationId: string, audio: Buffer, filename: string, language?: string, timeoutMs = 300_000): Promise<TranscriptResult & { providerId: string }> {
+    const errors: string[] = [];
+    for (const p of this.transcribers()) {
+      if (this.quarantined(p.id)) { errors.push(`${p.name}: in Quarantäne nach wiederholten Fehlern`); continue; }
+      const started = Date.now();
+      try {
+        const r = await transcribe(p, this.getKey(`ai:${p.id}`), audio, filename, { language, timeoutMs }, this.fetchFn);
+        this.record({ at: started, stationId, providerId: p.id, model: 'whisper-1', kind: 'text', purpose: 'transcribe', inputTokens: 0, outputTokens: 0, chars: r.text.length, cost: 0, ms: Date.now() - started, ok: true });
+        this.noteSuccess(p.id);
+        return { ...r, providerId: p.id };
+      } catch (err) {
+        const msg = (err as Error).message;
+        errors.push(`${p.name}: ${msg}`);
+        this.record({ at: started, stationId, providerId: p.id, model: 'whisper-1', kind: 'text', purpose: 'transcribe', inputTokens: 0, outputTokens: 0, chars: 0, cost: 0, ms: Date.now() - started, ok: false, error: msg });
+        this.noteFailure(p.id, msg);
+      }
+    }
+    throw new AiError('all_failed', errors.length ? errors.join(' · ') : 'Kein Transkriptions-Provider (OpenAI oder OpenAI-kompatibel mit Whisper) konfiguriert und kein lokales whisper gefunden');
   }
 
   models(id: string): Promise<string[]> {

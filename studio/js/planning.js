@@ -91,6 +91,29 @@ export function mountPlanning(root, ctx) {
     render();
   }
 
+  // --- Einschübe „nach N Songs aus Ordner“ (Regeln & Sicherung im Control Center) ---
+  /** @type {any[]} */ let insertsDraft = [];
+  function insertsEditor() {
+    insertsDraft = (automation.inserts ?? []).map((/** @type {any} */ r) => ({ ...r }));
+    const list = h('div', { class: 'ins-list' });
+    const draw = () => list.replaceChildren(...(insertsDraft.length ? insertsDraft.map((r, i) => h('div', { class: 'ins-row' },
+      h('input', { type: 'text', placeholder: 'Bezeichnung', value: r.label ?? '', class: 'ins-label', oninput: (/** @type {Event} */ e) => { r.label = /** @type {HTMLInputElement} */ (e.target).value; } }),
+      h('select', { onchange: (/** @type {Event} */ e) => { r.folder = /** @type {HTMLSelectElement} */ (e.target).value; } }, ...folders.map((f) => h('option', { value: f, selected: f === r.folder }, f))),
+      h('span', { class: 'muted' }, 'alle'),
+      h('input', { type: 'number', min: '1', max: '60', value: String(r.every ?? 4), class: 'ins-num', oninput: (/** @type {Event} */ e) => { r.every = Number(/** @type {HTMLInputElement} */ (e.target).value) || 4; } }),
+      h('span', { class: 'muted' }, 'Songs'),
+      h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: r.enabled !== false, onchange: (/** @type {Event} */ e) => { r.enabled = /** @type {HTMLInputElement} */ (e.target).checked; } }), ' an'),
+      iconBtn('Entfernen', '✕', () => { insertsDraft.splice(i, 1); draw(); })))
+      : [h('div', { class: 'muted small' }, folders.length ? 'Noch keine Einschübe.' : 'Zuerst Titel in Ordnern ablegen (Tracks → Ordner).')]));
+    draw();
+    return h('div', { class: 'ins-wrap' },
+      h('div', { class: 'row', style: 'align-items:center;gap:8px;margin-top:10px' }, h('strong', {}, 'Einschübe'), h('span', { class: 'muted small' }, 'nach jeweils N Musiktiteln ein zufälliger Titel aus dem Ordner (z. B. Spots, Trailer) – zusätzlich zum Kategorien-Takt der Sendeuhr')),
+      list,
+      h('div', { class: 'row', style: 'gap:8px' },
+        h('button', { class: 'btn small', disabled: !folders.length, onclick: () => { insertsDraft.push({ label: '', folder: folders[0] ?? '', every: 4, enabled: true }); draw(); } }, '＋ Einschub'),
+        h('button', { class: 'btn small primary', onclick: () => run(async () => { automation = await ctx.api.patch(ctx.url('/automation'), { inserts: insertsDraft }); status('Einschübe gespeichert'); render(); }) }, 'Einschübe speichern')));
+  }
+
   /** @param {HTMLInputElement} artistEl @param {HTMLInputElement} titleEl @param {HTMLInputElement} genreEl @param {HTMLInputElement} bpmEl */
   async function saveRotation(artistEl, titleEl, genreEl, bpmEl) {
     const rotation = { artistSeparation: Number(artistEl.value) || 0, titleSeparation: Number(titleEl.value) || 0, genreSeparation: Number(genreEl.value) || 0, maxBpmJump: Number(bpmEl.value) || 0 };
@@ -136,13 +159,14 @@ export function mountPlanning(root, ctx) {
     const rotTitle = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: '0', max: '5000', value: String(rot.titleSeparation) }));
     const rotGenre = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: '0', max: '500', value: String(rot.genreSeparation ?? 0) }));
     const rotBpm = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: '0', max: '200', value: String(rot.maxBpmJump ?? 0) }));
-    const rotation = panel('Rotation & Regeln', [], h('div', { class: 'row', style: 'flex-wrap:wrap;gap:12px 20px' },
+    const rotation = panel('Rotation & Regeln', [], h('div', {}, h('div', { class: 'row', style: 'flex-wrap:wrap;gap:12px 20px' },
       h('label', {}, h('div', { class: 'muted' }, 'Interpret erst wieder nach … Titeln'), rotArtist),
       h('label', {}, h('div', { class: 'muted' }, 'Titel erst wieder nach … Titeln'), rotTitle),
       h('label', {}, h('div', { class: 'muted' }, 'Genre erst wieder nach … Titeln (0 = aus)'), rotGenre),
       h('label', { title: 'Begrenzt den Tempo-Sprung zum vorherigen Titel (BPM), damit sich das Tempo sanft entwickelt statt zufällig zu springen. Wirkt nur bei Titeln mit BPM-Angabe.' },
         h('div', { class: 'muted' }, 'Energie-Fluss: max. BPM-Sprung (0 = aus)'), rotBpm),
-      h('button', { class: 'btn small primary', style: 'align-self:flex-end', onclick: () => saveRotation(rotArtist, rotTitle, rotGenre, rotBpm) }, 'Speichern')));
+      h('button', { class: 'btn small primary', style: 'align-self:flex-end', onclick: () => saveRotation(rotArtist, rotTitle, rotGenre, rotBpm) }, 'Speichern')),
+      insertsEditor()));
     // --- Uhr-Vorlage (Kategorien-Takt, wiederholt sich, treibt den Auto-Fill) ---
     const slots = automation.clock?.slots ?? [];
     const addSlotSel = /** @type {HTMLSelectElement} */ (h('select', {}, ...Object.entries(CLOCK_CAT_LABEL).map(([v, l]) => h('option', { value: v }, l))));

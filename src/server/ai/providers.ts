@@ -247,3 +247,21 @@ function piper(bin: string, model: string, text: string, speed: number | undefin
     p.stdin.end(text);
   });
 }
+
+// ---------- Transkription (Whisper über OpenAI-/kompatible API) ----------
+
+export interface TranscriptSegment { start: number; end: number; text: string }
+export interface TranscriptResult { text: string; segments: TranscriptSegment[]; language?: string }
+
+export async function transcribe(p: ProviderConfig, key: string | undefined, audio: Buffer, filename: string, opts: { model?: string; language?: string; timeoutMs?: number } = {}, fetchFn: Fetch = fetch): Promise<TranscriptResult> {
+  if (p.kind !== 'openai' && p.kind !== 'openai_compat') throw new AiError('unsupported', `Provider-Typ ${p.kind} transkribiert nicht`);
+  if (p.kind === 'openai' && !key) throw new AiError('no_key', `Kein API-Key für „${p.name}“ hinterlegt`);
+  const form = new FormData();
+  form.append('file', new Blob([new Uint8Array(audio)]), filename);
+  form.append('model', opts.model || 'whisper-1');
+  form.append('response_format', 'verbose_json');
+  if (opts.language) form.append('language', opts.language);
+  const r = await call(fetchFn, `${base(p, OPENAI)}/audio/transcriptions`, { method: 'POST', headers: key ? { Authorization: `Bearer ${key}` } : {}, body: form }, opts.timeoutMs ?? 300_000);
+  const j = (await r.json()) as { text?: string; language?: string; segments?: { start: number; end: number; text: string }[] };
+  return { text: (j.text ?? '').trim(), language: j.language, segments: (j.segments ?? []).map((x) => ({ start: Number(x.start) || 0, end: Number(x.end) || 0, text: String(x.text ?? '').trim() })) };
+}

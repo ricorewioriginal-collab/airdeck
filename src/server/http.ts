@@ -841,6 +841,15 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     return app.svc.ai.aiText(sid(c), String(b.prompt ?? ''), typeof b.system === 'string' ? b.system : undefined);
   });
   add('POST', '/api/v1/stations/:sid/ai/speech', 'ai:write', async (c) => app.svc.ai.aiSpeech(sid(c), await c.body()));
+  // KI-Werkstatt (Assistent mit Verlauf, Spot-Werkstatt, Sendeablauf-Planer, Transkription)
+  add('GET', '/api/v1/stations/:sid/ai/chat', 'ai:read', (c) => app.svc.ai.chat(sid(c)));
+  add('DELETE', '/api/v1/stations/:sid/ai/chat', 'ai:write', (c) => app.svc.ai.chatClear(sid(c)));
+  add('POST', '/api/v1/stations/:sid/ai/chat', 'ai:write', async (c) => { const b = await c.body(); return app.svc.ai.chatSend(sid(c), String(b.prompt ?? ''), str(b.instruction)); });
+  add('POST', '/api/v1/stations/:sid/ai/improve', 'ai:write', async (c) => app.svc.ai.improvePrompt(sid(c), String((await c.body()).prompt ?? '')));
+  add('POST', '/api/v1/stations/:sid/ai/rewrite', 'ai:write', async (c) => { const b = await c.body(); return app.svc.ai.rewrite(sid(c), String(b.text ?? ''), String(b.tone ?? '')); });
+  add('POST', '/api/v1/stations/:sid/ai/spot-mix', 'ai:write', async (c) => app.svc.ai.spotMix(sid(c), await c.body()));
+  add('POST', '/api/v1/stations/:sid/ai/plan', 'ai:write', async (c) => app.svc.ai.planShow(sid(c), await c.body()));
+  add('POST', '/api/v1/stations/:sid/ai/transcribe', 'ai:write', async (c) => app.svc.ai.transcribe(sid(c), await c.body()));
 
   // --- Benachrichtigungen / Webhooks / Now-Playing-Export ---
   add('GET', '/api/v1/stations/:sid/integrations', 'stations:write', (c) => app.svc.notifications.integrations(sid(c)));

@@ -64,6 +64,9 @@ export interface StationData {
   playlists?: Playlist[];
   jobs?: ScheduledJob[];
   clockEvents?: ClockEvent[];
+  /** Einschübe „nach N Songs aus Ordner“ (Regeln & Sicherung) + Zähler je Regel */
+  inserts?: import('../core/automation.ts').InsertRule[];
+  insertCounters?: Record<string, number>;
   /** Nachrichten & Wetter (laut.fm): gewählter Ausgang als Zugangsquelle */
   news?: import('./services/news.ts').NewsConfig;
   plans?: ProgramPlan[];
@@ -74,6 +77,8 @@ export interface StationData {
   lautfm?: LautfmConfig;
   integrations?: IntegrationsConfig;
   ai?: AiStationConfig;
+  /** KI-Assistent: Chatverlauf je Sender (Studio-Werkzeug), gekappt */
+  aiChat?: { at: number; role: 'user' | 'assistant'; text: string }[];
   bridges?: BridgeConfig[];
   /** Hörer-Interaktion: Einstellungen, Posteingang (Wünsche, Grüße, Sprachnachrichten), Stimmen je Titel */
   listener?: import('./services/listeners.ts').ListenerConfig;
