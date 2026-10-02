@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AnMaCha-Cast-Markenfarben (aus site/index.html bzw. studio/styles.css übernommen) -->
+    <color name="brand_bg">#030914</color>
+    <color name="brand_panel">#07172B</color>
+    <color name="brand_blue">#18B7FF</color>
+    <color name="brand_text">#F5F9FF</color>
+</resources>

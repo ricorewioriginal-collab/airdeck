@@ -1,34 +1,51 @@
 # AnMaCha Cast für Android
 
-Die App hat zwei Betriebsarten, die Wahl kommt beim ersten Start:
+Native App (Kotlin + Jetpack Compose + Material 3) - kein WebView, kein PWA-Wrapper. Zwei
+Betriebsarten, die sich ohne erneute Anmeldung umschalten lassen:
 
-**Handy-Sender (ohne Server):** Das Handy sendet selbst, mit eigener Engine in Java. Die läuft als Vordergrund-Dienst weiter, auch bei ausgeschaltetem Bildschirm.
-- Mikrofon und Musik vom Handy (MP3, AAC, FLAC, OGG, WAV), Musik unter dem Mikrofon wird leiser (Ducking)
+**Studio / Fernsteuerung:** Einen laufenden AnMaCha-Cast-Server fernsteuern (Programm, Warteschlange,
+Quellen übernehmen/freigeben), über dieselbe REST-/SSE-API (`/api/v1/...`), die auch das Web-Studio nutzt.
+
+**Go Live:** Das Handy wird selbst zum Sendestudio, mit der bestehenden reinen Java-Engine (`engine/`).
+Läuft als Vordergrund-Dienst mit dauerhafter Benachrichtigung weiter, auch bei ausgeschaltetem Bildschirm.
+- Mikrofon und Musik vom Handy, Musik unter dem Mikrofon wird leiser (Ducking)
 - MP3-Encoder: LAME als reines Java (jump3r, LGPL 2.1+), keine nativen Bibliotheken
-- Sendet an laut.fm, Icecast oder AzuraCast (Icecast-Quellprotokoll PUT, bei älteren Servern SOURCE). Bei Abbruch verbindet sich die App selbst neu, die Titelanzeige geht an den Server.
+- Sendet an laut.fm, Icecast oder AzuraCast (Icecast-Quellprotokoll PUT, bei älteren Servern SOURCE).
+  Bei Abbruch verbindet sich die App selbst neu.
 - Titelliste mit automatischem Weiterspielen, Mithören über Kopfhörer, Pegelanzeigen
 
-**Mit AnMaCha Cast verbinden:** Studio eines AnMaCha-Cast-PCs oder -Servers fernsteuern (Decks, Cardwall, Queue, Quellen). Dazu MIC LIVE als Live-Quelle (Priorität 3) und Mithören.
+**Noch nicht nativ angebunden** (als solches in der App gekennzeichnet, nicht vorgetäuscht):
+MusicHub, Cardwall, Playlisten-Verwaltung, Podcasts, QR-Code-Kopplung (Kopplungscode wird manuell
+eingegeben). Diese Bereiche laufen bis dahin über das Web-Studio im Browser.
 
-Aufbau:
-- `engine/src`: Engine ohne Android-Bezug (Mischpult, Encoder, Icecast-Quelle, Takt). Wird mit `engine/test.sh` gegen einen echten Icecast getestet.
-- `native/`: Android-Schicht (Mikrofon, Decoder, Vordergrund-Dienst, Capacitor-Plugin „AnMaChaCastEngine“)
-- Oberfläche: `studio/handy.html`
+## Aufbau
+
+- `engine/src`: Engine ohne Android-Bezug (Mischpult, Encoder, Icecast-Quelle, Takt). Wird mit
+  `engine/test.sh` gegen einen echten Icecast getestet.
+- `native/`: Android-Audio-Schicht (Mikrofon, Decoder, Vordergrund-Dienst `EngineService`,
+  `EngineHub` als Fassade für die Oberfläche)
+- `app/src/main/kotlin/app/airdeck/studio/`: die native Oberfläche
+  - `data/`: REST-Client, SSE-Client (Realtime), verschlüsselte Token-Ablage
+  - `connect/`, `home/`, `studio/`, `golive/`, `more/`, `common/`: Bildschirme je Bereich
+  - `nav/AppNav.kt`: Navigation (Bottom Navigation: Home, Studio, Go Live, Mehr)
+
+Ein einziges Gradle-Projekt (keine generierte `android/`-Unterordner mehr wie zu Capacitor-Zeiten) -
+`engine/src` und `native/` werden direkt als zusätzliche Quellverzeichnisse eingebunden, nicht kopiert.
 
 ## Bauen
 
-Voraussetzungen: Node ≥ 22, JDK 21 und Android SDK (`ANDROID_HOME`).
+Voraussetzungen: JDK 17 und Android SDK (`ANDROID_HOME`) - lokal, oder automatisch über GitHub Actions
+(Workflow „Build“, Job `android`, Artefakt `AnMaCha-Cast-Android`, die Runner bringen den Android SDK
+bereits mit).
 
 ```bash
 cd apps/android
-npm install
-npm run build:debug      # → android/app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleDebug      # → app/build/outputs/apk/debug/app-debug.apk
 ```
-
-Automatisch passiert das über GitHub Actions (Workflow „Build“, Artefakt `AirDeck-Android`).
 
 ## Verbinden
 
-1. AnMaCha Cast auf dem PC mit Netzwerkfreigabe starten: `ANMACHA_CAST_HOST=0.0.0.0` (bisheriges `AIRDECK_HOST` funktioniert als Legacy-Fallback weiter)
-2. In der App die Server-Adresse eingeben (z. B. `http://192.168.1.20:8750`) und ein Token.
-   Ein Token erzeugst du mit `airdeck-engine.exe --new-admin-token`.
+1. AnMaCha Cast auf dem PC mit Netzwerkfreigabe starten: `ANMACHA_CAST_HOST=0.0.0.0` (bisheriges
+   `AIRDECK_HOST` funktioniert als Legacy-Fallback weiter)
+2. Im Studio-Dashboard einen Kopplungscode erzeugen (`POST /api/v1/pair`, 6 Ziffern, 5 Minuten gültig).
+3. In der App die Server-Adresse (z. B. `https://dein-server:8750`) und den Code eingeben.

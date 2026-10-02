@@ -1,7 +1,0 @@
-{
-  "appId": "app.airdeck.studio",
-  "appName": "AnMaCha Cast",
-  "webDir": "www",
-  "server": { "androidScheme": "https", "cleartext": true },
-  "android": { "allowMixedContent": true, "backgroundColor": "#070d18" }
-}
