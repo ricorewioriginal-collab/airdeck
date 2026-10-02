@@ -8,12 +8,11 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets" / "icons"
 
 
-def symbol(name: str, bottom_fraction: float) -> Image.Image:
+def symbol(name: str) -> Image.Image:
+    # The platform source files are already a square, self-contained mark
+    # (no wordmark stacked below) - just load and trim transparent edges.
     source = Image.open(ASSETS / name).convert("RGBA")
-    # The uploaded artwork includes a wordmark below the symbol. At launcher
-    # sizes only the symbol is legible; preserve its pixels and transparency.
-    cropped = source.crop((0, 0, source.width, round(source.height * bottom_fraction)))
-    return cropped.crop(cropped.getbbox())
+    return source.crop(source.getbbox())
 
 
 def square(source: Image.Image, size: int, fill: float = 0.90) -> Image.Image:
@@ -23,20 +22,21 @@ def square(source: Image.Image, size: int, fill: float = 0.90) -> Image.Image:
     return image
 
 
-for platform, fraction in (("windows", 0.73), ("server", 0.73)):
-    artwork = symbol(f"airdeck-{platform}.png", fraction)
+for platform in ("windows", "server"):
+    artwork = symbol(f"airdeck-{platform}.png")
     square(artwork, 256).save(
         ASSETS / f"airdeck-{platform}.ico",
         format="ICO",
         sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
     )
 
-general = symbol("airdeck-gesamt.png", 0.72)
-for size in (32, 180, 192, 512):
+general = symbol("airdeck-gesamt.png")
+for size in (32, 180, 192):
     square(general, size).save(ROOT / "studio" / "icons" / f"icon-{size}.png")
+square(general, 512, fill=0.96).save(ROOT / "studio" / "icons" / "icon-512.png")
 
-android = symbol("airdeck-android.png", 0.71)
-for folder in (ROOT / "apps" / "android" / "res").glob("mipmap-*dpi"):
+android = symbol("airdeck-android.png")
+for folder in (ROOT / "apps" / "android" / "app" / "src" / "main" / "res").glob("mipmap-*dpi"):
     for filename in ("ic_launcher.png", "ic_launcher_round.png", "ic_launcher_foreground.png"):
         target = folder / filename
         if not target.exists():
