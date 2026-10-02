@@ -3,12 +3,12 @@
 
 import type { AnMaChaCastApp } from '../app.ts';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { MEDIA_CATEGORIES, parseFileName, type MediaCategory, type MediaItem } from '../../core/automation.ts';
 import { parseM3U, toM3U } from '../../core/scheduler.ts';
-import { analyzeTrack, probeMedia, type TrackAnalysis } from '../ffmpeg.ts';
+import { analyzeKey, analyzeTrack, probeMedia, type TrackAnalysis } from '../ffmpeg.ts';
 import { AUDIO_FILE_RE, AppError, newId, type LinkedFolder } from '../model.ts';
 
 const MAX_LINKED_FILES = 20_000;
@@ -101,7 +101,12 @@ export class MediaService {
         // Track-Check in einem Durchlauf: Lautheit, Stille am Anfang/Ende, Übersteuerung, Bitrate
         const r = await analyzeTrack(this.app.ffmpeg.ffmpeg, this.mediaPath(job.stationId, m));
         if (!r || !rt!.data.library.includes(m)) continue;
+        // Tonart nur für Musik (Jingles/Sprache liefern keine sinnvolle Tonart); vor dem Übernehmen messen,
+        // damit das Ergebnis in einem Schritt sichtbar wird
+        const k = m.category === 'music' && !r.silent ? await analyzeKey(this.app.ffmpeg.ffmpeg, this.mediaPath(job.stationId, m)) : null;
+        if (!rt!.data.library.includes(m)) continue;
         applyTrackCheck(m, r);
+        if (k) { m.key = k.name; m.camelot = k.camelot; }
         this.app.publish('library.changed', job.stationId, { updated: m });
         this.app.changed();
       }
@@ -118,6 +123,9 @@ export class MediaService {
     if (typeof patch.category === 'string' && (MEDIA_CATEGORIES as readonly string[]).includes(patch.category)) m.category = patch.category as MediaItem['category'];
     if (typeof patch.folder === 'string') m.folder = patch.folder.trim().slice(0, 80) || undefined;
     if (typeof patch.genre === 'string') m.genre = patch.genre.trim().slice(0, 80) || undefined;
+    if (typeof patch.album === 'string') m.album = patch.album.trim().slice(0, 200) || undefined;
+    if (typeof patch.key === 'string') { m.key = patch.key.trim().slice(0, 20) || undefined; if (!m.key) delete m.camelot; }
+    if (typeof patch.camelot === 'string') m.camelot = patch.camelot.trim().slice(0, 4) || undefined;
     for (const k of ['durationMs', 'cueInMs', 'cueOutMs', 'segueMs', 'introMs', 'loopEndMs', 'bpm', 'gainDb', 'year'] as const) {
       const v = patch[k];
       if (v === null && k !== 'durationMs') delete m[k];
@@ -170,6 +178,128 @@ export class MediaService {
       return null;
     }
     return file;
+  }
+
+  /** Test-/Austauschpunkt für die Online-Suche */
+  fetchImpl: typeof fetch = (...a) => fetch(...a);
+
+  /**
+   * Track-TÜV: Tonart jetzt messen (braucht ffmpeg). Setzt key/camelot am Titel.
+   */
+  async analyzeKeyNow(stationId: string, id: string): Promise<MediaItem> {
+    const m = this.media(stationId, id);
+    if (!this.app.ffmpeg) throw new AppError(501, 'unsupported', 'Tonart-Analyse benötigt ffmpeg');
+    if (m.url) throw new AppError(400, 'stream', 'Streams haben keine Tonart');
+    const k = await analyzeKey(this.app.ffmpeg.ffmpeg, this.mediaPath(stationId, m));
+    if (!k) throw new AppError(422, 'no_key', 'Keine Tonart erkennbar (Datei still oder nicht lesbar)');
+    m.key = k.name;
+    m.camelot = k.camelot;
+    this.app.publish('library.changed', stationId, { updated: m });
+    this.app.changed();
+    return m;
+  }
+
+  /**
+   * Online-Tag-/Cover-Suche (Track-TÜV): iTunes Search (Cover, Genre, Jahr) und MusicBrainz (Titel, Interpret,
+   * Album, Jahr). Liefert Kandidaten, geändert wird erst mit applyLookup().
+   */
+  async lookupTags(stationId: string, id: string, q?: { artist?: string; title?: string }): Promise<LookupCandidate[]> {
+    const m = this.media(stationId, id);
+    const artist = (q?.artist ?? m.artist ?? '').trim();
+    const title = (q?.title ?? m.title ?? '').trim();
+    if (!artist && !title) throw new AppError(400, 'empty', 'Interpret oder Titel angeben');
+    const out: LookupCandidate[] = [];
+    const ua = { headers: { 'User-Agent': 'AnMaCha Cast/1.0 (https://ricorewi-radio.de)', Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) };
+    try {
+      const r = await this.fetchImpl(`https://itunes.apple.com/search?term=${encodeURIComponent(`${artist} ${title}`.trim())}&entity=song&limit=5&country=de`, ua);
+      if (r.ok) {
+        const j = (await r.json()) as { results?: { artistName?: string; trackName?: string; collectionName?: string; releaseDate?: string; primaryGenreName?: string; artworkUrl100?: string }[] };
+        for (const it of j.results ?? []) {
+          if (!it.trackName) continue;
+          out.push({ source: 'itunes', title: it.trackName, artist: it.artistName ?? '', album: it.collectionName, year: it.releaseDate ? Number(it.releaseDate.slice(0, 4)) || undefined : undefined, genre: it.primaryGenreName, coverUrl: it.artworkUrl100?.replace('100x100bb', '600x600bb') });
+        }
+      }
+    } catch { /* iTunes nicht erreichbar - MusicBrainz reicht */ }
+    try {
+      const mbQ = [artist ? `artist:"${artist.replace(/"/g, '')}"` : '', title ? `recording:"${title.replace(/"/g, '')}"` : ''].filter(Boolean).join(' AND ');
+      const r = await this.fetchImpl(`https://musicbrainz.org/ws/2/recording?query=${encodeURIComponent(mbQ)}&limit=5&fmt=json`, ua);
+      if (r.ok) {
+        const j = (await r.json()) as { recordings?: { title?: string; 'artist-credit'?: { name?: string }[]; releases?: { id?: string; title?: string; date?: string }[] }[] };
+        for (const rec of j.recordings ?? []) {
+          if (!rec.title) continue;
+          const rel = rec.releases?.[0];
+          out.push({ source: 'musicbrainz', title: rec.title, artist: rec['artist-credit']?.[0]?.name ?? '', album: rel?.title, year: rel?.date ? Number(rel.date.slice(0, 4)) || undefined : undefined, coverUrl: rel?.id ? `https://coverartarchive.org/release/${rel.id}/front-500` : undefined });
+        }
+      }
+    } catch { /* MusicBrainz nicht erreichbar */ }
+    if (!out.length) throw new AppError(404, 'not_found', 'Online nichts gefunden (oder keine Internetverbindung)');
+    // Dubletten (gleicher Interpret + Titel) zusammenfassen, iTunes-Treffer zuerst
+    const seen = new Set<string>();
+    return out.filter((c) => { const k = `${c.artist}|${c.title}`.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  }
+
+  /** Gewählten Kandidaten übernehmen: nur leere oder ausdrücklich freigegebene Felder, Cover herunterladen. */
+  async applyLookup(stationId: string, id: string, c: Partial<LookupCandidate> & { overwrite?: boolean; cover?: boolean }): Promise<MediaItem> {
+    const m = this.media(stationId, id);
+    const set = (k: 'title' | 'artist' | 'album' | 'genre', v?: string) => { if (v && (c.overwrite || !m[k])) m[k] = v.slice(0, 200); };
+    set('title', typeof c.title === 'string' ? c.title : undefined);
+    set('artist', typeof c.artist === 'string' ? c.artist : undefined);
+    set('album', typeof c.album === 'string' ? c.album : undefined);
+    set('genre', typeof c.genre === 'string' ? c.genre : undefined);
+    if (typeof c.year === 'number' && Number.isFinite(c.year) && (c.overwrite || !m.year)) m.year = Math.round(c.year);
+    let coverSaved = false;
+    if (c.cover !== false && typeof c.coverUrl === 'string' && /^https:\/\//.test(c.coverUrl)) {
+      try {
+        const r = await this.fetchImpl(c.coverUrl, { headers: { 'User-Agent': 'AnMaCha Cast/1.0 (https://ricorewi-radio.de)' }, signal: AbortSignal.timeout(15_000), redirect: 'follow' });
+        const type = r.headers.get('content-type') ?? '';
+        if (r.ok && /image\/(jpeg|png|webp)/.test(type)) {
+          const data = Buffer.from(await r.arrayBuffer());
+          if (data.length > 0 && data.length <= 5 * 1024 * 1024) {
+            const dir = join(this.app.dataDir, 'covers', stationId);
+            mkdirSync(dir, { recursive: true });
+            const file = join(dir, `${m.id}.jpg`);
+            if (this.app.ffmpeg && !/jpeg/.test(type)) {
+              const tmp = join(dir, `${m.id}.dl`);
+              writeFileSync(tmp, data);
+              await new Promise<void>((resolve) => { const p = spawn(this.app.ffmpeg!.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-i', tmp, '-vf', 'scale=300:300:force_original_aspect_ratio=increase,crop=300:300', file], { windowsHide: true }); p.on('error', () => resolve()); p.on('close', () => resolve()); });
+              rmSync(tmp, { force: true });
+            } else writeFileSync(file, data);
+            rmSync(`${file}.none`, { force: true });
+            coverSaved = existsSync(file);
+          }
+        }
+      } catch { /* Cover optional */ }
+    }
+    this.app.audit.write({ kind: 'media', event: 'lookup_applied', stationId, mediaId: m.id, cover: coverSaved });
+    this.app.publish('library.changed', stationId, { updated: m });
+    this.app.changed();
+    return m;
+  }
+
+  /** Track-TÜV-Bericht: Vorher (gemessen) / Nachher (nach Angleichung auf die Ziel-Lautheit) je Titel. */
+  tuevReport(stationId: string): TuevRow[] {
+    const rt = this.app.rt(stationId);
+    const target = rt.data.playout?.loudness?.targetLufs ?? -16;
+    return rt.data.library.filter((m) => !m.url).map((m) => {
+      const gain = m.lufs != null ? Math.round((target - m.lufs) * 10) / 10 : null;
+      const peakAfter = m.lufs != null && m.truePeakDb != null ? Math.round((m.truePeakDb + (gain ?? 0)) * 10) / 10 : null;
+      return {
+        id: m.id, title: m.title, artist: m.artist, category: m.category, durationMs: m.durationMs,
+        lufs: m.lufs ?? null, truePeakDb: m.truePeakDb ?? null, gainDb: gain, lufsAfter: m.lufs != null ? target : null, peakAfterDb: peakAfter,
+        limited: peakAfter != null && peakAfter > -1, key: m.key ?? null, camelot: m.camelot ?? null, bitrateKbps: m.check?.bitrateKbps ?? null,
+        warnings: trackWarnings(m), checkedAt: m.check?.at ?? null,
+      };
+    });
+  }
+
+  tuevCsv(stationId: string): string {
+    const f = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const n = (v: number | null) => (v == null ? '' : String(v).replace('.', ','));
+    const lines = [['Titel', 'Interpret', 'Kategorie', 'Länge (s)', 'LUFS vorher', 'True Peak vorher (dBTP)', 'Gain (dB)', 'LUFS nachher', 'True Peak nachher (dBTP)', 'Limiter nötig', 'Tonart', 'Camelot', 'Bitrate (kbit/s)', 'Hinweise', 'Geprüft'].map(f).join(';')];
+    for (const r of this.tuevReport(stationId)) {
+      lines.push([r.title, r.artist, r.category, r.durationMs != null ? Math.round(r.durationMs / 1000) : '', n(r.lufs), n(r.truePeakDb), n(r.gainDb), n(r.lufsAfter), n(r.peakAfterDb), r.limited ? 'ja' : '', r.key ?? '', r.camelot ?? '', r.bitrateKbps ?? '', r.warnings.join(', '), r.checkedAt ? new Date(r.checkedAt).toLocaleString('de-DE') : ''].map(f).join(';'));
+    }
+    return lines.join('\r\n') + '\r\n';
   }
 
   folders(stationId: string): string[] {
@@ -452,3 +582,19 @@ export function trackWarnings(m: MediaItem): string[] {
   return w;
 }
 
+
+export interface LookupCandidate {
+  source: 'itunes' | 'musicbrainz';
+  title: string;
+  artist: string;
+  album?: string;
+  year?: number;
+  genre?: string;
+  coverUrl?: string;
+}
+
+export interface TuevRow {
+  id: string; title: string; artist: string; category: string; durationMs: number | null;
+  lufs: number | null; truePeakDb: number | null; gainDb: number | null; lufsAfter: number | null; peakAfterDb: number | null;
+  limited: boolean; key: string | null; camelot: string | null; bitrateKbps: number | null; warnings: string[]; checkedAt: number | null;
+}

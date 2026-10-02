@@ -748,6 +748,16 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   // --- Lautheitsanalyse & Klangprofile ---
   add('GET', '/api/v1/dsp/presets', 'automation:read', () => DSP_PRESETS);
   add('GET', '/api/v1/stations/:sid/media/loudness', 'media:read', (c) => app.svc.media.loudnessStatus(sid(c)));
+  // Track-TÜV: Tonart, Online-Tags/Cover, Vorher/Nachher-Bericht
+  add('GET', '/api/v1/stations/:sid/media/tuev', 'media:read', (c) => app.svc.media.tuevReport(sid(c)));
+  add('GET', '/api/v1/stations/:sid/media/tuev.csv', 'media:read', (c) => {
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="track-tuev-${sid(c)}.csv"` });
+    c.res.end('\ufeff' + app.svc.media.tuevCsv(sid(c)));
+    return STREAMED;
+  });
+  add('POST', '/api/v1/stations/:sid/media/:id/key', 'media:write', (c) => app.svc.media.analyzeKeyNow(sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/media/:id/lookup', 'media:read', (c) => app.svc.media.lookupTags(sid(c), c.params.id!, { artist: c.url.searchParams.get('artist') ?? undefined, title: c.url.searchParams.get('title') ?? undefined }));
+  add('POST', '/api/v1/stations/:sid/media/:id/lookup', 'media:write', async (c) => app.svc.media.applyLookup(sid(c), c.params.id!, await c.body()));
   add('POST', '/api/v1/stations/:sid/media/loudness', 'media:write', async (c) => app.svc.media.analyzeLibrary(sid(c), (await c.body()).force === true));
 
   // --- Nextcloud-Brücke ---

@@ -90,6 +90,11 @@ export class Api {
   put = (/** @type {string} */ p, /** @type {any} */ b) => this.req('PUT', p, b);
   del = (/** @type {string} */ p) => this.req('DELETE', p);
 
+  /** Cover eines Titels (eingebettet oder online geholt), 404 ohne Cover. @param {string} stationId @param {string} mediaId */
+  coverUrl(stationId, mediaId) {
+    return `${this.base}/api/v1/stations/${encodeURIComponent(stationId)}/media/${encodeURIComponent(mediaId)}/cover?token=${encodeURIComponent(this.token)}`;
+  }
+
   /** @param {string} stationId @param {string} mediaId */
   mediaUrl(stationId, mediaId) {
     return `${this.base}/api/v1/stations/${encodeURIComponent(stationId)}/media/${encodeURIComponent(mediaId)}/file?token=${encodeURIComponent(this.token)}`;

@@ -58,6 +58,9 @@ export interface MediaItem {
   lufs?: number;
   /** Gemessener True-Peak in dBTP */
   truePeakDb?: number;
+  /** Tonart (Track-TÜV, Krumhansl), z. B. "A Moll"; camelot z. B. "8A" */
+  key?: string;
+  camelot?: string;
   /** Herkunft, z. B. "nextcloud:/Radio/Hits/x.mp3" (verhindert doppelte Übernahme) */
   source?: string;
   /** Eingebundener Ordner: absoluter Pfad der Originaldatei (wird nie kopiert und nie gelöscht) */

@@ -46,7 +46,6 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 5. ~~[P2 · S] Ereignisse: Typen KI-Ansage und Nachrichten-/Werbe-Trigger, "Jetzt beenden"~~ - erledigt: Zeitplan/Stunden-Uhr
    kennen Kategorie (z. B. Werbung), laut.fm-Nachrichten und KI-Ansage (`kind: ai`, Moderation oder KI-Nachrichten über den
    Regisseur), Dialog zeigt nur die Felder der gewählten Art, „⏭ Jetzt beenden“ im Zeitplan, Preflight prüft alle Arten.
-6. [P2 · L] Rundown-/Sendeablauf-Planer mit Segmenttypen, Backtiming und Live-Modus.
 
 ### KI & Automatik
 8. ~~[P2 · M] News-Zentrale (Show-Prep): Feed-/Artikelwahl, Wetter-Block, KI-Vorschlag, Teleprompter~~ - erledigt: eigene
@@ -65,7 +64,10 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 10. ~~[P1 · M] Cardwall → Soundboard~~ - erledigt: Tags (Filter-Chips) + Suche, Favoriten, Zuletzt gespielt,
     Tastenkürzel je Cart (eindeutig je Sender), Show-Modus (Vollbild mit großen Carts), Esc/„Alle stoppen“
     blendet alle Carts aus (`POST /playout/carts-stop`, auch Browser-Wiedergabe).
-11. [P2 · M] Track-TÜV: Tonart-Analyse, Online-Tag-/Cover-Suche, Vorher/Nachher-Export (LUFS-Messung existiert).
+11. ~~[P2 · M] Track-TÜV: Tonart-Analyse, Online-Tag-/Cover-Suche, Vorher/Nachher-Export~~ - erledigt: Tonart (Krumhansl-
+    Schmuckler, Camelot) im Track-Check für Musik und einzeln (♪), Online-Suche iTunes + MusicBrainz mit Cover-Download (🔎),
+    Panel „Track-TÜV“ in „Tracks“ mit Vorher/Nachher-Bericht (LUFS/True Peak gemessen → nach Angleichung, Gain, Limiter,
+    Tonart, Hinweise) als CSV.
 12. ~~[P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen~~ - erledigt: Podcast-Einstellungen
     → „Automatisch veröffentlichen“ (Vorlagen mit {label} {date} {time} {weekday} {duration} {station} {n}, Mindestdauer,
     nur Zeitfenster, sofort/Entwurf, fortlaufende Nummer); offen: [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
