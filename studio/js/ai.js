@@ -310,6 +310,7 @@ export function mountAi(root, ctx) {
       ['Station-ID', 'Schreibe 5 kurze Station-IDs (je max. 8 Wörter) für unseren Sender, Stil: '],
       ['Sendungsidee', 'Plane eine einstündige Radiosendung mit Ablauf, Themen und Moderationsideen zum Thema: '],
       ['Hörergruß', 'Formuliere einen kurzen, freundlichen Hörergruß für die Moderation: '],
+      ['Sendeablauf-Planer', 'Erstelle einen minutengenauen Sendeablauf als Tabelle (Spalten: Uhrzeit | Dauer | Segment | Inhalt/Moderationsstichpunkte) für eine Sendestunde zum Thema: '],
     ];
     return [
       h('div', { class: 'view-grid' },
