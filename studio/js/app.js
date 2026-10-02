@@ -13,6 +13,7 @@ import { mountPlanning, mountRecorder } from './planning.js';
 import { mountMediaManagement } from './mediamgmt.js';
 import { mountJingles } from './jingles.js';
 import { mountNews } from './news.js';
+import { mountShowPrep } from './showprep.js';
 import { mountStats } from './stats.js';
 import { mountPlaylistManagement } from './playlists.js';
 import { mountHandbuch } from './handbuch.js';
@@ -407,6 +408,7 @@ async function loadStation() {
     mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, stationId: () => S.station.id, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),
     jingles: mountJingles($('view-jingles'), { ...ctx, upload: (files, category) => upload(files, category) }),
     news: mountNews($('view-news'), ctx),
+    showprep: mountShowPrep($('view-showprep'), ctx),
     stats: mountStats($('view-stats'), ctx),
     playlists: mountPlaylistManagement($('view-playlists'), ctx),
     handbuch: mountHandbuch($('view-handbuch')),
@@ -2254,7 +2256,7 @@ function showView(name, sub) {
     b.setAttribute('aria-pressed', String(el.dataset.view === name && (el.dataset.sub ?? '') === (sub ?? '')));
   }
   $('sidebar').classList.remove('open');
-  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'jingles', 'news', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'stats', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
+  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'jingles', 'news', 'showprep', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'stats', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
   if (name !== 'studio') {
     const shown = views[name]?.show();
     if (sub) void Promise.resolve(shown).then(() => jumpToSub($(`view-${name}`), sub));
