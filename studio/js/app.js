@@ -979,15 +979,32 @@ async function editAudio() {
   const outs = await outputDevices();
   const opts = /** @type {[string,string][]} */ ([['', 'Windows-Standardgerät'], ...outs.filter((d) => d.deviceId !== 'default').map((d, i) => /** @type {[string,string]} */ ([d.deviceId, d.label || `Ausgang ${i + 1}`]))]);
   const dev = /** @type {any} */ (await run(() => api.get('/audio-devices'))) ?? { devices: [] };
+  const presets = /** @type {Record<string, any>} */ ((await run(() => api.get('/dsp/presets'))) ?? {});
   const cfg = S.playout?.config ?? {};
+  const dsp = cfg.dsp ?? {};
+  const mic = cfg.mic ?? { gate: 0, highpass: true, eq: 'off', deesser: false, compressor: 30 };
+  const micEq = /** @type {Record<string,string>} */ (S.playout?.micEq ?? { off: 'Aus', clear: 'Klar', warm: 'Warm', radio: 'Radio-Stimme' });
   const canSink = 'setSinkId' in HTMLMediaElement.prototype;
-  const v = await formDialog('Audio & Geräte', [
-    { name: 'info', label: 'So läuft das Audio', type: 'info', value: 'Server-Automation → Encoder → Stream. Hier wählst du, wo du im Studio mithörst (Sendesignal) und wo du vorhörst (CUE/PFL), z. B. Lautsprecher und Kopfhörer getrennt.' },
+  const v = await formDialog('Sound & Stimme', [
+    { type: 'section', label: 'Abhören im Studio', hint: 'Wo dieses Studio mithört und vorhört – nur für diesen Browser' },
     { name: 'program', label: 'Sendesignal mithören auf', value: pref(AUDIO_PREF.program), options: opts, hint: canSink ? '' : 'Dieser Browser kann kein Ausgabegerät wählen – es gilt das Standardgerät' },
     { name: 'cue', label: 'Vorhören (CUE/PFL) auf', value: pref(AUDIO_PREF.cue), options: opts },
     { name: 'auto', label: 'Beim Start automatisch mithören', type: 'checkbox', value: pref(AUDIO_PREF.auto) === '1' },
-    { name: 'input', label: 'Mikrofon / Line-In am AnMaCha Cast-PC (für die Server-Automation)', value: cfg.inputDevice ?? '', options: [['', '– kein Eingang –'], ...(dev.devices ?? []).map((/** @type {any} */ d) => /** @type {[string,string]} */ ([d.id, d.name]))], hint: dev.devices?.length ? 'Einschalten mit „Mic“ in der Server-Automation' : 'Keine Eingänge gefunden (ffmpeg nötig)' },
-  ]);
+    { type: 'section', label: 'Sound-Prozessor (Master)', hint: 'Kette im Sender: Bass/Höhen → EQ → Multiband/Kompressor → AGC → Stereo-Breite → Limiter' },
+    { name: 'preset', label: 'Klangprofil', value: dsp.preset ?? '', options: [['', 'Eigene Einstellung'], ...Object.entries(presets).map(([k, p]) => /** @type {[string,string]} */ ([k, p.label]))], hint: 'Ein neu gewähltes Profil setzt Bass, Höhen, Breite, EQ und Dynamik – danach frei anpassbar (EQ und Dynamik unter Sendereinstellungen)' },
+    { name: 'bassDb', label: 'Bass (dB, −12 … +12)', type: 'number', value: dsp.bassDb ?? 0 },
+    { name: 'trebleDb', label: 'Höhen (dB, −12 … +12)', type: 'number', value: dsp.trebleDb ?? 0 },
+    { name: 'stereoWidth', label: 'Stereo-Breite (%, 0 = mono, 100 = normal, bis 200)', type: 'number', value: dsp.stereoWidth ?? 100 },
+    { name: 'agc', label: 'Auto-Gain (AGC, EBU R128)', type: 'checkbox', value: !!dsp.agc, hint: 'Hält die Summe auf der Ziel-Lautheit aus den Sendereinstellungen' },
+    { type: 'section', label: 'Voice-Processing (Mikrofon / Line-In)', hint: 'Kette: Gate → Trittschall → Sprach-EQ → De-Esser → Kompressor – gilt für den Eingang am AnMaCha Cast-PC' },
+    { name: 'input', label: 'Eingang am AnMaCha Cast-PC', value: cfg.inputDevice ?? '', options: [['', '– kein Eingang –'], ...(dev.devices ?? []).map((/** @type {any} */ d) => /** @type {[string,string]} */ ([d.id, d.name]))] },
+    { name: 'micGainDb', label: 'Mikrofon-Pegel (dB)', type: 'number', value: cfg.micGainDb ?? 0 },
+    { name: 'micEq', label: 'Sprach-EQ', value: mic.eq ?? 'off', options: Object.entries(micEq).map(([k, l]) => /** @type {[string,string]} */ ([k, l])) },
+    { name: 'micGate', label: 'Noise-Gate (0 = aus … 100)', type: 'number', value: mic.gate ?? 0, hint: 'Schließt zwischen den Sätzen – Raumrauschen und Lüfter verschwinden' },
+    { name: 'micComp', label: 'Kompression (0 = aus … 100)', type: 'number', value: mic.compressor ?? 30, hint: 'Gleicht laute und leise Passagen an' },
+    { name: 'micDeesser', label: 'De-Esser (zischende S-Laute dämpfen)', type: 'checkbox', value: !!mic.deesser },
+    { name: 'micHighpass', label: 'Trittschall-Filter (unter 70 Hz)', type: 'checkbox', value: mic.highpass !== false },
+  ], 'Speichern', { wide: true, subtitle: 'Abhören, Master-Sound und Mikrofon-Kette an einem Ort.' });
   if (!v) return;
   setPref(AUDIO_PREF.program, v.program);
   setPref(AUDIO_PREF.cue, v.cue);
@@ -995,8 +1012,16 @@ async function editAudio() {
   if (audio) await applySink(audio.ctx, v.program);
   if (S.listen) await applySink(S.listen, v.program);
   if (pfl) await applySink(pfl.el, v.cue);
-  if ((v.input || '') !== (cfg.inputDevice ?? '')) S.playout = (await run(() => api.patch(url('/playout'), { inputDevice: v.input }))) ?? S.playout;
-  status('Audio-Einstellungen gespeichert');
+  const chosen = v.preset && v.preset !== (dsp.preset ?? '') ? presets[v.preset]?.dsp : null;
+  const nextDsp = chosen ? { ...chosen, preset: v.preset } : { ...dsp, preset: v.preset, bassDb: v.bassDb ?? 0, trebleDb: v.trebleDb ?? 0, stereoWidth: v.stereoWidth ?? 100, agc: !!v.agc };
+  const body = { inputDevice: v.input, micGainDb: v.micGainDb ?? 0, dsp: nextDsp, mic: { gate: v.micGate ?? 0, compressor: v.micComp ?? 0, eq: v.micEq, deesser: !!v.micDeesser, highpass: !!v.micHighpass } };
+  S.playout = (await run(() => api.patch(url('/playout'), body))) ?? S.playout;
+  if (serverMode() && (nextDsp !== dsp || (v.input || '') !== (cfg.inputDevice ?? '')) && confirm('Playout jetzt mit neuem Sound/Mikrofon neu starten? (Kurzer Fallback auf die nächste Quelle)')) {
+    await run(() => api.post(url('/playout/stop')));
+    S.playout = (await run(() => api.post(url('/playout/start'), {}))) ?? S.playout;
+  }
+  renderPlayout();
+  status('Sound & Stimme gespeichert');
 }
 
 // ---------- Render: Decks ----------

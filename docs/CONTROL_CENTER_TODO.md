@@ -68,7 +68,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     Offen bleibt nur die grafische Kurvenvorschau (P3 · S).
 17. ~~[P1 · M] Regeln & Sicherung: Einschübe-Liste "nach N Songs aus Ordner"~~ - erledigt: Regel-Editor im
     Rotation-Panel (Bezeichnung, Ordner, alle N Songs, an/aus), Fülllogik in `fillFromClock` mit Zähler je Regel.
-18. [P2 · M] Sound & Stimme: Presets Radio/Warm/Hell/Laut/Sprache, Stereo-Breite, Bass/Höhen, Mikro-Gate/De-Esser.
+18. ~~[P2 · M] Sound & Stimme~~ - erledigt: Master-Presets Neutral/Radio/Musik/Warm/Hell/Laut & dicht/Sprache/
+    Klassik, Bass/Höhen (dB), Stereo-Breite (%), Auto-Gain; Mikrofon-Kette Gate → Trittschall → Sprach-EQ
+    (Klar/Warm/Radio) → De-Esser → Kompressor (`mic` in der Playout-Konfiguration, ffmpeg-Filter am Eingang).
 19. [P2 · L] Verbreitung: bis zu 2 eigene Mount-Streams mit Bitrate, SFTP-Eingang, Video-Radiostream (Visualizer, RTMP).
 20. [P3 · L] Decks erweitert: Loop, Tempo, Wellenform-Springen.
 
