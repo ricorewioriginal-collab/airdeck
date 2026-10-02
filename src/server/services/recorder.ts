@@ -51,6 +51,10 @@ export class RecorderService {
           active.stream = null;
           active.rec.endedAt = Date.now();
           this.app.changed();
+          // Auto-Veröffentlichung als Podcast-Episode (nach Vorlage), falls eingeschaltet
+          if (active.rec.id) {
+            try { this.app.svc.podcast.autoEpisode(stationId, active.rec); } catch (err) { this.app.audit.write({ kind: 'podcast', event: 'auto_failed', stationId, error: (err as Error).message }); }
+          }
         },
       },
     };
