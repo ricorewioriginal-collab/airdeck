@@ -83,7 +83,7 @@ test('Server-Playout sendet 24/7 ohne Browser, mit Skip, Neustart und Stille-Fal
     for (const m of [...app.svc.media.library('main')]) app.svc.media.removeMedia('main', m.id);
     wav(join(app.mediaDir, 'main', 'quiet.wav'), 20, 0);
     app.svc.media.addMedia('main', { id: 'quiet.wav', title: 'quiet', artist: '', category: 'music', file: 'quiet.wav', durationMs: 20000, addedAt: 0 });
-    app.stopPlayout(admin, 'main');
+    await app.stopPlayout(admin, 'main');
     const backup = app.engine.addSource({ id: 'backup', stationId: 'main', name: 'Backup', type: 'backup_automation', target: '/live', priority: 20, takeoverPolicy: 'auto', allowedRoles: [] });
     app.engine.connect(backup.id);
     app.startPlayout(admin, 'main', { silenceMs: 2000 });
@@ -92,7 +92,7 @@ test('Server-Playout sendet 24/7 ohne Browser, mit Skip, Neustart und Stille-Fal
     assert.equal(app.engine.activeFor('main', '/live')?.id, 'backup');
 
     // Bewusst gestoppt → kein Autostart
-    app.stopPlayout(admin, 'main');
+    await app.stopPlayout(admin, 'main');
     assert.equal((app.playoutView('main') as { config: { autostart: boolean } }).config.autostart, false);
   } finally {
     app.shutdown();

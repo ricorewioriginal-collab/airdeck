@@ -64,6 +64,8 @@ export interface StationData {
   playlists?: Playlist[];
   jobs?: ScheduledJob[];
   clockEvents?: ClockEvent[];
+  /** Nachrichten & Wetter (laut.fm): gewählter Ausgang als Zugangsquelle */
+  news?: import('./services/news.ts').NewsConfig;
   plans?: ProgramPlan[];
   recPlans?: RecordingPlan[];
   recordings?: Recording[];
@@ -87,6 +89,8 @@ export interface StationData {
   episodes?: Episode[];
   /** Stichproben für den Sendungs-Rückblick (alle 30 s: aktuelle Hörerzahl + gesendete Bytes über alle Ausgänge). */
   recapSamples?: RecapSample[];
+  /** Hörerzahl je Stunde (Ø/Spitze), 100 Tage - Grundlage der Hörerstatistik über 7/30/90 Tage. */
+  listenerHours?: ListenerHour[];
   /** Motion-Mix-Videos (animierter Hintergrund + Wellenform + Titel-Einblendungen aus einer Playlist). */
   motionMixJobs?: MotionMixJob[];
 }
@@ -200,6 +204,19 @@ export interface PlayLogEntry {
   title: string;
   artist: string;
   category: string;
+  /** Hörer über alle verbundenen Ausgänge beim Start des Titels (Statistik: Ø Hörer/Song) */
+  listeners?: number;
+  /** Lief, während eine Live-Quelle (Moderator, Studio-App) auf Sendung war */
+  live?: boolean;
+}
+
+/** Stunden-Aggregat der Hörerzahl (für Zeiträume jenseits der 48-h-Stichproben), 100 Tage. */
+export interface ListenerHour {
+  /** Stundenbeginn (ms) */
+  at: number;
+  sum: number;
+  n: number;
+  peak: number;
 }
 
 export interface ActiveRecording {

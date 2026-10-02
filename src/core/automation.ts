@@ -33,9 +33,9 @@ export interface MediaItem {
   introMs?: number;
   /**
    * Motion-Cart: Ende des schleifbaren Loop-Bereichs (ab cueInMs) bei Jingles/Betten/Sweepern - danach
-   * beginnt Drop/Outro. Wie die intro/loop/drop-Tasten bei Foster Kents "Motion Mixes": markiert nur
-   * den Übergang, die eigentliche Endlos-Wiedergabe mit Weiterschalten ist ein eigener, noch offener
-   * Engine-Schritt (siehe docs/FEATURE_PARITY.md).
+   * beginnt Drop/Outro. Wie die intro/loop/drop-Tasten bei Foster Kents "Motion Mixes": Carts und von
+   * Hand gestartete Decks wiederholen den Bereich endlos, bis „Weiter“ gedrückt wird (Engine:
+   * Voice.readBlock/advance in src/server/playout.ts); die Automation loopt nie.
    */
   loopEndMs?: number;
   bpm?: number;

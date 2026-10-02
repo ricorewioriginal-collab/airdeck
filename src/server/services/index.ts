@@ -15,6 +15,7 @@ import { ListenerService } from './listeners.ts';
 import { MediaService } from './media.ts';
 import { MotionMixService } from './motionmix.ts';
 import { MusicHubService } from './musikhub.ts';
+import { NewsService } from './news.ts';
 import { NextcloudService } from './nextcloud.ts';
 import { NotificationService } from './notifications.ts';
 import { PlanningService } from './planning.ts';
@@ -23,6 +24,7 @@ import { RecapService } from './recap.ts';
 import { RecorderService } from './recorder.ts';
 import { SetupService } from './setup.ts';
 import { StationService } from './stations.ts';
+import { StatsService } from './stats.ts';
 import { StatusService } from './status.ts';
 import { SystemService } from './system.ts';
 
@@ -43,8 +45,10 @@ export function createServices(app: AnMaChaCastApp) {
     recorder: new RecorderService(app),
     planning: new PlanningService(app),
     lifehacks: new LifehacksService(app),
+    news: new NewsService(app),
     podcast: new PodcastService(app),
     recap: new RecapService(app),
+    stats: new StatsService(app),
     motionMix: new MotionMixService(app),
     setup: new SetupService(app),
     listeners: new ListenerService(app),
