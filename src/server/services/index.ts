@@ -24,6 +24,7 @@ import { RecapService } from './recap.ts';
 import { RecorderService } from './recorder.ts';
 import { SetupService } from './setup.ts';
 import { StationService } from './stations.ts';
+import { StatsService } from './stats.ts';
 import { StatusService } from './status.ts';
 import { SystemService } from './system.ts';
 
@@ -47,6 +48,7 @@ export function createServices(app: AirDeckApp) {
     news: new NewsService(app),
     podcast: new PodcastService(app),
     recap: new RecapService(app),
+    stats: new StatsService(app),
     motionMix: new MotionMixService(app),
     setup: new SetupService(app),
     listeners: new ListenerService(app),

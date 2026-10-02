@@ -68,9 +68,12 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 20. [P3 · L] Decks erweitert: Loop, Tempo, Wellenform-Springen.
 
 ### Auswertung
-21. **[P1 · L] Hörerstatistik**: Chips Heute/24h/7 Tage/30 Tage/3 Monate, Stat-Kacheln (Gespielt, Hörer jetzt,
-    Ø Hörer/Song, Peak, Rang, Live-Plays, einz. Songs, Top Song), Untertabs Gespielt/Top-Songs/Hörer-Verlauf/
-    Genre-Mix/Live-Plays/DB-Abgleich; dafür Hörer-Zeitreihe im Backend (heute nur `recapSamples`).
+21. ~~[P1 · L] Hörerstatistik~~ - erledigt: Ansicht `studio/js/stats.js` + `services/stats.ts` (GET `/stats?period=`):
+    Chips Heute/24 h/7 Tage/30 Tage/3 Monate, 8 Kacheln (Gespielt, Hörer jetzt, Ø Hörer/Song, Peak, Live-Plays,
+    einz. Songs, Std. mit Hörern, Top Song), Untertabs Gespielt / Top-Songs / Hörer-Verlauf (SVG, Ø + Spitze,
+    nach Tageszeit) / Genre-Mix / Live-Plays. Backend: Play-Log trägt Hörerzahl + Live-Kennung (Kappe 5000),
+    Stunden-Aggregat `listenerHours` über 100 Tage. Bewusst weggelassen: Rang (laut.fm-spezifisch) und
+    DB-Abgleich (externe laut.fm-Datenbank).
 22. [P2 · L] Deep Stats: Heatmap Wochentag×Uhrzeit, Top/Flop, Artist-Anteile, Song-Verlauf, Excel/PDF/Mail.
 23. [P2 · S] Berichte: Meistgespielt-Ranking; Protokoll-Filter.
 24. [P3 · M] Aktivitäts-Log (Admin), Stream-Status als M3U/XSPF/XML.

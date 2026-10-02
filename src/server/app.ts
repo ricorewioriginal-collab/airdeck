@@ -348,6 +348,14 @@ export class AirDeckApp {
         samples.push({ at: now, ...acc });
         const cutoff = now - 48 * 3_600_000;
         while (samples.length && samples[0]!.at < cutoff) samples.shift();
+        // Stunden-Aggregat für die Hörerstatistik (7/30/90 Tage)
+        const hours = (rt.data.listenerHours ??= []);
+        const hourAt = now - (now % 3_600_000);
+        const last = hours[hours.length - 1];
+        if (last && last.at === hourAt) { last.sum += acc.listeners; last.n++; last.peak = Math.max(last.peak, acc.listeners); }
+        else hours.push({ at: hourAt, sum: acc.listeners, n: 1, peak: acc.listeners });
+        const hourCutoff = now - 100 * 24 * 3_600_000;
+        while (hours.length && hours[0]!.at < hourCutoff) hours.shift();
       }
     }
     // KI-Musikplanung alle 10 s prüfen (nur wenn aktiviert, sonst kostenlos)
@@ -1022,8 +1030,10 @@ export class AirDeckApp {
       rt.data.history.length = Math.min(rt.data.history.length, 200);
     }
     const log = (rt.data.playLog ??= []);
-    log.unshift({ at: Date.now(), mediaId, title: m.title, artist: m.artist, category: m.category });
-    if (log.length > 1000) log.length = 1000;
+    const active = this.engine.activeFor(stationId, '/live');
+    const live = !!active && active.type !== 'automation' && active.type !== 'backup_automation';
+    log.unshift({ at: Date.now(), mediaId, title: m.title, artist: m.artist, category: m.category, listeners: this.listenersNow(stationId), live });
+    if (log.length > 5000) log.length = 5000;
     this.changed();
     this.director.onTrack(stationId, m);
     // Externer Stream: ICY-Metadaten (StreamTitle) live mitlesen, statt nur den einmalig eingetragenen
@@ -1259,6 +1269,13 @@ export class AirDeckApp {
   }
 
   /** Schnelltrigger: Titel einer Kategorie (Rotation) über der Musik oder als Nächstes. */
+  /** Hörer jetzt: Summe über alle verbundenen Ausgänge des Senders. */
+  listenersNow(stationId: string): number {
+    let n = 0;
+    for (const o of this.outputs.values()) if (o.cfg.stationId === stationId && o.state.status === 'connected') n += o.state.listeners ?? 0;
+    return n;
+  }
+
   quickTrigger(stationId: string, category: string, mode?: string): MediaItem {
     const rt = this.rt(stationId);
     if (!(MEDIA_CATEGORIES as readonly string[]).includes(category)) throw new AppError(400, 'invalid_category', 'Unbekannte Kategorie');

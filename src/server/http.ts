@@ -585,6 +585,9 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('PATCH', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', async (c) => app.svc.podcast.updateEpisode(sid(c), c.params.id!, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', (c) => app.svc.podcast.deleteEpisode(sid(c), c.params.id!));
 
+  // --- Hörerstatistik ---
+  add('GET', '/api/v1/stations/:sid/stats', 'automation:read', (c) => app.svc.stats.stats(sid(c), c.url.searchParams.get('period') ?? '24h'));
+
   // --- Sendungs-Rückblick ---
   add('GET', '/api/v1/stations/:sid/recap', 'automation:read', (c) => {
     const from = Number(c.url.searchParams.get('from'));
