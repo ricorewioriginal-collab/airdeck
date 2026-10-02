@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    AirDeck.exe – eigenständiges Windows-Programm: eigenes Fenster (WebView2), Symbol im Infobereich,
-    startet und überwacht die AnMaCha-Cast-Engine (airdeck-engine.exe). .NET Framework 4.8 ist auf jedem
-    Windows 10/11 vorhanden – keine zusätzliche Laufzeit nötig.
+    AirDeck.exe – eigenständiges Windows-Programm: natives WPF-Hauptfenster (Decks, Cardwall, Sendebetrieb)
+    als primäre Bedienoberfläche, Symbol im Infobereich, startet und überwacht die AnMaCha-Cast-Engine
+    (airdeck-engine.exe). Für Ansichten, die (noch) nicht nativ nachgebaut sind (Mediathek, Playlists,
+    Sendeplan, Einstellungen, KI-Werkzeuge, Hörer-Statistik), öffnet ein eigener Knopf das bestehende
+    Web-Studio in einem eingebetteten WebView2-Fenster – siehe docs/architecture/MULTI_PLATFORM.md.
+    .NET Framework 4.8 ist auf jedem Windows 10/11 vorhanden – keine zusätzliche Laufzeit nötig.
     Bauen: dotnet build apps/windows/AirDeck.csproj -c Release -p:Version=0.4.0
     AssemblyName/Dateiname bleiben bewusst "AirDeck" (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 6):
     eine Änderung würde den Update-/Neustart-Mechanismus (src/server/main.ts, update.ts, Installer-
@@ -16,6 +19,8 @@
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>AirDeck</AssemblyName>
     <RootNamespace>AirDeck</RootNamespace>
     <ApplicationIcon>..\..\assets\icons\airdeck-windows.ico</ApplicationIcon>
@@ -35,6 +40,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Net.Http" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 </Project>

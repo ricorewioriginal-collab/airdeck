@@ -1,9 +1,10 @@
 // AnMaCha Cast für Windows: ein Programm, ein Fenster. Ein zweiter Start holt nur das vorhandene Fenster nach vorn.
 //   AirDeck.exe              Studio öffnen (startet die Engine bei Bedarf)
 //   AirDeck.exe --minimized  nur im Infobereich starten (Autostart bei der Anmeldung)
+// Das Hauptfenster (MainWindow) ist natives WPF; nur noch für Ansichten, die dort nicht nachgebaut sind,
+// öffnet sich bei Bedarf ein eingebettetes WebView2-Fenster (BrowserForm).
 using System;
 using System.Threading;
-using System.Windows.Forms;
 
 namespace AirDeck
 {
@@ -26,15 +27,21 @@ namespace AirDeck
                     show.Set();
                     return;
                 }
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
+                // WinForms-Steuerelemente (Tray-Symbol, WebView2-Fallback-Fenster) laufen innerhalb der
+                // WPF-Anwendung mit; beide teilen sich denselben Windows-Nachrichtenzweig.
+                System.Windows.Forms.Application.EnableVisualStyles();
+                System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
                 if (!Engine.Installed)
                 {
-                    MessageBox.Show("Die AnMaCha-Cast-Engine (airdeck-engine.exe) fehlt im Programmordner. Bitte AnMaCha Cast neu installieren.", "AnMaCha Cast", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    System.Windows.Forms.MessageBox.Show("Die AnMaCha-Cast-Engine (airdeck-engine.exe) fehlt im Programmordner. Bitte AnMaCha Cast neu installieren.", "AnMaCha Cast", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                     return;
                 }
                 var minimized = Array.Exists(args, a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
-                Application.Run(new MainForm(show, minimized));
+
+                var app = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+                var window = new MainWindow(show, minimized);
+                if (!minimized) window.Show();
+                app.Run();
                 GC.KeepAlive(mutex);
             }
         }
