@@ -105,6 +105,7 @@ export function mountMediaManagement(root, ctx) {
       { name: 'bpm', label: 'BPM', type: 'number', value: m.bpm ?? '' },
       { name: 'cueInMs', label: 'Cue-In (ms)', type: 'number', value: m.cueInMs ?? '' },
       { name: 'cueOutMs', label: 'Cue-Out (ms)', type: 'number', value: m.cueOutMs ?? '' },
+      { name: 'loopEndMs', label: 'Loop-Ende (ms) – für Jingle/Bett/Sweeper: Rest ab hier ist Drop/Outro', type: 'number', value: m.loopEndMs ?? '' },
       { name: 'gainDb', label: 'Gain (dB)', type: 'number', value: m.gainDb ?? '' },
     ]);
     if (v) await run(() => ctx.api.patch(ctx.url(`/media/${encodeURIComponent(m.id)}`), v).then(reload));

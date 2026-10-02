@@ -118,7 +118,7 @@ export class MediaService {
     if (typeof patch.category === 'string' && (MEDIA_CATEGORIES as readonly string[]).includes(patch.category)) m.category = patch.category as MediaItem['category'];
     if (typeof patch.folder === 'string') m.folder = patch.folder.trim().slice(0, 80) || undefined;
     if (typeof patch.genre === 'string') m.genre = patch.genre.trim().slice(0, 80) || undefined;
-    for (const k of ['durationMs', 'cueInMs', 'cueOutMs', 'segueMs', 'introMs', 'bpm', 'gainDb', 'year'] as const) {
+    for (const k of ['durationMs', 'cueInMs', 'cueOutMs', 'segueMs', 'introMs', 'loopEndMs', 'bpm', 'gainDb', 'year'] as const) {
       const v = patch[k];
       if (v === null && k !== 'durationMs') delete m[k];
       else if (typeof v === 'number' && Number.isFinite(v) && (k === 'gainDb' || v >= 0)) m[k] = v;
