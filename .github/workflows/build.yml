@@ -25,6 +25,8 @@ env:
 
 jobs:
   test:
+    # Generierte Automations-PRs brauchen keinen kompletten Plattform-Build.
+    if: github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'automation/release-badge-') && !startsWith(github.head_ref, 'automation/changelog-') && !startsWith(github.head_ref, 'automation/screenshots-'))
     runs-on: ubuntu-latest
     # hängende Tests (z. B. offene Datenbankverbindungen) nicht stundenlang laufen lassen
     timeout-minutes: 15
