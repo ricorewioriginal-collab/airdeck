@@ -27,9 +27,8 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 ## Offen - nach Sidebar-Gruppen, P1 vor P2 vor P3, S/M/L = Aufwand
 
 ### Überblick
-1. **[P1 · S] `data-sub`-Navigation verdrahten** (`app.js` `showView`): Sendeuhr, Ereignisse & Ansagen,
-   Smart Blocks, Podcasts, Bibliothek-Werkzeuge, Berichte, Hilfe sollen zum Abschnitt/Tab springen,
-   nicht nur die Elternansicht öffnen.
+1. ~~[P1 · S] `data-sub`-Navigation verdrahten~~ - erledigt: Unterpunkte springen zum Abschnitt
+   (data-sub-Element oder Panel-Überschrift) und heben ihn kurz hervor.
 2. [P2 · M] Sendezentrale: Netzwerk-Senderkarten mit Sortierung Live (Meiste/Wenigste), Ø 24h, Ø 7 Tage, A–Z; Sync.
 
 ### Programm planen
