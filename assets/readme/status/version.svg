@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="430" height="92" viewBox="0 0 430 92" role="img" aria-label="Aktuelle AirDeck Version v0.4.1">
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="92" viewBox="0 0 430 92" role="img" aria-label="Aktuelle AnMaCha Cast Version v0.4.1">
 <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#061426"/><stop offset=".55" stop-color="#0a2340"/><stop offset="1" stop-color="#123b70"/></linearGradient><linearGradient id="accent" x1="0" x2="1"><stop stop-color="#18b7ff"/><stop offset="1" stop-color="#4d8dff"/></linearGradient></defs>
 <rect x="2" y="2" width="426" height="88" rx="22" fill="url(#bg)" stroke="#1e6595" stroke-width="2"/>
 <circle cx="49" cy="46" r="25" fill="#071b31" stroke="url(#accent)" stroke-width="2"/>

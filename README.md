@@ -60,6 +60,8 @@ AnMaCha Cast kann direkt im Browser ausprobiert werden.
 
 **Demo-Zugang:** `demo` / `airdeck-demo`
 
+**Ohne Login:** Die Demo lässt sich auch direkt über eine dedizierte Login-URL aufrufen – ganz ohne Eingabe von Zugangsdaten: [https://airdeck-demo.ricorewi-radio.de/demo-login](https://airdeck-demo.ricorewi-radio.de/demo-login)
+
 > Die Instanz dient ausschließlich zum Testen. Bitte dort keine produktiven oder vertraulichen Daten hinterlegen.
 
 ---
@@ -93,7 +95,7 @@ AnMaCha Cast befindet sich in aktiver Entwicklung. Funktionen, Oberfläche, Plat
 - **Release:** [immer die aktuelle veröffentlichte Version](https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest)
 - **Änderungen:** [automatisch gepflegter Changelog](CHANGELOG.md)
 - **Plattformen:** Windows · Android · Linux/Server · Docker
-- **Live-Demo:** [airdeck-demo.ricorewi-radio.de](https://airdeck-demo.ricorewi-radio.de)
+- **Live-Demo:** [airdeck-demo.ricorewi-radio.de](https://airdeck-demo.ricorewi-radio.de) · [Direkt ohne Login](https://airdeck-demo.ricorewi-radio.de/demo-login)
 
 ---
 
