@@ -359,6 +359,8 @@ export class PlanningService {
       const active = this.app.svc.recorder.recorders.get(stationId);
       if (recPlan && !active) this.app.svc.recorder.startRecording(stationId, recPlan.label, recPlan.id);
       if (!recPlan && active?.rec.planId) this.app.svc.recorder.stopRecording(stationId);
+      // Zusatz-Streams mit Zeitfenster: pünktlich an-/abschalten (z. B. Simulcast nur zur Sendezeit)
+      if ((rt.data.streamProfiles ?? []).some((sp) => sp.window)) this.app.syncStreamProfiles(stationId);
     }
   }
 }

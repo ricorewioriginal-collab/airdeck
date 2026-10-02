@@ -1650,7 +1650,7 @@ async function manageStreamProfiles() {
     const rows = S.streamProfiles.map((sp) => h('li', { class: 'out' },
       h('span', { class: 'out-name' }, sp.name),
       h('button', { class: 'btn small', type: 'submit', name: 'action', value: `edit:${sp.id}`, formnovalidate: true }, '⋯'),
-      h('span', { class: 'out-meta' }, `${sp.format.toUpperCase()} · ${sp.bitrateKbps} kbit/s`),
+      h('span', { class: 'out-meta' }, `${sp.format.toUpperCase()} · ${sp.bitrateKbps} kbit/s${sp.window ? ` · Zeitfenster ${sp.window.from}–${sp.window.to}` : ''}`),
     ));
     form.replaceChildren(
       h('h3', {}, 'Zusatz-Stream-Profile'),
@@ -1706,13 +1706,18 @@ async function editStreamProfile(sp) {
     { name: 'format', label: 'Format', value: sp?.format ?? 'aac', options: [['mp3', 'MP3'], ['aac', 'AAC'], ['opus', 'Opus']] },
     { name: 'bitrateKbps', label: 'Bitrate (kbit/s)', type: 'number', value: sp?.bitrateKbps ?? 64 },
     { name: 'enabled', label: 'Encoder aktiv', type: 'checkbox', value: sp?.enabled !== false, hint: 'Unabhängig vom Stream-Ausgang: Encoder kann laufen, während der Stream-Ausgang aus ist.' },
+    { name: 'windowOn', label: 'Nur zu bestimmten Sendezeiten (Zeitfenster)', type: 'checkbox', value: !!sp?.window, hint: 'z. B. Simulcast auf eine zweite Plattform nur während der Live-Sendung.' },
+    { name: 'windowDays', label: 'Zeitfenster: Tage (keine Auswahl = täglich)', type: 'days', value: sp?.window?.days ?? [] },
+    { name: 'windowFrom', label: 'Zeitfenster: Von', type: 'time', value: sp?.window?.from ?? '20:00' },
+    { name: 'windowTo', label: 'Zeitfenster: Bis', type: 'time', value: sp?.window?.to ?? '22:00' },
     ...(isNew ? [] : [{ name: 'remove', label: 'Profil löschen', type: 'checkbox', value: false }]),
   ]);
   if (!v) return;
   if (v.remove) {
     await run(() => api.del(url(`/stream-profiles/${encodeURIComponent(sp.id)}`)));
   } else {
-    const body = { name: v.name, format: v.format, bitrateKbps: v.bitrateKbps };
+    const window = v.windowOn ? { label: v.name, days: v.windowDays, from: v.windowFrom, to: v.windowTo } : null;
+    const body = { name: v.name, format: v.format, bitrateKbps: v.bitrateKbps, enabled: v.enabled, window };
     await run(() => (isNew ? api.post(url('/stream-profiles'), body) : api.patch(url(`/stream-profiles/${encodeURIComponent(sp.id)}`), body)));
   }
   S.streamProfiles = (await run(() => api.get(url('/stream-profiles')))) ?? S.streamProfiles;

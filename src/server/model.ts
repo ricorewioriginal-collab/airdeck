@@ -5,7 +5,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { WriteStream } from 'node:fs';
 import { PriorityError, type Actor, type SourceConfig } from '../core/source-priority.ts';
 import type { CartSlot, ClockTemplate, DeckId, DeckState, MediaItem, PlayQueue, QueueEntry, RotationRules } from '../core/automation.ts';
-import type { ClockEvent, ProgramPlan, RecordingPlan, ScheduledJob } from '../core/scheduler.ts';
+import type { ClockEvent, ProgramPlan, RecordingPlan, ScheduledJob, TimeWindow } from '../core/scheduler.ts';
 import type { PlayoutOptions, StreamFormat } from './playout.ts';
 import type { LautfmConfig } from './lautfm.ts';
 import type { IntegrationsConfig } from './notify.ts';
@@ -95,6 +95,8 @@ export interface StreamProfileConfig {
   mp3Quality?: number;
   /** Encoder unabhängig von den Stream-Ausgängen aktivieren/deaktivieren (Standard: aktiv). */
   enabled?: boolean;
+  /** Zeitfenster: läuft nur innerhalb dieser Wochentage/Uhrzeit (z. B. Simulcast nur zur Sendezeit). Fehlt es, läuft das Profil durchgehend. */
+  window?: TimeWindow;
 }
 
 export interface LinkedFolder {
