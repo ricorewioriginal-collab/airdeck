@@ -20,8 +20,8 @@ export class StationService {
       id: input.id,
       name: input.name.slice(0, 80),
       slogan: (input.slogan ?? '').slice(0, 120),
-      primaryColor: safeColor(input.primaryColor, '#19c3e6'),
-      accentColor: safeColor(input.accentColor, '#8b5cf6'),
+      primaryColor: safeColor(input.primaryColor, '#ff7a18'),
+      accentColor: safeColor(input.accentColor, '#ff2d94'),
     };
     this.app.mountStation(station);
     if (withDefaults) {
