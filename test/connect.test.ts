@@ -5,7 +5,7 @@ import { createServer, type Server } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 // @ts-expect-error – Browser-Modul ohne Typdeklaration
 import { normalizeServer, testConnection } from '../studio/js/connect.js';
@@ -22,7 +22,7 @@ test('Adresse: http:// und Port 8750 werden ergänzt, Domains bleiben ohne Port'
   assert.ok(normalizeServer('http://[kaputt').error);
 });
 
-test('Stufen: Handy-localhost, nicht erreichbar, kein AirDeck, Version, Anmeldung, Rechte', async () => {
+test('Stufen: Handy-localhost, nicht erreichbar, kein AnMaCha Cast, Version, Anmeldung, Rechte', async () => {
   const native = { native: true, deviceName: 'Test' };
   // „localhost“ auf dem Handy ist das Handy selbst
   let r = await testConnection('localhost', {}, native);
@@ -40,7 +40,7 @@ test('Stufen: Handy-localhost, nicht erreichbar, kein AirDeck, Version, Anmeldun
   const fakeBase = await listen(fake);
   try {
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
-    assert.equal(r.steps.at(-1).id, 'airdeck');
+    assert.equal(r.steps.at(-1).id, 'anmachacast');
     // Legacy-Server (vor der Umbenennung) melden sich noch mit 'AirDeck' - wird weiterhin erkannt (Kompatibilitäts-Alias).
     health = { name: 'AirDeck', version: '9.0.0', api: '2.0' };
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
@@ -57,8 +57,8 @@ test('Stufen: Handy-localhost, nicht erreichbar, kein AirDeck, Version, Anmeldun
   }
 
   // echter Server ohne Benutzerkonten (Desktop): Passwort-Anmeldung → Hinweis auf Kopplung; Code → verbunden
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-con-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-con-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   const base = await listen(server);
   try {
@@ -71,7 +71,7 @@ test('Stufen: Handy-localhost, nicht erreichbar, kein AirDeck, Version, Anmeldun
     // (als App wäre 127.0.0.1 zu Recht abgelehnt – siehe oben)
     r = await testConnection(base, { code }, { native: false, deviceName: 'Browser', onStep: (s: { id: string }) => steps.push(s.id) });
     assert.equal(r.ok, true);
-    assert.deepEqual(steps, ['address', 'reach', 'airdeck', 'version', 'login', 'rights']);
+    assert.deepEqual(steps, ['address', 'reach', 'anmachacast', 'version', 'login', 'rights']);
     assert.match(r.token, /^ad_/);
     assert.equal(app.svc.devices.list()[0]!.device.platform, 'web');
   } finally {

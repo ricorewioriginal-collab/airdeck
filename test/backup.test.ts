@@ -6,14 +6,14 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { DbDocStore } from '../src/server/repo/docs.ts';
 
 test('Sicherung und Wiederherstellung: echter Datenverlust wird rückgängig gemacht', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-backup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-backup-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
     const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;
@@ -31,7 +31,7 @@ test('Sicherung und Wiederherstellung: echter Datenverlust wird rückgängig gem
 
       // Sicherung erstellen
       const backup = await app.svc.backup.create();
-      assert.match(backup.file, /^airdeck-backup-.*\.tar\.gz$/);
+      assert.match(backup.file, /^anmachacast-backup-.*\.tar\.gz$/);
       assert.ok(backup.bytes > 0);
       assert.ok(existsSync(join(dir, 'backups', backup.file)));
       assert.deepEqual(app.svc.backup.list().map((b) => b.file), [backup.file]);
@@ -56,7 +56,7 @@ test('Sicherung und Wiederherstellung: echter Datenverlust wird rückgängig gem
       server.close();
       app.shutdown();
 
-      const app2 = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+      const app2 = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
       try {
         const p: Parameters<typeof app2.svc.stations.listStations>[0] = { id: 'x', tokenId: 'x', roles: ['admin'], stationIds: ['*'], scopes: ['*'] };
         const stations = app2.svc.stations.listStations(p).map((s) => s.id).sort();
@@ -76,9 +76,9 @@ test('Sicherung und Wiederherstellung: echter Datenverlust wird rückgängig gem
 });
 
 test('Wiederherstellung: falsche Prüfsumme wird abgelehnt (kein stiller Datenverlust durch beschädigte Sicherung)', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-backup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-backup-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     try {
       const backup = await app.svc.backup.create();
       const { readFileSync, writeFileSync } = await import('node:fs');

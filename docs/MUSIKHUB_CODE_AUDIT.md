@@ -44,7 +44,7 @@ Die sieben Fehler sind Umgebungs-/Plattformprobleme im Sandbox-Lauf und traten v
 2. Phase 1 mit einem minimalen, geschlossenen Datenmodell beginnen: Eigentümer/Scope, Sammlungen, Medienzuordnung, Grants samt Empfänger/Aktionen/Zielsender/Gültigkeit/Widerruf und Audit. Additive Migration, geschlossene Defaults und JSON-Kompatibilität gemeinsam spezifizieren.
 3. Erst danach serverseitige Katalogabfrage und Grant-Prüfung implementieren. Isolation mit Negativtests gegen erratene IDs, Trefferzahlen, Cover, Downloads, Range-Requests und SSE nachweisen.
 4. Nextcloud-Index/Abruf/Einweg-Import als persistente, begrenzte Jobs ergänzen; keine stille Löschung bei Offline-/Teilfehlern. Vor externer Wirkung Rechte und Ziel erneut prüfen.
-5. Preview-/Sendebus und AirDeckCast-Preflight getrennt halten. lautCast erst nach erneuter Prüfung der aktuellen offiziellen Radioadmin-Spezifikation und pro Station belegter Capability integrieren.
+5. Preview-/Sendebus und AirDeck-Preflight getrennt halten. lautCast erst nach erneuter Prüfung der aktuellen offiziellen Radioadmin-Spezifikation und pro Station belegter Capability integrieren.
 6. Studio erst an echte, abgenommene APIs anbinden. Keine Demo- oder Live-Schreibtests ohne passende Testressourcen. Erst nach erfolgreicher Regression bestehende Rollout-/Demo-Prozedur verwenden.
 
 ## Arbeitsgrenze dieses Übergabeschritts

@@ -8,14 +8,14 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { newId } from '../src/server/model.ts';
 import type { Recording } from '../src/server/model.ts';
 
 test('Podcast: Episode aus Mitschnitt, Entwurf vs. veröffentlicht, Feed + Enclosure öffentlich erreichbar', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-podcast-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-podcast-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -84,8 +84,8 @@ test('Podcast: Episode aus Mitschnitt, Entwurf vs. veröffentlicht, Feed + Enclo
 });
 
 test('Podcast: ungültiges Cover wird abgelehnt, gültiges Cover ist öffentlich abrufbar', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-podcast-cover-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-podcast-cover-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     assert.throws(() => app.svc.podcast.setCover('main', 'image/png', Buffer.from('nicht-wirklich-ein-bild')), /gültiges Bild/);
     const pngSig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);

@@ -3,7 +3,7 @@
 // Massenlöschung). Abgeglichen mit dem Lifehacks-Tab aus dem laut.fm-Verwaltungszentrum (anmacha_control_center/
 // automation.html), auf die Playlist/MediaItem-Struktur von AnMaCha Cast übertragen.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import type { MediaItem } from '../../core/automation.ts';
 import { AppError, type Playlist } from '../model.ts';
 
@@ -38,9 +38,9 @@ export interface TrackFinderHit {
 const MIN_CLIP_MS = 60_000;
 
 export class LifehacksService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

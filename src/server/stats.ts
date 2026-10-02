@@ -7,7 +7,7 @@ import type { OutputConfig } from './icecast.ts';
 export async function fetchListeners(cfg: OutputConfig, timeoutMs = 5000): Promise<number | null> {
   const base = `${cfg.tls ? 'https' : 'http'}://${cfg.host}:${cfg.port}`;
   const get = async (path: string) => {
-    const r = await fetch(base + path, { headers: { 'User-Agent': 'Mozilla/5.0 (AirDeck)' }, signal: AbortSignal.timeout(timeoutMs) });
+    const r = await fetch(base + path, { headers: { 'User-Agent': 'Mozilla/5.0 (AnMaCha Cast)' }, signal: AbortSignal.timeout(timeoutMs) });
     if (!r.ok) throw new Error(String(r.status));
     return r.text();
   };

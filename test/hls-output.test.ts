@@ -1,6 +1,6 @@
-// Masterprompt V1 Beta, P3 #29 (HLS): AirDeckCast konnte bisher nur Icecast/SHOUTcast-Ziele bedienen
+// Masterprompt V1 Beta, P3 #29 (HLS): AnMaCha Cast konnte bisher nur Icecast/SHOUTcast-Ziele bedienen
 // (Push per HTTP PUT an einen externen Server). HLS (Apple HTTP Live Streaming) ist ein Pull-Format:
-// der AirDeck-Server selbst liefert eine Playlist (.m3u8) und Segmente (.ts) über HTTP aus - kein externer
+// der AnMaCha-Cast-Server selbst liefert eine Playlist (.m3u8) und Segmente (.ts) über HTTP aus - kein externer
 // Icecast nötig. Audit: derselbe PCM-Programmbus, den auch die Zusatzprofile (#26/#28) nutzen, kann einen
 // weiteren ffmpeg-Prozess speisen, der ihn per "-f hls" selbst in Segmente + Playlist teilt.
 import { test } from 'node:test';
@@ -10,7 +10,7 @@ import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync, readdirSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
@@ -59,11 +59,11 @@ function rms(pcm: Int16Array): number {
 }
 
 test(
-  'AirDeckCast HLS: Sendebus liefert eine echte Playlist mit Segmenten, direkt über den AirDeck-HTTP-Server abrufbar',
+  'AnMaCha Cast HLS: Sendebus liefert eine echte Playlist mit Segmenten, direkt über den AnMaCha-Cast-HTTP-Server abrufbar',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-hls-'));
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-hls-'));
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     const server: Server = createHttpServer(app, join(import.meta.dirname, '../studio'));
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 8, 440);
@@ -116,11 +116,11 @@ test(
 );
 
 test(
-  'AirDeckCast HLS: Playlist/Segmente werden aufgeräumt, sobald HLS abgeschaltet oder der Sender gelöscht wird',
+  'AnMaCha Cast HLS: Playlist/Segmente werden aufgeräumt, sobald HLS abgeschaltet oder der Sender gelöscht wird',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-hls-cleanup-'));
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-hls-cleanup-'));
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 8, 440);
       app.svc.media.addMedia('main', { id: 'a.wav', title: 'a', artist: 'A', category: 'music', file: 'a.wav', durationMs: null, addedAt: 0 });

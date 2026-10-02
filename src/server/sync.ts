@@ -64,6 +64,10 @@ export class MysqlStore implements RemoteStore {
   private async db(): Promise<import('mysql2/promise').Pool> {
     if (this.pool) return this.pool;
     const mysql = await import('mysql2/promise');
+    // Tabellenname airdeck_state bleibt bewusst unverändert (wie der Firestore-Collection-Name 'airdeck'
+    // unten): bestehende MySQL/Firebase-Sync-Ziele haben ihren Stand bereits unter diesem Namen abgelegt;
+    // ein Umbenennen ohne Migration des externen Speichers würde ihn beim nächsten Abgleich als leer
+    // erscheinen lassen.
     this.pool = mysql.createPool({
       host: this.cfg.host, port: this.cfg.port, user: this.cfg.user, password: this.password, database: this.cfg.database,
       ssl: this.cfg.ssl ? {} : undefined, connectionLimit: 2, connectTimeout: 8000, enableKeepAlive: true,
@@ -376,7 +380,7 @@ export class SyncManager {
 
   /**
    * Abgleich beim Start (vor dem Laden des Zustands). Schreibt ggf. data/airdeck.json neu.
-   * Fehler (z. B. Datenbank nicht erreichbar) blockieren den Start nie – AirDeck läuft dann lokal.
+   * Fehler (z. B. Datenbank nicht erreichbar) blockieren den Start nie – AnMaCha Cast läuft dann lokal.
    */
   /** local: aktueller Stand aus der Datenbank; ohne Angabe wird data/airdeck.json gelesen (ältere Installationen) */
   async startup(localState?: string | null): Promise<SyncDecision | null> {
@@ -401,11 +405,11 @@ export class SyncManager {
       this.status.lastDecision = decision;
       if (decision === 'take_remote' && remote) {
         const json = JSON.stringify(remote.state, null, 1);
-        if (local) writeFileAtomic(join(this.dataDir, `airdeck.before-sync-${Date.now()}.json`), local);
+        if (local) writeFileAtomic(join(this.dataDir, `anmachacast.before-sync-${Date.now()}.json`), local);
         writeFileAtomic(stateFile, json);
         writeFileAtomic(metaFile, JSON.stringify({ localHash: hashState(json), remoteAt: remote.updatedAt }));
       } else if (decision === 'conflict' && remote) {
-        const f = `airdeck.remote-conflict-${Date.now()}.json`;
+        const f = `anmachacast.remote-conflict-${Date.now()}.json`;
         writeFileAtomic(join(this.dataDir, f), JSON.stringify(remote.state, null, 1));
         this.status.conflictFile = f;
         await this.pushNow(local!);

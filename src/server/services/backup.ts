@@ -6,13 +6,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError } from '../model.ts';
 import { DbDocStore } from '../repo/docs.ts';
 import { SCHEMA_VERSION, TABLES, upsertSql } from '../db/schema.ts';
 import { readTar, writeTar, type TarFile } from '../tar.ts';
 
-const NAME_RE = /^airdeck-backup-[0-9TZ:.-]+\.tar\.gz$/;
+const NAME_RE = /^anmachacast-backup-[0-9TZ:.-]+\.tar\.gz$/;
 const MAX_PARAMS = 900;
 
 export interface BackupInfo {
@@ -22,9 +22,9 @@ export interface BackupInfo {
 }
 
 export class BackupService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -63,10 +63,10 @@ export class BackupService {
     if (existsSync(secretsFile)) files.push({ name: 'secrets.json', data: readFileSync(secretsFile) });
     const sha256 = createHash('sha256');
     for (const f of files) sha256.update(f.name).update(f.data);
-    const manifest = { tool: 'airdeck', schemaVersion: SCHEMA_VERSION, dialect: db.dialect, createdAt: new Date().toISOString(), tables: [...TABLES.keys()], sha256: sha256.digest('hex') };
+    const manifest = { tool: 'anmachacast', schemaVersion: SCHEMA_VERSION, dialect: db.dialect, createdAt: new Date().toISOString(), tables: [...TABLES.keys()], sha256: sha256.digest('hex') };
     files.unshift({ name: 'manifest.json', data: Buffer.from(JSON.stringify(manifest, null, 1), 'utf8') });
     const gz = gzipSync(writeTar(files));
-    const file = `airdeck-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.tar.gz`;
+    const file = `anmachacast-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.tar.gz`;
     writeFileSync(join(this.dir(), file), gz, { mode: 0o600 });
     this.app.audit.write({ kind: 'backup', event: 'created', file, bytes: gz.length });
     return { file, bytes: gz.length, createdAt: new Date().toISOString() };
@@ -81,7 +81,7 @@ export class BackupService {
     const manifestEntry = entries.find((e) => e.name === 'manifest.json');
     if (!manifestEntry) throw new AppError(400, 'invalid_backup', 'Kein gültiges Sicherungsarchiv (Manifest fehlt)');
     const manifest = JSON.parse(manifestEntry.data.toString('utf8')) as { schemaVersion: number; sha256: string };
-    if (manifest.schemaVersion > SCHEMA_VERSION) throw new AppError(409, 'schema_too_new', `Sicherung hat Schema ${manifest.schemaVersion}, dieses Programm kennt nur ${SCHEMA_VERSION} - bitte AirDeck aktualisieren`);
+    if (manifest.schemaVersion > SCHEMA_VERSION) throw new AppError(409, 'schema_too_new', `Sicherung hat Schema ${manifest.schemaVersion}, dieses Programm kennt nur ${SCHEMA_VERSION} - bitte AnMaCha Cast aktualisieren`);
     const sha256 = createHash('sha256');
     for (const e of entries) if (e.name !== 'manifest.json') sha256.update(e.name).update(e.data);
     if (sha256.digest('hex') !== manifest.sha256) throw new AppError(400, 'checksum_mismatch', 'Prüfsumme stimmt nicht - Sicherung ist beschädigt oder wurde verändert');

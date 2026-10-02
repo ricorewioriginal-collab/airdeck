@@ -84,7 +84,7 @@ export class Nextcloud {
   }
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
-    return { Authorization: 'Basic ' + Buffer.from(`${this.cfg.user}:${this.password}`).toString('base64'), 'User-Agent': 'AirDeck-Nextcloud', ...extra };
+    return { Authorization: 'Basic ' + Buffer.from(`${this.cfg.user}:${this.password}`).toString('base64'), 'User-Agent': 'AnMaCha-Cast-Nextcloud', ...extra };
   }
 
   private async req(method: string, path: string, init: { headers?: Record<string, string>; body?: RequestInit['body']; timeoutMs?: number; duplex?: 'half' } = {}): Promise<Response> {

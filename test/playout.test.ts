@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -31,7 +31,7 @@ function wav(file: string, seconds: number, freq: number): void {
 }
 
 test('Server-Playout sendet 24/7 ohne Browser, mit Skip, Neustart und Stille-Fallback', { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-po-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-po-'));
   const got: Buffer[] = [];
   const ice = createServer((req, res) => {
     if (req.url?.startsWith('/admin/')) return void res.end('ok');
@@ -42,7 +42,7 @@ test('Server-Playout sendet 24/7 ohne Browser, mit Skip, Neustart und Stille-Fal
   await new Promise<void>((r) => ice.listen(0, '127.0.0.1', r));
   const port = (ice.address() as { port: number }).port;
 
-  let app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+  let app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
   try {
     for (const [name, secs, freq, cat] of [
       ['a.wav', 3, 440, 'music'], ['b.wav', 3, 550, 'music'], ['id.wav', 1, 880, 'station_id'],
@@ -74,7 +74,7 @@ test('Server-Playout sendet 24/7 ohne Browser, mit Skip, Neustart und Stille-Fal
 
     // Neustart: Playout läuft automatisch wieder an (autostart)
     app.shutdown();
-    app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     app.start();
     await until(() => app.engine.get(auto.id)?.state === 'active');
     assert.equal((app.playoutView('main') as { status: { running: boolean } }).status.running, true);

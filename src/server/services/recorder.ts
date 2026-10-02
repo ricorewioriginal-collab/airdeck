@@ -1,15 +1,15 @@
 // Mitschnitte (Recorder/Replays) und Aufnahme-Zeitfenster.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { createWriteStream, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { validateWindow, type RecordingPlan } from '../../core/scheduler.ts';
 import { AppError, newId, type ActiveRecording, type Recording } from '../model.ts';
 
 export class RecorderService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

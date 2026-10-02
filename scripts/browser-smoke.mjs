@@ -1,13 +1,13 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 
-const base = process.env.AIRDECK_SCREENSHOT_URL || 'http://127.0.0.1:8751';
-const token = process.env.AIRDECK_SCREENSHOT_TOKEN;
-if (!token) throw new Error('AIRDECK_SCREENSHOT_TOKEN fehlt');
+const base = process.env.ANMACHA_CAST_SCREENSHOT_URL || 'http://127.0.0.1:8751';
+const token = process.env.ANMACHA_CAST_SCREENSHOT_TOKEN;
+if (!token) throw new Error('ANMACHA_CAST_SCREENSHOT_TOKEN fehlt');
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } });
-await page.addInitScript((t) => localStorage.setItem('airdeck.token', t), token);
+await page.addInitScript((t) => localStorage.setItem('anmachacast.token', t), token);
 
 try {
   await page.goto(base + '/', { waitUntil: 'domcontentloaded' });

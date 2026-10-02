@@ -19,10 +19,10 @@ const envName = (i: number) => `ANMACHA_CAST_LIQ_OUT${i + 1}_PASSWORD`;
 export function liquidsoapScript(outputs: OutputConfig[], o: LiquidsoapOptions): { script: string; env: string[] } {
   const active = outputs.filter((x) => x.enabled);
   const env = ['ANMACHA_CAST_LIQ_INPUT_PASSWORD', ...active.map((_, i) => envName(i))];
-  const mount = o.harborMount.replace(/^\/+/, '') || 'airdeck';
+  const mount = o.harborMount.replace(/^\/+/, '') || 'anmachacast';
   const lines = [
     `# AnMaCha Cast → Liquidsoap für „${o.stationName.replace(/\n/g, ' ')}“ (automatisch erzeugt, Liquidsoap 2.x)`,
-    '# Start:  liquidsoap airdeck.liq',
+    '# Start:  liquidsoap anmachacast.liq',
     `# Umgebungsvariablen (Passwörter): ${env.join(', ')}`,
     '#',
     `# In AnMaCha Cast einen Ausgang anlegen: Typ Icecast, Host = dieser Rechner, Port ${o.harborPort}, Mount /${mount},`,

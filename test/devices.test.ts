@@ -4,19 +4,19 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { discover, startResponder } from '../src/server/discovery.ts';
 
-async function serve(app: AirDeckApp): Promise<{ server: Server; base: string }> {
+async function serve(app: AnMaChaCastApp): Promise<{ server: Server; base: string }> {
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   return { server, base: `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1` };
 }
 
 test('Kopplung: Desktop ohne Benutzerkonten – Handy verbindet sich per Code (AUDIT 5.1)', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-dev-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-dev-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const { server, base } = await serve(app);
   const admin = app.svc.auth.desktopToken();
   const call = (method: string, path: string, body?: unknown, tok?: string) =>
@@ -70,8 +70,8 @@ test('Kopplung: Desktop ohne Benutzerkonten – Handy verbindet sich per Code (A
 });
 
 test('Kopplungscode läuft nach 5 Minuten ab und gibt nie mehr Sender frei als erlaubt', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-dev-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-dev-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     const op = { id: 'op', tokenId: 'op', roles: ['operator'], stationIds: ['main'], scopes: ['tokens:write'] };
     const p = app.svc.devices.createPairing(op, { stationIds: ['*', 'fremd'] });

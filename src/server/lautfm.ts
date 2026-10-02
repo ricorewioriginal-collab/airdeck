@@ -2,7 +2,7 @@
 //  • Radioadmin-API (https://api.radioadmin.laut.fm, Bearer-Token des Nutzers) – Playlists, Titel,
 //    Sendeplan, Statistik, Benutzer, Station, Live-Zugang. Nur dokumentierte Endpunkte (radioadmin-api-spec).
 //  • Öffentliche API (https://api.laut.fm) – current_song, last_songs, listeners (ohne Login).
-// AirDeck leitet Anfragen serverseitig weiter: der Token bleibt verschlüsselt lokal und erreicht nie den Browser.
+// AnMaCha Cast leitet Anfragen serverseitig weiter: der Token bleibt verschlüsselt lokal und erreicht nie den Browser.
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
@@ -14,9 +14,11 @@ export const PUBLIC_API = envVar(process.env, 'LAUTFM_API_URL') || 'https://api.
 
 /**
  * Radioadmin-Tokens gehören zu einer „callback_url“. Bei jeder Anfrage muss derselbe Wert als
- * Origin-Header mitgeschickt werden (Auskunft laut.fm). AnMaCha Cast nutzt standardmäßig „airdeck“ –
- * dieser Wert ist Teil des bei laut.fm hinterlegten Protokolls bestehender Nutzer-Tokens und bleibt
- * daher bewusst unverändert (Legacy-AirDeck-Kompatibilität, siehe docs/REBRANDING_ANMACHA_CAST.md).
+ * Origin-Header mitgeschickt werden (Auskunft laut.fm). Historisch nutzte AirDeck standardmäßig „airdeck“ –
+ * dieser Wert ist Teil des bei laut.fm hinterlegten Protokolls bestehender Nutzer-Tokens (callback_url)
+ * und bleibt daher dauerhaft „airdeck“, unabhängig vom AirDeck→AnMaCha-Cast-Rebranding (siehe
+ * docs/REBRANDING_ANMACHA_CAST.md): eine Änderung würde bei laut.fm hinterlegte Zugänge bestehender
+ * Nutzer brechen.
  */
 export const DEFAULT_ORIGIN = 'airdeck';
 export const ORIGIN_RE = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,119}$/;
@@ -74,7 +76,7 @@ export async function detectOrigin(token: string, candidates: unknown[], waitMs 
   for (let i = 0; i < list.length; i++) {
     for (let attempt = 1; attempt <= (i === 0 ? 3 : 1); attempt++) {
       try {
-        const r = await fetch(`${RADIOADMIN}/stations`, { headers: { Authorization: `Bearer ${token}`, Origin: list[i]!, Accept: 'application/json', 'User-Agent': 'AirDeck' }, signal: AbortSignal.timeout(8000) });
+        const r = await fetch(`${RADIOADMIN}/stations`, { headers: { Authorization: `Bearer ${token}`, Origin: list[i]!, Accept: 'application/json', 'User-Agent': 'AnMaCha Cast' }, signal: AbortSignal.timeout(8000) });
         reached = true;
         if (r.ok) {
           const st = normalizeStations(await r.json().catch(() => null));
@@ -119,7 +121,7 @@ export async function forward(
   origin?: string,
 ): Promise<void> {
   const method = req.method ?? 'GET';
-  const headers: Record<string, string> = { Accept: String(req.headers.accept ?? 'application/json'), 'User-Agent': 'AirDeck/0.3' };
+  const headers: Record<string, string> = { Accept: String(req.headers.accept ?? 'application/json'), 'User-Agent': 'AnMaCha Cast/0.3' };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (origin) headers.Origin = origin;
   if (req.headers['content-type']) headers['Content-Type'] = String(req.headers['content-type']);

@@ -17,7 +17,7 @@ import type { BaseMode } from '../core/mode.ts';
 
 export const AUDIO_FILE_RE = /\.(mp3|ogg|opus|wav|flac|m4a|aac|webm)$/i;
 
-/** Anbindung eines bestehenden Systems (AzuraCast, Icecast, beliebiger Stream) an einen AirDeck-Sender. */
+/** Anbindung eines bestehenden Systems (AzuraCast, Icecast, beliebiger Stream) an einen AnMaCha-Cast-Sender. */
 export interface BridgeConfig {
   id: string;
   name: string;
@@ -238,7 +238,7 @@ export interface PlayoutConfig extends PlayoutOptions {
   sourceId?: string;
   /** Notfall-Ordner: spielt, wenn Queue, Sendeuhr und Sendeplan nichts liefern */
   emergencyFolder?: string;
-  /** Zusatz-Streams: zusätzlich als HLS (m3u8 + Segmente) ausliefern, direkt vom AirDeck-Server */
+  /** Zusatz-Streams: zusätzlich als HLS (m3u8 + Segmente) ausliefern, direkt vom AnMaCha-Cast-Server */
   hls?: HlsConfig;
 }
 

@@ -1,4 +1,4 @@
-# AirDeck Pull Request
+# AnMaCha Cast Pull Request
 
 ## Was wurde geändert?
 
@@ -14,7 +14,7 @@
 - [ ] Live Studio / UI
 - [ ] Mediathek / MusikHub
 - [ ] Playlists / Sendeplanung
-- [ ] Streaming / AirDeckCast
+- [ ] Streaming / AnMaCha Cast
 - [ ] Benutzer / Auth / Berechtigungen
 - [ ] Datenbank / Migrationen
 - [ ] Nextcloud / externe Integration
@@ -91,16 +91,16 @@ Falls die Oberfläche geändert wurde:
 
 <!-- Offen und konkret nennen. -->
 
-## Offizielle AirDeck-Freigabe
+## Offizielle AnMaCha-Cast-Freigabe
 
-- [ ] Ich schlage diese Änderung für die Aufnahme in einen offiziellen AirDeck-Build vor.
+- [ ] Ich schlage diese Änderung für die Aufnahme in einen offiziellen AnMaCha-Cast-Build vor.
 
-> Die Einreichung eines Pull Requests ist keine automatische Freigabe. Merge, Versionszuordnung und Veröffentlichung als offizieller AirDeck-Build erfolgen ausschließlich nach Maintainer-Review und Freigabe.
+> Die Einreichung eines Pull Requests ist keine automatische Freigabe. Merge, Versionszuordnung und Veröffentlichung als offizieller AnMaCha-Cast-Build erfolgen ausschließlich nach Maintainer-Review und Freigabe.
 
 ## Abschlusscheck
 
 - [ ] aktueller Git-Stand berücksichtigt
-- [ ] bestehende AirDeck-Architektur erweitert statt unnötig dupliziert
+- [ ] bestehende AnMaCha-Cast-Architektur erweitert statt unnötig dupliziert
 - [ ] relevante Tests bestanden
 - [ ] menschliche Prüfung ehrlich dokumentiert
 - [ ] bekannte Bugs nicht als „fertig“ verschwiegen

@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
 test('APK-Download (Legacy-Dateiname AirDeck-Android.apk bleibt als Kompatibilitäts-Alias erreichbar), Netzwerk-Einstellung und Verbindungsinfo', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'airdeck-root-'));
+  const root = mkdtempSync(join(tmpdir(), 'anmachacast-root-'));
   const data = join(root, 'data');
   mkdirSync(join(root, 'android'), { recursive: true });
   const apk = Buffer.from('PK\x03\x04fake-apk');
   writeFileSync(join(root, 'android', 'AirDeck-Android.apk'), apk);
-  const app = new AirDeckApp(data, { stableMs: 0, ffmpeg: null, appRoot: root });
+  const app = new AnMaChaCastApp(data, { stableMs: 0, ffmpeg: null, appRoot: root });
   const token = app.svc.auth.createToken({ name: 'a', scopes: ['*'], roles: ['admin'], stationIds: ['*'] }).token;
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -43,12 +43,12 @@ test('APK-Download (Legacy-Dateiname AirDeck-Android.apk bleibt als Kompatibilit
 });
 
 test('APK-Download unter dem neuen Produktnamen (AnMaCha-Cast-Android.apk) als primärer Dateiname/Pfad', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'airdeck-root-'));
+  const root = mkdtempSync(join(tmpdir(), 'anmachacast-root-'));
   const data = join(root, 'data');
   mkdirSync(join(root, 'android'), { recursive: true });
   const apk = Buffer.from('PK\x03\x04fake-apk-neu');
   writeFileSync(join(root, 'android', 'AnMaCha-Cast-Android.apk'), apk);
-  const app = new AirDeckApp(data, { stableMs: 0, ffmpeg: null, appRoot: root });
+  const app = new AnMaChaCastApp(data, { stableMs: 0, ffmpeg: null, appRoot: root });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;

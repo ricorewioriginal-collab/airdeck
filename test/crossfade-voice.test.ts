@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -63,7 +63,7 @@ test(
   'Crossfade mit echtem Audio: Voice Track (Moderationslink) -> Musik ohne Stille-Lücke, mit echter Ausblendung',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-xfade-voice-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-xfade-voice-'));
     const got: Buffer[] = [];
     const ice = createServer((req, res) => {
       if (req.url?.startsWith('/admin/')) return void res.end('ok');
@@ -74,7 +74,7 @@ test(
     await new Promise<void>((r) => ice.listen(0, '127.0.0.1', r));
     const port = (ice.address() as { port: number }).port;
 
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 4, 440);
       wav(join(app.mediaDir, 'main', 'voice.wav'), 3, 300);

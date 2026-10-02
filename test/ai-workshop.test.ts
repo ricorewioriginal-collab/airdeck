@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { parseJsonRows, parseSrt, toSrt } from '../src/server/services/ai.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
@@ -37,7 +37,7 @@ test('SRT ↔ Segmente, JSON-Tabelle aus Prosa', () => {
 test('Assistent mit Verlauf, Ton-Umschreiber und Sendeablauf-Planer (Text-KI gemockt)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'cast-ai-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const calls: { system: string; prompt: string }[] = [];
     (app.ai as any).text = async (_s: string, _p: string, _t: unknown, system: string, prompt: string) => {
       calls.push({ system, prompt });
@@ -73,7 +73,7 @@ test('Assistent mit Verlauf, Ton-Umschreiber und Sendeablauf-Planer (Text-KI gem
 test('Spot-Mix: Stimme über Musikbett, Länge = Vorlauf + Stimme + Nachlauf', { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'cast-mix-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     wav(join(app.mediaDir, 'main', 'voice.wav'), 2, 300);
     wav(join(app.mediaDir, 'main', 'bed.wav'), 1, 880);
     app.svc.media.addMedia('main', { id: 'voice', title: 'Spot-Stimme', artist: '', category: 'tts', file: 'voice.wav', durationMs: 2000, addedAt: 0 });

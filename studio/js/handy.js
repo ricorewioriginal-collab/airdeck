@@ -23,7 +23,7 @@
   const setMode = (/** @type {string} */ v) => {
     try {
       localStorage.setItem('anmacha_cast.mobileMode', v);
-      localStorage.setItem('airdeck.mobileMode', v);
+      localStorage.setItem('anmachacast.mobileMode', v);
     } catch {}
   };
 

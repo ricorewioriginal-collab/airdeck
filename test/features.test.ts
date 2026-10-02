@@ -4,15 +4,15 @@ import { createServer, request } from 'node:http';
 import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { allowedPublicPath, allowedRadioadminPath, forward } from '../src/server/lautfm.ts';
 
 const admin = { id: 'admin', tokenId: 't', roles: ['admin'], stationIds: ['*'], scopes: ['*'] };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-f-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-f-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   for (const [id, cat, folder] of [['a', 'music', 'Rock'], ['b', 'music', 'Rock'], ['c', 'music', 'Pop'], ['j', 'jingle', 'Jingles']] as const) {
     app.svc.media.addMedia('main', { id, title: `Titel ${id}`, artist: `Artist ${id}`, category: cat, file: `${id}.mp3`, durationMs: 60_000, addedAt: 0, folder, originalName: `Artist ${id} - Titel ${id}.mp3` });
   }
@@ -39,8 +39,8 @@ test('Ordner, Queue aus Ordner füllen, Playlists, Playlist abspielen', () => {
 });
 
 test('Rotationsregeln sind einstellbar (P2 #17): werden übernommen, validiert und überstehen einen Neustart', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-rot-'));
-  let app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-rot-'));
+  let app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     const before = app.automationView('main') as { rotation: { artistSeparation: number; titleSeparation: number; genreSeparation?: number; maxBpmJump?: number } };
     assert.deepEqual(before.rotation, { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0, maxBpmJump: 0 }, 'Standardwerte, bevor irgendwer etwas eingestellt hat');
@@ -55,9 +55,9 @@ test('Rotationsregeln sind einstellbar (P2 #17): werden übernommen, validiert u
     assert.equal(clamped.rotation.genreSeparation, 5, 'nicht mitgeschickte Felder bleiben unverändert (Teil-Update)');
     assert.equal(clamped.rotation.maxBpmJump, 0, 'nicht mitgeschickte Felder bleiben unverändert (Teil-Update)');
 
-    // Bleibt nach echtem Neustart (frisches AirDeckApp-Objekt auf denselben Daten) erhalten - nicht nur im Speicher
+    // Bleibt nach echtem Neustart (frisches AnMaChaCastApp-Objekt auf denselben Daten) erhalten - nicht nur im Speicher
     app.shutdown();
-    app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     assert.deepEqual((app.automationView('main') as { rotation: unknown }).rotation, { artistSeparation: 0, titleSeparation: 5000, genreSeparation: 5, maxBpmJump: 0 });
   } finally {
     app.shutdown();
@@ -66,8 +66,8 @@ test('Rotationsregeln sind einstellbar (P2 #17): werden übernommen, validiert u
 });
 
 test('Uhr-Vorlage (Kategorien-Takt, P2 #18): einstellbar, ungültige Kategorien werden verworfen, treibt Auto-Fill wirklich an', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-clocktpl-'));
-  let app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-clocktpl-'));
+  let app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     const before = app.automationView('main') as { clock: { slots: string[] } };
     assert.deepEqual(before.clock.slots, ['station_id', 'music', 'music', 'jingle', 'music', 'music', 'sweeper', 'music', 'music', 'drop', 'music', 'music'], 'Standard-Stunde vor jeder Änderung');
@@ -78,7 +78,7 @@ test('Uhr-Vorlage (Kategorien-Takt, P2 #18): einstellbar, ungültige Kategorien 
 
     // Bleibt nach echtem Neustart erhalten
     app.shutdown();
-    app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     assert.deepEqual((app.automationView('main') as { clock: { slots: string[] } }).clock.slots, ['music', 'jingle', 'music']);
 
     // Wirkt sich wirklich auf Auto-Fill aus: nur Jingle+Musik im Takt, obwohl die Bibliothek auch andere Kategorien hat
@@ -95,8 +95,8 @@ test('Uhr-Vorlage (Kategorien-Takt, P2 #18): einstellbar, ungültige Kategorien 
 });
 
 test('Hard Time/Backtiming (P2 #19): Auto-Fill startet vor einem festen Termin keinen zu langen Titel mehr', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-hardtime-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-hardtime-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     app.svc.media.addMedia('main', { id: 'long', title: 'long', artist: 'A', category: 'music', file: 'long.mp3', durationMs: 6 * 60_000, addedAt: 0 });
     app.svc.media.addMedia('main', { id: 'short', title: 'short', artist: 'B', category: 'music', file: 'short.mp3', durationMs: 60_000, addedAt: 0 });

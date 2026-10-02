@@ -11,7 +11,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: airdeck-changelog
+  group: anmachacast-changelog
   cancel-in-progress: false
 
 jobs:

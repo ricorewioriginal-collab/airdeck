@@ -15,9 +15,9 @@ diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
 +    needs: test
 +    runs-on: ubuntu-latest
 +    env:
-+      AIRDECK_DEMO_URL: https://airdeck-demo.ricorewi-radio.de
++      AIRDECK_DEMO_URL: https://anmachacast-demo.ricorewi-radio.de
 +      AIRDECK_DEMO_USER: demo
-+      AIRDECK_DEMO_PASSWORD: airdeck-demo
++      AIRDECK_DEMO_PASSWORD: anmachacast-demo
 +    steps:
 +      - name: ffprobe installieren
 +        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
@@ -83,7 +83,7 @@ diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
 +          const segmentUrl = new URL(segments[Math.max(0, segments.length - 2)], base + '/hls/main/index.m3u8').href;
 +          const segment = Buffer.from(await (await request(segmentUrl, { headers: bearer })).arrayBuffer());
 +          if (segment.length < 1000) throw new Error('HLS-Segment ist unerwartet klein');
-+          await writeFile(process.env.RUNNER_TEMP + '/airdeck-demo-segment.ts', segment);
++          await writeFile(process.env.RUNNER_TEMP + '/anmachacast-demo-segment.ts', segment);
 +
 +          console.log('Demo read-only OK: Health, ffmpeg, ffprobe, Playout, Ausgang, Stream und HLS bereit.');
 +          console.log('Audio-Segment gespeichert: ' + segment.length + ' Bytes.');

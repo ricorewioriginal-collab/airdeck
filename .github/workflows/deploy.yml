@@ -98,15 +98,15 @@ jobs:
               echo "::error::Server-Checkout enthaelt lokale Aenderungen; Rollout wird nicht ueberschrieben."
               exit 1
             fi
-            backup_dir="$HOME/airdeck-backups/$(date -u +%Y%m%dT%H%M%SZ)"
+            backup_dir="$HOME/anmachacast-backups/$(date -u +%Y%m%dT%H%M%SZ)"
             mkdir -p "$backup_dir"
             git rev-parse HEAD > "$backup_dir/previous-commit.txt"
             if [ -n "$(docker compose ps -q postgres </dev/null)" ]; then
-              docker compose exec -T postgres pg_dump -U airdeck -d airdeck -Fc </dev/null > "$backup_dir/postgres.dump"
+              docker compose exec -T postgres pg_dump -U anmachacast -d anmachacast -Fc </dev/null > "$backup_dir/postgres.dump"
               test -s "$backup_dir/postgres.dump"
             fi
-            if [ -n "$(docker compose ps -q airdeck </dev/null)" ]; then
-              docker compose run --rm --no-deps -u 0 --entrypoint tar airdeck -C /data -czf - . </dev/null > "$backup_dir/data.tar.gz"
+            if [ -n "$(docker compose ps -q anmachacast </dev/null)" ]; then
+              docker compose run --rm --no-deps -u 0 --entrypoint tar anmachacast -C /data -czf - . </dev/null > "$backup_dir/data.tar.gz"
               test -s "$backup_dir/data.tar.gz"
             fi
             echo "Sicherung angelegt: $backup_dir"

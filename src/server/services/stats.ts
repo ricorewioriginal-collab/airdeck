@@ -3,7 +3,7 @@
 // Hörer-Verlauf / Genre-Mix / Live-Plays. Grundlage: Play-Log (mit Hörerzahl je Titel), 30-s-Stichproben
 // (48 h) und das Stunden-Aggregat listenerHours (100 Tage). Kein eigener Datenbestand.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, type PlayLogEntry } from '../model.ts';
 
 export type StatsPeriod = 'today' | '24h' | '7d' | '30d' | '3m';
@@ -43,9 +43,9 @@ export function periodRange(period: StatsPeriod, now = Date.now()): { from: numb
 }
 
 export class StatsService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

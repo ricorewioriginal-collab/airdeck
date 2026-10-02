@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -48,7 +48,7 @@ test(
   'Externer Stream als Programminhalt zeigt echte ICY-Metadaten als "Jetzt läuft", nicht nur den Platzhaltertitel',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-icynow-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-icynow-'));
     const got: Buffer[] = [];
     const ice = createServer((req, res) => {
       if (req.url?.startsWith('/admin/')) return void res.end('ok');
@@ -86,7 +86,7 @@ test(
     await new Promise<void>((r) => streamSrv.listen(0, '127.0.0.1', r));
     const streamPort = (streamSrv.address() as { port: number }).port;
 
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       writeFileSync(join(app.mediaDir, 'main', 'a.wav'), wav(4, 440));
       app.svc.media.addMedia('main', { id: 'a.wav', title: 'a', artist: 'A', category: 'music', file: 'a.wav', durationMs: null, addedAt: 0 });
@@ -107,7 +107,7 @@ test(
       // Sobald der ICY-Reader den ersten Block gelesen hat, muss der ECHTE Titel erscheinen.
       await until(() => (app.nowPlaying('main') as { media: { title: string } }).media.title === 'Nachrichten', 10_000);
 
-      // Themenwechsel auf dem externen Stream - "Jetzt läuft" muss live nachziehen, ohne dass AirDeck
+      // Themenwechsel auf dem externen Stream - "Jetzt läuft" muss live nachziehen, ohne dass AnMaCha Cast
       // selbst den Titel wechselt (immer noch derselbe Programm-Slot/dieselbe Medien-ID).
       currentTitle = 'Kygo - Firestone';
       await until(() => {

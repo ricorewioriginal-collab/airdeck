@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HealthManager, aiState, nodeState, storageReport, type HealthSource } from '../src/server/health.ts';
 import { detectFfmpeg, type FfmpegInfo } from '../src/server/ffmpeg.ts';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 
 const ff: FfmpegInfo = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', ffplay: null, version: 'ffmpeg version 7.1 Copyright', encoders: { mp3: true, opus: true }, source: 'bundled' };
 
@@ -39,7 +39,7 @@ test('KI-Zustand: aus, bereit, Fehler', () => {
 });
 
 test('Zusammenfassung: ok, ohne ffmpeg eingeschränkt, Stream-Zustand', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-h-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-h-'));
   try {
     const ok = new HealthManager(source(dir)).summary();
     assert.equal(ok.status, 'ok');
@@ -80,10 +80,10 @@ test('Speicher: nicht vorhandener Datenordner = Fehler', () => {
 });
 
 test('ffmpeg: fehlgeschlagene Erkennung wird im Hintergrund wiederholt', { skip: !detectFfmpeg(process.cwd()) && 'kein ffmpeg im System' }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-r-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-r-'));
   const path = process.env.PATH;
   process.env.PATH = '';
-  const app = new AirDeckApp(dir, { appRoot: dir, ffmpegRetryS: [0.05, 0.05] });
+  const app = new AnMaChaCastApp(dir, { appRoot: dir, ffmpegRetryS: [0.05, 0.05] });
   process.env.PATH = path;
   try {
     assert.equal(app.ffmpeg, null);

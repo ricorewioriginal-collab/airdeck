@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { isLautHost, newsBoundary } from '../src/server/services/news.ts';
 
 const admin = { id: 'admin', tokenId: 't', roles: ['admin'], stationIds: ['*'], scopes: ['*'] };
@@ -26,7 +26,7 @@ test('isLautHost / newsBoundary', () => {
 test('Nachrichten: Zugang aus Ausgang, Download (gemockt), Einspielen, Sendeuhr', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'cast-news-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const news = app.svc.news;
     assert.equal(news.creds('main'), null);
     assert.equal((news.summary('main') as any).creds.ok, false);

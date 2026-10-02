@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: airdeck-security-${{ github.ref }}
+  group: anmachacast-security-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

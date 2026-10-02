@@ -222,7 +222,7 @@ export async function speak(p: ProviderConfig, key: string | undefined, req: Spe
 
 /** Lokales Piper-TTS (offline): Text über stdin, Stimme = Pfad zur .onnx-Datei. */
 function piper(bin: string, model: string, text: string, speed: number | undefined, timeoutMs: number): Promise<Buffer> {
-  const out = join(tmpdir(), `airdeck-piper-${process.pid}-${Date.now()}.wav`);
+  const out = join(tmpdir(), `anmachacast-piper-${process.pid}-${Date.now()}.wav`);
   const args = ['--model', model, '--output_file', out, ...(speed ? ['--length_scale', String(1 / speed)] : [])];
   return new Promise((resolve, reject) => {
     const p = spawn(bin, args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });

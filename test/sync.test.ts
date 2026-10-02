@@ -5,12 +5,12 @@ import { createVerify, generateKeyPairSync } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { SecretStore } from '../src/server/secrets.ts';
 import { FirestoreStore, SyncManager, decide, type RemoteDoc } from '../src/server/sync.ts';
 
-// MySQL-Tests nur mit Datenbank: AIRDECK_TEST_MYSQL="host:port:user:passwort:datenbank"
-const MYSQL = process.env.AIRDECK_TEST_MYSQL?.split(':');
+// MySQL-Tests nur mit Datenbank: ANMACHA_CAST_TEST_MYSQL="host:port:user:passwort:datenbank"
+const MYSQL = process.env.ANMACHA_CAST_TEST_MYSQL?.split(':');
 
 test('Konfliktregel', () => {
   const r = (updatedAt: number): RemoteDoc => ({ updatedAt, instance: 'x', state: {} });
@@ -26,9 +26,9 @@ test('Konfliktregel', () => {
 });
 
 test('Installer-Einrichtungsdatei wird importiert und gelöscht, Fehler blockieren den Start nicht', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-setup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-setup-'));
   try {
-    writeFileSync(join(dir, 'storage-setup.json'), JSON.stringify({ backend: 'mysql', mysql: { host: '127.0.0.1', port: 1, user: 'u', password: 'geheim', database: 'airdeck' } }));
+    writeFileSync(join(dir, 'storage-setup.json'), JSON.stringify({ backend: 'mysql', mysql: { host: '127.0.0.1', port: 1, user: 'u', password: 'geheim', database: 'anmachacast' } }));
     const secrets = new SecretStore(dir);
     const sync = new SyncManager(dir, secrets);
     const decision = await sync.startup(); // Port 1: nicht erreichbar → lokal weiter
@@ -43,11 +43,11 @@ test('Installer-Einrichtungsdatei wird importiert und gelöscht, Fehler blockier
   }
 });
 
-test('MySQL: zwei Standorte teilen den Senderzustand, Konflikte werden gesichert', { skip: !MYSQL && 'AIRDECK_TEST_MYSQL nicht gesetzt' }, async () => {
+test('MySQL: zwei Standorte teilen den Senderzustand, Konflikte werden gesichert', { skip: !MYSQL && 'ANMACHA_CAST_TEST_MYSQL nicht gesetzt' }, async () => {
   const [host, port, user, password, database] = MYSQL!;
   const mysqlCfg = { host, port: Number(port), user, password, database };
-  const dirA = mkdtempSync(join(tmpdir(), 'airdeck-a-'));
-  const dirB = mkdtempSync(join(tmpdir(), 'airdeck-b-'));
+  const dirA = mkdtempSync(join(tmpdir(), 'anmachacast-a-'));
+  const dirB = mkdtempSync(join(tmpdir(), 'anmachacast-b-'));
   let syncA: SyncManager | undefined;
   let syncB: SyncManager | undefined;
   try {
@@ -55,7 +55,7 @@ test('MySQL: zwei Standorte teilen den Senderzustand, Konflikte werden gesichert
     const secA = new SecretStore(dirA);
     syncA = new SyncManager(dirA, secA);
     await syncA.configure({ backend: 'mysql', mysql: mysqlCfg, firstSync: 'push' }, true);
-    const appA = new AirDeckApp(dirA, { ffmpeg: null, secrets: secA, sync: syncA });
+    const appA = new AnMaChaCastApp(dirA, { ffmpeg: null, secrets: secA, sync: syncA });
     appA.svc.stations.updateStation('main', { name: 'Studio Hannover' });
     appA.svc.media.addMedia('main', { id: 'm1', title: 'Song', artist: 'X', category: 'music', file: 'm1.mp3', durationMs: 1000, addedAt: 0 });
     appA.persistNow();
@@ -67,13 +67,13 @@ test('MySQL: zwei Standorte teilen den Senderzustand, Konflikte werden gesichert
     syncB = new SyncManager(dirB, secB);
     await syncB.configure({ backend: 'mysql', mysql: mysqlCfg }, true);
     assert.equal(await syncB.startup(), 'take_remote');
-    const appB = new AirDeckApp(dirB, { ffmpeg: null, secrets: secB, sync: syncB });
+    const appB = new AnMaChaCastApp(dirB, { ffmpeg: null, secrets: secB, sync: syncB });
     assert.equal(appB.svc.stations.station('main').name, 'Studio Hannover');
     assert.equal(appB.svc.media.library('main')[0]?.title, 'Song');
     appB.shutdown();
 
     // Beide ändern offline → Konflikt: lokal gewinnt, Remote-Stand wird gesichert
-    const b2 = new AirDeckApp(dirB, { ffmpeg: null, secrets: secB, sync: syncB });
+    const b2 = new AnMaChaCastApp(dirB, { ffmpeg: null, secrets: secB, sync: syncB });
     b2.svc.stations.updateStation('main', { name: 'Studio Berlin' });
     b2.persistNow();
     // wie main.ts: der lokale Stand kommt aus der Datenbank, nicht mehr aus airdeck.json
@@ -81,7 +81,7 @@ test('MySQL: zwei Standorte teilen den Senderzustand, Konflikte werden gesichert
     b2.shutdown();
     await syncA.pushNow(JSON.stringify({ ...JSON.parse(appA.stateJson()), marker: 1 }));
     assert.equal(await syncB.startup(localB), 'conflict');
-    assert.ok(readdirSync(dirB).some((f) => f.startsWith('airdeck.remote-conflict-')));
+    assert.ok(readdirSync(dirB).some((f) => f.startsWith('anmachacast.remote-conflict-')));
   } finally {
     // Verbindungen immer schließen – sonst hält ein fehlgeschlagener Test den Prozess (und die CI) offen
     await syncA?.close();
@@ -109,7 +109,7 @@ test('Firebase/Firestore: Service-Account-Anmeldung (RS256) und Dokument lesen/s
         return res.end(JSON.stringify(tokenOk ? { access_token: 'ya29.test', expires_in: 3600 } : { error_description: 'bad jwt' }));
       }
       if (req.headers.authorization !== 'Bearer ya29.test') return res.writeHead(401).end();
-      assert.ok(req.url!.includes('/projects/demo-proj/databases/(default)/documents/airdeck/state'));
+      assert.ok(req.url!.includes('/projects/demo-proj/databases/(default)/documents/anmachacast/state'));
       if (req.method === 'PATCH') {
         stored = JSON.parse(body);
         return res.end('{}');
@@ -122,7 +122,7 @@ test('Firebase/Firestore: Service-Account-Anmeldung (RS256) und Dokument lesen/s
   const base = `http://127.0.0.1:${(srv.address() as { port: number }).port}`;
   const sa = JSON.stringify({ client_email: 'svc@test.iam', private_key: privateKey, project_id: 'demo-proj', token_uri: `${base}/token` });
   try {
-    const fs = new FirestoreStore({ projectId: 'demo-proj', credentialsRef: 'x', collection: 'airdeck' }, sa, base);
+    const fs = new FirestoreStore({ projectId: 'demo-proj', credentialsRef: 'x', collection: 'anmachacast' }, sa, base);
     await fs.test();
     assert.equal(await fs.pull(), null);
     await fs.push({ updatedAt: 42, instance: 'pc1', state: { stations: [{ id: 'main', name: 'PROMPT FM' }] } });

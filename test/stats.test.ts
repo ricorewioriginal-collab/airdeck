@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { periodRange } from '../src/server/services/stats.ts';
 
 test('periodRange', () => {
@@ -21,7 +21,7 @@ test('periodRange', () => {
 test('Statistik: Kennzahlen, Top-Songs, Verlauf, Genre-Mix, Live-Plays', () => {
   const dir = mkdtempSync(join(tmpdir(), 'cast-stats-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const rt = app.rt('main');
     const now = Date.now();
     const h = 3_600_000;

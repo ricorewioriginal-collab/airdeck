@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { cleanPath, parseMultistatus } from '../src/server/nextcloud.ts';
 import { storedText } from './helpers.ts';
 
@@ -58,8 +58,8 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     });
   });
   await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-nc-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-nc-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     assert.throws(() => app.svc.nextcloud.setNextcloud({ url: 'ftp://x', user: 'a', password: 'b' }), /https/);
     app.svc.nextcloud.setNextcloud({ url: `http://127.0.0.1:${(srv.address() as { port: number }).port}/`, user: 'rico r', password: 'app-pw', root: '/Radio' });
@@ -91,7 +91,7 @@ test('Nextcloud-Brücke: durchsuchen, übernehmen (ohne Doppelte), Mitschnitt ho
     assert.deepEqual(app.svc.nextcloud.setNextcloud({ remove: true }), { configured: false });
     assert.deepEqual(app.svc.nextcloud.nextcloudConfig(), { configured: false });
     app.docs.flushSync();
-    const again = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const again = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     assert.deepEqual(again.svc.nextcloud.nextcloudConfig(), { configured: false });
   } finally {
     app.shutdown();

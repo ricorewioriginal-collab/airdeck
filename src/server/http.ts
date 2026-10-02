@@ -7,7 +7,7 @@ import { createReadStream, createWriteStream, existsSync, statSync, rmSync } fro
 import path, { extname, join, normalize, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Readable, Transform } from 'node:stream';
-import { AirDeckApp, AppError, canSee, newId, type Principal } from './app.ts';
+import { AnMaChaCastApp, AppError, canSee, newId, type Principal } from './app.ts';
 import { AiError } from './ai/providers.ts';
 import { AuthError, ROLES, ROLE_LABEL, ROLE_SCOPES } from './users.ts';
 import { MEDIA_CATEGORIES, parseFileName, type MediaCategory } from '../core/automation.ts';
@@ -74,7 +74,7 @@ function applyCors(req: IncomingMessage, res: ServerResponse, extra: (origin: st
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length');
   res.setHeader('Access-Control-Max-Age', '600');
-  // Chrome „Private Network Access“: Webseiten dürfen AirDeck auf diesem PC/im LAN nur nach ausdrücklicher Zustimmung erreichen
+  // Chrome „Private Network Access“: Webseiten dürfen AnMaCha Cast auf diesem PC/im LAN nur nach ausdrücklicher Zustimmung erreichen
   if (req.headers['access-control-request-private-network'] === 'true') res.setHeader('Access-Control-Allow-Private-Network', 'true');
   return true;
 }
@@ -98,7 +98,7 @@ export const ON_AIR_OPS = new RegExp('^/api/v1/(?:' + [
   'system/shutdown',
 ].join('|') + ')$');
 
-export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
+export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server {
   const routes: Route[] = [];
   const add = (method: string, path: string, scope: string | null, handler: Handler) => {
     const keys: string[] = [];
@@ -423,7 +423,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('GET', '/api/v1/stations/:sid/automation', 'automation:read', (c) => app.automationView(sid(c)));
   add('PATCH', '/api/v1/stations/:sid/automation', 'automation:write', async (c) => app.setAutomation(sid(c), (await c.body()) as never));
   add('GET', '/api/v1/stations/:sid/now-playing', 'now_playing:read', (c) => app.nowPlaying(sid(c)));
-  // Wer automatisiert diesen Sender tatsächlich (AirDeck-Server-Playout oder laut.fm über den
+  // Wer automatisiert diesen Sender tatsächlich (AnMaCha-Cast-Server-Playout oder laut.fm über den
   // Radioadmin)? Das Studio zeigt bei laut.fm den echten aktuellen Titel statt leerer Decks.
   add('GET', '/api/v1/stations/:sid/automation-source', 'now_playing:read', (c) => app.svc.status.automationSource(sid(c)));
   add('POST', '/api/v1/stations/:sid/now-playing', 'automation:write', async (c) => {
@@ -443,7 +443,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/stations/:sid/playout/start', 'automation:write', async (c) => app.startPlayout(c.p, sid(c), (await c.body()) as never));
   add('POST', '/api/v1/stations/:sid/playout/stop', 'automation:write', (c) => app.stopPlayout(c.p, sid(c)));
   add('POST', '/api/v1/stations/:sid/playout/mic', 'automation:write', async (c) => app.setMic(sid(c), (await c.body()).on === true));
-  add('POST', '/api/v1/stations/:sid/stream-profiles-test', 'automation:write', (c) => app.runAirDeckCastTest(sid(c)));
+  add('POST', '/api/v1/stations/:sid/stream-profiles-test', 'automation:write', (c) => app.runAnMaChaCastTest(sid(c)));
   // Zustandsberichte (angemeldet): Laufzeit, Abhängigkeiten, Datenbank, Audio, Encoder, Stream, KI
   add('GET', '/api/v1/system', null, () => ({ ...(app.svc.system.system() as object), ...app.health.system() }));
   add('GET', '/api/v1/database', null, () => app.databaseReport());
@@ -476,7 +476,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/stations/:sid/queue/fill-from', 'queue:write', async (c) => ({ added: app.queueFillFrom(sid(c), (await c.body()) as never) }));
   add('GET', '/api/v1/stations/:sid/queue.m3u', 'queue:read', (c) => {
     const text = app.svc.media.exportQueueM3U(sid(c));
-    c.res.writeHead(200, { 'Content-Type': 'audio/x-mpegurl; charset=utf-8', 'Content-Disposition': 'attachment; filename="airdeck-queue.m3u"' });
+    c.res.writeHead(200, { 'Content-Type': 'audio/x-mpegurl; charset=utf-8', 'Content-Disposition': 'attachment; filename="anmachacast-queue.m3u"' });
     c.res.end(text);
     return STREAMED;
   });
@@ -710,7 +710,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     const q = c.url.searchParams;
     const r = app.svc.system.liquidsoap(sid(c), { port: q.get('port') ? Number(q.get('port')) : undefined, mount: q.get('mount') ?? undefined, processing: q.get('processing') !== '0' });
     if (q.get('format') === 'json') return r;
-    c.res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="airdeck-${sid(c)}.liq"` });
+    c.res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="anmachacast-${sid(c)}.liq"` });
     c.res.end(r.script);
     return STREAMED;
   });
@@ -730,7 +730,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   });
   add('POST', '/api/v1/stations/:sid/recordings/:id/nextcloud', 'media:write', async (c) => app.svc.nextcloud.nextcloudUploadRecording(sid(c), c.params.id!, String((await c.body()).dir ?? '')));
 
-  // --- Programm beenden (Windows-Hintergrundprozess, Tray, „AirDeck beenden“) ---
+  // --- Programm beenden (Windows-Hintergrundprozess, Tray, „AnMaCha Cast beenden“) ---
   add('POST', '/api/v1/system/shutdown', null, (c) => {
     globalAdmin(c);
     if (!app.requestShutdown) throw new AppError(501, 'unsupported', 'Beenden ist hier nicht möglich');
@@ -762,13 +762,13 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('PUT', '/api/v1/setup/:step', null, async (c) => (globalAdmin(c), app.svc.setup.apply(c.p, c.params.step!, await c.body())));
   add('POST', '/api/v1/system/restart', null, (c) => {
     globalAdmin(c);
-    if (!app.requestRestart) throw new AppError(501, 'unsupported', 'Neustart ist hier nicht möglich – bitte AirDeck von Hand neu starten');
+    if (!app.requestRestart) throw new AppError(501, 'unsupported', 'Neustart ist hier nicht möglich – bitte AnMaCha Cast von Hand neu starten');
     app.audit.write({ kind: 'system', event: 'restart', actor: c.p.id });
     setTimeout(() => app.requestRestart?.(), 300).unref();
     return { restarting: true };
   });
   // LAN-Erkennung vom Browser aus anstoßen (der Browser selbst kann kein UDP - der Server sucht stellvertretend
-  // in seinem eigenen Netz. Nützlich z. B. auf einem Docker-/Server-Host, um weitere AirDeck-Instanzen im
+  // in seinem eigenen Netz. Nützlich z. B. auf einem Docker-/Server-Host, um weitere AnMaCha-Cast-Instanzen im
   // selben Netz zum Wechseln/Koppeln zu finden, s. "Server wechseln").
   add('GET', '/api/v1/discover', null, async (c) => {
     globalAdmin(c);
@@ -791,13 +791,13 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   });
   add('DELETE', '/api/v1/stations/:sid/folders/linked', null, async (c) => (globalAdmin(c), app.svc.media.unlinkFolder(sid(c), String((await c.body()).path ?? ''))));
   add('DELETE', '/api/v1/devices/:id', 'tokens:write', (c) => app.svc.devices.revoke(c.p, c.params.id!));
-  // andere AirDeck-Server im Netz finden (für „Server hinzufügen“ auf dem Desktop)
+  // andere AnMaCha-Cast-Server im Netz finden (für „Server hinzufügen“ auf dem Desktop)
   add('GET', '/api/v1/discover', null, async () => {
     const { discover } = await import('./discovery.ts');
     return (await discover()).filter((f) => f.id !== app.sync.instance);
   });
   add('PUT', '/api/v1/app/network', null, async (c) => (globalAdmin(c), app.svc.system.setNetwork((await c.body()).lan === true)));
-  // Webseiten, die AirDeck im Browser fernsteuern dürfen (CORS); Anmeldung bleibt trotzdem per Token/Kopplungscode nötig
+  // Webseiten, die AnMaCha Cast im Browser fernsteuern dürfen (CORS); Anmeldung bleibt trotzdem per Token/Kopplungscode nötig
   add('GET', '/api/v1/app/origins', null, (c) => (globalAdmin(c), { webOrigins: app.svc.system.webOrigins() }));
   add('PUT', '/api/v1/app/origins', null, async (c) => (globalAdmin(c), app.svc.system.setWebOrigins((await c.body()).webOrigins)));
   // Fernzugriff über einen Vermittler (ausgehende Verbindung, keine Portfreigabe nötig)
@@ -1076,7 +1076,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
 
     if (path.startsWith('/listen/')) {
       const p = auth(app, req, url);
-      if (!p || !AirDeckApp.hasScope(p, 'stream:read')) return json(res, 401, { error: 'unauthorized' });
+      if (!p || !AnMaChaCastApp.hasScope(p, 'stream:read')) return json(res, 401, { error: 'unauthorized' });
       const [, , station, ...rest] = path.split('/');
       if (!station || !canSee(p, station)) return json(res, 403, { error: 'forbidden' });
       try {
@@ -1090,7 +1090,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     // Zusatz-Streams: HLS-Playlist + -Segmente, direkt vom AnMaCha-Cast-Server ausgeliefert (kein externer Icecast nötig)
     if (path.startsWith('/hls/')) {
       const p = auth(app, req, url);
-      if (!p || !AirDeckApp.hasScope(p, 'stream:read')) return json(res, 401, { error: 'unauthorized' });
+      if (!p || !AnMaChaCastApp.hasScope(p, 'stream:read')) return json(res, 401, { error: 'unauthorized' });
       const [, , station, file] = path.split('/');
       if (!station || !canSee(p, station)) return json(res, 403, { error: 'forbidden' });
       if (!file || !/^[a-zA-Z0-9_.-]+$/.test(file)) return json(res, 404, { error: 'not_found' });
@@ -1118,7 +1118,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
       }
       const station = decodeURIComponent(ra![1]!);
       const scope = req.method === 'GET' ? 'lautfm:read' : 'lautfm:write';
-      if (!AirDeckApp.hasScope(p, scope)) return json(res, 403, { error: 'insufficient_scope', scope });
+      if (!AnMaChaCastApp.hasScope(p, scope)) return json(res, 403, { error: 'insufficient_scope', scope });
       if (!canSee(p, station)) return json(res, 403, { error: 'forbidden' });
       try {
         const cfg = app.svc.lautfm.lautfmConfig(station);
@@ -1142,7 +1142,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     if (p.user?.mustChangePassword && !['/api/v1/auth/password', '/api/v1/auth/logout', '/api/v1/me'].includes(path)) {
       return json(res, 403, { error: 'password_change_required', message: 'Bitte zuerst ein eigenes Passwort festlegen' });
     }
-    if (route.scope && !AirDeckApp.hasScope(p, route.scope)) return json(res, 403, { error: 'insufficient_scope', scope: route.scope });
+    if (route.scope && !AnMaChaCastApp.hasScope(p, route.scope)) return json(res, 403, { error: 'insufficient_scope', scope: route.scope });
     if (!route.re.source.includes('chunks') && !allow(p.tokenId)) return json(res, 429, { error: 'rate_limited' });
     // Datenbank ausgefallen: Sendebetrieb läuft aus dem Speicher weiter, Konfigurationsänderungen werden abgelehnt
     if (req.method !== 'GET' && req.method !== 'HEAD' && app.docs.status().state === 'error' && !ON_AIR_OPS.test(path)) {
@@ -1183,7 +1183,7 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
 
 // ---------- Relay-Ingest (Icecast-kompatibel: PUT oder SOURCE) ----------
 
-function handleIngest(app: AirDeckApp, req: IncomingMessage, res: ServerResponse, path: string): void {
+function handleIngest(app: AnMaChaCastApp, req: IncomingMessage, res: ServerResponse, path: string): void {
   if (req.method !== 'PUT' && req.method !== 'SOURCE') return json(res, 405, { error: 'method_not_allowed' });
   const [, , station, ...rest] = path.split('/');
   const mount = '/' + rest.join('/');
@@ -1197,7 +1197,7 @@ function handleIngest(app: AirDeckApp, req: IncomingMessage, res: ServerResponse
   }
   if (!src) {
     app.audit.write({ kind: 'ingest', event: 'auth_failed', station, mount });
-    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="AirDeck"' });
+    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="AnMaCha Cast"' });
     return void res.end();
   }
   const contentType = String(req.headers['content-type'] ?? 'audio/mpeg').split(';')[0]!.trim();
@@ -1226,7 +1226,7 @@ function handleIngest(app: AirDeckApp, req: IncomingMessage, res: ServerResponse
 
 const STREAMED = Symbol('streamed');
 
-function auth(app: AirDeckApp, req: IncomingMessage, url: URL): Principal | null {
+function auth(app: AnMaChaCastApp, req: IncomingMessage, url: URL): Principal | null {
   const h = /^Bearer (.+)$/i.exec(String(req.headers.authorization ?? ''));
   // Query-Token nur für GET (EventSource, <audio>), damit Tokens nicht in schreibenden Requests landen.
   const token = h?.[1] ?? (req.method === 'GET' ? url.searchParams.get('token') ?? undefined : undefined);

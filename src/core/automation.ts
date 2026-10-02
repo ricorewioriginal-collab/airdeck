@@ -1,4 +1,4 @@
-// AirDeck Automation Core: Medien, Queue, Decks, Cardwall, Sendeuhr, Backtiming.
+// AnMaCha Cast Automation Core: Medien, Queue, Decks, Cardwall, Sendeuhr, Backtiming.
 // Reine Domain-Logik ohne I/O – läuft identisch auf Server, Windows und Android.
 
 export type MediaCategory =

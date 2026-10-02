@@ -16,7 +16,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -70,7 +70,7 @@ test(
   'Externer Stream als Programminhalt: Musik -> Stream (echte URL/HTTP) -> Musik, sauberer Übergang ohne Stille-Lücke',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-streamcontent-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-streamcontent-'));
     const got: Buffer[] = [];
     const ice = createServer((req, res) => {
       if (req.url?.startsWith('/admin/')) return void res.end('ok');
@@ -92,7 +92,7 @@ test(
     await new Promise<void>((r) => streamSrv.listen(0, '127.0.0.1', r));
     const streamPort = (streamSrv.address() as { port: number }).port;
 
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 5, 440);
       wav(join(app.mediaDir, 'main', 'b.wav'), 5, 550);

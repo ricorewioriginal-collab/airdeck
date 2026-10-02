@@ -156,7 +156,7 @@ export class IcecastOutput implements BroadcastOutput {
         'Content-Type': wanted.contentType,
         'Ice-Public': '0',
         'Ice-Name': this.cfg.name,
-        'User-Agent': 'AirDeck/0.3',
+        'User-Agent': 'AnMaCha Cast/0.3',
       },
     });
     this.req = req;

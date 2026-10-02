@@ -10,7 +10,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
@@ -26,8 +26,8 @@ function wav(seconds: number, freq: number): Buffer {
 }
 
 test('Cardwall per Drag&Drop befüllen: OS-Datei hochladen und einem Cart-Slot zuweisen', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-cardwall-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-cardwall-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;
@@ -89,7 +89,7 @@ async function until(fn: () => boolean, ms = 10_000) {
 }
 
 test('Cardwall spielt mit ffmpeg wirklich Audio auf den Ausgang', { skip: !ff && 'ffmpeg nicht installiert', timeout: 30_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-cardwall-audio-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-cardwall-audio-'));
   const got: Buffer[] = [];
   const ice = createServer((req, res) => {
     if (req.url?.startsWith('/admin/')) return void res.end('ok');
@@ -99,7 +99,7 @@ test('Cardwall spielt mit ffmpeg wirklich Audio auf den Ausgang', { skip: !ff &&
   });
   await new Promise<void>((r) => ice.listen(0, '127.0.0.1', r));
   const port = (ice.address() as { port: number }).port;
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

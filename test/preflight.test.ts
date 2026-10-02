@@ -8,12 +8,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import type { PreflightItem } from '../src/server/services/planning.ts';
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-preflight-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-preflight-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   return { app, done: () => { app.shutdown(); rmSync(dir, { recursive: true, force: true }); } };
 }
 

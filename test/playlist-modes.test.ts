@@ -7,12 +7,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { shuffleSeparated } from '../src/core/automation.ts';
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-plmode-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-plmode-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   // Zwei Titel je Interpret, damit eine naive Mischung oft direkt nebeneinander landen würde
   for (const [id, artist] of [['a1', 'A'], ['a2', 'A'], ['b1', 'B'], ['b2', 'B'], ['c1', 'C'], ['c2', 'C']] as const) {
     app.svc.media.addMedia('main', { id, title: `Titel ${id}`, artist, category: 'music', file: `${id}.mp3`, durationMs: 60_000, addedAt: 0 });

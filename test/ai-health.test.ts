@@ -8,7 +8,7 @@ import { createServer, type Server } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { AiError } from '../src/server/ai/providers.ts';
 
 let mock: Server;
@@ -16,8 +16,8 @@ let base: string;
 let calls: string[] = [];
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-ai-health-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-ai-health-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   app.ai.update({
     providers: [
       { id: 'flaky', name: 'Wackelig', role: 'text', kind: 'openai_compat', baseUrl: `${base}/flaky/v1` },

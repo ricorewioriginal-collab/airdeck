@@ -1,16 +1,16 @@
 // Bereitstellung (Phase 4, zweiter Schritt): kontrolliertes Kopieren eines eigenen privaten Uploads in
-// ein Senderarchiv - danach ist der neue, sendergebundene Hub-Eintrag laut AirDeckCast-Preflight
+// ein Senderarchiv - danach ist der neue, sendergebundene Hub-Eintrag laut AnMaCha-Cast-Preflight
 // sendefähig, während der ursprüngliche private Upload unverändert und weiterhin nicht sendefähig bleibt.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
 test('MusikHub: Bereitstellung eines privaten Uploads in ein Senderarchiv', async () => {
   const dir = mkdtempSync(join(process.cwd(), '.musikhub-stage-test-'));
-  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

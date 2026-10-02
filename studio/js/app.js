@@ -48,7 +48,7 @@ function mixMs(m, durMs) {
   const base = m?.segueMs ?? (m?.category === 'music' ? DEFAULT_MIX_MS : 0);
   return Math.min(base, durMs > 0 ? durMs / 2 : base);
 }
-const MIME = { MEDIA: 'application/x-airdeck-media', QUEUE: 'application/x-airdeck-queue' };
+const MIME = { MEDIA: 'application/x-anmachacast-media', QUEUE: 'application/x-anmachacast-queue' };
 
 /** @type {Api} */
 let api;
@@ -75,7 +75,7 @@ const S = {
   /** @type {string|null} */ lastAutoDeck: null,
   /** @type {any} */ playout: null,
   playoutAt: 0,
-  /** @type {{ source: 'airdeck'|'lautfm'|'none', now: any }|null} */ automationSource: null,
+  /** @type {{ source: 'anmachacast'|'lautfm'|'none', now: any }|null} */ automationSource: null,
   /** @type {{ rmsDb: number, peakDb: number, decks?: Record<string, number> }|null} */ srvLevel: null,
   srvLevelAt: 0,
   /** @type {{ rec: MediaRecorder, stream: MediaStream, sourceId: string }|null} */ mic: null,
@@ -1730,7 +1730,7 @@ async function manageStreamProfiles() {
  * Zusatz-Streams-Teststream: kurzer, echt hörbarer Testton läuft über den laufenden Sendebus (stört Queue/
  * Automation nicht) und wird an jedem aktiven Ausgang/Profil/HLS auf echten Datenzuwachs geprüft.
  */
-async function runAirDeckCastTest() {
+async function runAnMaChaCastTest() {
   if (!S.playout?.status?.running) return status('Server-Automation läuft nicht – Test nicht möglich', true);
   status('Zusatz-Streams-Test läuft … (ca. 5 Sekunden)');
   const r = /** @type {any} */ (await run(() => api.post(url('/stream-profiles-test'), {})));
@@ -1888,7 +1888,7 @@ function bindStatic() {
   });
   $('btn-m3u').addEventListener('click', async () => {
     const blob = await run(() => api.blob(url('/queue.m3u')));
-    if (blob) download(blob, 'airdeck-queue.m3u');
+    if (blob) download(blob, 'anmachacast-queue.m3u');
   });
   $('btn-meta').addEventListener('click', async () => {
     const m = S.nowPlaying?.media;
@@ -2024,7 +2024,7 @@ function bindStatic() {
   $('btn-add-source').addEventListener('click', () => editSource());
   $('btn-add-output').addEventListener('click', () => editOutput());
   $('btn-profiles').addEventListener('click', () => manageStreamProfiles());
-  $('btn-airdeckcast-test').addEventListener('click', runAirDeckCastTest);
+  $('btn-anmachacast-test').addEventListener('click', runAnMaChaCastTest);
   $('btn-liq').addEventListener('click', liquidsoapDialog);
   $('btn-sys-deps').addEventListener('click', () => void showDeps());
   $('btn-station').addEventListener('click', editStation);
@@ -2193,14 +2193,14 @@ async function liquidsoapDialog() {
   const v = await formDialog('Liquidsoap als Sendeweg', [
     { name: 'info', label: 'Wofür?', type: 'info', value: 'Optional: AnMaCha Cast sendet an Liquidsoap, Liquidsoap verteilt an alle Ausgänge, zum Beispiel auf einem Server mit stabiler Anbindung, mit zusätzlicher Dynamik oder mehreren Zielen. Das Skript wird aus deinen Ausgängen erzeugt. Passwörter stehen nicht darin, sie kommen aus Umgebungsvariablen.' },
     { name: 'port', label: 'Harbor-Port (Eingang von AnMaCha Cast)', type: 'number', value: 8005 },
-    { name: 'mount', label: 'Harbor-Mount', value: 'airdeck' },
+    { name: 'mount', label: 'Harbor-Mount', value: 'anmachacast' },
     { name: 'processing', label: 'Zusätzliche Liquidsoap-Dynamik (nrj)', type: 'checkbox', value: false, hint: 'Meist nicht nötig, weil die AnMaCha Cast-DSP schon verarbeitet' },
   ], 'Skript herunterladen');
   if (!v) return;
   const q = `port=${v.port ?? 8005}&mount=${encodeURIComponent(v.mount)}&processing=${v.processing ? 1 : 0}`;
   const blob = await run(() => api.blob(url(`/liquidsoap?${q}`)));
   if (!blob) return;
-  download(blob, `airdeck-${S.station.id}.liq`);
+  download(blob, `anmachacast-${S.station.id}.liq`);
   const info = await run(() => api.get(url(`/liquidsoap?${q}&format=json`)));
   status(`Skript gespeichert. Umgebungsvariablen setzen: ${info?.env.join(', ') ?? ''} – dann in AnMaCha Cast einen Icecast-Ausgang auf Port ${v.port ?? 8005}, Mount /${v.mount} anlegen.`);
 }

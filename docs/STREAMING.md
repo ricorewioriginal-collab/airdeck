@@ -75,8 +75,8 @@ Absender werden über einen gesalzenen Hash der IP unterschieden, die IP selbst 
 Wer Liquidsoap nutzen will, etwa auf einem Server mit guter Anbindung oder für viele Ziele, lässt AnMaCha Cast an Liquidsoap senden. Liquidsoap verteilt dann weiter:
 
 1. Stream & Encoder → **LIQ** → Skript herunterladen. Es wird aus den eingerichteten Ausgängen erzeugt.
-2. Umgebungsvariablen setzen: `AIRDECK_LIQ_INPUT_PASSWORD` und `AIRDECK_LIQ_OUT<n>_PASSWORD`. Passwörter stehen nie im Skript.
-3. `liquidsoap airdeck-<sender>.liq` starten, zum Beispiel mit Docker `savonet/liquidsoap:v2.2.5`.
+2. Umgebungsvariablen setzen: `ANMACHA_CAST_LIQ_INPUT_PASSWORD` und `ANMACHA_CAST_LIQ_OUT<n>_PASSWORD`. Passwörter stehen nie im Skript.
+3. `liquidsoap anmachacast-<sender>.liq` starten, zum Beispiel mit Docker `savonet/liquidsoap:v2.2.5`.
 4. In AnMaCha Cast einen Icecast-Ausgang auf den Liquidsoap-Harbor anlegen (Port/Mount wie gewählt, Benutzer `source`) und die direkten Ausgänge deaktivieren.
 
 Die CI prüft das erzeugte Skript bei jedem Build mit echtem Liquidsoap (`liquidsoap --check`).

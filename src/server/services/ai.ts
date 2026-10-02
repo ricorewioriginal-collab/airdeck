@@ -1,6 +1,6 @@
 // KI je Sender: Einstellungen der Automation, Redaktionsassistent (Text) und Voice Studio (Sprache).
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -44,9 +44,9 @@ export function parseJsonRows(text: string): Record<string, unknown>[] | null {
 }
 
 export class AiToolsService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

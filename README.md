@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_cast/main/assets/icons/airdeck-gesamt.png" width="170" alt="AnMaCha Cast Logo"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ricorewioriginal-collab/anmacha_cast/main/assets/icons/anmachacast-gesamt.png" width="170" alt="AnMaCha Cast Logo"></p>
 
 <h1 align="center">AnMaCha Cast</h1>
 <h3 align="center">Dein Radio. Dein Studio. AnMaCha Cast.</h3>
@@ -72,7 +72,7 @@ AnMaCha Cast kann direkt im Browser ausprobiert werden.
 <p align="center"><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Setup.exe"><img src="assets/readme/downloads/windows-installer.svg" width="270" alt="Windows Installer"></a><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Windows-Portable.zip"><img src="assets/readme/downloads/windows-portable.svg" width="270" alt="Windows Portable"></a></p>
 <p align="center"><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Android.apk"><img src="assets/readme/downloads/android.svg" width="270" alt="Android APK"></a><a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest/download/AnMaCha-Cast-Linux.deb"><img src="assets/readme/downloads/linux.svg" width="270" alt="Linux DEB"></a></p>
 
-> Die Download-Links zeigen automatisch auf die Dateien des jeweils neuesten veröffentlichten GitHub-Releases (`AnMaCha-Cast-*`, siehe `docs/REBRANDING_ANMACHA_CAST.md` Phase 8). Ältere Releases vor dieser Umstellung tragen noch den Dateinamen `AirDeck-*`.
+> Die Download-Links zeigen automatisch auf die Dateien des jeweils neuesten veröffentlichten GitHub-Releases (`AnMaCha-Cast-*`, siehe `docs/REBRANDING_ANMACHA_CAST.md` Phase 8). Ältere Releases vor dieser Umstellung tragen noch den Dateinamen `AnMaCha-Cast-*`.
 
 ---
 

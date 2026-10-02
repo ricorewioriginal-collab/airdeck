@@ -113,7 +113,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
     <li><b>Hintergrundbetrieb:</b> AnMaCha Cast läuft ohne Konsolenfenster. Das Symbol im Infobereich (neben der Uhr) bietet Studio öffnen, Protokoll anzeigen und AnMaCha Cast beenden.</li>
   </ul>
   <h3>Docker</h3>
-  <p><code>docker compose up -d</code> startet AnMaCha Cast als Server mit ffmpeg. Das Admin-Token steht im Log (<code>docker compose logs airdeck</code>).</p>
+  <p><code>docker compose up -d</code> startet AnMaCha Cast als Server mit ffmpeg. Das Admin-Token steht im Log (<code>docker compose logs anmachacast</code>).</p>
   <h3>Server (Linux, 24/7)</h3>
   <p>Node.js ab 22.18 und ffmpeg installieren, dann <code>npm start</code>. Mit <code>--headless</code> startet AnMaCha Cast ohne Fenster. Das Admin-Token erzeugt <code>--new-admin-token</code>.</p>
   <h3>Android</h3>
@@ -288,7 +288,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
     <li><b>Mit laut.fm anmelden:</b> laut.fm → „Mit laut.fm anmelden“. Du meldest dich bei laut.fm an und landest automatisch wieder in AnMaCha Cast. Die Station wird selbst gewählt (bei mehreren fragt AnMaCha Cast nach).</li>
     <li><b>Oder Token einfügen:</b> „Token einfügen …“ und ein vorhandenes Token eintragen. Auch „Bearer …“ oder Anführungszeichen stören nicht.</li>
   </ol>
-  <div class="warn">laut.fm akzeptiert ein Token nur zusammen mit dem Origin, für den es ausgestellt wurde. AnMaCha Cast findet ihn selbst heraus: Adresse des Studios, <code>airdeck</code>, <code>anmacha_dashboard</code> oder ein von dir angegebener Name aus „callback_url=…“. Lehnt laut.fm später ab, prüft AnMaCha Cast die Verbindung einmal neu, bevor es eine Fehlermeldung zeigt. Deine Tokens siehst du unter radioadmin.laut.fm/tokens.</div>
+  <div class="warn">laut.fm akzeptiert ein Token nur zusammen mit dem Origin, für den es ausgestellt wurde. AnMaCha Cast findet ihn selbst heraus: Adresse des Studios, <code>anmachacast</code>, <code>anmacha_dashboard</code> oder ein von dir angegebener Name aus „callback_url=…“. Lehnt laut.fm später ab, prüft AnMaCha Cast die Verbindung einmal neu, bevor es eine Fehlermeldung zeigt. Deine Tokens siehst du unter radioadmin.laut.fm/tokens.</div>
   <h3>Bereiche</h3>
   <ul>
     <li><b>Übersicht:</b> Station, Streaming-Status, aktuelle Playlist, Hörer, Radioadmin-Status, zuletzt gespielt, nächste Interpreten.</li>

@@ -5,11 +5,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), 'airdeck-jingles-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   app.svc.media.addMedia('main', { id: 'j1', title: 'Jingle 1', artist: '', category: 'jingle', file: 'j1.mp3', durationMs: 4000, addedAt: 0 });
   app.svc.media.addMedia('main', { id: 'j2', title: 'Jingle 2', artist: '', category: 'jingle', file: 'j2.mp3', durationMs: 5000, addedAt: 0 });
   return { app, done: () => { app.shutdown(); rmSync(dir, { recursive: true, force: true }); } };

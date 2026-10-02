@@ -4,12 +4,12 @@ import type { Server } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { normalizeOrigin } from '../src/server/services/system.ts';
 
 let dir: string;
-let app: AirDeckApp;
+let app: AnMaChaCastApp;
 let server: Server;
 let base: string;
 let admin: string;
@@ -27,8 +27,8 @@ const preflight = (origin: string, pna = true) => fetch(base + '/api/v1/me', {
 });
 
 before(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'airdeck-origins-'));
-  app = new AirDeckApp(dir, { stableMs: 0 });
+  dir = mkdtempSync(join(tmpdir(), 'anmachacast-origins-'));
+  app = new AnMaChaCastApp(dir, { stableMs: 0 });
   admin = app.svc.auth.createToken({ name: 'a', scopes: ['*'], roles: ['admin'], stationIds: ['*'] }).token;
   viewer = app.svc.auth.createToken({ name: 'v', scopes: ['queue:read'], roles: ['viewer'], stationIds: ['main'] }).token;
   server = createHttpServer(app, join(import.meta.dirname, '../studio'));
@@ -88,7 +88,7 @@ test('ungültige Webseiten und Nicht-Admins werden abgelehnt', async () => {
 test('LAN-Schalter überschreibt die Freigaben nicht, Freigabe übersteht Neustart', async () => {
   assert.equal((await api('PUT', '/api/v1/app/network', { lan: true })).status, 200);
   assert.deepEqual(app.svc.system.webOrigins(), ['https://control.example.org']);
-  const again = new AirDeckApp(dir, { stableMs: 0 });
+  const again = new AnMaChaCastApp(dir, { stableMs: 0 });
   try {
     assert.equal(again.svc.system.isWebOrigin('https://control.example.org'), true);
     assert.equal(again.svc.system.isWebOrigin('https://andere.example.org'), false);

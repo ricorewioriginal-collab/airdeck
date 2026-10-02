@@ -1,4 +1,4 @@
-// AirDeck-Kern: Sender-Laufzeit, Quellen (Source Priority), Relay/Ingest, Ausgänge, Queue, Decks, Server-Playout,
+// AnMaCha-Cast-Kern: Sender-Laufzeit, Quellen (Source Priority), Relay/Ingest, Ausgänge, Queue, Decks, Server-Playout,
 // Cardwall sowie Takt, Ereignisse und Datenhaltung. Alle übrigen Fachgebiete liegen als Dienste unter services/
 // und werden über `app.svc.<dienst>` angesprochen. Keine Abhängigkeit zu AnMaCha oder anderen externen Diensten.
 
@@ -29,7 +29,7 @@ import { detectFfmpeg, detectFfmpegAsync, generateTestTone, inputDeviceArgs, lis
 import { IcyMetadataReader } from './icy.ts';
 import { DEFAULT_FADES, DEFAULT_PLAYOUT, DSP_PRESETS, DeckError, EQ_BANDS, FADE_PROFILES, Playout, type FadeOptions } from './playout.ts';
 import { SyncManager } from './sync.ts';
-import { appVersion, type AirDeckConfig, type Mode } from './config.ts';
+import { appVersion, type AnMaChaCastConfig, type Mode } from './config.ts';
 import { HealthManager } from './health.ts';
 import { Updater } from './update.ts';
 import { AiService } from './ai/service.ts';
@@ -44,7 +44,7 @@ const HARD_MARK_LOOKAHEAD_MS = 3 * 3600e3;
 // Bisherige Importe aus app.ts bleiben gültig
 export * from './model.ts';
 
-export class AirDeckApp {
+export class AnMaChaCastApp {
   /** Dienstmodule (services/) */
   readonly svc: Services;
   readonly dataDir: string;
@@ -70,9 +70,9 @@ export class AirDeckApp {
   readonly health: HealthManager;
   readonly mode: Mode;
   readonly version: string;
-  readonly paths: AirDeckConfig['paths'];
+  readonly paths: AnMaChaCastConfig['paths'];
   /** Vollständige Konfiguration (airdeck.conf), null in Tests/Hilfsinstanzen ohne Datei */
-  readonly config: AirDeckConfig | null;
+  readonly config: AnMaChaCastConfig | null;
   ffmpegRetry: NodeJS.Timeout | null = null;
   tickCount = 0;
   readonly notifier: Notifier;
@@ -94,13 +94,13 @@ export class AirDeckApp {
   readonly headless: boolean;
   readonly appRoot: string;
   listenHost = '127.0.0.1';
-  /** Vom Einstiegspunkt gesetzt: sauber beenden (Studio-Knopf „AirDeck beenden“, Tray, --stop) */
+  /** Vom Einstiegspunkt gesetzt: sauber beenden (Studio-Knopf „AnMaCha Cast beenden“, Tray, --stop) */
   requestShutdown: (() => void) | null = null;
   /** Vom Einstiegspunkt gesetzt: neu starten (nach Änderungen an Betriebsart, Datenbank, Netzwerk, Pfaden) */
   requestRestart: (() => void) | null = null;
   listenPort = 8750;
 
-  constructor(dataDir: string, opts: { stableMs?: number; cooldownMs?: number; appRoot?: string; ffmpeg?: FfmpegInfo | null; secrets?: SecretStore; sync?: SyncManager; build?: string; packaged?: boolean; headless?: boolean; config?: AirDeckConfig; ffmpegRetryS?: number[]; docs?: DocStore } = {}) {
+  constructor(dataDir: string, opts: { stableMs?: number; cooldownMs?: number; appRoot?: string; ffmpeg?: FfmpegInfo | null; secrets?: SecretStore; sync?: SyncManager; build?: string; packaged?: boolean; headless?: boolean; config?: AnMaChaCastConfig; ffmpegRetryS?: number[]; docs?: DocStore } = {}) {
     this.dataDir = dataDir;
     this.svc = createServices(this);
     if (opts.docs) {
@@ -203,7 +203,7 @@ export class AirDeckApp {
 
     for (const st of state?.stations ?? []) this.mountStation(st, state?.data[st.id]);
     for (const o of state?.outputs ?? []) this.mountOutput(o);
-    if (this.stations.size === 0) this.svc.stations.createStation({ id: 'main', name: 'AirDeck Radio' }, true);
+    if (this.stations.size === 0) this.svc.stations.createStation({ id: 'main', name: 'AnMaCha Cast Radio' }, true);
   }
 
   start(): void {
@@ -625,7 +625,7 @@ export class AirDeckApp {
     if (this.stopping || !this.ffmpeg || !this.ffmpeg.encoders.mp3 || this.playouts.has(stationId)) return false;
     const active = this.engine.activeFor(stationId, target);
     // nur echte Live-Quellen mit tatsächlichem Audiostrom
-    if (!active || !AirDeckApp.LIVE_TYPES.has(active.type) || !this.relayFor(stationId, target).hasSession(active.id)) return false;
+    if (!active || !AnMaChaCastApp.LIVE_TYPES.has(active.type) || !this.relayFor(stationId, target).hasSession(active.id)) return false;
     // Schutz vor Start/Stopp-Wechselspiel
     if (Date.now() - (this.busStoppedAt.get(stationId) ?? 0) < 5000) return false;
     const auto = this.engine.list(stationId).find((s) => s.type === 'automation' && s.target === target);
@@ -636,7 +636,7 @@ export class AirDeckApp {
   private startBusForLive(stationId: string, target: string): void {
     if (this.stopping || this.playouts.has(stationId) || !this.stations.has(stationId)) return;
     const active = this.engine.activeFor(stationId, target);
-    if (!active || !AirDeckApp.LIVE_TYPES.has(active.type)) return;
+    if (!active || !AnMaChaCastApp.LIVE_TYPES.has(active.type)) return;
     try {
       this.startPlayout(SYSTEM_PRINCIPAL, stationId, {}, { forLive: true });
       this.audit.write({ kind: 'mode', event: 'bus_started_for_live', stationId, sourceId: active.id });
@@ -1413,7 +1413,7 @@ export class AirDeckApp {
    * (Hauptstream, Zusatzprofile, HLS) auf echten Datenzuwachs geprüft - "Verbindung besteht" allein zählt
    * nicht, es muss während des Tests tatsächlich mehr Bytes geflossen sein als vorher.
    */
-  async runAirDeckCastTest(stationId: string): Promise<{
+  async runAnMaChaCastTest(stationId: string): Promise<{
     ok: boolean;
     outputs: { id: string; name: string; profileId?: string; bytesDelta: number; ok: boolean }[];
     hls: { enabled: boolean; ok: boolean } | null;
@@ -1422,9 +1422,9 @@ export class AirDeckApp {
     if (!po) throw new AppError(409, 'not_running', 'Server-Playout läuft nicht - Testsignal nicht möglich');
     if (!this.ffmpeg) throw new AppError(501, 'unsupported', 'ffmpeg fehlt');
     const seconds = 3;
-    const file = join(this.mediaDir, stationId, '_airdeckcast_test.wav');
+    const file = join(this.mediaDir, stationId, '_anmachacast_test.wav');
     if (!existsSync(file)) await generateTestTone(this.ffmpeg.ffmpeg, file, seconds);
-    const media: MediaItem = { id: '_airdeckcast_test', title: 'Zusatz-Streams-Test', artist: '', category: 'station_id', file: '_airdeckcast_test.wav', durationMs: seconds * 1000, addedAt: Date.now() };
+    const media: MediaItem = { id: '_anmachacast_test', title: 'Zusatz-Streams-Test', artist: '', category: 'station_id', file: '_anmachacast_test.wav', durationMs: seconds * 1000, addedAt: Date.now() };
 
     const outs = [...this.outputs.values()].filter((o) => o.cfg.stationId === stationId && o.cfg.enabled);
     const before = new Map(outs.map((o) => [o.cfg.id, o.state.bytesSent]));
@@ -1442,7 +1442,7 @@ export class AirDeckApp {
     });
     const hls = cfg.hls?.enabled ? { enabled: true, ok: hlsBefore !== null && hlsBytes() > hlsBefore } : null;
     const ok = outputs.every((o) => o.ok) && (!hls || hls.ok);
-    this.audit.write({ kind: 'playout', event: 'airdeckcast_test', stationId, outputs: outputs.length, ok });
+    this.audit.write({ kind: 'playout', event: 'anmachacast_test', stationId, outputs: outputs.length, ok });
     return { ok, outputs, hls };
   }
 

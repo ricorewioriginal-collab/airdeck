@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { cleanSpeech, parseFeed, parsePicks } from '../src/server/ai/director.ts';
 import { chat } from '../src/server/ai/providers.ts';
 import { storedText } from './helpers.ts';
@@ -49,7 +49,7 @@ before(async () => {
   });
   await new Promise<void>((r) => mock.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(mock.address() as { port: number }).port}`;
-  dir = mkdtempSync(join(tmpdir(), 'airdeck-ai-'));
+  dir = mkdtempSync(join(tmpdir(), 'anmachacast-ai-'));
 });
 
 after(() => {
@@ -91,7 +91,7 @@ test('Provider: leere Antwort ist ein Fehler, fehlender Key wird gemeldet', asyn
 });
 
 test('KI-Automation: Moderation, Fallback, Kosten, Budget, Freigabe, Musikplanung', async () => {
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     const view = app.ai.update({
       providers: [
@@ -179,7 +179,7 @@ test('KI-Automation: Moderation, Fallback, Kosten, Budget, Freigabe, Musikplanun
 
     // Konfiguration überlebt den Neustart
     app.shutdown();
-    const again = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const again = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     assert.equal(again.svc.ai.aiConfig('main').enabled, true);
     assert.equal(again.svc.ai.aiConfig('main').text.fallback?.providerId, 'backup');
     again.shutdown();

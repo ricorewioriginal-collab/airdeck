@@ -82,7 +82,7 @@ export function alertText(p: NotifyPayload): string {
     encoder_crashed: 'Encoder abgestürzt – Neustart läuft',
     stream_error: `Stream-Fehler: ${d.output ?? ''} – ${d.error ?? ''}`,
   };
-  return `⚠️ AirDeck ${p.station}: ${what[p.event] ?? p.event}`;
+  return `⚠️ AnMaCha Cast ${p.station}: ${what[p.event] ?? p.event}`;
 }
 
 type Fetch = typeof fetch;
@@ -123,9 +123,9 @@ export class Notifier {
     }
     this.inflight++;
     const body = JSON.stringify(payload);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'User-Agent': 'AirDeck-Webhook/1', 'X-AirDeck-Event': payload.event };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'User-Agent': 'AnMaCha-Cast-Webhook/1', 'X-AnMaCha-Cast-Event': payload.event };
     const secret = w.secretRef ? this.getSecret(w.secretRef) : undefined;
-    if (secret) headers['X-AirDeck-Signature'] = sign(secret, body);
+    if (secret) headers['X-AnMaCha-Cast-Signature'] = sign(secret, body);
     try {
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {

@@ -1,4 +1,9 @@
 [Unit]
+# Diese Diensteinheit heißt seit der AirDeck→AnMaCha-Cast-Umbenennung "anmachacast-server.service"
+# (vorher "airdeck-server.service"); Dienstkonto, Pfade (/etc/airdeck, /var/lib/airdeck, /var/log/airdeck)
+# und der Debian-Paketname "airdeck" bleiben bewusst unverändert "airdeck" (siehe control, postinst) -
+# ein Umbenennen würde aus einem "apt upgrade" eine komplette Neuinstallation machen. postinst migriert
+# eine zuvor aktive alte Einheit automatisch auf diesen neuen Namen.
 Description=AnMaCha Cast Radio-Automation & Live-Broadcast (Server)
 Documentation=https://github.com/ricorewioriginal-collab/anmacha_cast
 After=network-online.target

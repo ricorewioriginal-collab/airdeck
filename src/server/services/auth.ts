@@ -1,14 +1,14 @@
 // Anmeldung: API-Tokens (nur als Hash gespeichert), Desktop-Token, Prüfung von Token und Benutzersitzungen.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { randomBytes } from 'node:crypto';
 import { ALL_SCOPES, AppError, hashToken, newId, type ApiToken, type Principal } from '../model.ts';
 import { UserStore } from '../users.ts';
 
 export class AuthService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
