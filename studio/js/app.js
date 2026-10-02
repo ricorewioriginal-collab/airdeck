@@ -1013,7 +1013,9 @@ function buildDecks() {
       progress,
       h('div', { class: 'deck-ctrl' },
         h('button', { class: 'deck-btn', title: 'Zum Anfang', onclick: () => { if (eng()) return void deckCmd(id, 'seek', { ms: 0 }); const d = ensureAudio().decks[id]; if (d.media) d.el.currentTime = (d.media.cueInMs ?? 0) / 1000; } }, icon('prev', 14)),
+        h('button', { class: 'deck-btn small', title: '10 Sekunden zurück', onclick: () => skipDeck(id, -10_000) }, '−10'),
         els.play,
+        h('button', { class: 'deck-btn small', title: '10 Sekunden vor', onclick: () => skipDeck(id, 10_000) }, '+10'),
         h('button', { class: 'deck-btn', title: 'Nächsten Titel aus der Queue laden', onclick: () => loadFromQueue(id) }, icon('next', 14)),
         els.cue,
         h('button', { class: 'deck-btn', title: 'Stop', onclick: () => { if (eng()) return void deckCmd(id, 'stop'); ensureAudio().decks[id].stop(); run(() => api.put(url(`/decks/${id}`), { status: 'cued' })); renderDeck(id); } }, icon('stop', 14)),
@@ -1066,6 +1068,20 @@ function seek(id, e) {
   if (!d?.media || !d.durationMs) return;
   const rect = /** @type {HTMLElement} */ (e.currentTarget).getBoundingClientRect();
   d.el.currentTime = (((e.clientX - rect.left) / rect.width) * d.durationMs) / 1000;
+}
+
+/** ±10 s springen (wie an jedem Profi-Playout-Pult). @param {string} id @param {number} deltaMs */
+function skipDeck(id, deltaMs) {
+  if (eng()) {
+    const ed = engDeck(id);
+    if (!ed?.mediaId || !ed.durationMs) return;
+    const ms = Math.min(Math.max(0, engDeckPositionMs(ed) + deltaMs), ed.durationMs);
+    void deckCmd(id, 'seek', { ms: Math.round(ms) });
+    return;
+  }
+  const d = audio?.decks[id];
+  if (!d?.media || !d.durationMs) return;
+  d.el.currentTime = Math.min(Math.max(0, d.el.currentTime + deltaMs / 1000), d.durationMs / 1000);
 }
 
 /** @param {any} d */
