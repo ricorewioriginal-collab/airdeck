@@ -47,14 +47,16 @@ export class RecorderService {
         },
         onData: (chunk) => this.recWrite(active, chunk),
         onStop: () => {
-          active.stream?.end();
+          const stream = active.stream;
           active.stream = null;
           active.rec.endedAt = Date.now();
           this.app.changed();
-          // Auto-Veröffentlichung als Podcast-Episode (nach Vorlage), falls eingeschaltet
-          if (active.rec.id) {
+          // Auto-Veröffentlichung als Podcast-Episode (nach Vorlage) erst, wenn die Datei fertig geschrieben ist
+          const publish = (): void => {
+            if (!active.rec.id) return;
             try { this.app.svc.podcast.autoEpisode(stationId, active.rec); } catch (err) { this.app.audit.write({ kind: 'podcast', event: 'auto_failed', stationId, error: (err as Error).message }); }
-          }
+          };
+          if (stream) stream.end(publish); else publish();
         },
       },
     };

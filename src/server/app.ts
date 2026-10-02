@@ -992,15 +992,17 @@ export class AnMaChaCastApp {
     const rt = this.rt(stationId);
     if (Array.isArray(patch.inserts)) {
       const folders = new Set(rt.data.library.map((m) => m.folder ?? ''));
-      rt.data.inserts = patch.inserts.slice(0, 12).map((x: Record<string, unknown>, i) => ({
+      const next = patch.inserts.slice(0, 12).map((x: Record<string, unknown>, i) => ({
         id: typeof x.id === 'string' && x.id ? x.id.slice(0, 20) : `ins_${Date.now().toString(36)}_${i}`,
         label: String(x.label ?? '').slice(0, 40),
         folder: String(x.folder ?? '').slice(0, 80),
         every: Math.max(1, Math.min(60, Math.floor(Number(x.every)) || 4)),
         enabled: x.enabled !== false,
       }));
-      const missing = rt.data.inserts.find((r) => !folders.has(r.folder));
+      // erst prüfen, dann übernehmen - ein ungültiger Entwurf darf die gespeicherten Regeln nicht anfassen
+      const missing = next.find((r) => !folders.has(r.folder));
       if (missing) throw new AppError(400, 'empty_folder', `Ordner „${missing.folder || '(ohne Ordner)'}“ enthält keine Titel`);
+      rt.data.inserts = next;
       const live = new Set(rt.data.inserts.map((r) => r.id));
       for (const k of Object.keys(rt.data.insertCounters ?? {})) if (!live.has(k)) delete rt.data.insertCounters![k];
     }
@@ -1336,10 +1338,10 @@ export class AnMaChaCastApp {
     this.publishQueue(stationId);
   }
 
+  /** Nächsten Titel - im Server-Playout direkt, sonst übernimmt das Studio (Browser-Playout) per Event. */
   skipPlayout(stationId: string): void {
-    const po = this.playouts.get(stationId);
-    if (!po) throw new AppError(409, 'not_running', 'Server-Playout läuft nicht');
-    po.playout.skip();
+    this.rt(stationId);
+    this.advance(stationId);
   }
 
   savePlayoutConfig(stationId: string, input: Partial<PlayoutConfig>): PlayoutConfig {
@@ -1546,6 +1548,8 @@ export class AnMaChaCastApp {
     if (typeof patch.favorite === 'boolean') slot.favorite = patch.favorite || undefined;
     if (patch.hotkey !== undefined) {
       const k = typeof patch.hotkey === 'string' ? patch.hotkey.trim().slice(0, 12) : '';
+      // ein einzelnes Zeichen oder F1–F12 - alles andere kann das Studio nicht als Taste auslösen
+      if (k && !/^(?:\S|F(?:[1-9]|1[0-2]))$/i.test(k)) throw new AppError(400, 'invalid_hotkey', 'Tastenkürzel: ein Zeichen (z. B. „1“, „q“) oder F1 bis F12');
       if (k) for (const c of this.rt(stationId).data.cardwall) if (c !== slot && c.hotkey?.toLowerCase() === k.toLowerCase()) c.hotkey = undefined;
       slot.hotkey = k || undefined;
     }

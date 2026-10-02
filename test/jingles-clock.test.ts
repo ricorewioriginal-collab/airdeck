@@ -2,7 +2,7 @@
 // Grundlage der Seite "Jingles, Sender-IDs, Sweeper & Werbung" (nach dem AnMaCha Control Center).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AnMaChaCastApp } from '../src/server/app.ts';
@@ -10,6 +10,8 @@ import { AnMaChaCastApp } from '../src/server/app.ts';
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), 'airdeck-jingles-'));
   const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
+  mkdirSync(join(app.mediaDir, 'main'), { recursive: true });
+  for (const f of ['j1.mp3', 'j2.mp3']) writeFileSync(join(app.mediaDir, 'main', f), ''); // nur vorhandene Dateien werden ausgelöst
   app.svc.media.addMedia('main', { id: 'j1', title: 'Jingle 1', artist: '', category: 'jingle', file: 'j1.mp3', durationMs: 4000, addedAt: 0 });
   app.svc.media.addMedia('main', { id: 'j2', title: 'Jingle 2', artist: '', category: 'jingle', file: 'j2.mp3', durationMs: 5000, addedAt: 0 });
   return { app, done: () => { app.shutdown(); rmSync(dir, { recursive: true, force: true }); } };
