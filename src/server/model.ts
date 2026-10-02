@@ -62,6 +62,10 @@ export interface StationData {
   minQueue: number;
   playout?: PlayoutConfig;
   playlists?: Playlist[];
+  smartBlocks?: import('../core/smartblocks.ts').SmartBlock[];
+  rotationPool?: RotationPool;
+  /** Zähler je Playlist für die Allgemeine Rotation (Reihenfolge innerhalb einer Playlist) */
+  poolCursor?: Record<string, number>;
   jobs?: ScheduledJob[];
   clockEvents?: ClockEvent[];
   /** Einschübe „nach N Songs aus Ordner“ (Regeln & Sicherung) + Zähler je Regel */
@@ -161,6 +165,14 @@ export interface Playlist {
   mode?: 'manual' | 'shuffle';
   /** Zuletzt gemischte Reihenfolge (Item-IDs), damit "Abspielen" nicht bei jedem Aufruf neu mischt. */
   shuffleOrder?: string[];
+  /** Dynamische Playlist: Titel kommen bei jedem Durchlauf frisch aus diesem Smart Block (items bleiben leer) */
+  block?: string;
+}
+
+/** Allgemeine Rotation: mehrere Playlisten nach Gewicht mischen, wenn der Sendeplan nichts vorgibt. */
+export interface RotationPool {
+  on: boolean;
+  entries: { playlistId: string; weight: number }[];
 }
 
 export interface Recording {

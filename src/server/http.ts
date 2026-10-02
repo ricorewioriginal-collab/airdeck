@@ -502,6 +502,16 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('POST', '/api/v1/stations/:sid/playlists/:id/play', 'automation:write', (c) => app.svc.planning.playPlaylist(sid(c), c.params.id!));
   add('POST', '/api/v1/stations/:sid/playlists/:id/shuffle', 'queue:write', (c) => app.svc.planning.reshufflePlaylist(sid(c), c.params.id!));
 
+  // --- Smart Blocks & Allgemeine Rotation ---
+  add('GET', '/api/v1/stations/:sid/smart-blocks', 'queue:read', (c) => app.svc.planning.smartBlocks(sid(c)));
+  add('POST', '/api/v1/stations/:sid/smart-blocks', 'queue:write', async (c) => app.svc.planning.saveSmartBlock(sid(c), null, await c.body()));
+  add('POST', '/api/v1/stations/:sid/smart-blocks/preview', 'queue:read', async (c) => app.svc.planning.previewSmartBlock(sid(c), await c.body()));
+  add('PATCH', '/api/v1/stations/:sid/smart-blocks/:id', 'queue:write', async (c) => app.svc.planning.saveSmartBlock(sid(c), c.params.id!, await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/smart-blocks/:id', 'queue:write', (c) => app.svc.planning.deleteSmartBlock(sid(c), c.params.id!));
+  add('POST', '/api/v1/stations/:sid/smart-blocks/:id/playlist', 'queue:write', async (c) => { const b = await c.body(); return app.svc.planning.smartBlockToPlaylist(sid(c), c.params.id!, b.snapshot === true, str(b.name)); });
+  add('GET', '/api/v1/stations/:sid/rotation-pool', 'queue:read', (c) => app.svc.planning.rotationPool(sid(c)));
+  add('PUT', '/api/v1/stations/:sid/rotation-pool', 'automation:write', async (c) => app.svc.planning.setRotationPool(sid(c), await c.body()));
+
   // --- Playlist-Lifehacks ---
   add('GET', '/api/v1/stations/:sid/lifehacks/health', 'queue:read', (c) => app.svc.lifehacks.healthCheck(sid(c)));
   add('GET', '/api/v1/stations/:sid/lifehacks/runtime/:id', 'queue:read', (c) => app.svc.lifehacks.runtime(sid(c), c.params.id!, Number(c.url.searchParams.get('adBufferPct') ?? 0)));

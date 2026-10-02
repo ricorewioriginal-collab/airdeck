@@ -82,11 +82,14 @@ export function mountPlanning(root, ctx) {
   /** @type {string[]} */ let folders = [];
   /** @type {any} */ let automation = { rotation: { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0, maxBpmJump: 0 } };
   /** @type {any|null} */ let preflight = null;
+  /** @type {any[]} */ let blocks = [];
+  /** @type {any|null} */ let blockDraft = null;
   let openPl = /** @type {string|null} */ (null);
 
   async function load() {
-    [plan, playlists, history, folders, automation] = await Promise.all([
+    [plan, playlists, history, folders, automation, blocks] = await Promise.all([
       ctx.api.get(ctx.url('/planning')), ctx.api.get(ctx.url('/playlists')), ctx.api.get(ctx.url('/history?limit=200')), ctx.folders(), ctx.api.get(ctx.url('/automation')),
+      ctx.api.get(ctx.url('/smart-blocks')).catch(() => []),
     ]);
     render();
   }
@@ -112,6 +115,84 @@ export function mountPlanning(root, ctx) {
       h('div', { class: 'row', style: 'gap:8px' },
         h('button', { class: 'btn small', disabled: !folders.length, onclick: () => { insertsDraft.push({ label: '', folder: folders[0] ?? '', every: 4, enabled: true }); draw(); } }, '＋ Einschub'),
         h('button', { class: 'btn small primary', onclick: () => run(async () => { automation = await ctx.api.patch(ctx.url('/automation'), { inserts: insertsDraft }); status('Einschübe gespeichert'); render(); }) }, 'Einschübe speichern')));
+  }
+
+  // ---------- Smart Blocks (Playlisten aus Regeln) ----------
+  const BLK_FIELDS = /** @type {[string,string][]} */ ([['artist', 'Interpret'], ['title', 'Titel'], ['album', 'Album'], ['genre', 'Genre'], ['folder', 'Ordner'], ['tags', 'Tag'], ['year', 'Jahr'], ['durationSec', 'Dauer (Sek.)'], ['category', 'Kategorie'], ['bpm', 'BPM']]);
+  const BLK_OPS = /** @type {[string,string][]} */ ([['contains', 'enthält'], ['notcontains', 'enthält nicht'], ['is', 'ist'], ['not', 'ist nicht'], ['gt', 'größer als'], ['lt', 'kleiner als'], ['between', 'zwischen']]);
+  const BLK_ORDERS = /** @type {[string,string][]} */ ([['random', 'zufällig'], ['newest', 'neueste zuerst'], ['oldest', 'älteste zuerst'], ['alpha', 'alphabetisch'], ['popular', 'beliebteste zuerst'], ['longest', 'längste zuerst'], ['shortest', 'kürzeste zuerst']]);
+  /** @param {string} v @param {[string,string][]} opts @param {(v: string) => void} on */
+  const sel = (v, opts, on) => h('select', { onchange: (/** @type {Event} */ e) => on(/** @type {HTMLSelectElement} */ (e.target).value) }, ...opts.map(([k, l]) => h('option', { value: k, selected: k === v }, l)));
+
+  function blockEditor() {
+    const d = blockDraft;
+    const rulesBox = h('div', { class: 'blk-rules' });
+    const preview = h('div', { class: 'blk-preview' });
+    const drawRules = () => rulesBox.replaceChildren(...d.rules.map((/** @type {any} */ r, /** @type {number} */ i) => h('div', { class: 'blk-rule' },
+      sel(r.field, BLK_FIELDS, (v) => { r.field = v; }),
+      sel(r.op, BLK_OPS, (v) => { r.op = v; drawRules(); }),
+      h('input', { value: r.value ?? '', placeholder: 'Wert', oninput: (/** @type {Event} */ e) => { r.value = /** @type {HTMLInputElement} */ (e.target).value; } }),
+      r.op === 'between' ? h('input', { value: r.value2 ?? '', placeholder: 'bis', class: 'blk-v2', oninput: (/** @type {Event} */ e) => { r.value2 = /** @type {HTMLInputElement} */ (e.target).value; } }) : null,
+      iconBtn('Regel entfernen', '✕', () => { d.rules.splice(i, 1); drawRules(); }))));
+    drawRules();
+    const showPreview = async () => {
+      const r = await run(() => ctx.api.post(ctx.url('/smart-blocks/preview'), { block: d }));
+      if (!r) return;
+      preview.replaceChildren(h('div', { class: 'muted small' }, h('b', {}, String(r.count)), ` Titel (${r.minutes} Min.) · ${r.totalMatching} passen insgesamt`),
+        ...(r.items.length ? r.items.slice(0, 30).map((/** @type {any} */ it) => h('div', { class: 'blk-hit' }, mediaTitle(it), h('span', { class: 'muted' }, ` · ${it.category} · ${fmt(it.durationMs)}`))) : [h('div', { class: 'empty' }, 'Keine Treffer.')]));
+    };
+    return h('div', { class: 'blk-editor' },
+      h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
+        h('input', { value: d.name, placeholder: 'Name, z. B. Sommer-Pop', class: 'blk-name', oninput: (/** @type {Event} */ e) => { d.name = /** @type {HTMLInputElement} */ (e.target).value; } }),
+        h('label', { class: 'blk-lbl' }, 'Es müssen passen', sel(d.match, [['all', 'alle Regeln'], ['any', 'mindestens eine']], (v) => { d.match = v; }))),
+      h('div', { class: 'muted small' }, 'Regeln'), rulesBox,
+      h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
+        h('button', { class: 'btn small', onclick: () => { d.rules.push({ field: 'artist', op: 'contains', value: '' }); drawRules(); } }, '＋ Regel'),
+        h('label', { class: 'blk-lbl' }, 'Reihenfolge', sel(d.order, BLK_ORDERS, (v) => { d.order = v; })),
+        h('label', { class: 'blk-lbl' }, 'Begrenzen auf', h('input', { type: 'number', min: '0', value: String(d.limit.n), class: 'blk-num', oninput: (/** @type {Event} */ e) => { d.limit.n = Number(/** @type {HTMLInputElement} */ (e.target).value) || 0; } }),
+          sel(d.limit.by, [['items', 'Titel'], ['minutes', 'Minuten']], (v) => { d.limit.by = v; })),
+        h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: !!d.includeElements, onchange: (/** @type {Event} */ e) => { d.includeElements = /** @type {HTMLInputElement} */ (e.target).checked; } }), ' auch Jingles/Sweeper/IDs')),
+      preview,
+      h('div', { class: 'row', style: 'gap:8px;justify-content:flex-end' },
+        h('button', { class: 'btn small', onclick: () => { blockDraft = null; render(); } }, 'Abbrechen'),
+        h('button', { class: 'btn small', onclick: showPreview }, '👁 Vorschau'),
+        h('button', { class: 'btn small primary', onclick: () => run(async () => { if (d.id) await ctx.api.patch(ctx.url(`/smart-blocks/${d.id}`), d); else await ctx.api.post(ctx.url('/smart-blocks'), d); blockDraft = null; status('Smart Block gespeichert'); await load(); }) }, 'Speichern')));
+  }
+
+  function smartBlocksPanel() {
+    const rows = blocks.map((/** @type {any} */ b) => h('div', { class: 'blk-row' },
+      h('div', { class: 'blk-info' }, h('b', {}, b.name), h('span', { class: 'muted small' }, ` · ${b.count} passende Titel · ${b.rules.length} Regel(n) · ${b.match === 'any' ? 'eine' : 'alle'} müssen passen${b.limit?.n ? ` · Limit ${b.limit.n} ${b.limit.by === 'minutes' ? 'Min.' : 'Titel'}` : ''}`)),
+      h('div', { class: 'row-btns' },
+        iconBtn('Vorschau', '👁', () => run(async () => { const r = await ctx.api.post(ctx.url('/smart-blocks/preview'), { id: b.id }); status(`${b.name}: ${r.count} Titel (${r.minutes} Min.), ${r.totalMatching} passen insgesamt`); })),
+        h('button', { class: 'btn small', title: 'Dynamische Playlist: wird bei jedem Durchlauf neu gezogen', onclick: () => run(async () => { await ctx.api.post(ctx.url(`/smart-blocks/${b.id}/playlist`), { snapshot: false }); status('Dynamische Playlist angelegt – unter Playlisten / Sendeplan einsetzbar'); await load(); }) }, '📋 dynamisch'),
+        h('button', { class: 'btn small', title: 'Feste Playlist aus dem aktuellen Treffer-Stand', onclick: () => run(async () => { await ctx.api.post(ctx.url(`/smart-blocks/${b.id}/playlist`), { snapshot: true }); status('Feste Playlist angelegt'); await load(); }) }, '📸'),
+        iconBtn('Bearbeiten', '✎', () => { blockDraft = JSON.parse(JSON.stringify(b)); render(); }),
+        iconBtn('Löschen', '✕', () => { if (confirm('Smart Block löschen? Dynamische Playlisten daraus werden leer.')) run(async () => { await ctx.api.del(ctx.url(`/smart-blocks/${b.id}`)); await load(); }); }))));
+    return panel('Smart Blocks', [h('button', { class: 'btn small primary', onclick: () => { blockDraft = { name: '', match: 'all', rules: [{ field: 'genre', op: 'contains', value: '' }], order: 'random', limit: { by: 'items', n: 20 }, includeElements: false }; render(); } }, '＋ Neuer Block')],
+      h('div', {},
+        h('p', { class: 'muted small' }, 'Ein Smart Block sucht sich Titel nach Regeln aus der Bibliothek (z. B. Genre enthält „Pop“, Jahr größer als 2010, Dauer unter 240 s) – begrenzt nach Anzahl oder Minuten. Als dynamische Playlist wird er bei jedem Durchlauf neu gezogen, als Momentaufnahme wird eine feste Playlist daraus.'),
+        blockDraft ? blockEditor() : null,
+        ...(rows.length ? rows : [h('div', { class: 'empty' }, 'Noch kein Smart Block.')])));
+  }
+
+  // ---------- Allgemeine Rotation (Playlisten nach Gewicht) ----------
+  function rotationPoolPanel() {
+    const pool = JSON.parse(JSON.stringify(automation.rotationPool ?? { on: false, entries: [] }));
+    const list = h('div', { class: 'pool-rows' });
+    const draw = () => list.replaceChildren(...(pool.entries.length ? pool.entries.map((/** @type {any} */ e, /** @type {number} */ i) => h('div', { class: 'pool-row' },
+      h('select', { onchange: (/** @type {Event} */ ev) => { e.playlistId = /** @type {HTMLSelectElement} */ (ev.target).value; } }, ...playlists.map((/** @type {any} */ p) => h('option', { value: p.id, selected: p.id === e.playlistId }, `${p.name}${p.block ? ' ⚡' : ''}`))),
+      h('span', { class: 'muted small' }, 'Gewicht'),
+      h('input', { type: 'number', min: '1', max: '20', value: String(e.weight ?? 1), class: 'blk-num', oninput: (/** @type {Event} */ ev) => { e.weight = Number(/** @type {HTMLInputElement} */ (ev.target).value) || 1; } }),
+      iconBtn('Entfernen', '✕', () => { pool.entries.splice(i, 1); draw(); }))) : [h('div', { class: 'muted small' }, 'Noch keine Playlist im Pool.')]));
+    draw();
+    const onChk = h('input', { type: 'checkbox', checked: !!pool.on, onchange: (/** @type {Event} */ ev) => { pool.on = /** @type {HTMLInputElement} */ (ev.target).checked; } });
+    return panel('Allgemeine Rotation', [], h('div', {},
+      h('p', { class: 'muted small' }, 'Statt der Sendeuhr mischt der Sender mehrere Playlisten nach Gewicht (Gewicht 3 kommt dreimal so oft wie 1). Gilt, wenn im Sendeplan nichts geplant ist – geplante Sendungen haben Vorrang. ⚡ = dynamische Playlist aus einem Smart Block.'),
+      h('label', { class: 'chk' }, onChk, ' Allgemeine Rotation aktiv'),
+      list,
+      h('div', { class: 'row', style: 'gap:8px' },
+        h('button', { class: 'btn small', disabled: !playlists.length, onclick: () => { pool.entries.push({ playlistId: playlists[0]?.id, weight: 1 }); draw(); } }, '＋ Playlist'),
+        h('button', { class: 'btn small primary', onclick: () => run(async () => { await ctx.api.put(ctx.url('/rotation-pool'), pool); status('Rotation gespeichert'); await load(); }) }, 'Speichern'))));
   }
 
   /** @param {HTMLInputElement} artistEl @param {HTMLInputElement} titleEl @param {HTMLInputElement} genreEl @param {HTMLInputElement} bpmEl */
@@ -253,7 +334,7 @@ export function mountPlanning(root, ctx) {
       h('div', { class: 'planning-hero' },
         h('div', {}, h('strong', {}, 'Sendeplanung'), h('span', {}, 'Sendungen, Sendeuhr, Rotation und Preflight in einer Arbeitsfläche')),
         h('button', { class: 'btn small primary', onclick: runPreflight }, 'Preflight prüfen')),
-      h('div', { class: 'view-grid planning-workspace' }, sched, jobs, clock, rotation, clockTpl, preflightPanel, pls, hist)
+      h('div', { class: 'view-grid planning-workspace' }, sched, jobs, clock, rotation, smartBlocksPanel(), rotationPoolPanel(), clockTpl, preflightPanel, pls, hist)
     );
   }
 
