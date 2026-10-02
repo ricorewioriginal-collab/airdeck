@@ -16,6 +16,13 @@ on:
 # Vor dem Checkout wird der aktuelle Stand gesichert und ein nicht sauberer
 # Server-Checkout nicht ueberschrieben.
 # Laeuft nur mit vollstaendig hinterlegten Secrets (siehe docs/DEPLOY.md).
+permissions:
+  contents: read
+
+concurrency:
+  group: anmacha-cast-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
