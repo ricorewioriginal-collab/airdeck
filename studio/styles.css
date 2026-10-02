@@ -53,7 +53,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 /* Seitenleiste */
 .sidebar { width: 206px; flex: none; display: flex; flex-direction: column; gap: 14px; padding: 14px 10px; background: linear-gradient(180deg, rgba(10, 20, 40, .96), rgba(6, 12, 26, .96)); border-right: 1px solid var(--line); }
 .logo { display: flex; align-items: center; gap: 10px; padding: 4px 8px 10px; font-weight: 800; letter-spacing: .22em; font-size: 16px; color: #fff; }
-.logo img { border-radius: 9px; filter: drop-shadow(0 0 10px rgba(255, 122, 24, .55)); }
+.logo img.logo-wordmark { display: block; width: 100%; max-width: 184px; height: auto; filter: drop-shadow(0 0 10px rgba(255, 122, 24, .4)); }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav button, .nav a.nav-link { text-decoration: none; }
 .nav button, .nav a.nav-link { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 1px solid transparent; border-radius: 9px; padding: 8px 10px; color: #b6c4de; cursor: pointer; text-align: left; }
@@ -665,11 +665,12 @@ tr.active-row td { background: rgba(34,197,94,.08); }
   font-size: 18px;
   letter-spacing: .12em;
 }
-.logo img {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
-  filter: drop-shadow(0 0 12px rgba(255, 122, 24, .46)) drop-shadow(0 0 18px rgba(255, 45, 148, .22));
+.logo img.logo-wordmark {
+  width: 100%;
+  max-width: 190px;
+  height: auto;
+  border-radius: 0;
+  filter: drop-shadow(0 0 12px rgba(255, 122, 24, .4)) drop-shadow(0 0 18px rgba(255, 45, 148, .18));
 }
 
 .nav { gap: 5px; }
