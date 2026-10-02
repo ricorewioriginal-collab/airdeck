@@ -37,8 +37,10 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
    Stunden-Chip-Raster 00–23 (alle / 6–22 / keine) + Tage, Schnellpresets, Zeitplan-Liste als Uhr-Events
    `kind: news` (Datei wird zur Startzeit frisch geholt). Offen: „Automatisch verbinden, wenn der Relay
    gerade nicht sendet“ (braucht laut.fm-Titelende-Abfrage; P3).
-4. **[P1 · L] Smart Blocks & Rotation**: Regel-Editor ("Es müssen passen …", Reihenfolge, Begrenzen auf
-   N/Einheit), Vorschau, dynamische Playlist vs. Momentaufnahme, "Allgemeine Rotation".
+4. ~~[P1 · L] Smart Blocks & Rotation~~ - erledigt: Regel-Editor (Feld/Vergleich/Wert, alle/mindestens eine,
+   Reihenfolge, Begrenzen auf N Titel/Minuten, Elemente einbeziehen), Vorschau, dynamische Playlist (⚡, bei
+   jedem Durchlauf frisch) vs. Momentaufnahme; „Allgemeine Rotation“ = Playlisten nach Gewicht, wenn der
+   Sendeplan nichts vorgibt (`/smart-blocks`, `/rotation-pool`, `src/core/smartblocks.ts`).
 5. [P2 · S] Ereignisse: Typen KI-Ansage und Nachrichten-/Werbe-Trigger, "Jetzt beenden".
 6. [P2 · L] Rundown-/Sendeablauf-Planer mit Segmenttypen, Backtiming und Live-Modus.
 

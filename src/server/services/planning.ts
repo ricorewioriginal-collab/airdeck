@@ -7,7 +7,8 @@ import {
   activeWindow, clockDue, dueJobs, nextOccurrence, validateClock, validateWindow,
   type ClockEvent, type JobTarget, type ProgramPlan, type Repeat, type ScheduledJob,
 } from '../../core/scheduler.ts';
-import { AppError, newId, safeColor, type Playlist } from '../model.ts';
+import { AppError, newId, safeColor, type Playlist, type RotationPool } from '../model.ts';
+import { blockMatch, normalizeBlock, type SmartBlock } from '../../core/smartblocks.ts';
 import { NEWS_LABEL } from './news.ts';
 
 export type PreflightStatus = 'ok' | 'warning' | 'empty' | 'missing';
@@ -80,6 +81,7 @@ export class PlanningService {
     const rt = this.app.rt(stationId);
     if (rt.data.plans?.some((p) => p.playlistId === id)) throw new AppError(409, 'in_use', 'Playlist wird im Sendeplan verwendet');
     rt.data.playlists = (rt.data.playlists ?? []).filter((p) => p.id !== id);
+    if (rt.data.rotationPool) rt.data.rotationPool.entries = rt.data.rotationPool.entries.filter((e) => e.playlistId !== id);
     this.app.publish('playlists.changed', stationId, rt.data.playlists);
     this.app.changed();
   }
@@ -88,10 +90,35 @@ export class PlanningService {
     return this.savePlaylist(stationId, null, { name, items: this.app.rt(stationId).queue.list().map((q) => q.mediaId) });
   }
 
+  /** Titel einer Playlist - bei dynamischen Playlisten frisch aus dem Smart Block gezogen. */
+  playlistItems(stationId: string, pl: Playlist): string[] {
+    const rt = this.app.rt(stationId);
+    if (pl.block) {
+      const blk = rt.data.smartBlocks?.find((b) => b.id === pl.block);
+      return blk ? blockMatch(rt.data.library, blk, { plays: this.playCounts(stationId) }).map((m) => m.id) : [];
+    }
+    return pl.items.filter((id) => rt.data.library.some((m) => m.id === id));
+  }
+
+  private playCounts(stationId: string): Map<string, number> {
+    const plays = new Map<string, number>();
+    for (const e of this.app.rt(stationId).data.playLog ?? []) plays.set(e.mediaId, (plays.get(e.mediaId) ?? 0) + 1);
+    return plays;
+  }
+
   /** Playlist abspielen: ersetzt die Queue und schaltet per Crossfade weiter. Im Shuffle-Modus mit gemischter Reihenfolge. */
   playPlaylist(stationId: string, id: string): void {
     const rt = this.app.rt(stationId);
     const pl = rt.data.playlists?.find((p) => p.id === id);
+    if (pl?.block) {
+      const items = this.playlistItems(stationId, pl);
+      if (!items.length) throw new AppError(404, 'empty', 'Der Smart Block liefert gerade keine Titel');
+      rt.queue.clear();
+      for (const mid of items) rt.queue.add(mid, 'manual');
+      this.app.publishQueue(stationId);
+      this.app.advance(stationId);
+      return;
+    }
     if (!pl || !pl.items.length) throw new AppError(404, 'empty', 'Playlist ist leer oder existiert nicht');
     let order = pl.items;
     if (pl.mode === 'shuffle') {
@@ -299,6 +326,121 @@ export class PlanningService {
       problems: items.filter((i) => i.status === 'empty' || i.status === 'missing').length,
     };
     return { generatedAt: now, items, summary };
+  }
+
+  // ---------- Smart Blocks & Allgemeine Rotation ----------
+
+  smartBlocks(stationId: string): (SmartBlock & { count: number })[] {
+    const rt = this.app.rt(stationId);
+    return (rt.data.smartBlocks ?? []).map((b) => ({ ...b, count: blockMatch(rt.data.library, b, { ignoreLimit: true }).length }));
+  }
+
+  saveSmartBlock(stationId: string, id: string | null, input: Record<string, unknown>): SmartBlock {
+    const rt = this.app.rt(stationId);
+    const list = (rt.data.smartBlocks ??= []);
+    if (!id && list.length >= 60) throw new AppError(400, 'too_many', 'Maximal 60 Smart Blocks');
+    let blk: SmartBlock;
+    try {
+      blk = normalizeBlock(input, id ?? newId('blk'));
+    } catch (err) {
+      throw new AppError(400, 'invalid_block', (err as Error).message);
+    }
+    const i = list.findIndex((b) => b.id === blk.id);
+    if (id && i === -1) throw new AppError(404, 'not_found', 'Smart Block nicht gefunden');
+    if (i === -1) list.push(blk);
+    else list[i] = blk;
+    this.app.publish('playlists.changed', stationId, rt.data.playlists ?? []);
+    this.app.changed();
+    return blk;
+  }
+
+  deleteSmartBlock(stationId: string, id: string): void {
+    const rt = this.app.rt(stationId);
+    rt.data.smartBlocks = (rt.data.smartBlocks ?? []).filter((b) => b.id !== id);
+    // dynamische Playlisten daraus werden leer, bleiben aber bestehen
+    for (const p of rt.data.playlists ?? []) if (p.block === id) { delete p.block; p.items = []; }
+    this.app.publish('playlists.changed', stationId, rt.data.playlists ?? []);
+    this.app.changed();
+  }
+
+  /** Vorschau: gespeicherter Block (id) oder Entwurf (block) → Treffer, Minuten, Gesamtzahl passender Titel. */
+  previewSmartBlock(stationId: string, input: { id?: unknown; block?: unknown }): { items: unknown[]; count: number; minutes: number; totalMatching: number } {
+    const rt = this.app.rt(stationId);
+    let blk: SmartBlock | undefined;
+    if (input.block && typeof input.block === 'object') {
+      try { blk = normalizeBlock(input.block as Record<string, unknown>, 'preview'); } catch (err) { throw new AppError(400, 'invalid_block', (err as Error).message); }
+    } else blk = rt.data.smartBlocks?.find((b) => b.id === String(input.id ?? ''));
+    if (!blk) throw new AppError(404, 'not_found', 'Smart Block nicht gefunden');
+    const items = blockMatch(rt.data.library, blk, { plays: this.playCounts(stationId) });
+    const total = blockMatch(rt.data.library, blk, { ignoreLimit: true }).length;
+    return {
+      items: items.slice(0, 200).map((m) => ({ id: m.id, title: m.title, artist: m.artist, category: m.category, durationMs: m.durationMs })),
+      count: items.length, minutes: Math.round(items.reduce((a, m) => a + (m.durationMs ?? 0), 0) / 60_000), totalMatching: total,
+    };
+  }
+
+  /** Smart Block als Playlist: dynamisch (frisch gezogen) oder als feste Momentaufnahme. */
+  smartBlockToPlaylist(stationId: string, id: string, snapshot: boolean, name?: string): Playlist {
+    const rt = this.app.rt(stationId);
+    const blk = rt.data.smartBlocks?.find((b) => b.id === id);
+    if (!blk) throw new AppError(404, 'not_found', 'Smart Block nicht gefunden');
+    const pl = this.savePlaylist(stationId, null, { name: (name?.trim() || `${blk.name}${snapshot ? ' (Momentaufnahme)' : ''}`).slice(0, 80), color: '#818cf8' });
+    if (snapshot) pl.items = blockMatch(rt.data.library, blk, { plays: this.playCounts(stationId) }).map((m) => m.id);
+    else pl.block = blk.id;
+    this.app.publish('playlists.changed', stationId, rt.data.playlists ?? []);
+    this.app.changed();
+    return pl;
+  }
+
+  rotationPool(stationId: string): RotationPool {
+    return this.app.rt(stationId).data.rotationPool ?? { on: false, entries: [] };
+  }
+
+  setRotationPool(stationId: string, input: Record<string, unknown>): RotationPool {
+    const rt = this.app.rt(stationId);
+    const ids = new Set((rt.data.playlists ?? []).map((p) => p.id));
+    const entries = (Array.isArray(input.entries) ? input.entries : []).slice(0, 20)
+      .map((e: Record<string, unknown>) => ({ playlistId: String(e.playlistId ?? ''), weight: Math.max(1, Math.min(20, Math.floor(Number(e.weight)) || 1)) }))
+      .filter((e) => ids.has(e.playlistId));
+    const on = input.on === true;
+    if (on && !entries.length) throw new AppError(400, 'empty_pool', 'Mindestens eine Playlist für die Allgemeine Rotation wählen');
+    rt.data.rotationPool = { on, entries };
+    this.app.publish('automation.state_changed', stationId, this.app.automationView(stationId));
+    this.app.changed();
+    return rt.data.rotationPool;
+  }
+
+  /**
+   * Allgemeine Rotation füllen: Playlist nach Gewicht ziehen, darin der Reihe nach (eigener Zähler je Playlist),
+   * Interpreten-/Titelabstand über pickNext. Liefert false, wenn der Pool nichts liefern kann.
+   */
+  fillFromPool(stationId: string, random: () => number = Math.random): boolean {
+    const rt = this.app.rt(stationId);
+    const pool = rt.data.rotationPool;
+    if (!pool?.on) return false;
+    const lists = pool.entries.map((e) => ({ e, pl: rt.data.playlists?.find((p) => p.id === e.playlistId) })).filter((x): x is { e: RotationPool['entries'][number]; pl: Playlist } => !!x.pl);
+    const resolved = lists.map((x) => ({ ...x, items: this.playlistItems(stationId, x.pl) })).filter((x) => x.items.length);
+    if (!resolved.length) return false;
+    const cursors = (rt.data.poolCursor ??= {});
+    const total = resolved.reduce((a, x) => a + x.e.weight, 0);
+    let guard = rt.data.minQueue * 3;
+    while (rt.queue.length < rt.data.minQueue && guard-- > 0) {
+      let r = random() * total;
+      let pick = resolved[0]!;
+      for (const x of resolved) { r -= x.e.weight; if (r < 0) { pick = x; break; } }
+      const recent = [...rt.queue.list().map((q) => q.mediaId).reverse(), ...rt.data.history];
+      let next: string | undefined;
+      if (pick.pl.mode === 'shuffle' || pick.pl.block) {
+        const lib = rt.data.library.filter((m) => pick.items.includes(m.id));
+        next = pickFromPool(lib.map((m) => ({ ...m, category: 'music' as const })), 'music', recent, rt.data.rotation, random)?.id ?? pick.items[0];
+      } else {
+        const c = (cursors[pick.pl.id] ?? 0) % pick.items.length;
+        next = pick.items[c];
+        cursors[pick.pl.id] = c + 1;
+      }
+      if (next) rt.queue.add(next, 'plan');
+    }
+    return true;
   }
 
   executeTarget(stationId: string, t: JobTarget, origin: string): void {

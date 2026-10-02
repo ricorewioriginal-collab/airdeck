@@ -1028,7 +1028,7 @@ export class AnMaChaCastApp {
 
   automationView(stationId: string): unknown {
     const d = this.rt(stationId).data;
-    return { autoFill: d.autoFill, minQueue: d.minQueue, clock: d.clock, rotation: d.rotation, inserts: d.inserts ?? [] };
+    return { autoFill: d.autoFill, minQueue: d.minQueue, clock: d.clock, rotation: d.rotation, inserts: d.inserts ?? [], rotationPool: d.rotationPool ?? { on: false, entries: [] } };
   }
 
   /** Live aus dem ICY-Metadatenstrom eines externen Streams gelesener Titel, je Sender (nicht persistiert). */
@@ -1549,7 +1549,7 @@ export class AnMaChaCastApp {
     // Sendeplan: im aktiven Zeitfenster kommt die Musik aus der zugeordneten Playlist
     const plan = activeWindow(rt.data.plans ?? [], new Date());
     const pl = plan ? rt.data.playlists?.find((x) => x.id === plan.playlistId) : undefined;
-    const items = pl?.items.filter((id) => rt.data.library.some((m) => m.id === id)) ?? [];
+    const items = pl ? this.svc.planning.playlistItems(rt.station.id, pl) : [];
     if (plan && items.length) {
       const cursors = (rt.data.planCursor ??= {});
       let guard = rt.data.minQueue * 2;
@@ -1567,6 +1567,8 @@ export class AnMaChaCastApp {
       }
       return;
     }
+    // Allgemeine Rotation: mehrere Playlisten nach Gewicht, wenn der Sendeplan nichts vorgibt
+    if (!plan && this.svc.planning.fillFromPool(rt.station.id)) return;
     // Hard Time/Backtiming: vor einem festen Termin (Nachrichten, Sendungswechsel per Uhr-Event/Job "sofort")
     // keinen zu langen Titel mehr anfangen - siehe fillFromClock()/pickNext(maxLengthMs).
     const now = Date.now();
