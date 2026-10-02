@@ -223,12 +223,12 @@ jobs:
         with:
           name: AnMaCha-Cast-Windows-Installer
           path: dist/AnMaCha-Cast-Setup-*.exe
-          retention-days: 3
+          retention-days: 1
       - uses: actions/upload-artifact@v4
         with:
           name: AnMaCha-Cast-Windows
           path: dist/AirDeck
-          retention-days: 3
+          retention-days: 1
 
   docker:
     needs: test
@@ -475,7 +475,7 @@ jobs:
         with:
           name: AnMaCha-Cast-Linux-Deb
           path: dist/airdeck_*.deb
-          retention-days: 3
+          retention-days: 1
 
   android:
     needs: test
@@ -516,7 +516,7 @@ jobs:
         with:
           name: AnMaCha-Cast-Android
           path: apps/android/out/AnMaCha-Cast-Android.apk
-          retention-days: 3
+          retention-days: 1
 
   # Download-Bereich: Nach jedem Push auf den Hauptbranch liegen Installer, portable Version und APK
   # unter „Releases → AnMaCha Cast (aktueller Stand)“, ohne GitHub-Login-Umweg über Artefakte.
