@@ -27,7 +27,7 @@ import { fetchListeners } from './stats.ts';
 import { RelayTarget } from './relay.ts';
 import { detectFfmpeg, detectFfmpegAsync, generateTestTone, inputDeviceArgs, listInputDevices, type FfmpegInfo } from './ffmpeg.ts';
 import { IcyMetadataReader } from './icy.ts';
-import { DEFAULT_FADES, DEFAULT_PLAYOUT, DSP_PRESETS, DeckError, EQ_BANDS, FADE_PROFILES, Playout, type FadeOptions } from './playout.ts';
+import { DEFAULT_FADES, DEFAULT_MIC, DEFAULT_PLAYOUT, DSP_PRESETS, DeckError, EQ_BANDS, FADE_PROFILES, MIC_EQ, Playout, type FadeOptions, type MicOptions } from './playout.ts';
 import { SyncManager } from './sync.ts';
 import { appVersion, type AnMaChaCastConfig, type Mode } from './config.ts';
 import { HealthManager } from './health.ts';
@@ -1163,7 +1163,8 @@ export class AnMaChaCastApp {
     return {
       supported: !!this.ffmpeg,
       ffmpeg: this.ffmpeg ? { version: this.ffmpeg.version, encoders: this.ffmpeg.encoders, probe: !!this.ffmpeg.ffprobe } : null,
-      config: { ...cfg, fades: { ...DEFAULT_FADES, ...cfg.fades } },
+      config: { ...cfg, fades: { ...DEFAULT_FADES, ...cfg.fades }, mic: { ...DEFAULT_MIC, ...cfg.mic } },
+      micEq: MIC_EQ,
       fadeProfiles: Object.entries(FADE_PROFILES).map(([id, p]) => ({ id, ...p })),
       status: this.playouts.get(stationId)?.playout.status() ?? null,
     };
@@ -1343,6 +1344,8 @@ export class AnMaChaCastApp {
       if (typeof input.dsp.compressor === 'boolean') cur.dsp.compressor = input.dsp.compressor;
       if (typeof input.dsp.limiter === 'boolean') cur.dsp.limiter = input.dsp.limiter;
       for (const k of ['highpass', 'multiband', 'agc'] as const) if (typeof input.dsp[k] === 'boolean') cur.dsp[k] = input.dsp[k];
+      for (const k of ['bassDb', 'trebleDb'] as const) if (typeof input.dsp[k] === 'number' && Number.isFinite(input.dsp[k])) cur.dsp[k] = Math.max(-12, Math.min(12, input.dsp[k]!));
+      if (typeof input.dsp.stereoWidth === 'number' && Number.isFinite(input.dsp.stereoWidth)) cur.dsp.stereoWidth = Math.max(0, Math.min(200, Math.round(input.dsp.stereoWidth)));
       if (typeof input.dsp.targetLufs === 'number' && Number.isFinite(input.dsp.targetLufs)) cur.dsp.targetLufs = Math.max(-30, Math.min(-8, input.dsp.targetLufs));
       if (typeof input.dsp.preset === 'string') cur.dsp.preset = input.dsp.preset in DSP_PRESETS ? input.dsp.preset : undefined;
     }
@@ -1373,6 +1376,17 @@ export class AnMaChaCastApp {
       };
     }
     cur.micGainDb = num(input.micGainDb, -20, 20) ?? cur.micGainDb ?? 0;
+    if (input.mic && typeof input.mic === 'object') {
+      const m = input.mic as Partial<MicOptions>;
+      const prev = { ...DEFAULT_MIC, ...cur.mic };
+      cur.mic = {
+        gate: num(m.gate, 0, 100) ?? prev.gate,
+        highpass: typeof m.highpass === 'boolean' ? m.highpass : prev.highpass,
+        eq: m.eq === 'off' || m.eq === 'clear' || m.eq === 'warm' || m.eq === 'radio' ? m.eq : prev.eq,
+        deesser: typeof m.deesser === 'boolean' ? m.deesser : prev.deesser,
+        compressor: num(m.compressor, 0, 100) ?? prev.compressor,
+      };
+    }
     cur.duckDb = num(input.duckDb, -40, 0) ?? cur.duckDb;
     cur.silenceThresholdDb = num(input.silenceThresholdDb, -90, -10) ?? cur.silenceThresholdDb;
     cur.silenceMs = num(input.silenceMs, 2000, 120000) ?? cur.silenceMs;

@@ -34,15 +34,57 @@ export interface DspOptions {
   targetLufs?: number;
   /** Gewähltes Profil (nur Anzeige) */
   preset?: string;
+  /** Bass-/Höhenregler in dB (−12 … +12), ergänzend zum 10-Band-EQ */
+  bassDb?: number;
+  trebleDb?: number;
+  /** Stereo-Breite in % (100 = unverändert, 0 = mono, bis 200) */
+  stereoWidth?: number;
+}
+
+/** Mikrofon-/Line-In-Kette (Voice-Processing): Gate → Trittschall → Sprach-EQ → De-Esser → Kompressor. */
+export interface MicOptions {
+  /** Noise-Gate 0 (aus) … 100 (sehr streng) */
+  gate: number;
+  highpass: boolean;
+  eq: 'off' | 'clear' | 'warm' | 'radio';
+  deesser: boolean;
+  /** Kompression 0 (aus) … 100 */
+  compressor: number;
+}
+
+export const DEFAULT_MIC: MicOptions = { gate: 0, highpass: true, eq: 'off', deesser: false, compressor: 30 };
+export const MIC_EQ: Record<MicOptions['eq'], string> = { off: 'Aus', clear: 'Klar (Präsenz +3 dB, Dröhnen −2 dB)', warm: 'Warm (Fülle +2,5 dB)', radio: 'Radio-Stimme (Hochpass 90 Hz, Präsenz +4 dB, Luft +2 dB)' };
+
+/** ffmpeg-Filterkette für Mikrofon/Line-In (null = roh). */
+export function micFilter(m: MicOptions): string | null {
+  const parts: string[] = [];
+  if (m.gate > 0) {
+    const th = (0.002 + (m.gate / 100) * 0.06).toFixed(4); // 0.002 … 0.062 (≈ −54 … −24 dBFS)
+    parts.push(`agate=threshold=${th}:ratio=4:attack=5:release=120:range=0.05`);
+  }
+  if (m.highpass || m.eq === 'radio') parts.push(`highpass=f=${m.eq === 'radio' ? 90 : 70}:p=2`);
+  if (m.eq === 'clear') parts.push('equalizer=f=3500:t=o:w=1.2:g=3', 'equalizer=f=250:t=o:w=1:g=-2');
+  else if (m.eq === 'warm') parts.push('equalizer=f=180:t=o:w=1:g=2.5', 'equalizer=f=4500:t=o:w=1:g=-1');
+  else if (m.eq === 'radio') parts.push('equalizer=f=3200:t=o:w=1.2:g=4', 'equalizer=f=11000:t=o:w=1:g=2');
+  if (m.deesser) parts.push('deesser=i=0.6:m=0.5:f=0.5');
+  if (m.compressor > 0) {
+    const ratio = (1.5 + (m.compressor / 100) * 4.5).toFixed(1);
+    const thr = (0.3 - (m.compressor / 100) * 0.2).toFixed(2);
+    parts.push(`acompressor=threshold=${thr}:ratio=${ratio}:attack=8:release=150:makeup=${(1 + m.compressor / 100).toFixed(2)}`);
+  }
+  return parts.length ? parts.join(',') : null;
 }
 
 /** Klangprofile für die Master-Kette (Startpunkte, danach frei anpassbar). */
 export const DSP_PRESETS: Record<string, { label: string; dsp: Omit<DspOptions, 'preset'> }> = {
-  neutral: { label: 'Neutral (nur Limiter)', dsp: { eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], compressor: false, limiter: true, highpass: false, multiband: false, agc: false } },
-  music: { label: 'Musik ausgewogen', dsp: { eq: [1, 0, 0, 0, 0, 0, 1, 1, 0, 0], compressor: true, limiter: true, highpass: true, multiband: false, agc: true, targetLufs: -16 } },
-  pop: { label: 'Pop/Dance – laut & dicht', dsp: { eq: [2, 1, 0, 0, 0, 1, 1, 2, 1, 0], compressor: false, limiter: true, highpass: true, multiband: true, agc: true, targetLufs: -14 } },
-  talk: { label: 'Wort & Moderation', dsp: { eq: [-2, -1, 0, 0, 1, 2, 1, 0, 0, 0], compressor: true, limiter: true, highpass: true, multiband: false, agc: true, targetLufs: -16 } },
-  classic: { label: 'Klassik/Jazz – dynamisch', dsp: { eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], compressor: false, limiter: true, highpass: false, multiband: false, agc: false } },
+  neutral: { label: 'Neutral (nur Schutz-Limiter)', dsp: { eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], compressor: false, limiter: true, highpass: false, multiband: false, agc: false, bassDb: 0, trebleDb: 0, stereoWidth: 100 } },
+  radio: { label: 'Radio-Sound (Punch + Glanz)', dsp: { eq: [1, 1, 0, 0, 0, 1, 1, 2, 1, 0], compressor: false, limiter: true, highpass: true, multiband: true, agc: true, targetLufs: -15, bassDb: 1.5, trebleDb: 2, stereoWidth: 115 } },
+  music: { label: 'Musik ausgewogen', dsp: { eq: [1, 0, 0, 0, 0, 0, 1, 1, 0, 0], compressor: true, limiter: true, highpass: true, multiband: false, agc: true, targetLufs: -16, bassDb: 0, trebleDb: 0, stereoWidth: 100 } },
+  warm: { label: 'Warm (mehr Bass)', dsp: { eq: [2, 2, 1, 0, 0, 0, 0, 0, -1, -1], compressor: true, limiter: true, highpass: false, multiband: false, agc: true, targetLufs: -16, bassDb: 3, trebleDb: -1, stereoWidth: 100 } },
+  bright: { label: 'Hell (mehr Höhen)', dsp: { eq: [0, 0, 0, 0, 0, 1, 2, 2, 2, 1], compressor: true, limiter: true, highpass: true, multiband: false, agc: true, targetLufs: -16, bassDb: -1, trebleDb: 3, stereoWidth: 110 } },
+  pop: { label: 'Laut & dicht (Pop/Dance, Auto-Gain)', dsp: { eq: [2, 1, 0, 0, 0, 1, 1, 2, 1, 0], compressor: false, limiter: true, highpass: true, multiband: true, agc: true, targetLufs: -14, bassDb: 2, trebleDb: 1, stereoWidth: 120 } },
+  talk: { label: 'Sprache / Talk', dsp: { eq: [-2, -1, 0, 0, 1, 2, 1, 0, 0, 0], compressor: true, limiter: true, highpass: true, multiband: false, agc: true, targetLufs: -16, bassDb: -2, trebleDb: 1, stereoWidth: 80 } },
+  classic: { label: 'Klassik/Jazz – dynamisch', dsp: { eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], compressor: false, limiter: true, highpass: false, multiband: false, agc: false, bassDb: 0, trebleDb: 0, stereoWidth: 100 } },
 };
 
 export interface PlayoutOptions {
@@ -62,6 +104,8 @@ export interface PlayoutOptions {
   /** Aufnahmegerät für Mikrofon/Line-In (leer = keins) */
   inputDevice: string;
   micGainDb: number;
+  /** Voice-Processing für Mikrofon/Line-In */
+  mic?: MicOptions;
   /** Standard-Überblendung für Musik in ms */
   crossfadeMs: number;
   /** Absenkung der Musik, während Carts mit Ducking laufen */
@@ -137,6 +181,13 @@ export function dspFilter(d: DspOptions): string | null {
     const g = Math.max(-12, Math.min(12, Number(d.eq?.[i]) || 0));
     if (g !== 0) parts.push(`equalizer=f=${f}:t=o:w=1:g=${g}`);
   });
+  const bass = Math.max(-12, Math.min(12, Number(d.bassDb) || 0));
+  const treble = Math.max(-12, Math.min(12, Number(d.trebleDb) || 0));
+  if (bass) parts.push(`bass=g=${bass}:f=110`);
+  if (treble) parts.push(`treble=g=${treble}:f=4000`);
+  const width = d.stereoWidth == null ? 100 : Math.max(0, Math.min(200, Number(d.stereoWidth) || 0));
+  // Stereo-Breite: 0 = mono, 100 = unverändert, > 100 verbreitert (M/S-Anhebung der Seitensignale)
+  if (width !== 100) parts.push(width === 0 ? 'pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1' : `stereotools=mlev=1:slev=${(width / 100).toFixed(2)}`);
   if (d.highpass) parts.unshift('highpass=f=60:p=2');
   // 5 Bänder (Beispiel aus der ffmpeg-Doku, angepasst): Bass bis 100 Hz … Höhen bis 22 kHz
   if (d.multiband) parts.push("mcompand=args='0.005,0.1 6 -47/-40,-34/-34,-17/-33 100 | 0.003,0.05 6 -47/-40,-34/-34,-17/-33 400 | 0.000625,0.0125 6 -47/-40,-34/-34,-15/-33 1600 | 0.0001,0.025 6 -47/-40,-34/-34,-31/-31,-0/-30 6400 | 0,0.025 6 -38/-31,-28/-28,-0/-25 22000'");
@@ -1059,7 +1110,8 @@ export class Playout {
   private startInput(): void {
     const args = this.extras.inputArgs?.(this.opts.inputDevice);
     if (!args) return;
-    const p = spawn(this.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-nostdin', ...args, '-vn', '-f', 's16le', '-ar', String(SAMPLE_RATE), '-ac', String(CHANNELS), 'pipe:1'], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const af = micFilter({ ...DEFAULT_MIC, ...this.opts.mic });
+    const p = spawn(this.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-nostdin', ...args, '-vn', ...(af ? ['-af', af] : []), '-f', 's16le', '-ar', String(SAMPLE_RATE), '-ac', String(CHANNELS), 'pipe:1'], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     this.inputProc = p;
     this.inputState = 'running';
     p.stdout!.on('data', (d: Buffer) => this.inputFifo.push(d));
