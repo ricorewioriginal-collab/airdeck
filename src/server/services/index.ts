@@ -10,6 +10,7 @@ import { RemoteLinkService } from './remote-link.ts';
 import { BridgeService } from './bridges.ts';
 import { DeviceService } from './devices.ts';
 import { LautfmService } from './lautfm.ts';
+import { LifehacksService } from './lifehacks.ts';
 import { ListenerService } from './listeners.ts';
 import { MediaService } from './media.ts';
 import { MusicHubService } from './musikhub.ts';
@@ -38,6 +39,7 @@ export function createServices(app: AirDeckApp) {
     ai: new AiToolsService(app),
     recorder: new RecorderService(app),
     planning: new PlanningService(app),
+    lifehacks: new LifehacksService(app),
     setup: new SetupService(app),
     listeners: new ListenerService(app),
     backup: new BackupService(app),

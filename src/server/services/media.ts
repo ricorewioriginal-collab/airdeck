@@ -117,10 +117,17 @@ export class MediaService {
     if (typeof patch.artist === 'string') m.artist = patch.artist.slice(0, 200);
     if (typeof patch.category === 'string' && (MEDIA_CATEGORIES as readonly string[]).includes(patch.category)) m.category = patch.category as MediaItem['category'];
     if (typeof patch.folder === 'string') m.folder = patch.folder.trim().slice(0, 80) || undefined;
-    for (const k of ['durationMs', 'cueInMs', 'cueOutMs', 'segueMs', 'introMs', 'bpm', 'gainDb'] as const) {
+    if (typeof patch.genre === 'string') m.genre = patch.genre.trim().slice(0, 80) || undefined;
+    for (const k of ['durationMs', 'cueInMs', 'cueOutMs', 'segueMs', 'introMs', 'bpm', 'gainDb', 'year'] as const) {
       const v = patch[k];
       if (v === null && k !== 'durationMs') delete m[k];
       else if (typeof v === 'number' && Number.isFinite(v) && (k === 'gainDb' || v >= 0)) m[k] = v;
+    }
+    if (patch.tags === null) delete m.tags;
+    else if (Array.isArray(patch.tags)) {
+      const tags = [...new Set(patch.tags.map((t) => String(t).trim().slice(0, 40)).filter(Boolean))].slice(0, 30);
+      if (tags.length) m.tags = tags;
+      else delete m.tags;
     }
     this.app.publish('library.changed', stationId, { updated: m });
     this.app.changed();

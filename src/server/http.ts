@@ -500,6 +500,33 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/stations/:sid/playlists/:id/play', 'automation:write', (c) => app.svc.planning.playPlaylist(sid(c), c.params.id!));
   add('POST', '/api/v1/stations/:sid/playlists/:id/shuffle', 'queue:write', (c) => app.svc.planning.reshufflePlaylist(sid(c), c.params.id!));
 
+  // --- Playlist-Lifehacks ---
+  add('GET', '/api/v1/stations/:sid/lifehacks/health', 'queue:read', (c) => app.svc.lifehacks.healthCheck(sid(c)));
+  add('GET', '/api/v1/stations/:sid/lifehacks/runtime/:id', 'queue:read', (c) => app.svc.lifehacks.runtime(sid(c), c.params.id!, Number(c.url.searchParams.get('adBufferPct') ?? 0)));
+  add('POST', '/api/v1/stations/:sid/lifehacks/merge', 'queue:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.merge(sid(c), String(b.targetId ?? ''), String(b.sourceId ?? ''));
+  });
+  add('POST', '/api/v1/stations/:sid/lifehacks/top-tracks', 'queue:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.topTracksPlaylist(sid(c), { n: Number(b.n), name: typeof b.name === 'string' ? b.name : undefined, hours: Number(b.hours) });
+  });
+  add('POST', '/api/v1/stations/:sid/lifehacks/mass-tag', 'media:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.massTag(sid(c), String(b.playlistId ?? ''), Array.isArray(b.tags) ? b.tags.map(String) : [], b.mode === 'remove' ? 'remove' : 'add');
+  });
+  add('GET', '/api/v1/stations/:sid/lifehacks/analyze/:id', 'queue:read', (c) => app.svc.lifehacks.analyze(sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/lifehacks/find', 'media:read', (c) => app.svc.lifehacks.trackFinder(sid(c), c.url.searchParams.get('q') ?? ''));
+  add('POST', '/api/v1/stations/:sid/lifehacks/fill-year', 'media:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.fillYear(sid(c), String(b.playlistId ?? ''), Number(b.year));
+  });
+  add('GET', '/api/v1/stations/:sid/lifehacks/compare', 'queue:read', (c) => app.svc.lifehacks.compare(sid(c), c.url.searchParams.get('a') ?? '', c.url.searchParams.get('b') ?? ''));
+  add('POST', '/api/v1/stations/:sid/lifehacks/delete-many', 'queue:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.deleteMany(sid(c), Array.isArray(b.ids) ? b.ids.map(String) : []);
+  });
+
   // --- Planung: Zeitplan, Stunden-Uhr, Sendeplan ---
   add('GET', '/api/v1/stations/:sid/planning', 'schedule:read', (c) => app.svc.planning.planning(sid(c)));
   add('GET', '/api/v1/stations/:sid/preflight', 'schedule:read', (c) => app.svc.planning.preflight(sid(c)));

@@ -1146,10 +1146,34 @@ body {
 }
 .playlist-workspace .pl-items li:hover { background: rgba(0, 139, 255, .07); }
 
+.lifehack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 7px;
+  margin: 10px 0;
+}
+.lifehack-result {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid rgba(179, 136, 255, .25);
+  border-radius: 9px;
+  background: rgba(179, 136, 255, .06);
+}
+.lifehack-result ul { margin: 4px 0 10px; padding-left: 18px; }
+.lifehack-card { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(0, 174, 255, .13); }
+.lifehack-delete-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+  margin: 8px 0;
+}
+.lifehack-delete-list label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+
 @media (max-width: 700px) {
   .media-hero, .playlist-hero { align-items: flex-start; flex-direction: column; }
   .media-workspace .table-wrap { max-height: none; }
   .playlist-cards { grid-template-columns: minmax(0, 1fr); }
+  .lifehack-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 
