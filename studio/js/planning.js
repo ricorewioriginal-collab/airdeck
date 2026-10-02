@@ -5,7 +5,12 @@ import { DAYS, clockTime, download, fmt, formDialog, h, mediaTitle, run, status 
 
 const REPEAT = /** @type {Record<string,string>} */ ({ none: 'einmalig', hourly: 'stündlich', daily: 'täglich', weekdays: 'Mo–Fr', weekly: 'wöchentlich' });
 const MODE = /** @type {Record<string,string>} */ ({ now: 'sofort (Crossfade)', track: 'nach dem Titel', fx: 'über der Musik' });
-const KIND = /** @type {Record<string,string>} */ ({ media: 'Titel', folder: 'Ordner (Rotation)', url: 'URL / Stream', playlist: 'Playlist' });
+const KIND = /** @type {Record<string,string>} */ ({
+  media: 'Titel', folder: 'Ordner (Rotation)', category: 'Kategorie (Werbung, Jingle …)', url: 'URL / Stream', playlist: 'Playlist',
+  news: 'Nachrichten / Wetter (laut.fm)', ai: 'KI-Ansage',
+});
+const NEWS_ID = /** @type {Record<string,string>} */ ({ 1: 'Nachrichten + Wetter', 2: 'Nachrichten', 3: 'Wetter' });
+const AI_KIND = /** @type {Record<string,string>} */ ({ break: 'Moderation zwischen zwei Titeln', news: 'KI-Nachrichten aus den KI-Quellen' });
 const CLOCK_CAT_LABEL = /** @type {Record<string,string>} */ ({
   music: 'Musik', jingle: 'Jingle', sweeper: 'Sweeper', station_id: 'Station-ID', drop: 'Drop', news: 'Nachrichten',
   ad: 'Werbung', voice_track: 'Voicetrack', tts: 'TTS', bed: 'Bett', stream: 'Stream',
@@ -38,6 +43,9 @@ function targetText(t, ctx, playlists) {
   const what =
     t.kind === 'media' ? mediaTitle(ctx.library().find((m) => m.id === t.mediaId)) :
     t.kind === 'folder' ? `Ordner „${t.folder}“` :
+    t.kind === 'category' ? `Kategorie ${CLOCK_CAT_LABEL[t.category] ?? t.category}` :
+    t.kind === 'news' ? `laut.fm ${NEWS_ID[t.newsId] ?? 'Nachrichten'}` :
+    t.kind === 'ai' ? (t.aiKind === 'news' ? 'KI-Nachrichten' : 'KI-Ansage') :
     t.kind === 'playlist' ? `Playlist „${playlists.find((p) => p.id === t.playlistId)?.name ?? '?'}“` : t.kind;
   return `${t.label ? t.label + ' · ' : ''}${what} · ${MODE[t.mode] ?? t.mode}`;
 }
@@ -48,18 +56,21 @@ function targetFields(ctx, playlists, folders, v = {}) {
   return [
     { name: 'label', label: 'Bezeichnung', value: v.label ?? '' },
     { name: 'kind', label: 'Was', value: v.kind ?? 'media', options: Object.entries(KIND) },
-    { name: 'mediaId', label: 'Titel (bei „Titel“)', value: v.mediaId ?? lib[0]?.id ?? '', options: lib.map((m) => /** @type {[string,string]} */ ([m.id, mediaTitle(m)])) },
-    { name: 'folder', label: 'Ordner (bei „Ordner“)', value: v.folder ?? folders[0] ?? '', options: folders.map((f) => /** @type {[string,string]} */ ([f, f])) },
-    { name: 'url', label: 'URL (bei „URL / Stream“)', value: v.url ?? '', hint: 'z. B. Nachrichten-Stream oder MP3-Link' },
-    { name: 'durationMin', label: 'Dauer in Minuten (bei Streams)', type: 'number', value: '' },
-    { name: 'playlistId', label: 'Playlist (bei „Playlist“)', value: v.playlistId ?? playlists[0]?.id ?? '', options: playlists.map((p) => /** @type {[string,string]} */ ([p.id, p.name])) },
-    { name: 'mode', label: 'Wiedergabe', value: v.mode ?? 'track', options: Object.entries(MODE) },
+    { name: 'mediaId', label: 'Titel', value: v.mediaId ?? lib[0]?.id ?? '', options: lib.map((m) => /** @type {[string,string]} */ ([m.id, mediaTitle(m)])), showIf: { field: 'kind', values: ['media'] } },
+    { name: 'folder', label: 'Ordner', value: v.folder ?? folders[0] ?? '', options: folders.map((f) => /** @type {[string,string]} */ ([f, f])), showIf: { field: 'kind', values: ['folder'] } },
+    { name: 'category', label: 'Kategorie', value: v.category ?? 'ad', options: Object.entries(CLOCK_CAT_LABEL).filter(([k]) => k !== 'music' && k !== 'stream'), hint: 'Zufälliger Titel aus der Kategorie nach den Rotationsregeln', showIf: { field: 'kind', values: ['category'] } },
+    { name: 'newsId', label: 'Beitrag', value: String(v.newsId ?? 1), options: Object.entries(NEWS_ID), hint: 'Braucht den laut.fm-Live-Stream als Ausgang; wird zur Startzeit frisch geholt', showIf: { field: 'kind', values: ['news'] } },
+    { name: 'aiKind', label: 'Ansage', value: v.aiKind ?? 'break', options: Object.entries(AI_KIND), hint: 'Text und Stimme entstehen zur Startzeit über den KI-Regisseur', showIf: { field: 'kind', values: ['ai'] } },
+    { name: 'url', label: 'URL', value: v.url ?? '', hint: 'z. B. Nachrichten-Stream oder MP3-Link', showIf: { field: 'kind', values: ['url'] } },
+    { name: 'durationMin', label: 'Dauer in Minuten (leer = bis zum Weiterschalten)', type: 'number', value: '', showIf: { field: 'kind', values: ['url'] } },
+    { name: 'playlistId', label: 'Playlist', value: v.playlistId ?? playlists[0]?.id ?? '', options: playlists.map((p) => /** @type {[string,string]} */ ([p.id, p.name])), showIf: { field: 'kind', values: ['playlist'] } },
+    { name: 'mode', label: 'Wiedergabe', value: v.mode ?? 'track', options: Object.entries(MODE), showIf: { field: 'kind', values: ['media', 'folder', 'category', 'url'] } },
   ];
 }
 
 /** @param {Record<string, any>} v */
 function targetBody(v) {
-  return { label: v.label, kind: v.kind, mediaId: v.mediaId, folder: v.folder, url: v.url, durationMs: v.durationMin ? v.durationMin * 60000 : undefined, playlistId: v.playlistId, mode: v.mode };
+  return { label: v.label, kind: v.kind, mediaId: v.mediaId, folder: v.folder, category: v.category, newsId: Number(v.newsId) || undefined, aiKind: v.aiKind, url: v.url, durationMs: v.durationMin ? v.durationMin * 60000 : undefined, playlistId: v.playlistId, mode: v.mode };
 }
 
 /** @param {string} title @param {HTMLElement[]} actions @param {HTMLElement} body */
@@ -79,6 +90,12 @@ export function mountPlanning(root, ctx) {
   /** @type {any} */ let plan = { jobs: [], clockEvents: [], plans: [], activePlanId: null };
   /** @type {any[]} */ let playlists = [];
   /** @type {any[]} */ let history = [];
+  /** Protokoll-Filter (Verlauf): Freitext über Interpret/Titel und Art. */
+  const histFilter = { q: '', cat: '' };
+  const filteredHistory = () => {
+    const q = histFilter.q.trim().toLowerCase();
+    return history.filter((x) => (!histFilter.cat || x.category === histFilter.cat) && (!q || `${x.artist ?? ''} ${x.title ?? ''}`.toLowerCase().includes(q)));
+  };
   /** @type {string[]} */ let folders = [];
   /** @type {any} */ let automation = { rotation: { artistSeparation: 3, titleSeparation: 20, genreSeparation: 0, maxBpmJump: 0 } };
   /** @type {any|null} */ let preflight = null;
@@ -219,12 +236,14 @@ export function mountPlanning(root, ctx) {
   function render() {
     const byId = new Map(ctx.library().map((m) => [m.id, m]));
     // --- Zeitplan ---
-    const jobs = panel('Zeitplan', [h('button', { class: 'btn small primary', onclick: addJob }, '＋ Einplanen')],
+    const jobs = panel('Zeitplan', [
+      h('button', { class: 'btn small', title: 'Laufendes Element (Titel, Nachrichten, Ansage) sofort beenden – es geht mit dem nächsten weiter', onclick: () => run(async () => { await ctx.api.post(ctx.url('/playout/skip')); status('Beendet – weiter mit dem nächsten'); }) }, '⏭ Jetzt beenden'),
+      h('button', { class: 'btn small primary', onclick: addJob }, '＋ Einplanen')],
       table(['Zeitpunkt', 'Wiederholung', 'Was', ''], plan.jobs.map((/** @type {any} */ j) => h('tr', {},
         h('td', {}, new Date(j.at).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })),
         h('td', {}, REPEAT[j.repeat]), h('td', {}, targetText(j, ctx, playlists)),
         act(iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/jobs/${j.id}`)); await load(); }))))),
-      'Nichts eingeplant. Einzelne Titel, Ordner, Streams oder Playlists zu einem Zeitpunkt starten – einmalig oder wiederholt.'));
+      'Nichts eingeplant. Titel, Ordner, Kategorien (z. B. Werbung), Streams, Playlists, laut.fm-Nachrichten oder KI-Ansagen zu einem Zeitpunkt starten – einmalig oder wiederholt.'));
     // --- Stunden-Uhr ---
     const clock = panel('Stunden-Uhr', [h('button', { class: 'btn small primary', onclick: () => editClock() }, '＋ Event')],
       table(['Minute', 'Stunden', 'Tage', 'Was', ''], plan.clockEvents.map((/** @type {any} */ e) => h('tr', { style: e.enabled ? '' : 'opacity:.5' },
@@ -325,10 +344,19 @@ export function mountPlanning(root, ctx) {
             iconBtn('Entfernen', '✕', () => savePlItems(p, p.items.filter((/** @type {string} */ _, /** @type {number} */ k) => k !== i))))))) : null);
     }) : [h('div', { class: 'empty' }, 'Noch keine Playlists. Aktuelle Queue speichern oder M3U importieren.')])));
     // --- Verlauf ---
-    const hist = panel('Verlauf', [h('button', { class: 'btn small', onclick: exportHistory }, 'CSV')],
-      table(['Zeit', 'Titel', 'Art'], history.slice(0, 200).map((x) => h('tr', {},
+    const histBody = h('div', {});
+    const histCats = [...new Set(history.map((x) => x.category))].sort();
+    const histQuery = /** @type {HTMLInputElement} */ (h('input', { type: 'search', placeholder: 'Suchen …', value: histFilter.q, 'aria-label': 'Verlauf durchsuchen', oninput: () => { histFilter.q = histQuery.value; renderHist(); } }));
+    const histCat = /** @type {HTMLSelectElement} */ (h('select', { 'aria-label': 'Art', onchange: () => { histFilter.cat = histCat.value; renderHist(); } },
+      h('option', { value: '' }, 'Alle Arten'), ...histCats.map((c) => h('option', { value: c, selected: histFilter.cat === c }, CLOCK_CAT_LABEL[c] ?? c))));
+    const renderHist = () => {
+      const rows = filteredHistory();
+      histBody.replaceChildren(table(['Zeit', 'Titel', 'Art'], rows.slice(0, 200).map((x) => h('tr', {},
         h('td', { class: 'num' }, clockTime(x.at)), h('td', {}, x.artist ? `${x.artist} – ${x.title}` : x.title), h('td', {}, h('span', { class: 'tag' }, x.category)))),
-      'Noch nichts gespielt.'));
+        history.length ? 'Nichts passt zum Filter.' : 'Noch nichts gespielt.'));
+    };
+    renderHist();
+    const hist = panel('Verlauf', [histQuery, histCat, h('button', { class: 'btn small', onclick: exportHistory }, 'CSV')], histBody);
     sched.classList.add('planning-schedule');
     root.replaceChildren(
       h('div', { class: 'planning-hero' },
@@ -508,7 +536,7 @@ export function mountPlanning(root, ctx) {
 
   function exportHistory() {
     const esc = (/** @type {string} */ x) => `"${String(x).replace(/"/g, '""')}"`;
-    const csv = ['Zeit;Interpret;Titel;Art', ...history.map((x) => [new Date(x.at).toLocaleString('de-DE'), x.artist, x.title, x.category].map(esc).join(';'))].join('\r\n');
+    const csv = ['Zeit;Interpret;Titel;Art', ...filteredHistory().map((x) => [new Date(x.at).toLocaleString('de-DE'), x.artist, x.title, x.category].map(esc).join(';'))].join('\r\n');
     download(new Blob(['﻿' + csv], { type: 'text/csv' }), `verlauf-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
@@ -620,6 +648,10 @@ export function mountRecorder(root, ctx) {
   function recapResultView(r) {
     return h('div', { class: 'recap-result' },
       h('p', {}, `${new Date(r.from).toLocaleString('de-DE')} – ${new Date(r.to).toLocaleString('de-DE')} · ${Math.round(r.durationMs / 60000)} Min. · ${r.trackCount} Titel · Hörer-Spitze ${r.listenersPeak} · gesendet ${r.bytesSent == null ? 'unbekannt' : `${(r.bytesSent / 1048576).toFixed(1)} MB`}`),
+      r.topTracks?.length
+        ? h('div', { class: 'recap-top' }, h('h3', {}, 'Meistgespielt'),
+          h('ol', {}, ...r.topTracks.map((/** @type {any} */ t) => h('li', {}, `${mediaTitle(t)} `, h('span', { class: 'tag' }, `${t.plays}×`)))))
+        : null,
       r.tracks.length
         ? h('ul', {}, ...r.tracks.map((/** @type {any} */ t) => h('li', {}, `${new Date(t.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} – ${mediaTitle(t)}`)))
         : h('p', { class: 'muted' }, 'Keine Titel in diesem Zeitraum.'));

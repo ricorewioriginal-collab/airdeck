@@ -7,6 +7,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AnMaChaCastApp } from '../src/server/app.ts';
 import { Notifier } from '../src/server/notify.ts';
+import { topTracks } from '../src/server/services/recap.ts';
+
+test('Meistgespielt-Ranking: zählt je Titel, nur Musik, absteigend, begrenzt', () => {
+  const e = (mediaId: string, category = 'music') => ({ at: 0, mediaId, title: mediaId.toUpperCase(), artist: 'X', category: category as never });
+  const top = topTracks([e('b'), e('a'), e('b'), e('j', 'jingle'), e('j', 'jingle'), e('j', 'jingle'), e('c')], 2);
+  assert.deepEqual(top.map((t) => `${t.mediaId}:${t.plays}`), ['b:2', 'a:1']);
+});
 
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), 'anmachacast-recap-'));
@@ -35,6 +42,7 @@ test('Sendungs-Rückblick: Titelliste, Hörer-Spitze und Datenmenge werden aus d
     assert.deepEqual(report.tracks.map((t) => t.mediaId), ['a', 'b']);
     assert.equal(report.listenersPeak, 9, 'höchste Stichprobe im Zeitraum');
     assert.equal(report.bytesSent, 1_000_000, 'letzte minus erste Stichprobe im Zeitraum');
+    assert.deepEqual(report.topTracks.map((t) => [t.mediaId, t.plays]), [['a', 1], ['b', 1]], 'Meistgespielt (alphabetisch bei Gleichstand)');
 
     assert.throws(() => app.svc.recap.generate('main', base + 60_000, base), /Zeitraum/);
   } finally {

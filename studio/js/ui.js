@@ -62,7 +62,7 @@ export async function run(fn) {
 
 /**
  * @param {string} title
- * @param {Array<{name?:string,label:string,type?:string,value?:any,options?:Array<[string,string]>,hint?:string,required?:boolean,suggest?:string[],full?:boolean,action?:{label:string,run:()=>Promise<string|null>}}>} fields
+ * @param {Array<{name?:string,label:string,type?:string,value?:any,options?:Array<[string,string]>,hint?:string,required?:boolean,suggest?:string[],full?:boolean,showIf?:{field:string,values:string[]},action?:{label:string,run:()=>Promise<string|null>}}>} fields  showIf = Feld nur zeigen, wenn ein anderes Feld einen der Werte hat
  * @param {string} [submitLabel]
  * @param {{ wide?: boolean, subtitle?: string }} [opts]  wide = breiter Dialog mit zweispaltigem Raster (automatisch bei Abschnitten)
  * @returns {Promise<Record<string, any>|null>}
@@ -79,6 +79,8 @@ export function formDialog(title, fields, submitLabel = 'Speichern', opts = {}) 
   dlg.classList.toggle('wide', wide);
   const body = h('div', { class: `fd-body${wide ? ' fd-grid' : ''}` });
   form.replaceChildren(h('div', { class: 'fd-head' }, h('h3', {}, title), opts.subtitle ? h('p', { class: 'muted small' }, opts.subtitle) : null), body);
+  /** @type {{ row: HTMLElement, showIf: { field: string, values: string[] } }[]} */
+  const conditional = [];
   for (const f of fields) {
     const id = `f-${f.name ?? f.label}`;
     /** @type {HTMLElement} */
@@ -120,7 +122,20 @@ export function formDialog(title, fields, submitLabel = 'Speichern', opts = {}) 
       }
     }
     const full = f.type === 'textarea' || f.type === 'info' || f.type === 'days' || f.type === 'file' || f.full;
-    body.append(h('div', { class: `field${full ? ' full' : ''}` }, h('label', { for: id }, f.label), input, f.hint ? h('small', {}, f.hint) : null));
+    const row = h('div', { class: `field${full ? ' full' : ''}` }, h('label', { for: id }, f.label), input, f.hint ? h('small', {}, f.hint) : null);
+    if (f.showIf) conditional.push({ row, showIf: f.showIf });
+    body.append(row);
+  }
+  if (conditional.length) {
+    const apply = () => {
+      for (const c of conditional) {
+        const el = /** @type {HTMLInputElement|null} */ (form.elements.namedItem(c.showIf.field));
+        row(c.row, !!el && c.showIf.values.includes(el.value));
+      }
+    };
+    const row = (/** @type {HTMLElement} */ el, /** @type {boolean} */ on) => { el.hidden = !on; };
+    form.addEventListener('change', apply);
+    apply();
   }
   form.append(
     h('div', { class: 'dialog-actions' },
