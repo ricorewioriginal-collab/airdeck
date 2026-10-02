@@ -18,11 +18,13 @@
       <img src="icons/wordmark.png" alt="AnMaCha Cast" class="logo-wordmark">
     </div>
     <nav class="nav" id="view-tabs" aria-label="Bereiche">
-      <details class="nav-section" data-nav-section="studio" open>
-        <summary><span>Studio</span></summary>
+      <!-- Struktur wie AnMaCha Control Center (control.ricorewi-radio.de): roter LIVE-Knopf, danach Gruppen -->
+      <button class="nav-live" data-view="studio" aria-pressed="false"><i data-icon="stream"></i><span>LIVE</span></button>
+
+      <details class="nav-section" data-nav-section="overview" open>
+        <summary><span>Überblick</span></summary>
         <div class="nav-items">
-          <button data-view="overview" aria-pressed="true"><i data-icon="dashboard"></i><span>Dashboard</span><kbd>1</kbd></button>
-          <button data-view="studio" aria-pressed="false"><i data-icon="sliders"></i><span>Live Studio</span></button>
+          <button data-view="overview" aria-pressed="true"><i data-icon="dashboard"></i><span>Sendezentrale</span><kbd>1</kbd></button>
           <button data-jump="decks"><i data-icon="music"></i><span>Decks</span></button>
           <button data-jump="carts-panel"><i data-icon="grid"></i><span>Cardwall</span></button>
           <button data-jump="work-panel"><i data-icon="list"></i><span>Playlist &amp; Queue</span></button>
@@ -30,68 +32,71 @@
       </details>
 
       <details class="nav-section" data-nav-section="planning" open>
-        <summary><span>Planung</span></summary>
+        <summary><span>Programm planen</span></summary>
         <div class="nav-items">
-          <button data-view="planning" aria-pressed="false"><i data-icon="calendar"></i><span>Sendeplan &amp; Events</span><kbd>2</kbd></button>
+          <button data-view="planning" aria-pressed="false"><i data-icon="calendar"></i><span>Sendeplan</span><kbd>2</kbd></button>
+          <button data-view="planning" data-sub="clock" aria-pressed="false"><i data-icon="auto"></i><span>Sendeuhr</span></button>
+          <button data-view="planning" data-sub="events" aria-pressed="false"><i data-icon="bolt"></i><span>Ereignisse &amp; Ansagen</span></button>
+          <button data-view="playlists" aria-pressed="false"><i data-icon="list"></i><span>Playlisten</span><kbd>8</kbd></button>
+          <button data-view="planning" data-sub="rotation" aria-pressed="false"><i data-icon="sliders"></i><span>Smart Blocks &amp; Rotation</span></button>
+          <button data-view="ai" data-sub="news" aria-pressed="false"><i data-icon="bell"></i><span>Nachrichten &amp; Wetter</span></button>
+        </div>
+      </details>
+
+      <details class="nav-section" data-nav-section="ai" open>
+        <summary><span>KI &amp; Automatik</span></summary>
+        <div class="nav-items">
+          <button data-view="ai" aria-pressed="false"><i data-icon="bolt"></i><span>KI-Studio &amp; Programmchef</span><kbd>5</kbd></button>
         </div>
       </details>
 
       <details class="nav-section" data-nav-section="media" open>
-        <summary><span>Medien</span></summary>
+        <summary><span>Musik &amp; Inhalte</span></summary>
         <div class="nav-items">
-          <button data-view="mediathek" aria-pressed="false"><i data-icon="music"></i><span>Musikarchiv</span><kbd>7</kbd></button>
-          <button data-view="playlists" aria-pressed="false"><i data-icon="list"></i><span>Playlists</span><kbd>8</kbd></button>
+          <button data-view="mediathek" aria-pressed="false"><i data-icon="music"></i><span>Tracks</span><kbd>7</kbd></button>
+          <button data-view="mediathek" data-sub="jingles" aria-pressed="false"><i data-icon="grid"></i><span>Jingles &amp; IDs</span></button>
+          <button data-view="recorder" data-sub="podcast" aria-pressed="false"><i data-icon="record"></i><span>Podcasts</span></button>
+          <button data-view="playlists" data-sub="lifehacks" aria-pressed="false"><i data-icon="sliders"></i><span>Bibliothek-Werkzeuge</span></button>
           <button id="btn-storage"><i data-icon="cloud"></i><span>Uploads / Cloud</span></button>
         </div>
       </details>
 
-      <details class="nav-section" data-nav-section="analysis" open>
-        <summary><span>Analyse</span></summary>
+      <details class="nav-section" data-nav-section="broadcast" open>
+        <summary><span>Sender &amp; Ausspielung</span></summary>
         <div class="nav-items">
-          <button data-view="listeners" aria-pressed="false"><i data-icon="bell"></i><span>Hörer &amp; Statistik</span><b class="nav-badge" id="listener-badge" hidden>0</b></button>
-        </div>
-      </details>
-
-      <details class="nav-section" data-nav-section="tools" open>
-        <summary><span>Tools</span></summary>
-        <div class="nav-items">
-          <button data-view="ai" aria-pressed="false"><i data-icon="bolt"></i><span>KI Tools &amp; Automation</span><kbd>5</kbd></button>
-          <button data-view="recorder" aria-pressed="false"><i data-icon="record"></i><span>Recorder</span><kbd>3</kbd></button>
-        </div>
-      </details>
-
-      <details class="nav-section" data-nav-section="connect" open>
-        <summary><span>Verbindung &amp; Zugriff</span></summary>
-        <div class="nav-items">
-          <button data-view="bridges" aria-pressed="false"><i data-icon="stream"></i><span>Streams &amp; Anbindungen</span></button>
-          <button data-view="lautfm" aria-pressed="false" id="nav-lautfm" hidden><i data-icon="lautfm"></i><span>lautCast</span><kbd>4</kbd></button>
-          <a class="nav-link" id="nav-status" href="status.html" target="_blank" rel="noopener"><i data-icon="signal"></i><span>Stream-Status</span></a>
-          <button id="btn-android"><i data-icon="signal"></i><span>Android-App</span></button>
-          <button id="btn-webremote"><i data-icon="stream"></i><span>Web-Fernsteuerung</span></button>
-          <button id="btn-remotelink"><i data-icon="signal"></i><span>Fernzugriff</span></button>
-          <button id="btn-server" hidden><i data-icon="signal"></i><span>Server wechseln</span></button>
-          <button id="btn-handy" hidden><i data-icon="mic"></i><span>Handy-Sender</span></button>
-        </div>
-      </details>
-
-      <details class="nav-section" data-nav-section="settings" open>
-        <summary><span>Einstellungen</span></summary>
-        <div class="nav-items">
-          <button id="btn-station"><i data-icon="settings"></i><span>Sender &amp; Branding</span></button>
-          <button id="btn-audio"><i data-icon="headphones"></i><span>Audio &amp; Geräte</span></button>
-          <button data-view="users" aria-pressed="false" id="nav-users" hidden><i data-icon="user"></i><span>Benutzer &amp; Rollen</span></button>
+          <button data-view="bridges" aria-pressed="false"><i data-icon="stream"></i><span>Verbreitung</span></button>
+          <button id="btn-audio"><i data-icon="headphones"></i><span>Sound &amp; Stimme</span></button>
+          <button data-view="recorder" aria-pressed="false"><i data-icon="record"></i><span>Aufnahmen</span><kbd>3</kbd></button>
+          <button id="btn-station"><i data-icon="settings"></i><span>Sendereinstellungen</span></button>
+          <button id="btn-update"><i data-icon="update"></i><span>Regeln &amp; Sicherung</span><b class="nav-badge" id="update-badge" hidden>neu</b></button>
           <button id="btn-notify"><i data-icon="bell"></i><span>Benachrichtigungen</span></button>
-          <button id="btn-update"><i data-icon="update"></i><span>Updates &amp; Backup</span><b class="nav-badge" id="update-badge" hidden>neu</b></button>
           <button id="btn-windows"><i data-icon="sliders"></i><span>Fenster &amp; Layout</span></button>
+          <button data-view="users" aria-pressed="false" id="nav-users" hidden><i data-icon="user"></i><span>Benutzer &amp; Rollen</span></button>
           <button id="btn-setup" hidden><i data-icon="settings"></i><span>Einrichtungsassistent</span></button>
           <button id="btn-password" hidden><i data-icon="settings"></i><span>Passwort ändern</span></button>
         </div>
       </details>
 
-      <details class="nav-section" data-nav-section="help" open>
-        <summary><span>Hilfe</span></summary>
+      <details class="nav-section" data-nav-section="analysis" open>
+        <summary><span>Auswertung</span></summary>
         <div class="nav-items">
+          <button data-view="listeners" aria-pressed="false"><i data-icon="bell"></i><span>Statistik &amp; Hörer</span><b class="nav-badge" id="listener-badge" hidden>0</b></button>
+          <button data-view="recorder" data-sub="recap" aria-pressed="false"><i data-icon="list"></i><span>Berichte</span></button>
+          <a class="nav-link" id="nav-status" href="status.html" target="_blank" rel="noopener"><i data-icon="signal"></i><span>Protokoll &amp; Status</span></a>
+        </div>
+      </details>
+
+      <details class="nav-section" data-nav-section="links" open>
+        <summary><span>Verknüpfungen</span></summary>
+        <div class="nav-items">
+          <button data-view="lautfm" aria-pressed="false" id="nav-lautfm" hidden><i data-icon="lautfm"></i><span>lautCast</span><kbd>4</kbd></button>
+          <button id="btn-android"><i data-icon="signal"></i><span>Android-App</span></button>
+          <button id="btn-webremote"><i data-icon="stream"></i><span>Web-Fernsteuerung</span></button>
+          <button id="btn-remotelink"><i data-icon="signal"></i><span>Fernzugriff</span></button>
+          <button id="btn-server" hidden><i data-icon="signal"></i><span>Server wechseln</span></button>
+          <button id="btn-handy" hidden><i data-icon="mic"></i><span>Handy-Sender</span></button>
           <button data-view="handbuch" aria-pressed="false"><i data-icon="list"></i><span>Handbuch</span><kbd>9</kbd></button>
+          <button class="nav-help" data-view="handbuch" data-sub="help" aria-pressed="false"><i data-icon="bell"></i><span>Hilfe</span></button>
           <button id="btn-logout" hidden><i data-icon="user"></i><span>Abmelden</span></button>
           <button id="btn-quit" hidden><i data-icon="stop"></i><span>AnMaCha Cast beenden</span></button>
         </div>
@@ -377,10 +382,10 @@
 
     <!-- Handy-Navigation -->
     <nav class="bottom-nav" id="bottom-nav">
-      <button data-view="studio" aria-pressed="true"><i data-icon="dashboard"></i><span>Home</span></button>
-      <button data-jump="carts-panel"><i data-icon="grid"></i><span>Cardwall</span></button>
-      <button data-jump="live-panel"><i data-icon="mic"></i><span>Live</span></button>
-      <button data-view="planning"><i data-icon="calendar"></i><span>Plan</span></button>
+      <button data-view="overview" aria-pressed="true"><i data-icon="dashboard"></i><span>Home</span></button>
+      <button data-view="studio"><i data-icon="stream"></i><span>Live</span></button>
+      <button data-view="mediathek"><i data-icon="grid"></i><span>Tools</span></button>
+      <button data-view="ai"><i data-icon="bolt"></i><span>KI</span></button>
       <button data-view="lautfm" id="nav-lautfm-mobile"><i data-icon="more"></i><span>Mehr</span></button>
     </nav>
   </div>

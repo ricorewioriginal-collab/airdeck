@@ -50,7 +50,10 @@ test('Referenz-Topbar besitzt echte Now-Playing-Ziele', () => {
 
 
 test('Referenznavigation: Kernbereiche sind klar gruppiert und echte Funktionen bleiben erhalten', () => {
-  for (const section of ['studio', 'planning', 'media', 'analysis', 'tools', 'settings']) {
+  // Gruppen wie im AnMaCha Control Center: Überblick, Programm planen, KI & Automatik, Musik & Inhalte,
+  // Sender & Ausspielung, Auswertung, Verknüpfungen - plus roter LIVE-Knopf oben.
+  assert.match(html, /class="nav-live" data-view="studio"/, 'LIVE-Knopf oben in der Seitenleiste fehlt');
+  for (const section of ['overview', 'planning', 'ai', 'media', 'broadcast', 'analysis', 'links']) {
     assert.match(html, new RegExp(`data-nav-section="${section}"`), `Navigationsgruppe ${section} fehlt`);
   }
   for (const id of ['btn-storage', 'btn-android', 'nav-status', 'btn-station', 'btn-audio', 'btn-update']) {
