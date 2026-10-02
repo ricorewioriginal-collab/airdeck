@@ -1,5 +1,5 @@
 <icecast>
-  <location>AirDeck Demo</location>
+  <location>AnMaCha Cast Demo</location>
   <admin>demo@localhost</admin>
   <limits>
     <clients>50</clients>
@@ -10,10 +10,10 @@
     <source-timeout>10</source-timeout>
   </limits>
   <authentication>
-    <source-password>airdeck-demo-source</source-password>
-    <relay-password>airdeck-demo-relay</relay-password>
+    <source-password>anmachacast-demo-source</source-password>
+    <relay-password>anmachacast-demo-relay</relay-password>
     <admin-user>admin</admin-user>
-    <admin-password>airdeck-demo-admin</admin-password>
+    <admin-password>anmachacast-demo-admin</admin-password>
   </authentication>
   <hostname>localhost</hostname>
   <listen-socket>

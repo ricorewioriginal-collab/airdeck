@@ -287,7 +287,7 @@ jobs:
           sh packaging/demo/reset-demo.sh
           curl -fs http://127.0.0.1:8751/api/v1/health | grep -q '"ok":true'
 
-          LOGIN=$(curl -fs -X POST -H 'Content-Type: application/json'             -d '{"username":"demo","password":"airdeck-demo"}'             http://127.0.0.1:8751/api/v1/auth/login)
+          LOGIN=$(curl -fs -X POST -H 'Content-Type: application/json'             -d '{"username":"demo","password":"anmachacast-demo"}'             http://127.0.0.1:8751/api/v1/auth/login)
           TOKEN=$(printf '%s' "$LOGIN" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).token||''))")
           test -n "$TOKEN" || (echo "Demo-Login fehlgeschlagen" && exit 1)
 
@@ -299,7 +299,7 @@ jobs:
           sleep 2
           curl -fs -H "Authorization: Bearer $TOKEN"             http://127.0.0.1:8751/api/v1/stations/main/playout | grep -q '"running":true'             || (echo "Demo-Playout/Cardwall startet nicht" && exit 1)
 
-          docker compose -f packaging/demo/docker-compose.demo.yml logs airdeck-demo
+          docker compose -f packaging/demo/docker-compose.demo.yml logs anmachacast-demo
           docker compose -f packaging/demo/docker-compose.demo.yml down -v
           echo "Demo: Login, Cardwall, Playout und Reset OK"
 
@@ -323,8 +323,8 @@ jobs:
           sh packaging/demo/reset-demo.sh
           # Fuer die Dokumentationsbilder wird nur innerhalb des isolierten CI-Containers der
           # globale Bootstrap-Token benutzt, damit auch Admin-Ansichten fotografiert werden koennen.
-          # Der oeffentliche Demo-Login bleibt unveraendert demo / airdeck-demo und senderbeschraenkt.
-          TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs airdeck-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
+          # Der oeffentliche Demo-Login bleibt demo / anmachacast-demo und senderbeschraenkt.
+          TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs anmachacast-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
           test -n "$TOKEN"
           echo "AIRDECK_SCREENSHOT_TOKEN=$TOKEN" >> "$GITHUB_ENV"
       - name: Browser-Funktionen gegen echte Demo pruefen

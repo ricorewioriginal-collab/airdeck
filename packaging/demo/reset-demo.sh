@@ -1,12 +1,9 @@
 #!/bin/sh
 # Setzt die öffentliche AnMaCha-Cast-Demo komplett zurück. Die Instanz wird alle 10 Minuten verworfen.
-# Hostnamen, Mount-Pfade, Container-/Service-/Volume-Namen bleiben bewusst "airdeck(-demo)" (siehe
-# docs/REBRANDING_ANMACHA_CAST.md Phase 7): DNS und TLS-Zertifikat des laufenden Demo-Servers zeigen
-# bereits auf airdeck-demo.ricorewi-radio.de - eine Code-Änderung allein würde die echte Demo brechen.
 set -e
 cd "$(dirname "$0")/../.."
 compose="docker compose -f packaging/demo/docker-compose.demo.yml"
-public_stream="${AIRDECK_DEMO_PUBLIC_STREAM_URL:-https://airdeck-demo.ricorewi-radio.de/stream/airdeck-demo.mp3}"
+public_stream="${ANMACHA_CAST_DEMO_PUBLIC_STREAM_URL:-https://anmachacast-demo.ricorewi-radio.de/stream/anmachacast-demo.mp3}"
 
 echo "[$(date -Is)] Demo wird zurückgesetzt ..."
 $compose down -v --remove-orphans
@@ -19,7 +16,7 @@ for i in $(seq 1 30); do
 done
 [ -n "$ok" ] || { echo "Health-Check nach 30 s nicht erreicht."; exit 0; }
 
-token=$($compose logs airdeck-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
+token=$($compose logs anmachacast-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
 [ -n "$token" ] || { echo "Kein Admin-Token gefunden."; exit 0; }
 api="http://127.0.0.1:8751/api/v1/stations/main"
 auth="Authorization: Bearer $token"
@@ -30,12 +27,12 @@ curl -fs -X PUT -H "$auth" -H "Content-Type: application/json" -d '{"requests":t
 # Encoder-Ziel bleibt intern. publicUrl ist ausschließlich die hörbare HTTPS-Adresse für Browser,
 # Dokumentation und Tests; Zugangsdaten bzw. Port 8000 werden nicht öffentlich exponiert.
 curl -fs -X POST -H "$auth" -H "Content-Type: application/json" \
-  -d "{\"name\":\"Zusatz-Streams Demo\",\"type\":\"icecast\",\"host\":\"127.0.0.1\",\"port\":8000,\"mount\":\"/airdeck-demo.mp3\",\"username\":\"source\",\"password\":\"airdeck-demo-source\",\"bitrateKbps\":128,\"enabled\":true,\"publicUrl\":\"$public_stream\"}" \
+  -d "{\"name\":\"Zusatz-Streams Demo\",\"type\":\"icecast\",\"host\":\"127.0.0.1\",\"port\":8000,\"mount\":\"/anmachacast-demo.mp3\",\"username\":\"source\",\"password\":\"anmachacast-demo-source\",\"bitrateKbps\":128,\"enabled\":true,\"publicUrl\":\"$public_stream\"}" \
   "$api/outputs" >/dev/null
 
 upload_tone() {
   freq="$1"; name="$2"; category="$3"; dur="${4:-8}"
-  $compose exec -T airdeck-demo ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=${freq}:duration=${dur}" -c:a pcm_s16le -f wav - \
+  $compose exec -T anmachacast-demo ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=${freq}:duration=${dur}" -c:a pcm_s16le -f wav - \
     | curl -fs -X PUT -H "$auth" -H "Content-Type: audio/wav" --data-binary @- "http://127.0.0.1:8751/api/v1/stations/main/media?name=${name}.wav&category=${category}"
 }
 track_a="$(upload_tone 440 DemoTrack-A music 12 | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
@@ -59,13 +56,13 @@ curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d '{"autostart"
 for mid in "$track_b" "$track_c" "$station_id" "$track_a" "$jingle"; do curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$mid\"}" "$api/queue" >/dev/null; done
 
 demo_user="${AIRDECK_DEMO_USER:-demo}"
-demo_pass="${AIRDECK_DEMO_PASSWORD:-airdeck-demo}"
+demo_pass="${AIRDECK_DEMO_PASSWORD:-anmachacast-demo}"
 curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"username\":\"$demo_user\",\"name\":\"Demo\",\"password\":\"$demo_pass\",\"roles\":[\"admin\"],\"stationIds\":[\"main\"],\"mustChangePassword\":false}" "http://127.0.0.1:8751/api/v1/users" >/dev/null
 
 # Lokalen Icecast-Mount prüfen. Ein Fehler beendet den Reset nicht, wird aber deutlich geloggt.
 stream_ok=""
 for i in $(seq 1 20); do
-  if curl -fs --max-time 2 -r 0-1023 http://127.0.0.1:8752/airdeck-demo.mp3 >/dev/null 2>&1; then stream_ok=1; break; fi
+  if curl -fs --max-time 2 -r 0-1023 http://127.0.0.1:8752/anmachacast-demo.mp3 >/dev/null 2>&1; then stream_ok=1; break; fi
   sleep 1
 done
 if [ -n "$stream_ok" ]; then

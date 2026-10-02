@@ -35,7 +35,7 @@ jobs:
           sh packaging/demo/reset-demo.sh
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:8751/api/v1/health >/dev/null && break; sleep 1; done
           curl -fs http://127.0.0.1:8751/api/v1/health >/dev/null
-          TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs airdeck-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
+          TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs anmachacast-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
           test -n "$TOKEN"; echo "AIRDECK_SCREENSHOT_TOKEN=$TOKEN" >> "$GITHUB_ENV"
       - name: UI prüfen und Screenshots erzeugen
         env:

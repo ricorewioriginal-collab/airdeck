@@ -8,7 +8,10 @@ Ein Push auf den AirDeck-Branch löst den Rollout erst nach einem erfolgreichen 
 
 Kontonamen, Pfade (`airdeck-deploy`, `/opt/airdeck-demo`) und GitHub-Secret-Namen beschreiben die
 tatsächlich eingerichtete Umgebung des bestehenden Deploy-Servers und bleiben deshalb unverändert
-(siehe docs/REBRANDING_ANMACHA_CAST.md Phase 7).
+(siehe docs/REBRANDING_ANMACHA_CAST.md Phase 7). Die **öffentliche** Demo-Adresse ist davon unabhängig
+auf `anmachacast-demo.ricorewi-radio.de` umgezogen (siehe [packaging/demo/README.md](../packaging/demo/README.md))
+– dafür reicht ein neuer DNS-Eintrag + TLS-Zertifikat auf dem bestehenden Server, Kontoname und
+Checkout-Pfad bleiben unverändert.
 
 Diese Sandbox selbst kann kein SSH (nur ausgehendes HTTPS über einen Proxy) – deshalb läuft der eigentliche
 Rollout auf einem GitHub-Actions-Runner, der normales Internet hat.
@@ -62,7 +65,7 @@ der Actions-Runner ihn automatisiert nutzen kann). Den privaten Teil bekommst du
    | `DEPLOY_SSH_KEY` | Inhalt der zugeschickten privaten Schlüsseldatei (die ganze Datei, inkl. `-----BEGIN...` / `-----END...`-Zeilen) |
    | `DEPLOY_PATH` | `/opt/airdeck-demo` (Pfad aus Schritt 1) |
    | `DEPLOY_PORT` | nur nötig, wenn SSH nicht auf Port 22 läuft |
-   | `DEPLOY_HEALTH_URL` | optional, z. B. `https://airdeck-demo.ricorewi.de/api/v1/health` – prüft nach dem Rollout, ob AnMaCha Cast antwortet |
+   | `DEPLOY_HEALTH_URL` | optional, z. B. `https://anmachacast-demo.ricorewi-radio.de/api/v1/health` – prüft nach dem Rollout, ob AnMaCha Cast antwortet |
    | `DEPLOY_HOST_KEY` | optional: Ausgabe von `ssh-keyscan -p <Port> <Host>` – ohne dieses Secret wird der Host-Schlüssel beim ersten Lauf automatisch abgerufen (leicht geringere Absicherung gegen einen Server-Tausch mitten im Deploy) |
 
 3. Die private Schlüsseldatei danach **lokal löschen** (sie liegt nur bei dir und im GitHub-Secret, nirgends

@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-<a href="https://airdeck-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" width="300" alt="Live Demo"></a>
+<a href="https://anmachacast-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" width="300" alt="Live Demo"></a>
 <a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest"><img src="assets/readme/actions/downloads.svg" width="300" alt="Downloads"></a>
 </p>
 <p align="center"><a href="https://ricorewioriginal-collab.github.io/anmacha_cast/"><strong>🌐 AnMaCha-Cast-Projektseite</strong></a> · <a href="CHANGELOG.md"><strong>📝 Was ist neu?</strong></a></p>
@@ -56,9 +56,9 @@ AnMaCha Cast ist eine eigenständige Radio-Automation und Live-Broadcast-Plattfo
 
 AnMaCha Cast kann direkt im Browser ausprobiert werden.
 
-<p align="center"><a href="https://airdeck-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="AnMaCha Cast Demo starten" width="420"></a></p>
+<p align="center"><a href="https://anmachacast-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="AnMaCha Cast Demo starten" width="420"></a></p>
 
-**Demo-Zugang:** `demo` / `airdeck-demo`
+**Demo-Zugang:** `demo` / `anmachacast-demo`
 
 > Die Instanz dient ausschließlich zum Testen. Bitte dort keine produktiven oder vertraulichen Daten hinterlegen.
 
@@ -93,7 +93,7 @@ AnMaCha Cast befindet sich in aktiver Entwicklung. Funktionen, Oberfläche, Plat
 - **Release:** [immer die aktuelle veröffentlichte Version](https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest)
 - **Änderungen:** [automatisch gepflegter Changelog](CHANGELOG.md)
 - **Plattformen:** Windows · Android · Linux/Server · Docker
-- **Live-Demo:** [airdeck-demo.ricorewi-radio.de](https://airdeck-demo.ricorewi-radio.de)
+- **Live-Demo:** [anmachacast-demo.ricorewi-radio.de](https://anmachacast-demo.ricorewi-radio.de)
 
 ---
 

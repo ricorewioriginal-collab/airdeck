@@ -530,3 +530,39 @@ Repository).
 
 **Tests:** `npm run typecheck` grün, volle Testsuite grün (235/0/6, unverändert). Alle geänderten
 `.github/workflows/*.yml` zusätzlich mit `yaml.safe_load` auf syntaktische Gültigkeit geprüft.
+
+## Nachtrag: Öffentliche Demo umgezogen auf anmachacast-demo.ricorewi-radio.de
+
+Die bisherige öffentliche Testinstanz lief unter `airdeck-demo.ricorewi-radio.de` – zum Zeitpunkt
+ihrer Einrichtung (siehe `packaging/demo/`) bewusst beim alten Namen belassen, weil DNS und
+TLS-Zertifikat des laufenden Servers bereits darauf zeigten und eine reine Code-Änderung die
+echte Demo gebrochen hätte. Der Nutzer hat die alte Demo nun durch eine neue unter
+`anmachacast-demo.ricorewi-radio.de` ersetzt; damit entfiel der Grund, den alten Namen zu halten.
+
+Geändert:
+- `packaging/demo/docker-compose.demo.yml`: Service/Container/Image/Volume `airdeck-demo` →
+  `anmachacast-demo`; Umgebungsvariable `AIRDECK_DEMO_PUBLIC_STREAM_URL` →
+  `ANMACHA_CAST_DEMO_PUBLIC_STREAM_URL` (nur demo-intern verwendet, keine App-Code-Abhängigkeit).
+- `packaging/demo/reset-demo.sh`: Compose-Service-Name, Icecast-Mount-Pfad, Source-Passwort,
+  Demo-Passwort (`airdeck-demo` → `anmachacast-demo`).
+- `packaging/demo/icecast.demo.xml`: Icecast-Standort-Label sowie Source-/Relay-/Admin-Passwörter.
+- `packaging/demo/nginx.demo.conf`, `Caddyfile.demo`, `apache.demo.conf`: `server_name`/Hostname
+  auf die neue Subdomain.
+- `packaging/demo/README.md`: komplett auf die neue Domain/Zugangsdaten umgestellt, plus Hinweis
+  zum Abbau der alten Installation.
+- `.github/workflows/build.yml`, `release-screenshots.yml`, `deploy.yml`: Container-Name in den
+  `docker compose logs`-Aufrufen sowie das Demo-Login-Passwort im CI-Smoketest.
+- `.github/workflows/release-health.yml`: öffentliche Health-Check-URLs.
+- `README.md`, `site/index.html`: alle sichtbaren Demo-Links/Zugangsdaten.
+- `docs/DEPLOY.md`: nur die demo-spezifische `DEPLOY_HEALTH_URL`-Beispielzeile und ein
+  klarstellender Hinweis ergänzt – Kontoname (`airdeck-deploy`) und Checkout-Pfad
+  (`/opt/airdeck-demo`) beschreiben weiterhin die tatsächlich eingerichtete Serverumgebung und
+  bleiben unverändert (eine reine Doku-Änderung würde dort nichts umbenennen).
+
+**Bewusst unverändert:** `docs/MUSIKHUB_PROGRESS.md` (historisches Rollout-Protokoll mit Zeitstempeln
+der damaligen, tatsächlich auf `airdeck-demo.ricorewi-radio.de` durchgeführten Prüfungen).
+
+**Nicht durch Code lösbar – auf dem Server nachzuziehen:** DNS-Eintrag für
+`anmachacast-demo.ricorewi-radio.de`, TLS-Zertifikat, das neue Reverse-Proxy-Snippet einspielen,
+Cron-Job-Pfad für `reset-demo.sh` ggf. anpassen, alte Demo (`airdeck-demo`-Container, DNS,
+Zertifikat) nach erfolgreichem Umzug abbauen.

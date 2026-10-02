@@ -119,7 +119,7 @@ jobs:
           }
           check "AnMaCha Cast Projektseite" "https://ricorewioriginal-collab.github.io/anmacha_cast/"
           check "AnMaCha Cast Dokumentation" "https://ricorewioriginal-collab.github.io/anmacha_cast/docs.html"
-          check "AnMaCha Cast Demo" "https://airdeck-demo.ricorewi-radio.de/"
-          check "AnMaCha Cast Demo Health" "https://airdeck-demo.ricorewi-radio.de/api/v1/health"
+          check "AnMaCha Cast Demo" "https://anmachacast-demo.ricorewi-radio.de/"
+          check "AnMaCha Cast Demo Health" "https://anmachacast-demo.ricorewi-radio.de/api/v1/health"
           check "Latest Release" "https://github.com/${{ github.repository }}/releases/latest"
           echo "Öffentliche AnMaCha-Cast-Endpunkte erreichbar."

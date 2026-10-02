@@ -1,6 +1,6 @@
 # Falls der bestehende Webserver Caddy ist: diesen Block in den vorhandenen Caddyfile einfügen.
 # AnMaCha Cast bleibt auf 8751, Icecast auf 8752 jeweils nur an 127.0.0.1 gebunden.
-airdeck-demo.ricorewi-radio.de {
+anmachacast-demo.ricorewi-radio.de {
 	handle_path /stream/* {
 		reverse_proxy 127.0.0.1:8752 {
 			flush_interval -1
