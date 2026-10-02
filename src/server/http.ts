@@ -554,6 +554,26 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/stations/:sid/rec-plans', 'automation:write', async (c) => app.svc.recorder.saveRecPlan(sid(c), null, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/rec-plans/:id', 'automation:write', (c) => app.svc.recorder.deleteRecPlan(sid(c), c.params.id!));
 
+  // --- Podcast: eigener Feed aus den eigenen Mitschnitten ---
+  add('GET', '/api/v1/stations/:sid/podcast', 'automation:read', (c) => app.svc.podcast.overview(sid(c)));
+  add('PUT', '/api/v1/stations/:sid/podcast', 'automation:write', async (c) => app.svc.podcast.saveConfig(sid(c), await c.body()));
+  add('PUT', '/api/v1/stations/:sid/podcast/cover', 'automation:write', async (c) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const d of c.req) {
+      size += (d as Buffer).length;
+      if (size > 5 * 1024 * 1024) throw new AppError(413, 'too_large', 'Cover höchstens 5 MB');
+      chunks.push(d as Buffer);
+    }
+    return app.svc.podcast.setCover(sid(c), String(c.req.headers['content-type'] ?? ''), Buffer.concat(chunks));
+  });
+  add('POST', '/api/v1/stations/:sid/podcast/episodes', 'automation:write', async (c) => {
+    const b = await c.body();
+    return app.svc.podcast.createEpisode(sid(c), String(b.recordingId ?? ''), b);
+  });
+  add('PATCH', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', async (c) => app.svc.podcast.updateEpisode(sid(c), c.params.id!, await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', (c) => app.svc.podcast.deleteEpisode(sid(c), c.params.id!));
+
   // --- Datenspeicher / Sync (MySQL, Firebase) – nur globale Admins ---
   const globalAdmin = (c: Ctx) => {
     if (!c.p.stationIds.includes('*') || !c.p.roles.includes('admin')) throw new AppError(403, 'forbidden', 'Nur für Administratoren');
@@ -954,6 +974,41 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
       if (!l) return json(res, 404, { error: 'not_found' });
       res.writeHead(200, { 'Content-Type': l.type, 'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff' });
       return void createReadStream(l.path).pipe(res);
+    }
+
+    // Eigener Podcast-Feed: öffentlich erreichbar, damit Podcast-Apps (Apple Podcasts, Spotify, …) ihn abonnieren können
+    const podcastFeed = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/podcast\.xml$/.exec(path);
+    if (podcastFeed && req.method === 'GET') {
+      try {
+        const proto = String(req.headers['x-forwarded-proto'] ?? '').split(',')[0]?.trim() || ((req.socket as { encrypted?: boolean }).encrypted ? 'https' : 'http');
+        const xml = app.svc.podcast.feedXml(podcastFeed[1]!, `${proto}://${req.headers.host ?? 'localhost'}`);
+        res.writeHead(200, { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+        return void res.end(xml);
+      } catch (err) {
+        return json(res, err instanceof AppError ? err.status : 500, { error: 'podcast_feed_failed', message: (err as Error).message });
+      }
+    }
+    const podcastCover = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/podcast\/cover$/.exec(path);
+    if (podcastCover && req.method === 'GET') {
+      const c = app.svc.podcast.cover(podcastCover[1]!);
+      if (!c) return json(res, 404, { error: 'not_found' });
+      res.writeHead(200, { 'Content-Type': c.type, 'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff', 'Access-Control-Allow-Origin': '*' });
+      return void createReadStream(c.path).pipe(res);
+    }
+    const podcastAudio = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/podcast\/episodes\/([a-z0-9_-]{1,60})\/audio$/.exec(path);
+    if (podcastAudio && req.method === 'GET') {
+      try {
+        const stationId = podcastAudio[1]!;
+        const episodeId = podcastAudio[2]!;
+        const ep = app.stations.get(stationId)?.data.episodes?.find((e) => e.id === episodeId);
+        if (!ep?.publishedAt) return json(res, 404, { error: 'not_found' });
+        const { path: file, rec } = app.svc.recorder.recordingFile(stationId, ep.recordingId);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        sendFile(req, res, file, rec.contentType || 'application/octet-stream');
+        return;
+      } catch (err) {
+        return json(res, err instanceof AppError ? err.status : 404, { error: 'not_found' });
+      }
     }
 
     if (path.startsWith('/listen/')) {

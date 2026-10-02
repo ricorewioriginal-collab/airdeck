@@ -407,13 +407,14 @@ export function mountPlanning(root, ctx) {
   return { show: () => run(load), onEvent: (/** @type {string} */ t) => { if (['planning.changed', 'playlists.changed', 'now_playing.changed'].includes(t) && root.isConnected && !root.hidden) run(load); } };
 }
 
-/** @param {HTMLElement} root @param {Ctx} ctx */
+/** @param {HTMLElement} root @param {Ctx & { stationId: () => string }} ctx */
 export function mountRecorder(root, ctx) {
   /** @type {any} */ let data = { recordings: [], recording: null, recPlans: [] };
+  /** @type {any} */ let podcast = { config: {}, episodes: [], hasCover: false };
   /** @type {HTMLAudioElement|null} */ let player = null;
 
   async function load() {
-    data = await ctx.api.get(ctx.url('/recordings'));
+    [data, podcast] = await Promise.all([ctx.api.get(ctx.url('/recordings')), ctx.api.get(ctx.url('/podcast'))]);
     render();
   }
 
@@ -436,6 +437,7 @@ export function mountRecorder(root, ctx) {
             const u = await ctx.api.post(ctx.url(`/recordings/${r.id}/nextcloud`), { dir: 'AnMaCha-Cast-Mitschnitte' });
             status(`In der Nextcloud: ${u.uploaded}`);
           })) : null,
+          r.endedAt ? iconBtn('Als Podcast-Episode anlegen', '🎙', () => createEpisode(r)) : null,
           iconBtn('Löschen', '✕', () => confirm(`„${r.label}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/recordings/${r.id}`)); await load(); }))))),
       'Noch keine Aufnahmen.'));
     const plans = panel('Automatische Aufnahmen', [h('button', { class: 'btn small primary', onclick: addPlan }, '＋ Zeitfenster')],
@@ -443,7 +445,77 @@ export function mountRecorder(root, ctx) {
         h('td', {}, p.label), h('td', {}, daysText(p.days)), h('td', { class: 'num' }, `${p.from}–${p.to}`),
         act(iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/rec-plans/${p.id}`)); await load(); }))))),
       'Z. B. jede Sendung „Morning Show“ Mo–Fr 06:00–10:00 automatisch mitschneiden.'));
-    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans));
+    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastEpisodesPanel()));
+  }
+
+  // ---------- Podcast: eigener Feed aus den eigenen Mitschnitten ----------
+
+  function feedUrl() {
+    return `${location.origin}/api/v1/public/stations/${ctx.stationId()}/podcast.xml`;
+  }
+
+  function podcastSettingsPanel() {
+    const cfg = podcast.config ?? {};
+    return panel('Podcast', [h('button', { class: 'btn small', onclick: editPodcastConfig }, 'Einstellungen')], h('div', { class: 'podcast-head' },
+      h('p', {}, `„${cfg.title ?? ''}“ – ${podcast.episodes?.length ?? 0} Episode${(podcast.episodes?.length ?? 0) === 1 ? '' : 'n'}, davon ${podcast.episodes?.filter((/** @type {any} */ e) => e.publishedAt).length ?? 0} veröffentlicht.`),
+      h('div', { class: 'podcast-feed-url' },
+        h('input', { type: 'text', readonly: true, value: feedUrl(), onclick: (/** @type {Event} */ e) => /** @type {HTMLInputElement} */ (e.target).select() }),
+        h('button', { class: 'btn small', onclick: () => { navigator.clipboard?.writeText(feedUrl()); status('Feed-URL kopiert'); } }, 'Kopieren')),
+      h('p', { class: 'muted' }, 'Diese URL bei Apple Podcasts, Spotify for Podcasters oder einer beliebigen Podcast-App als Feed einreichen.')));
+  }
+
+  function podcastEpisodesPanel() {
+    const rows = (podcast.episodes ?? []).map((/** @type {any} */ e) => h('tr', {},
+      h('td', {}, e.title), h('td', {}, h('span', { class: `pill ${e.publishedAt ? 'connected' : ''}` }, e.publishedAt ? 'veröffentlicht' : 'Entwurf')),
+      h('td', { class: 'num' }, e.publishedAt ? new Date(e.publishedAt).toLocaleDateString('de-DE') : '–'),
+      act(iconBtn(e.publishedAt ? 'Zurückziehen' : 'Veröffentlichen', e.publishedAt ? '◧' : '◨', () => run(async () => { await ctx.api.patch(ctx.url(`/podcast/episodes/${e.id}`), { published: !e.publishedAt }); await load(); })),
+        iconBtn('Bearbeiten', '✎', () => editEpisode(e)),
+        iconBtn('Löschen', '✕', () => confirm(`Episode „${e.title}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/podcast/episodes/${e.id}`)); await load(); })))));
+    return panel('Episoden', [], table(['Titel', 'Status', 'Veröffentlicht', ''], rows, 'Noch keine Episoden – bei einem fertigen Mitschnitt auf 🎙 klicken.'));
+  }
+
+  async function editPodcastConfig() {
+    const cfg = podcast.config ?? {};
+    const v = await formDialog('Podcast-Einstellungen', [
+      { name: 'title', label: 'Titel', value: cfg.title ?? '', required: true },
+      { name: 'description', label: 'Beschreibung', type: 'textarea', value: cfg.description ?? '' },
+      { name: 'author', label: 'Autor/Sprecher', value: cfg.author ?? '' },
+      { name: 'language', label: 'Sprache (z. B. de-de)', value: cfg.language ?? 'de-de' },
+      { name: 'category', label: 'Kategorie (iTunes, z. B. "Music")', value: cfg.category ?? '' },
+      { name: 'explicit', label: 'Enthält nicht jugendfreie Inhalte', type: 'checkbox', value: !!cfg.explicit },
+      { name: 'cover', label: `Cover${podcast.hasCover ? ' (neu hochladen ersetzt)' : ''}`, type: 'file', value: 'image/png,image/jpeg,image/webp', hint: 'PNG, JPG oder WebP, max. 5 MB – am besten quadratisch' },
+    ]);
+    if (!v) return;
+    await run(() => ctx.api.put(ctx.url('/podcast'), { title: v.title, description: v.description, author: v.author, language: v.language, category: v.category, explicit: v.explicit }));
+    if (v.cover) await run(() => ctx.api.req('PUT', ctx.url('/podcast/cover'), v.cover, { 'Content-Type': v.cover.type }));
+    await load();
+  }
+
+  /** @param {any} r */
+  async function createEpisode(r) {
+    const v = await formDialog('Episode anlegen', [
+      { name: 'title', label: 'Titel', value: r.label, required: true },
+      { name: 'description', label: 'Shownotes', type: 'textarea', value: '' },
+    ], 'Als Entwurf anlegen');
+    if (!v) return;
+    await run(() => ctx.api.post(ctx.url('/podcast/episodes'), { recordingId: r.id, title: v.title, description: v.description }));
+    status('Episode als Entwurf angelegt – in „Episoden“ veröffentlichen, sobald bereit.');
+    await load();
+  }
+
+  /** @param {any} e */
+  async function editEpisode(e) {
+    const v = await formDialog(`Episode: ${e.title}`, [
+      { name: 'title', label: 'Titel', value: e.title, required: true },
+      { name: 'description', label: 'Shownotes', type: 'textarea', value: e.description ?? '' },
+      { name: 'season', label: 'Staffel (optional)', type: 'number', value: e.season ?? '' },
+      { name: 'episodeNumber', label: 'Episodennummer (optional)', type: 'number', value: e.episodeNumber ?? '' },
+    ]);
+    if (!v) return;
+    await run(() => ctx.api.patch(ctx.url(`/podcast/episodes/${e.id}`), {
+      title: v.title, description: v.description, season: v.season === '' ? null : Number(v.season), episodeNumber: v.episodeNumber === '' ? null : Number(v.episodeNumber),
+    }));
+    await load();
   }
 
   async function startRec() {

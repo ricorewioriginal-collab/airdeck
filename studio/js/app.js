@@ -402,7 +402,7 @@ async function loadStation() {
     mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, stationId: () => S.station.id, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),
     playlists: mountPlaylistManagement($('view-playlists'), ctx),
     handbuch: mountHandbuch($('view-handbuch')),
-    recorder: mountRecorder($('view-recorder'), ctx),
+    recorder: mountRecorder($('view-recorder'), { ...ctx, stationId: () => S.station.id }),
     lautfm: mountLautfm($('view-lautfm'), { ...ctx, onLautfmConnected: () => run(async () => { S.stations = await api.get('/stations'); S.station = S.stations.find((/** @type {any} */ s) => s.id === S.station.id) ?? S.station; renderStationSelect(); updateLautfmNav(); }) }),
     ai: mountAi($('view-ai'), ctx),
     nextcloud: mountNextcloud($('view-nextcloud'), ctx),

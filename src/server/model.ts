@@ -83,6 +83,8 @@ export interface StationData {
   mode?: BaseMode;
   /** Zusatz-Streams: benannte Zusatzprofile (z. B. "Mobile AAC 64k"), die Ausgänge per profileId referenzieren können */
   streamProfiles?: StreamProfileConfig[];
+  podcast?: PodcastConfig;
+  episodes?: Episode[];
 }
 
 /** Zusatz-Streams-Profil: eigenes Format/Bitrate, gespeist aus demselben Programmbus wie der Hauptencoder. */
@@ -129,6 +131,35 @@ export interface Recording {
   contentType: string;
   file: string;
   planId?: string;
+}
+
+/** Eigener Podcast-Feed aus den eigenen Mitschnitten (RSS 2.0 + iTunes-Namensraum, kein externer Dienst nötig). */
+export interface PodcastConfig {
+  title: string;
+  description: string;
+  author: string;
+  /** Sprachcode, z. B. "de-de" */
+  language: string;
+  /** Freitext-Kategorie (iTunes-Kategorien sind nicht genormt genug für eine feste Auswahl) */
+  category?: string;
+  explicit: boolean;
+  /** Cover: Dateiendung + Version (z. B. "png:lq3x"), Datei liegt in data/podcast-covers, wie Station.logo */
+  cover?: string;
+}
+
+/** Eine veröffentlichte (oder noch im Entwurf befindliche) Episode, aus einem bestehenden Mitschnitt erzeugt. */
+export interface Episode {
+  id: string;
+  recordingId: string;
+  title: string;
+  description: string;
+  createdAt: number;
+  /** Fehlt = Entwurf, noch nicht im Feed sichtbar */
+  publishedAt?: number;
+  season?: number;
+  episodeNumber?: number;
+  /** Stabile GUID im Feed (ändert sich nie, auch wenn der Titel sich ändert) */
+  guid: string;
 }
 
 export interface PlayLogEntry {

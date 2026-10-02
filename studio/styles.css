@@ -468,6 +468,9 @@ tr.active-row td { background: rgba(34,197,94,.08); }
 .pl-items li { display: flex; gap: 8px; align-items: center; }
 .pl-items li > span:first-child { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec-now { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.podcast-head p { margin: 0 0 8px; }
+.podcast-feed-url { display: flex; gap: 6px; margin-bottom: 8px; }
+.podcast-feed-url input { flex: 1; min-width: 0; font-family: monospace; font-size: 12px; }
 .pl-head[draggable] { cursor: grab; }
 /* Sendeplan-Gitter (Drag & Drop) */
 .sp-grid { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
