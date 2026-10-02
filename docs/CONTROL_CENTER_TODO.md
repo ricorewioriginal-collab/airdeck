@@ -90,7 +90,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     nach Tageszeit) / Genre-Mix / Live-Plays. Backend: Play-Log trägt Hörerzahl + Live-Kennung (Kappe 5000),
     Stunden-Aggregat `listenerHours` über 100 Tage. Bewusst weggelassen: Rang (laut.fm-spezifisch) und
     DB-Abgleich (externe laut.fm-Datenbank).
-22. [P2 · L] Deep Stats: Heatmap Wochentag×Uhrzeit, Top/Flop, Artist-Anteile, Song-Verlauf, Excel/PDF/Mail.
+22. ~~[P2 · L] Deep Stats: Heatmap Wochentag×Uhrzeit, Top/Flop, Artist-Anteile, Song-Verlauf, Excel/PDF/Mail~~ - erledigt:
+    Hörerstatistik → Tabs Heatmap, Top/Flop (mit Vorperiode gleicher Länge), Interpreten (Donut + Anteile), Song-Verlauf
+    (Top 5 je Tag); Export ⬇ Excel (CSV), 🖨 PDF (Druckansicht), ✉ Mail (`/stats/deep`, `/stats/deep.csv`, `/stats/deep/email`).
 23. ~~[P2 · S] Berichte: Meistgespielt-Ranking; Protokoll-Filter~~ - erledigt: Sendungs-Rückblick mit Top-10 (JSON, CSV,
     E-Mail), Verlauf mit Suche und Art-Filter (CSV-Export folgt dem Filter).
 24. [P3 · M] Aktivitäts-Log (Admin), Stream-Status als M3U/XSPF/XML.
