@@ -31,6 +31,13 @@ export interface MediaItem {
   /** Überblendpunkt vor Ende (Segue) */
   segueMs?: number;
   introMs?: number;
+  /**
+   * Motion-Cart: Ende des schleifbaren Loop-Bereichs (ab cueInMs) bei Jingles/Betten/Sweepern - danach
+   * beginnt Drop/Outro. Wie die intro/loop/drop-Tasten bei Foster Kents "Motion Mixes": markiert nur
+   * den Übergang, die eigentliche Endlos-Wiedergabe mit Weiterschalten ist ein eigener, noch offener
+   * Engine-Schritt (siehe docs/FEATURE_PARITY.md).
+   */
+  loopEndMs?: number;
   bpm?: number;
   gainDb?: number;
   addedAt: number;

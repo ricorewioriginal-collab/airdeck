@@ -229,6 +229,7 @@ button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none !important
 .cart.playing { outline: 2px solid #fff; box-shadow: 0 0 22px var(--c); }
 .cart.drop { outline: 2px dashed #fff; }
 .cart-label { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-motion { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--c); opacity: .85; flex-shrink: 0; }
 .cart-sub { font-size: 11px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cart-dur { position: absolute; right: 9px; bottom: 7px; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .9; }
 .cart-edit { position: absolute; top: 4px; right: 5px; background: none; border: 0; color: inherit; opacity: .75; cursor: pointer; font-size: 14px; }
