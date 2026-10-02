@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -19,7 +20,7 @@ private data class MoreEntry(val title: String, val icon: androidx.compose.ui.gr
 private val entries = listOf(
     MoreEntry("MusicHub", Icons.Filled.LibraryMusic),
     MoreEntry("Cardwall", Icons.Filled.ViewModule),
-    MoreEntry("Playlisten", Icons.Filled.QueueMusic),
+    MoreEntry("Playlisten", Icons.AutoMirrored.Filled.QueueMusic),
     MoreEntry("Podcasts", Icons.Filled.Podcasts),
 )
 
