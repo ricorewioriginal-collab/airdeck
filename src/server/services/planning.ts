@@ -8,6 +8,7 @@ import {
   type ClockEvent, type JobTarget, type ProgramPlan, type Repeat, type ScheduledJob,
 } from '../../core/scheduler.ts';
 import { AppError, newId, safeColor, type Playlist } from '../model.ts';
+import { NEWS_LABEL } from './news.ts';
 
 export type PreflightStatus = 'ok' | 'warning' | 'empty' | 'missing';
 
@@ -215,8 +216,14 @@ export class PlanningService {
         if (!rt.data.library.some((m) => m.category === category)) throw new AppError(400, 'empty_category', 'In dieser Kategorie ist noch nichts hochgeladen');
         return { kind, category, mode, label };
       }
+      case 'news': {
+        const newsId = Number(input.newsId);
+        if (![1, 2, 3].includes(newsId)) throw new AppError(400, 'invalid_news', 'Beitrag 1 (Kombi), 2 (Nachrichten) oder 3 (Wetter)');
+        if (!this.app.svc.news.creds(stationId)) throw new AppError(409, 'no_lautfm', 'Kein laut.fm-Zugang: zuerst den laut.fm-Live-Stream als Ausgang anlegen');
+        return { kind, newsId, mode: mode === 'fx' ? 'track' : mode, label: label ?? NEWS_LABEL[newsId as 1 | 2 | 3] };
+      }
       default:
-        throw new AppError(400, 'invalid_kind', 'Art: media, folder, url, playlist oder category');
+        throw new AppError(400, 'invalid_kind', 'Art: media, folder, url, playlist, category oder news');
     }
   }
 
@@ -296,6 +303,12 @@ export class PlanningService {
 
   executeTarget(stationId: string, t: JobTarget, origin: string): void {
     const rt = this.app.rt(stationId);
+    if (t.kind === 'news') {
+      // Datei wird zur Startzeit frisch geholt; air() führt danach selbst executeTarget(media) aus.
+      this.app.svc.news.air(stationId, (t.newsId ?? 1) as 1 | 2 | 3, t.mode === 'fx' ? 'track' : t.mode, origin)
+        .catch((err: Error) => this.app.audit.write({ kind: 'schedule', event: 'news_failed', stationId, label: t.label, error: err.message }));
+      return;
+    }
     if (t.kind === 'playlist') {
       this.playPlaylist(stationId, t.playlistId!);
     } else {

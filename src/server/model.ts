@@ -64,6 +64,8 @@ export interface StationData {
   playlists?: Playlist[];
   jobs?: ScheduledJob[];
   clockEvents?: ClockEvent[];
+  /** Nachrichten & Wetter (laut.fm): gewählter Ausgang als Zugangsquelle */
+  news?: import('./services/news.ts').NewsConfig;
   plans?: ProgramPlan[];
   recPlans?: RecordingPlan[];
   recordings?: Recording[];

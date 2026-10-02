@@ -32,9 +32,11 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 2. [P2 · M] Sendezentrale: Netzwerk-Senderkarten mit Sortierung Live (Meiste/Wenigste), Ø 24h, Ø 7 Tage, A–Z; Sync.
 
 ### Programm planen
-3. **[P1 · M] Nachrichten & Wetter (laut.fm)**: Stunden-Chip-Raster 00–23 (Presets 6–22 / alle / keine),
-   Typ Kombi/Nachrichten/Wetter, Anhören/Herunterladen, "Jetzt senden", Zeitplan-Liste, Option
-   "Automatisch verbinden, wenn der Relay gerade nicht sendet".
+3. ~~[P1 · M] Nachrichten & Wetter (laut.fm)~~ - erledigt: eigene Ansicht (`studio/js/news.js`,
+   `services/news.ts`): Zugang aus dem laut.fm-Ausgang, drei Beiträge anhören/herunterladen/„Jetzt senden“,
+   Stunden-Chip-Raster 00–23 (alle / 6–22 / keine) + Tage, Schnellpresets, Zeitplan-Liste als Uhr-Events
+   `kind: news` (Datei wird zur Startzeit frisch geholt). Offen: „Automatisch verbinden, wenn der Relay
+   gerade nicht sendet“ (braucht laut.fm-Titelende-Abfrage; P3).
 4. **[P1 · L] Smart Blocks & Rotation**: Regel-Editor ("Es müssen passen …", Reihenfolge, Begrenzen auf
    N/Einheit), Vorschau, dynamische Playlist vs. Momentaufnahme, "Allgemeine Rotation".
 5. [P2 · S] Ereignisse: Typen KI-Ansage und Nachrichten-/Werbe-Trigger, "Jetzt beenden".

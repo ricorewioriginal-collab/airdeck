@@ -3,7 +3,7 @@
 
 export type Repeat = 'none' | 'hourly' | 'daily' | 'weekdays' | 'weekly';
 /** category = zufälliger Titel einer Medienkategorie (Jingle, Sweeper, Station-ID, Werbung …) nach Rotationsregeln */
-export type JobKind = 'media' | 'folder' | 'url' | 'playlist' | 'category';
+export type JobKind = 'media' | 'folder' | 'url' | 'playlist' | 'category' | 'news';
 /** now = sofort per Crossfade, track = nach dem laufenden Titel, fx = über der Musik (Ducking) */
 export type JobMode = 'now' | 'track' | 'fx';
 
@@ -12,6 +12,8 @@ export interface JobTarget {
   mediaId?: string;
   folder?: string;
   category?: string;
+  /** news = laut.fm-Beitrag: 1 Nachrichten + Wetter, 2 Nachrichten, 3 Wetter (zur Startzeit frisch geholt) */
+  newsId?: number;
   url?: string;
   /** Laufzeit für URL-Streams (sonst endlos, bis weitergeschaltet wird) */
   durationMs?: number;

@@ -532,6 +532,17 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('GET', '/api/v1/stations/:sid/preflight', 'schedule:read', (c) => app.svc.planning.preflight(sid(c)));
   add('POST', '/api/v1/stations/:sid/jobs', 'automation:write', async (c) => app.svc.planning.saveJob(sid(c), await c.body()));
   add('DELETE', '/api/v1/stations/:sid/jobs/:id', 'automation:write', (c) => app.svc.planning.deleteJob(sid(c), c.params.id!));
+  // --- Nachrichten & Wetter (laut.fm) ---
+  add('GET', '/api/v1/stations/:sid/news', 'media:read', (c) => app.svc.news.summary(sid(c)));
+  add('PATCH', '/api/v1/stations/:sid/news', 'automation:write', async (c) => app.svc.news.saveConfig(sid(c), await c.body()));
+  add('POST', '/api/v1/stations/:sid/news/:id/fetch', 'automation:write', async (c) => { const m = await app.svc.news.latest(sid(c), Number(c.params.id) as 1 | 2 | 3, true); return { ok: true, t: m.t, changedAt: m.changedAt, bytes: m.bytes }; });
+  add('GET', '/api/v1/stations/:sid/news/:id/file', 'media:read', async (c) => {
+    const path = await app.svc.news.filePath(sid(c), Number(c.params.id) as 1 | 2 | 3);
+    if (c.url.searchParams.get('dl') === '1') c.res.setHeader('Content-Disposition', `attachment; filename="${['', 'nachrichten-wetter', 'nachrichten', 'wetter'][Number(c.params.id)]}-${new Date().toISOString().slice(0, 13).replace('T', '_')}00.mp3"`);
+    sendFile(c.req, c.res, path, 'audio/mpeg');
+    return STREAMED;
+  });
+  add('POST', '/api/v1/stations/:sid/news/:id/air', 'automation:write', async (c) => { const b = await c.body(); return app.svc.news.air(sid(c), Number(c.params.id) as 1 | 2 | 3, b.mode === 'now' ? 'now' : 'track', 'manual'); });
   add('POST', '/api/v1/stations/:sid/clock-events', 'automation:write', async (c) => app.svc.planning.saveClockEvent(sid(c), null, await c.body()));
   add('PATCH', '/api/v1/stations/:sid/clock-events/:id', 'automation:write', async (c) => app.svc.planning.saveClockEvent(sid(c), c.params.id!, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/clock-events/:id', 'automation:write', (c) => app.svc.planning.deleteClockEvent(sid(c), c.params.id!));

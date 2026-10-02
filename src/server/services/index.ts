@@ -15,6 +15,7 @@ import { ListenerService } from './listeners.ts';
 import { MediaService } from './media.ts';
 import { MotionMixService } from './motionmix.ts';
 import { MusicHubService } from './musikhub.ts';
+import { NewsService } from './news.ts';
 import { NextcloudService } from './nextcloud.ts';
 import { NotificationService } from './notifications.ts';
 import { PlanningService } from './planning.ts';
@@ -43,6 +44,7 @@ export function createServices(app: AirDeckApp) {
     recorder: new RecorderService(app),
     planning: new PlanningService(app),
     lifehacks: new LifehacksService(app),
+    news: new NewsService(app),
     podcast: new PodcastService(app),
     recap: new RecapService(app),
     motionMix: new MotionMixService(app),
