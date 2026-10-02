@@ -75,3 +75,18 @@ test('„Alle stoppen“ blendet laufende Carts aus', { skip: !ff && 'ffmpeg nic
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('Soundboard: Tastenkürzel nur als einzelnes Zeichen oder F1–F12', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cast-sb-'));
+  try {
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
+    const [a] = app.rt('main').data.cardwall;
+    app.updateCart('main', a!.id, { hotkey: 'F12' });
+    assert.equal(a!.hotkey, 'F12');
+    assert.throws(() => app.updateCart('main', a!.id, { hotkey: 'ctrl+q' }), /Tastenkürzel/);
+    assert.throws(() => app.updateCart('main', a!.id, { hotkey: 'F13' }), /Tastenkürzel/);
+    assert.equal(a!.hotkey, 'F12', 'ungültige Eingabe lässt das alte Kürzel stehen');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

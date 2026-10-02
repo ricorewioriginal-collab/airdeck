@@ -315,7 +315,7 @@ export function mountAi(root, ctx) {
     h('div', { class: 'kt-head' }, h('span', { class: 'kt-badge' }, title.slice(0, 1)), h('div', {}, h('h2', {}, title), h('p', { class: 'muted small' }, desc))), ...body);
   const libMedia = () => /** @type {any[]} */ (ctx.library?.() ?? []);
   /** @param {(m: any) => boolean} filter @param {string} empty */
-  const mediaSelect = (filter, empty) => /** @type {HTMLSelectElement} */ (h('select', {}, h('option', { value: '' }, empty), ...libMedia().filter(filter).slice(0, 400).map((m) => h('option', { value: m.id }, `${m.artist ? `${m.artist} – ` : ''}${m.title}`))));
+  const mediaSelect = (filter, empty) => /** @type {HTMLSelectElement} */ (h('select', {}, h('option', { value: '' }, empty), ...libMedia().filter(filter).sort((a, b) => `${a.artist ?? ''} ${a.title}`.localeCompare(`${b.artist ?? ''} ${b.title}`, 'de')).slice(0, 2000).map((m) => h('option', { value: m.id }, `${m.artist ? `${m.artist} – ` : ''}${m.title}`))));
 
   async function tools() {
     // --- KI-Studio: Ansage-Typen als Knöpfe, Text → Stimme → Bibliothek → Queue/Senden (nach relay-pro6) ---
@@ -476,8 +476,8 @@ export function mountAi(root, ctx) {
       h('div', { class: 'kt-row' }, planNotes,
         h('button', { class: 'btn primary', onclick: async () => { status('KI plant …'); const r = await run(() => ctx.api.post(ctx.url('/ai/plan'), { topic: planTopic.value, minutes: Number(planMin.value), startTime: planStart.value, notes: planNotes.value })); if (r) { planRows = r.rows; if (!r.rows.length) status('Keine Tabelle erkannt – Rohtext in der Konsole', true); drawPlan(); } } }, 'Ablauf planen'),
         h('button', { class: 'btn small', onclick: () => { planRows.push({ time: '', minutes: 3, segment: 'Musik', content: '' }); drawPlan(); } }, '＋ Zeile'),
-        h('button', { class: 'btn small', disabled: !planRows.length, onclick: () => { const csv = ['Uhrzeit;Minuten;Segment;Inhalt', ...planRows.map((r) => [r.time, r.minutes, r.segment, r.content].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))].join('\r\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = `sendeablauf-${(planTopic.value || 'sendung').replace(/[^\w-]+/g, '_')}.csv`; a.click(); } }, '⬇ CSV'),
-        h('button', { class: 'btn small', disabled: !planRows.length, onclick: () => window.print() }, '🖨 Drucken')),
+        h('button', { class: 'btn small', onclick: () => { if (!planRows.length) return status('Noch kein Ablauf - erst planen oder eine Zeile anlegen', true); const csv = ['Uhrzeit;Minuten;Segment;Inhalt', ...planRows.map((r) => [r.time, r.minutes, r.segment, r.content].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))].join('\r\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = `sendeablauf-${(planTopic.value || 'sendung').replace(/[^\w-]+/g, '_')}.csv`; a.click(); } }, '⬇ CSV'),
+        h('button', { class: 'btn small', onclick: () => { if (!planRows.length) return status('Noch kein Ablauf - erst planen oder eine Zeile anlegen', true); window.print(); } }, '🖨 Drucken')),
       planTable);
 
     // --- Transkription ---

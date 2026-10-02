@@ -53,12 +53,12 @@ export class PodcastService {
     const cur = this.config(stationId);
     const a = input.auto as Partial<PodcastAuto> | undefined;
     const auto: PodcastAuto | undefined = a && typeof a === 'object' ? {
-      enabled: a.enabled === true,
+      enabled: typeof a.enabled === 'boolean' ? a.enabled : cur.auto?.enabled ?? false,
       titleTemplate: String(a.titleTemplate ?? cur.auto?.titleTemplate ?? DEFAULT_AUTO.titleTemplate).slice(0, 200) || DEFAULT_AUTO.titleTemplate,
       descriptionTemplate: String(a.descriptionTemplate ?? cur.auto?.descriptionTemplate ?? DEFAULT_AUTO.descriptionTemplate).slice(0, 4000),
-      publish: a.publish === true,
+      publish: typeof a.publish === 'boolean' ? a.publish : cur.auto?.publish ?? false,
       minMinutes: Math.max(0, Math.min(600, Math.round(Number(a.minMinutes ?? cur.auto?.minMinutes ?? 0)) || 0)),
-      onlyPlanned: a.onlyPlanned === true,
+      onlyPlanned: typeof a.onlyPlanned === 'boolean' ? a.onlyPlanned : cur.auto?.onlyPlanned ?? false,
     } : cur.auto;
     const cfg: PodcastConfig = {
       title: String(input.title ?? cur.title).slice(0, 120) || rt.station.name,
@@ -121,20 +121,23 @@ export class PodcastService {
    * Auto-Veröffentlichung eingeschaltet ist und der Mitschnitt die Regeln erfüllt. null = übersprungen.
    */
   autoEpisode(stationId: string, rec: Recording): Episode | null {
-    const auto = this.config(stationId).auto;
+    const cfg = this.config(stationId);
+    const auto = cfg.auto;
     if (!auto?.enabled || !rec.endedAt || rec.bytes === 0) return null;
     if (auto.onlyPlanned && !rec.planId) return null;
     const minutes = (rec.endedAt - rec.startedAt) / 60_000;
     if (auto.minMinutes > 0 && minutes < auto.minMinutes) return null;
     const rt = this.app.rt(stationId);
     if (rt.data.episodes?.some((e) => e.recordingId === rec.id)) return null;
-    const n = (rt.data.episodes ?? []).reduce((max, e) => Math.max(max, e.episodeNumber ?? 0), 0) + 1;
+    // Nummer steigt monoton: höchste vergebene Nummer oder gemerkter Zähler, auch wenn Episoden gelöscht wurden
+    const n = Math.max(cfg.nextEpisodeNumber ?? 1, (rt.data.episodes ?? []).reduce((max, e) => Math.max(max, e.episodeNumber ?? 0), 0) + 1);
     const vars = templateVars(rt.station.name, rec, n);
     const ep = this.createEpisode(stationId, rec.id, {
       title: renderTemplate(auto.titleTemplate || DEFAULT_AUTO.titleTemplate, vars),
       description: renderTemplate(auto.descriptionTemplate, vars),
     });
     ep.episodeNumber = n;
+    rt.data.podcast = { ...cfg, nextEpisodeNumber: n + 1 };
     if (auto.publish) ep.publishedAt = Date.now();
     this.app.audit.write({ kind: 'podcast', event: auto.publish ? 'auto_published' : 'auto_draft', stationId, episode: ep.id, recording: rec.id });
     this.app.publish('podcast.changed', stationId, this.overview(stationId));
@@ -148,6 +151,8 @@ export class PodcastService {
     const rec = rt.data.recordings?.find((r) => r.id === recordingId);
     if (!rec) throw new AppError(404, 'not_found', 'Mitschnitt nicht gefunden');
     if (!rec.endedAt) throw new AppError(409, 'still_recording', 'Mitschnitt läuft noch');
+    const dup = rt.data.episodes?.find((e) => e.recordingId === recordingId);
+    if (dup && input.allowDuplicate !== true) throw new AppError(409, 'duplicate', `Aus diesem Mitschnitt gibt es schon die Episode „${dup.title}“`);
     const ep: Episode = {
       id: newId('ep'), recordingId, guid: newId('ep'),
       title: String(input.title ?? rec.label).slice(0, 200),

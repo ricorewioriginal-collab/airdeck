@@ -98,3 +98,41 @@ test('Podcast: ungültiges Cover wird abgelehnt, gültiges Cover ist öffentlich
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('Podcast: Auto-Episoden nummerieren monoton (auch nach Löschen), Teil-Updates behalten Schalter, ein Mitschnitt = eine Episode', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-podcast-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
+  try {
+    const recDir = join(dir, 'recordings', 'main');
+    mkdirSync(recDir, { recursive: true });
+    const mkRec = (n: number): Recording => {
+      const rec: Recording = { id: newId('rec'), label: `Sendung ${n}`, startedAt: Date.now() - 60_000, endedAt: Date.now(), bytes: 3, contentType: 'audio/mpeg', file: `rec${n}.mp3` };
+      writeFileSync(join(recDir, rec.file), 'abc');
+      (app.rt('main').data.recordings ??= []).push(rec);
+      return rec;
+    };
+    app.svc.podcast.saveConfig('main', { auto: { enabled: true, publish: true } });
+    // Teil-Update (nur minMinutes) darf enabled/publish nicht zurücksetzen
+    const cfg = app.svc.podcast.saveConfig('main', { auto: { minMinutes: 5 } });
+    assert.equal(cfg.auto?.enabled, true);
+    assert.equal(cfg.auto?.publish, true);
+    assert.equal(cfg.auto?.minMinutes, 5);
+    app.svc.podcast.saveConfig('main', { auto: { minMinutes: 0 } });
+
+    const e1 = app.svc.podcast.autoEpisode('main', mkRec(1))!;
+    const e2 = app.svc.podcast.autoEpisode('main', mkRec(2))!;
+    assert.equal(e1.episodeNumber, 1);
+    assert.equal(e2.episodeNumber, 2);
+    app.svc.podcast.deleteEpisode('main', e2.id);
+    const e3 = app.svc.podcast.autoEpisode('main', mkRec(3))!;
+    assert.equal(e3.episodeNumber, 3, 'Nummer 2 wird nach dem Löschen nicht wiederverwendet');
+
+    // Derselbe Mitschnitt ergibt keine zweite Episode - weder automatisch noch von Hand
+    const rec = app.rt('main').data.recordings!.find((r) => r.file === 'rec1.mp3')!;
+    assert.equal(app.svc.podcast.autoEpisode('main', rec), null);
+    assert.throws(() => app.svc.podcast.createEpisode('main', rec.id, { title: 'Nochmal' }), /schon die Episode/);
+  } finally {
+    app.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -187,7 +187,7 @@ export function dspFilter(d: DspOptions): string | null {
   if (treble) parts.push(`treble=g=${treble}:f=4000`);
   const width = d.stereoWidth == null ? 100 : Math.max(0, Math.min(200, Number(d.stereoWidth) || 0));
   // Stereo-Breite: 0 = mono, 100 = unverändert, > 100 verbreitert (M/S-Anhebung der Seitensignale)
-  if (width !== 100) parts.push(width === 0 ? 'pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1' : `stereotools=mlev=1:slev=${(width / 100).toFixed(2)}`);
+  if (width !== 100) parts.push(width === 0 ? 'pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1' : `stereotools=mlev=1:slev=${Math.max(0.016, width / 100).toFixed(3)}`);
   if (d.highpass) parts.unshift('highpass=f=60:p=2');
   // 5 Bänder (Beispiel aus der ffmpeg-Doku, angepasst): Bass bis 100 Hz … Höhen bis 22 kHz
   if (d.multiband) parts.push("mcompand=args='0.005,0.1 6 -47/-40,-34/-34,-17/-33 100 | 0.003,0.05 6 -47/-40,-34/-34,-17/-33 400 | 0.000625,0.0125 6 -47/-40,-34/-34,-15/-33 1600 | 0.0001,0.025 6 -47/-40,-34/-34,-31/-31,-0/-30 6400 | 0,0.025 6 -38/-31,-28/-28,-0/-25 22000'");
@@ -1033,9 +1033,10 @@ export class Playout {
 
   private startProfileEncoder(id: string, rt: StreamProfileRuntime): void {
     const codec = this.codecArgs(rt.opts);
+    const af = dspFilter(this.opts.dsp); // Zusatz-Streams klingen wie der Hauptstream
     const proc = spawn(
       this.ffmpeg,
-      ['-hide_banner', '-loglevel', 'error', '-nostdin', ...RAW_IN, '-i', 'pipe:0', ...codec, '-flush_packets', '1', 'pipe:1'],
+      ['-hide_banner', '-loglevel', 'error', '-nostdin', ...RAW_IN, '-i', 'pipe:0', ...(af ? ['-af', af] : []), ...codec, '-flush_packets', '1', 'pipe:1'],
       { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true },
     );
     rt.proc = proc;
@@ -1078,10 +1079,11 @@ export class Playout {
   private startHls(id: string, rt: HlsRuntime): void {
     const { dir, bitrateKbps, segmentSeconds = 6, listSize = 6 } = rt.opts;
     mkdirSync(dir, { recursive: true });
+    const af = dspFilter(this.opts.dsp);
     const proc = spawn(
       this.ffmpeg,
       [
-        '-hide_banner', '-loglevel', 'error', '-nostdin', ...RAW_IN, '-i', 'pipe:0',
+        '-hide_banner', '-loglevel', 'error', '-nostdin', ...RAW_IN, '-i', 'pipe:0', ...(af ? ['-af', af] : []),
         '-c:a', 'aac', '-b:a', `${bitrateKbps}k`,
         '-f', 'hls', '-hls_time', String(segmentSeconds), '-hls_list_size', String(listSize),
         '-hls_flags', 'delete_segments+append_list',

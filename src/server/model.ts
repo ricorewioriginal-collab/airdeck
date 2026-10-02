@@ -200,6 +200,8 @@ export interface PodcastConfig {
   cover?: string;
   /** Auto-Veröffentlichung: fertige Mitschnitte werden nach Vorlage zur Episode (und auf Wunsch sofort in den Feed) */
   auto?: PodcastAuto;
+  /** Nächste Episodennummer der Auto-Veröffentlichung (steigt monoton, auch nach Löschen) */
+  nextEpisodeNumber?: number;
 }
 
 /** Platzhalter in den Vorlagen: {label} {station} {date} {time} {weekday} {duration} {n} (nächste Episodennummer) */

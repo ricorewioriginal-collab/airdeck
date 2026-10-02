@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request } from 'node:http';
-import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AnMaChaCastApp } from '../src/server/app.ts';
@@ -13,7 +13,9 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), 'anmachacast-f-'));
   const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
+  mkdirSync(join(app.mediaDir, 'main'), { recursive: true });
   for (const [id, cat, folder] of [['a', 'music', 'Rock'], ['b', 'music', 'Rock'], ['c', 'music', 'Pop'], ['j', 'jingle', 'Jingles']] as const) {
+    writeFileSync(join(app.mediaDir, 'main', `${id}.mp3`), ''); // Uhr-Events spielen nur Titel, deren Datei wirklich da ist
     app.svc.media.addMedia('main', { id, title: `Titel ${id}`, artist: `Artist ${id}`, category: cat, file: `${id}.mp3`, durationMs: 60_000, addedAt: 0, folder, originalName: `Artist ${id} - Titel ${id}.mp3` });
   }
   return { dir, app, done: () => { app.shutdown(); rmSync(dir, { recursive: true, force: true }); } };

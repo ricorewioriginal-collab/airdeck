@@ -135,6 +135,7 @@ export function formDialog(title, fields, submitLabel = 'Speichern', opts = {}) 
     };
     const row = (/** @type {HTMLElement} */ el, /** @type {boolean} */ on) => { el.hidden = !on; };
     form.addEventListener('change', apply);
+    dlg.addEventListener('close', () => form.removeEventListener('change', apply), { once: true });
     apply();
   }
   form.append(
