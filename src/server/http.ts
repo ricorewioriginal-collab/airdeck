@@ -15,6 +15,7 @@ import { OUTPUT_CAPABILITIES } from './icecast.ts';
 import { DSP_PRESETS } from './playout.ts';
 import { toIcecastXml, toM3u, toXspf, type StreamStatus } from './status.ts';
 import { MAX_VOICE_BYTES } from './services/listeners.ts';
+import { STUDIO_KINDS, STUDIO_TONES } from './services/ai.ts';
 import { PUBLIC_API, RADIOADMIN, allowedPublicPath, allowedRadioadminPath, forward } from './lautfm.ts';
 import { envVar } from './legacy-branding.ts';
 
@@ -861,6 +862,9 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('POST', '/api/v1/stations/:sid/ai/spot-mix', 'ai:write', async (c) => app.svc.ai.spotMix(sid(c), await c.body()));
   add('POST', '/api/v1/stations/:sid/ai/plan', 'ai:write', async (c) => app.svc.ai.planShow(sid(c), await c.body()));
   add('POST', '/api/v1/stations/:sid/ai/transcribe', 'ai:write', async (c) => app.svc.ai.transcribe(sid(c), await c.body()));
+  add('GET', '/api/v1/stations/:sid/ai/studio', 'ai:read', () => ({ kinds: STUDIO_KINDS, tones: STUDIO_TONES }));
+  add('POST', '/api/v1/stations/:sid/ai/studio/write', 'ai:write', async (c) => app.svc.ai.studioWrite(sid(c), await c.body()));
+  add('POST', '/api/v1/stations/:sid/ai/studio/playlist', 'ai:write', async (c) => app.svc.ai.studioPlaylist(sid(c), await c.body()));
 
   // --- Benachrichtigungen / Webhooks / Now-Playing-Export ---
   add('GET', '/api/v1/stations/:sid/integrations', 'stations:write', (c) => app.svc.notifications.integrations(sid(c)));
