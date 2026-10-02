@@ -16,12 +16,14 @@ import java.util.concurrent.TimeUnit
 
 class ApiException(val status: Int, val code: String, message: String) : IOException(message)
 
-private val JSON = Json {
+@PublishedApi
+internal val JSON = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
     explicitNulls = false
 }
-private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+@PublishedApi
+internal val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
 /** @param serverUrl z. B. "http://192.168.1.20:8750" (ohne abschließenden Slash) */
 class ApiClient(private var serverUrl: String, private var token: String?) {
@@ -40,7 +42,8 @@ class ApiClient(private var serverUrl: String, private var token: String?) {
 
     private fun url(path: String) = "${serverUrl.trimEnd('/')}/api/v1$path"
 
-    private fun requestBuilder(path: String): Request.Builder {
+    @PublishedApi
+    internal fun requestBuilder(path: String): Request.Builder {
         val b = Request.Builder().url(url(path))
         token?.let { b.header("Authorization", "Bearer $it") }
         return b
