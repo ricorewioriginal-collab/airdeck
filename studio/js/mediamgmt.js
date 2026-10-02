@@ -10,7 +10,7 @@
 // der AnMaCha Cast-Bibliothek. Es gibt keinen separaten Sidebar-Menüpunkt mehr; dieselbe Browse-/Import-
 // Logik wird wiederverwendet (keine zweite Nextcloud-Anbindung).
 
-import { $, CATEGORY_STYLE, clockTime, fmt, formDialog, h, mediaTitle, run, status } from './ui.js';
+import { $, CATEGORY_STYLE, clockTime, download, fmt, formDialog, h, mediaTitle, run, status } from './ui.js';
 import { mountNextcloud } from './nextcloud.js';
 import { mountMusicHub } from './musikhub.js';
 
@@ -82,6 +82,8 @@ export function mountMediaManagement(root, ctx) {
       h('button', { title: 'Zu Playlist', onclick: () => pickPlaylist(m) }, '＋P'),
       h('button', { title: 'An Cardwall', onclick: () => pickCart(m) }, '＋C'),
       h('button', { title: 'Metadaten bearbeiten', onclick: () => editMeta(m) }, '✎'),
+      m.url ? null : h('button', { title: 'Tags & Cover online suchen (iTunes / MusicBrainz)', onclick: () => lookupOnline(m) }, '🔎'),
+      m.url ? null : h('button', { title: m.key ? `Tonart: ${m.key}${m.camelot ? ` (${m.camelot})` : ''} – neu messen` : 'Tonart messen (Track-TÜV)', onclick: () => run(async () => { status('Messe Tonart …'); const r = await ctx.api.post(ctx.url(`/media/${encodeURIComponent(m.id)}/key`), {}); status(`Tonart: ${r.key} (${r.camelot})`); await reload(); }) }, '♪'),
       h('button', { title: 'Vorhören', onclick: () => preview(m) }, '▶'),
       h('button', { title: 'Löschen', onclick: () => confirm(`„${m.title}“ endgültig löschen?`) && run(() => ctx.api.del(ctx.url(`/media/${encodeURIComponent(m.id)}`)).then(reload)) }, '✕'));
   }
@@ -100,6 +102,8 @@ export function mountMediaManagement(root, ctx) {
       { name: 'artist', label: 'Interpret', value: m.artist },
       { name: 'album', label: 'Album', value: m.album ?? '' },
       { name: 'genre', label: 'Genre', value: m.genre ?? '' },
+      { name: 'year', label: 'Jahr', type: 'number', value: m.year ?? '' },
+      { name: 'key', label: 'Tonart (Track-TÜV, z. B. „A Moll“)', value: m.key ?? '', hint: m.camelot ? `Camelot ${m.camelot}` : 'leer = unbekannt; „Tonart messen“ in den Aktionen' },
       { name: 'category', label: 'Kategorie', value: m.category, options: Object.entries(CATEGORY_LABEL) },
       { name: 'folder', label: 'Ordner/Tag', value: m.folder ?? '' },
       { name: 'bpm', label: 'BPM', type: 'number', value: m.bpm ?? '' },
@@ -109,6 +113,23 @@ export function mountMediaManagement(root, ctx) {
       { name: 'gainDb', label: 'Gain (dB)', type: 'number', value: m.gainDb ?? '' },
     ]);
     if (v) await run(() => ctx.api.patch(ctx.url(`/media/${encodeURIComponent(m.id)}`), v).then(reload));
+  }
+
+  async function lookupOnline(m) {
+    status('Suche online …');
+    const cands = await run(() => ctx.api.get(ctx.url(`/media/${encodeURIComponent(m.id)}/lookup`)));
+    if (!cands) return;
+    const label = (/** @type {any} */ c) => `${c.artist ? `${c.artist} – ` : ''}${c.title}${c.album ? ` · ${c.album}` : ''}${c.year ? ` (${c.year})` : ''}${c.genre ? ` · ${c.genre}` : ''}${c.coverUrl ? ' · 🖼 Cover' : ''} [${c.source}]`;
+    const v = await formDialog('Tags & Cover online', [
+      { name: 'pick', label: `Treffer für „${m.artist ? `${m.artist} – ` : ''}${m.title}“`, value: '0', options: cands.map((/** @type {any} */ c, /** @type {number} */ i) => /** @type {[string,string]} */ ([String(i), label(c)])) },
+      { name: 'overwrite', label: 'Vorhandene Felder überschreiben (sonst nur leere ergänzen)', type: 'checkbox', value: false },
+      { name: 'cover', label: 'Cover herunterladen', type: 'checkbox', value: true },
+    ], 'Übernehmen');
+    if (!v) return;
+    const c = cands[Number(v.pick)];
+    await run(() => ctx.api.post(ctx.url(`/media/${encodeURIComponent(m.id)}/lookup`), { ...c, overwrite: v.overwrite, cover: v.cover }));
+    status('Metadaten übernommen');
+    await reload();
   }
 
   function row(m) {
@@ -121,7 +142,7 @@ export function mountMediaManagement(root, ctx) {
       h('td', {}, m.folder ?? ''),
       h('td', { class: 'num' }, fmt(m.durationMs)),
       h('td', { class: 'num muted' }, format),
-      h('td', { class: 'num muted' }, m.lufs != null ? `${m.lufs.toFixed(1)} LUFS` : '–'),
+      h('td', { class: 'num muted' }, m.lufs != null ? `${m.lufs.toFixed(1)} LUFS` : '–', m.key ? h('div', { class: 'small', title: 'Tonart (Camelot)' }, `${m.key}${m.camelot ? ` · ${m.camelot}` : ''}`) : null),
       h('td', {}, actions(m)));
     return tr;
   }
@@ -153,6 +174,12 @@ export function mountMediaManagement(root, ctx) {
     await refreshIntegrity();
     await reload();
   }
+
+  const tuevBox = h('div', { class: 'panel', style: 'margin-top:12px' },
+    h('div', { class: 'panel-head' }, h('h2', {}, 'Track-TÜV'),
+      h('button', { class: 'btn small', title: 'Alle noch ungeprüften Titel messen (Lautheit, Stille, Übersteuerung, Tonart)', onclick: () => run(async () => { const r = await ctx.api.post(ctx.url('/media/loudness'), {}); status(r.queued ? `${r.queued} Titel eingereiht` : 'Alles schon geprüft'); }) }, 'Ungeprüfte messen'),
+      h('button', { class: 'btn small', title: 'Bericht: LUFS/True Peak vorher, Gain und Werte nach Angleichung, Tonart, Hinweise', onclick: async () => { const blob = await run(() => ctx.api.blob(ctx.url('/media/tuev.csv'))); if (blob) download(blob, `track-tuev-${ctx.stationId()}.csv`); } }, '⬇ Vorher/Nachher-Bericht (CSV)')),
+    h('p', { class: 'muted small', style: 'margin:0' }, 'Lautheit (EBU R128), True Peak, Stille/Cue-Punkte, Übersteuerung, Bitrate und Tonart (Krumhansl, Camelot) je Titel. 🔎 holt Tags und Cover von iTunes/MusicBrainz, ♪ misst die Tonart einzeln.'));
 
   const integrityBox = h('div', { class: 'panel', style: 'margin-top:12px' },
     h('div', { class: 'panel-head' }, h('h2', {}, 'Integritätsprüfung'), h('button', { class: 'btn small', onclick: () => refreshIntegrity() }, 'Prüfen')),
@@ -219,6 +246,7 @@ export function mountMediaManagement(root, ctx) {
       h('table', { class: 'list' },
         h('thead', {}, h('tr', {}, h('th', {}), h('th', {}, 'Titel'), h('th', {}, 'Interpret'), h('th', {}, 'Kategorie'), h('th', {}, 'Ordner'), h('th', {}, 'Länge'), h('th', {}, 'Format'), h('th', {}, 'Lautheit'), h('th', {}, 'Aktionen'))),
         tbody)),
+    tuevBox,
     integrityBox);
 
   function tabBtn(id, label) {

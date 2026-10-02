@@ -246,3 +246,110 @@ export function generateTestTone(ffmpeg: string, file: string, seconds = 3, freq
     p.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg beendete sich mit Code ${code}`))));
   });
 }
+
+// ---------- Tonart-Analyse (Krumhansl-Schmuckler, Camelot) ----------
+
+export interface KeyAnalysis {
+  /** Grundton, z. B. "A" */
+  root: string;
+  mode: 'major' | 'minor';
+  /** Lesbar, z. B. "A Moll" */
+  name: string;
+  /** Camelot-Rad, z. B. "8A" (DJ-Kompatibilität) */
+  camelot: string;
+  /** Parallele Tonart, z. B. "C Dur" */
+  relative: string;
+  /** 20…97 % – Abstand zum zweitbesten Kandidaten */
+  confidence: number;
+}
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+const MINOR_PROFILE = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+const CAMELOT_MAJOR = [8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6, 1];
+const CAMELOT_MINOR = [5, 12, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10];
+
+function pearson(a: number[], b: number[]): number {
+  const n = a.length;
+  const ma = a.reduce((x, y) => x + y, 0) / n;
+  const mb = b.reduce((x, y) => x + y, 0) / n;
+  let num = 0, da = 0, db = 0;
+  for (let i = 0; i < n; i++) { const x = a[i]! - ma, y = b[i]! - mb; num += x * y; da += x * x; db += y * y; }
+  return da && db ? num / Math.sqrt(da * db) : 0;
+}
+
+/** Tonart aus einem 12-stufigen Chroma-Vektor (0 = C) bestimmen. null bei leerem Chroma. */
+export function keyFromChroma(chromaIn: ArrayLike<number>): KeyAnalysis | null {
+  const chroma = Array.from(chromaIn);
+  const max = Math.max(...chroma);
+  if (!(max > 0)) return null;
+  const c = chroma.map((x) => x / max);
+  const scores: { root: number; mode: 'major' | 'minor'; corr: number }[] = [];
+  for (let root = 0; root < 12; root++) {
+    for (const [mode, profile] of [['major', MAJOR_PROFILE], ['minor', MINOR_PROFILE]] as const) {
+      const rotated = profile.map((_, i) => profile[(i - root + 12) % 12]!);
+      scores.push({ root, mode, corr: pearson(c, rotated) });
+    }
+  }
+  scores.sort((a, b) => b.corr - a.corr);
+  const best = scores[0]!;
+  let confidence = 50;
+  if (scores[1] && Math.abs(best.corr) > 1e-6) confidence = Math.round(((best.corr - scores[1].corr) / best.corr) * 200 + 40);
+  if (!Number.isFinite(confidence)) confidence = 50;
+  const root = NOTE_NAMES[best.root]!;
+  const relRoot = best.mode === 'major' ? (best.root + 9) % 12 : (best.root + 3) % 12;
+  return {
+    root, mode: best.mode, name: `${root} ${best.mode === 'major' ? 'Dur' : 'Moll'}`,
+    camelot: best.mode === 'major' ? `${CAMELOT_MAJOR[best.root]}B` : `${CAMELOT_MINOR[best.root]}A`,
+    relative: `${NOTE_NAMES[relRoot]} ${best.mode === 'major' ? 'Moll' : 'Dur'}`,
+    confidence: Math.max(20, Math.min(97, confidence)),
+  };
+}
+
+/** Chroma-Vektor aus 16-bit-Mono-PCM per Goertzel-Filter über C2…B6 (fünf Oktaven), fensterweise. */
+export function chromaFromPcm(pcm: Int16Array, sampleRate: number): Float64Array {
+  const chroma = new Float64Array(12);
+  const win = 4096;
+  const C2 = 440 * Math.pow(2, -4.75) * 4; // C2 ≈ 65,4 Hz
+  const tones: { pc: number; coeff: number }[] = [];
+  for (let n = 0; n < 60; n++) {
+    const hz = C2 * Math.pow(2, n / 12);
+    if (hz * 2 >= sampleRate) break;
+    tones.push({ pc: n % 12, coeff: 2 * Math.cos((2 * Math.PI * hz) / sampleRate) });
+  }
+  for (let start = 0; start + win <= pcm.length; start += win) {
+    let energy = 0;
+    for (let i = 0; i < win; i++) { const v = pcm[start + i]! / 32768; energy += v * v; }
+    if (energy / win < 1e-6) continue; // Stille überspringen
+    for (const t of tones) {
+      let s0 = 0, s1 = 0, s2 = 0;
+      for (let i = 0; i < win; i++) {
+        s0 = pcm[start + i]! / 32768 + t.coeff * s1 - s2;
+        s2 = s1; s1 = s0;
+      }
+      const power = s1 * s1 + s2 * s2 - t.coeff * s1 * s2;
+      chroma[t.pc] = (chroma[t.pc] ?? 0) + Math.sqrt(Math.max(0, power));
+    }
+  }
+  return chroma;
+}
+
+/** Tonart einer Datei: die ersten 60 s (ab 10 s, wenn länger) als Mono-PCM dekodieren und auswerten. null = nicht lesbar/still. */
+export function analyzeKey(ffmpeg: string, file: string, timeoutMs = 60_000): Promise<KeyAnalysis | null> {
+  const rate = 11025;
+  return new Promise((resolve) => {
+    const p = spawn(ffmpeg, ['-hide_banner', '-nostats', '-nostdin', '-loglevel', 'error', '-i', file, '-vn', '-t', '60', '-ac', '1', '-ar', String(rate), '-f', 's16le', '-'], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    const chunks: Buffer[] = [];
+    let total = 0;
+    const timer = setTimeout(() => p.kill('SIGKILL'), timeoutMs);
+    p.stdout!.on('data', (d: Buffer) => { if (total < rate * 2 * 70) { chunks.push(d); total += d.length; } });
+    p.on('error', () => { clearTimeout(timer); resolve(null); });
+    p.on('close', () => {
+      clearTimeout(timer);
+      const buf = Buffer.concat(chunks);
+      if (buf.length < rate * 2) return resolve(null);
+      const pcm = new Int16Array(buf.buffer, buf.byteOffset, Math.floor(buf.length / 2));
+      resolve(keyFromChroma(chromaFromPcm(pcm, rate)));
+    });
+  });
+}
