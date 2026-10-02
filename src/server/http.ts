@@ -171,6 +171,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
 
   // --- Sender / Branding ---
   add('GET', '/api/v1/stations', 'branding:read', (c) => app.svc.stations.listStations(c.p));
+  add('GET', '/api/v1/network', 'branding:read', (c) => app.svc.stations.network(c.p));
   add('POST', '/api/v1/stations', 'stations:write', async (c) => {
     const b = await c.body();
     if (!c.p.stationIds.includes('*')) throw new AppError(403, 'forbidden', 'Nur globale Admins legen Sender an');
