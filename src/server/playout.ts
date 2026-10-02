@@ -847,6 +847,13 @@ export class Playout {
     this.startVoice(new Voice(media, 'cart', duck, trackGainDb(media, this.opts.loudness, this.opts.dsp.limiter), media.cueInMs ?? 0, true));
   }
 
+  /** Alle Cart-Stimmen ausblenden (Soundboard: Esc / „Alle stoppen“). Liefert die Zahl der getroffenen Carts. */
+  stopCarts(fadeMs = 200): number {
+    let n = 0;
+    for (const v of this.voices) if (v.kind === 'cart' && v.fadeTo !== 0) { v.looping = false; v.fade(0, msToFrames(fadeMs), this.fades().curve); n++; }
+    return n;
+  }
+
   /** Laufende Endlos-Loops (Motion-Carts) - für Anzeige und „Weiter“-Knopf. */
   loops(): { mediaId: string; title: string; kind: 'track' | 'cart'; deck: DeckId | null; loopCount: number; inLoop: boolean }[] {
     return this.voices.filter((v) => v.looping && v.fadeTo !== 0).map((v) => ({ mediaId: v.media.id, title: v.media.title, kind: v.kind, deck: v.deck, loopCount: v.loopCount, inLoop: v.inLoop }));
