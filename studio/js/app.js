@@ -799,15 +799,18 @@ async function editPlayout() {
   const loud = /** @type {any} */ (await run(() => api.get(url('/media/loudness')))) ?? { total: 0, measured: 0, pending: 0 };
   const f = c.fades ?? {};
   const profiles = /** @type {any[]} */ (S.playout?.fadeProfiles ?? []);
-  const v = await formDialog('Server-Automation 24/7', [
+  const v = await formDialog('Sendereinstellungen · Server-Automation 24/7', [
+    { type: 'section', label: 'Stream & Encoder', hint: 'Was der Server an die Ausgänge liefert' },
     { name: 'format', label: 'Format', value: c.format ?? 'mp3', options: [['mp3', `MP3${enc.mp3 ? '' : ' (nicht verfügbar)'}`], ['aac', 'AAC (ADTS)'], ['opus', `Ogg/Opus${enc.opus ? '' : ' (nicht verfügbar)'}`]] },
     { name: 'bitrateKbps', label: 'Bitrate (kbit/s)', type: 'number', value: c.bitrateKbps ?? 128 },
     { name: 'mp3Mode', label: 'MP3 (LAME): Modus', value: c.mp3Mode ?? 'cbr', options: [['cbr', 'Konstante Bitrate (empfohlen für Streams)'], ['vbr', 'Variable Bitrate (VBR)']] },
     { name: 'mp3Quality', label: 'MP3 (LAME): Qualität 0 (beste) … 9 (schnellste)', type: 'number', value: c.mp3Quality ?? 2 },
+    { type: 'section', label: 'Klangprofil & Lautheit', hint: 'EBU R128 je Titel, Presets für den Sender-Sound' },
     { name: 'preset', label: 'Klangprofil', value: c.dsp?.preset ?? '', options: [['', 'Eigene Einstellungen (unten)'], ...Object.entries(presets).map(([k, p]) => /** @type {[string,string]} */ ([k, p.label]))], hint: 'Ein neu gewähltes Profil überschreibt EQ und Dynamik – danach frei anpassbar' },
     { name: 'loudAuto', label: `Lautheit automatisch angleichen (EBU R128, gemessen: ${loud.measured}/${loud.total}${loud.pending ? `, ${loud.pending} in Arbeit` : ''})`, type: 'checkbox', value: c.loudness?.auto ?? true },
     { name: 'loudTarget', label: 'Ziel-Lautheit pro Titel (LUFS, üblich −16 … −14)', type: 'number', value: c.loudness?.targetLufs ?? -16 },
     { name: 'analyze', label: 'Bibliothek jetzt (neu) messen', type: 'checkbox', value: false, hint: 'Läuft im Hintergrund, ein Titel nach dem anderen' },
+    { type: 'section', label: 'Überblendung', hint: 'Profil setzt alle Zeiten, danach frei anpassbar' },
     { name: 'fadeProfile', label: 'Überblend-Profil', value: f.profile ?? 'standard', options: [...profiles.map((p) => /** @type {[string,string]} */ ([p.id, p.label])), ['custom', 'Eigene Werte (unten)']], hint: 'Ein neu gewähltes Profil setzt alle Blendzeiten und die Kurve – danach frei anpassbar' },
     { name: 'crossfadeMs', label: 'Überblendung Musik (ms)', type: 'number', value: c.crossfadeMs ?? 3000 },
     { name: 'fadeInMs', label: 'Einblenden neuer Titel (ms)', type: 'number', value: c.fadeInMs ?? 0 },
@@ -817,24 +820,29 @@ async function editPlayout() {
     { name: 'fadeFxMs', label: 'Jingles, IDs & Spots: Überblendung (ms, 0 = harter Schnitt)', type: 'number', value: f.fxMs ?? 0 },
     { name: 'fadeShortSec', label: 'Kurze Titel unter … Sekunden nur 1 s blenden (0 = aus)', type: 'number', value: Math.round((f.shortTrackMs ?? 30000) / 1000) },
     { name: 'fadeCurve', label: 'Überblend-Kurve', value: f.curve ?? 'equal', options: [['equal', 'Equal-Power (gleichbleibend laut, Radio-Standard)'], ['s', 'S-Kurve (weich an- und ausschwingend)'], ['linear', 'Linear']] },
+    { type: 'section', label: 'Mithören & Mikrofon' },
     { name: 'monitor', label: `Programm über die Lautsprecher dieses PCs mithören${dev.monitor ? '' : ' (ffplay fehlt)'}`, type: 'checkbox', value: !!c.monitor },
     { name: 'inputDevice', label: 'Mikrofon / Line-In (am PC)', value: c.inputDevice ?? '', options: [['', '– kein Eingang –'], ...(dev.devices ?? []).map((/** @type {any} */ d) => /** @type {[string,string]} */ ([d.id, d.name]))] },
     { name: 'micGainDb', label: 'Mikrofon-Pegel (dB)', type: 'number', value: c.micGainDb ?? 0 },
+    { type: 'section', label: 'Equalizer', hint: '−12 … +12 dB je Band' },
     ...(dev.eqBands ?? []).map((/** @type {number} */ f, /** @type {number} */ i) => ({ name: `eq${i}`, label: `EQ ${f >= 1000 ? f / 1000 + ' kHz' : f + ' Hz'} (dB, −12…+12)`, type: 'number', value: eq[i] ?? 0 })),
+    { type: 'section', label: 'Dynamik & Limiter' },
     { name: 'highpass', label: 'Rumpelfilter (unter 60 Hz)', type: 'checkbox', value: !!c.dsp?.highpass },
     { name: 'multiband', label: 'Multiband-Kompressor (5 Bänder, dichter Radio-Sound)', type: 'checkbox', value: !!c.dsp?.multiband },
     { name: 'compressor', label: 'Kompressor', type: 'checkbox', value: !!c.dsp?.compressor },
     { name: 'agc', label: 'Automatische Lautheitsregelung der Summe (AGC, EBU R128)', type: 'checkbox', value: !!c.dsp?.agc },
     { name: 'targetLufs', label: 'AGC-Ziel (LUFS)', type: 'number', value: c.dsp?.targetLufs ?? -16 },
     { name: 'limiter', label: 'Limiter', type: 'checkbox', value: c.dsp?.limiter ?? true },
+    { type: 'section', label: 'Sicherheit & Quelle' },
     { name: 'duckDb', label: 'Ducking bei Carts (dB)', type: 'number', value: c.duckDb ?? -10 },
     { name: 'silenceMs', label: 'Stille-Alarm nach (ms)', type: 'number', value: c.silenceMs ?? 10000 },
     { name: 'sourceId', label: 'Sendet als Quelle', value: c.sourceId ?? '', options: [['', 'Automation (Standard)'], ...S.sources.map((s) => /** @type {[string,string]} */ ([s.id, `P${s.priority} · ${s.name}`]))] },
     { name: 'autostart', label: 'Nach Neustart automatisch senden', type: 'checkbox', value: c.autostart ?? true },
-    { name: 'hlsEnabled', label: 'Zusatz-Streams: zusätzlich als HLS ausliefern (Apple HTTP Live Streaming, direkt vom AnMaCha Cast-Server)', type: 'checkbox', value: !!c.hls?.enabled },
+    { type: 'section', label: 'Zusatz-Streams (HLS)', hint: 'Apple HTTP Live Streaming direkt vom AnMaCha Cast-Server' },
+    { name: 'hlsEnabled', label: 'Zusätzlich als HLS ausliefern', type: 'checkbox', value: !!c.hls?.enabled },
     { name: 'hlsBitrateKbps', label: 'HLS: Bitrate (kbit/s, AAC)', type: 'number', value: c.hls?.bitrateKbps ?? 128 },
     { name: 'hlsSegmentSeconds', label: 'HLS: Segmentlänge (Sekunden)', type: 'number', value: c.hls?.segmentSeconds ?? 6 },
-  ]);
+  ], 'Speichern', { wide: true, subtitle: 'Encoder, Klang, Überblendung und Sicherheit der 24/7-Automation dieses Senders.' });
   if (!v) return;
   const chosen = v.preset && v.preset !== (c.dsp?.preset ?? '') ? presets[v.preset]?.dsp : null;
   const dsp = chosen
