@@ -144,6 +144,8 @@ export class AudioEngine {
     for (const id of DECKS) this.decks[id] = new Deck(this, id);
     this.duckDb = -10;
     this.activeCarts = 0;
+    /** laufende Cart-Elemente → Aufräumfunktion @type {Map<HTMLAudioElement, () => void>} */
+    this.cartEls = new Map();
     /** @type {MediaRecorder|null} */
     this.recorder = null;
   }
@@ -161,14 +163,26 @@ export class AudioEngine {
     const node = this.ctx.createMediaElementSource(el);
     node.connect(this.master);
     if (duck) this.setDuck(+1);
+    let finished = false;
     const done = () => {
+      if (finished) return;
+      finished = true;
       node.disconnect();
       if (duck) this.setDuck(-1);
+      this.cartEls.delete(el);
     };
     el.addEventListener('ended', done, { once: true });
     el.addEventListener('error', done, { once: true });
+    this.cartEls.set(el, done);
     await el.play();
     return el;
+  }
+
+  /** Soundboard „Alle stoppen“: alle laufenden Carts beenden. @returns {number} */
+  stopCarts() {
+    let n = 0;
+    for (const [el, done] of this.cartEls) { el.pause(); el.src = ''; done(); n++; }
+    return n;
   }
 
   /** @param {number} delta */

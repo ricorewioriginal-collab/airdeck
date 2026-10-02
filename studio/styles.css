@@ -232,6 +232,26 @@ button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none !important
 .cart.playing { outline: 2px solid #fff; box-shadow: 0 0 22px var(--c); }
 .cart.drop { outline: 2px dashed #fff; }
 .cart-label { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-key { font: 700 10px/1 ui-monospace, monospace; background: rgba(0, 0, 0, .35); border: 1px solid rgba(255, 255, 255, .3); border-radius: 4px; padding: 2px 5px; color: #fff; flex-shrink: 0; }
+.cart-fav { background: none; border: 0; color: rgba(255, 255, 255, .45); font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px; flex-shrink: 0; }
+.cart-fav.on { color: #fde047; text-shadow: 0 0 8px rgba(253, 224, 71, .7); }
+.cart-tags { font-size: 10px; color: rgba(255, 255, 255, .7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart.hit { transform: scale(.96); outline: 2px solid #fff; }
+#view-studio .carts-panel, .carts-panel { display: flex; flex-direction: column; }
+.carts-panel .panel-head { flex-wrap: wrap; row-gap: 6px; height: auto; flex: 0 0 auto; position: relative; }
+.carts-panel .carts { flex: 1 1 auto; min-height: 0; overflow: auto; align-content: start; grid-auto-rows: auto !important; }
+#view-studio .carts-panel .cart, .carts-panel .cart { min-height: 112px !important; padding-bottom: 36px !important; }
+.carts-panel .cart-sub, .carts-panel .cart-tags { flex-shrink: 0; }
+.carts-panel .panel-head #cart-groups { order: 10; flex: 1 1 100%; }
+.cart-search { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; color: inherit; font-size: 12px; width: 150px; margin-left: auto; }
+.cart-chip { text-transform: none; }
+.cart-sep { width: 1px; height: 18px; background: var(--line); margin: 0 2px; align-self: center; }
+.carts-panel.show-mode { padding: 22px; background: var(--bg); overflow: auto; }
+.carts-panel.show-mode .carts, #view-studio .carts-panel.show-mode .carts { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important; grid-auto-rows: minmax(130px, auto) !important; gap: 14px !important; }
+.carts-panel.show-mode .cart { min-height: 128px; font-size: 15px; border-radius: 18px; }
+.carts-panel.show-mode .cart-label { font-size: 17px; }
+.carts-panel.show-mode .cart-key { font-size: 13px; padding: 3px 7px; }
+.carts-panel.show-mode .panel-head h2::after { content: ' · Show-Modus (Esc stoppt alle Carts, erneut Esc beendet Vollbild)'; font-weight: 400; color: var(--muted); font-size: 12px; }
 .cart-motion { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--c); opacity: .85; flex-shrink: 0; background: none; border: 1px solid transparent; border-radius: 6px; padding: 0 5px; cursor: pointer; font-family: inherit; }
 .cart.looping { box-shadow: 0 0 0 2px var(--c), 0 0 18px color-mix(in srgb, var(--c) 60%, transparent); animation: loop-pulse 1.4s ease-in-out infinite; }
 .cart.looping .cart-motion { background: var(--c); color: #041018; border-color: var(--c); opacity: 1; }

@@ -49,7 +49,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 9. [P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export.
 
 ### Musik & Inhalte
-10. **[P1 · M] Cardwall → Soundboard**: Tags/Suche, Favoriten, Zuletzt gespielt, Show-Modus (Vollbild), Esc = alle stoppen.
+10. ~~[P1 · M] Cardwall → Soundboard~~ - erledigt: Tags (Filter-Chips) + Suche, Favoriten, Zuletzt gespielt,
+    Tastenkürzel je Cart (eindeutig je Sender), Show-Modus (Vollbild mit großen Carts), Esc/„Alle stoppen“
+    blendet alle Carts aus (`POST /playout/carts-stop`, auch Browser-Wiedergabe).
 11. [P2 · M] Track-TÜV: Tonart-Analyse, Online-Tag-/Cover-Suche, Vorher/Nachher-Export (LUFS-Messung existiert).
 12. [P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen; [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
 13. [P3 · M] Media & Jingle Exchange: Netzwerk-Sichtbarkeit, Dokumente/Logos (an MusikHub andocken).

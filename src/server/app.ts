@@ -1290,6 +1290,14 @@ export class AnMaChaCastApp {
   }
 
   /** Schnelltrigger: Titel einer Kategorie (Rotation) über der Musik oder als Nächstes. */
+  /** Soundboard „Alle stoppen“ (Esc): alle laufenden Carts kurz ausblenden. */
+  stopCarts(stationId: string): { stopped: number } {
+    const po = this.playouts.get(stationId);
+    const stopped = po ? po.playout.stopCarts(200) : 0;
+    if (stopped) this.audit.write({ kind: 'playout', event: 'carts_stopped', stationId, stopped });
+    return { stopped };
+  }
+
   /** Motion-Carts: Endlosschleife verlassen (alle oder ein Titel) → Drop/Outro läuft nahtlos weiter. */
   advanceLoop(stationId: string, mediaId?: string): { advanced: number } {
     const po = this.playouts.get(stationId);
@@ -1518,6 +1526,14 @@ export class AnMaChaCastApp {
     if (patch.mediaId !== undefined) {
       if (patch.mediaId !== null) this.svc.media.media(stationId, patch.mediaId);
       slot.mediaId = patch.mediaId;
+    }
+    // Soundboard: Tags, Favorit, Tastenkürzel (eindeutig je Sender - wird anderen Carts abgenommen)
+    if (Array.isArray(patch.tags)) slot.tags = [...new Set(patch.tags.map((t) => String(t).trim().toLowerCase().slice(0, 20)).filter(Boolean))].slice(0, 8);
+    if (typeof patch.favorite === 'boolean') slot.favorite = patch.favorite || undefined;
+    if (patch.hotkey !== undefined) {
+      const k = typeof patch.hotkey === 'string' ? patch.hotkey.trim().slice(0, 12) : '';
+      if (k) for (const c of this.rt(stationId).data.cardwall) if (c !== slot && c.hotkey?.toLowerCase() === k.toLowerCase()) c.hotkey = undefined;
+      slot.hotkey = k || undefined;
     }
     this.publish('cardwall.changed', stationId, this.cardwall(stationId));
     this.changed();

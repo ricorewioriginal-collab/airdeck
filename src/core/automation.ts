@@ -89,6 +89,11 @@ export interface CartSlot {
   color: string;
   mediaId: string | null;
   group: string;
+  /** Soundboard: Schlagworte für Suche/Filter */
+  tags?: string[];
+  favorite?: boolean;
+  /** Tastenkürzel (einzelne Taste, z. B. "1", "q", "F5"); je Sender eindeutig */
+  hotkey?: string;
 }
 
 /** Sendeuhr: Folge von Kategorien pro Stunde. */

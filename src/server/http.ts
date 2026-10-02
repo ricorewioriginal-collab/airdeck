@@ -451,6 +451,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('GET', '/api/v1/encoder', null, (c) => app.health.encoder((s) => canSee(c.p, s)));
   add('GET', '/api/v1/stream', null, (c) => app.health.stream((s) => canSee(c.p, s)));
   add('GET', '/api/v1/ai', 'ai:read', () => app.health.ai());
+  add('POST', '/api/v1/stations/:sid/playout/carts-stop', 'cardwall:trigger', (c) => app.stopCarts(sid(c)));
   add('POST', '/api/v1/stations/:sid/playout/loop-advance', 'cardwall:trigger', async (c) => app.advanceLoop(sid(c), str((await c.body()).mediaId)));
   add('POST', '/api/v1/stations/:sid/quick/:category', 'cardwall:trigger', async (c) => app.quickTrigger(sid(c), c.params.category!, str((await c.body()).mode)));
   add('GET', '/api/v1/stations/:sid/media/:id/cover', 'media:read', async (c) => {

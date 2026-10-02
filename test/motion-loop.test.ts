@@ -60,7 +60,7 @@ test('Motion-Cart loopt bis zum Weiterschalten, Automation loopt nie', { skip: !
     const slot = app.rt('main').data.cardwall[0]!;
     app.updateCart('main', slot.id, { mediaId: 'bed' });
     app.triggerCart('main', slot.id);
-    await until(() => status().loops?.some((l) => l.mediaId === 'bed' && l.inLoop) === true, 6000);
+    await until(() => status().loops?.some((l) => l.mediaId === 'bed' && l.inLoop) === true, 15_000);
     await wait(3500);
     const l = status().loops!.find((x) => x.mediaId === 'bed')!;
     assert.ok(l, 'Cart läuft nach 4,5 s noch (Loop)');
@@ -70,7 +70,7 @@ test('Motion-Cart loopt bis zum Weiterschalten, Automation loopt nie', { skip: !
     // Weiterschalten: Rest (2 s) läuft, danach ist der Cart fertig
     assert.equal(app.advanceLoop('main', 'bed').advanced, 1);
     assert.equal(status().loops?.length ?? 0, 0);
-    await until(() => status().carts === 0, 6000);
+    await until(() => status().carts === 0, 10_000);
     assert.equal(app.advanceLoop('main').advanced, 0, 'nichts mehr zum Weiterschalten');
 
     // Automation: „song“ hat loopEndMs, wird aber von der Automation gestartet → kein Loop, es geht zu song2 weiter

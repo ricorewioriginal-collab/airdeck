@@ -67,6 +67,8 @@ const S = {
   /** @type {any} */ nowPlaying: null,
   /** @type {any} */ planning: null,
   cartGroup: 'Alle',
+  /** Soundboard: Filter (all | fav | recent | tag:<t>), Suchtext, zuletzt gespielte Cart-IDs */
+  cartMode: 'all', cartQuery: '', /** @type {string[]} */ cartRecent: [],
   auto: false,
   streaming: false,
   /** Mode-Manager des Kerns: { mode, base, program, bus, live } */
@@ -485,6 +487,7 @@ function onEvent(type, data) {
     case 'now_playing.changed': S.nowPlaying = { ...S.nowPlaying, ...data }; renderNowPlaying(); break;
     case 'library.changed': run(async () => { setLibrary(await api.get(url('/media'))); renderLibrary(); renderCarts(); }); break;
     case 'cardwall.changed': S.carts = data; renderCarts(); break;
+    case 'cardwall.triggered': if (data?.id) noteCartPlayed(data.id); break;
     case 'cardwall.triggered': if (!data.server) playCart(data); break; // Fernauslösung ohne Server-Playout: lokal spielen
     case 'playout.state': if (S.playout) { S.playout.status = data; S.playoutAt = Date.now(); renderPlayout(); } break;
     case 'playout.level': S.srvLevel = data; S.srvLevelAt = Date.now(); break;
@@ -1232,10 +1235,22 @@ const GROUP_ICON = /** @type {Record<string, string>} */ ({ Jingles: 'jingle', S
 
 function renderCarts() {
   const groups = ['Alle', ...new Set(S.carts.map((c) => c.group))];
-  $('cart-groups').replaceChildren(...groups.map((g) => h('button', {
-    'aria-pressed': String(g === S.cartGroup), onclick: () => { S.cartGroup = g; renderCarts(); },
-  }, g)));
-  const list = S.carts.filter((c) => S.cartGroup === 'Alle' || c.group === S.cartGroup);
+  const tags = [...new Set(S.carts.flatMap((c) => c.tags ?? []))].sort();
+  const chip = (/** @type {string} */ mode, /** @type {string} */ label, /** @type {string} */ title) => h('button', { 'aria-pressed': String(S.cartMode === mode), class: 'cart-chip', title, onclick: () => { S.cartMode = S.cartMode === mode ? 'all' : mode; renderCarts(); } }, label);
+  $('cart-groups').replaceChildren(
+    ...groups.map((g) => h('button', { 'aria-pressed': String(g === S.cartGroup), onclick: () => { S.cartGroup = g; renderCarts(); } }, g)),
+    h('span', { class: 'cart-sep' }),
+    chip('fav', '★ Favoriten', 'Nur Favoriten'), chip('recent', '⟲ Zuletzt', 'Zuletzt gespielte Carts'),
+    ...tags.map((t) => chip(`tag:${t}`, `#${t}`, `Tag ${t}`)));
+  const q = S.cartQuery.trim().toLowerCase();
+  const list = S.carts.filter((c) => {
+    if (S.cartGroup !== 'Alle' && c.group !== S.cartGroup) return false;
+    if (S.cartMode === 'fav' && !c.favorite) return false;
+    if (S.cartMode === 'recent' && !S.cartRecent.includes(c.id)) return false;
+    if (S.cartMode.startsWith('tag:') && !(c.tags ?? []).includes(S.cartMode.slice(4))) return false;
+    if (q) { const m = c.mediaId ? S.libById.get(c.mediaId) : null; const hay = `${c.label} ${m ? mediaTitle(m) : ''} ${(c.tags ?? []).join(' ')} ${c.hotkey ?? ''}`.toLowerCase(); if (!hay.includes(q)) return false; }
+    return true;
+  }).sort((a, b) => (S.cartMode === 'recent' ? S.cartRecent.indexOf(a.id) - S.cartRecent.indexOf(b.id) : 0));
   $('carts').replaceChildren(...list.map((c) => {
     const m = c.mediaId ? S.libById.get(c.mediaId) : null;
     const ico = (m && CATEGORY_STYLE[m.category]?.icon) || GROUP_ICON[c.group] || 'music';
@@ -1248,9 +1263,13 @@ function renderCarts() {
       ondragstart: (/** @type {DragEvent} */ e) => m && e.dataTransfer?.setData(MIME.MEDIA, m.id),
     },
       h('div', { class: 'cart-top' }, h('span', { class: 'cart-ico' }, icon(ico, 16)), h('span', { class: 'cart-label' }, c.label),
+        c.hotkey ? h('kbd', { class: 'cart-key', title: `Taste ${c.hotkey}` }, c.hotkey) : null,
+        h('button', { class: `cart-fav${c.favorite ? ' on' : ''}`, title: c.favorite ? 'Favorit entfernen' : 'Als Favorit markieren', 'aria-pressed': String(!!c.favorite),
+          onclick: (/** @type {Event} */ e) => { e.stopPropagation(); run(() => api.patch(url(`/cardwall/${encodeURIComponent(c.id)}`), { favorite: !c.favorite })); } }, '★'),
         m?.loopEndMs ? h('button', { class: 'cart-motion', title: 'Motion-Cart: läuft als Endlos-Loop bis zum Weiterschalten – Klick = Weiter (Drop/Outro)', 'aria-label': 'Loop weiterschalten',
           onclick: (/** @type {Event} */ e) => { e.stopPropagation(); run(() => api.post(url('/playout/loop-advance'), { mediaId: m.id })); } }, '∞') : null),
       h('span', { class: 'cart-sub' }, m ? m.title : 'leer'),
+      c.tags?.length ? h('span', { class: 'cart-tags' }, c.tags.map((/** @type {string} */ t) => `#${t}`).join(' ')) : null,
       m ? h('span', { class: 'cart-dur' }, fmt(m.durationMs)) : null,
       m ? h('div', { class: 'cart-actions' },
         h('button', {
@@ -1274,8 +1293,30 @@ function renderCarts() {
 
 /** Mit Engine spielt sie den Cart (geht auf Sendung, startet sie bei Bedarf), ohne ffmpeg der Browser. @param {any} c */
 function fireCart(c) {
+  noteCartPlayed(c.id);
   if (eng() || serverMode()) run(() => api.post(url(`/cardwall/${encodeURIComponent(c.id)}/trigger`)));
   else playCart(c);
+}
+
+/** Soundboard „Zuletzt gespielt“ (nur in dieser Sitzung). @param {string} id */
+function noteCartPlayed(id) {
+  S.cartRecent = [id, ...S.cartRecent.filter((x) => x !== id)].slice(0, 12);
+  if (S.cartMode === 'recent') renderCarts();
+}
+
+/** Alle Carts stoppen: Engine-Carts ausblenden, lokale Cart-Wiedergabe beenden. */
+function stopAllCarts() {
+  if (eng() || serverMode()) run(() => api.post(url('/playout/carts-stop')));
+  ensureAudio().stopCarts();
+  for (const el of document.querySelectorAll('#carts .cart.playing')) el.classList.remove('playing');
+  status('Alle Carts gestoppt');
+}
+
+/** Show-Modus: Soundboard im Vollbild, große Carts, Tastenkürzel. */
+function toggleShowMode() {
+  const panel = $('carts-panel');
+  if (document.fullscreenElement === panel) void document.exitFullscreen();
+  else void panel.requestFullscreen?.().catch(() => status('Vollbild nicht möglich', true));
 }
 
 /** @param {any} c */
@@ -1284,10 +1325,13 @@ async function editCart(c) {
     { name: 'label', label: 'Beschriftung', value: c.label },
     { name: 'group', label: 'Gruppe', value: c.group },
     { name: 'color', label: 'Farbe', type: 'color', value: c.color },
+    { name: 'tags', label: 'Tags (mit Komma)', value: (c.tags ?? []).join(', '), hint: 'z. B. intro, lacher, wetter – erscheinen als Filter-Chips' },
+    { name: 'hotkey', label: 'Tastenkürzel', value: c.hotkey ?? '', hint: 'Eine Taste (1–9, a–z, F1–F12); löst den Cart aus, wenn kein Eingabefeld aktiv ist' },
+    { name: 'favorite', label: 'Favorit', type: 'checkbox', value: !!c.favorite },
     { name: 'clear', label: 'Titel entfernen', type: 'checkbox', value: false },
   ]);
   if (!v) return;
-  await run(() => api.patch(url(`/cardwall/${encodeURIComponent(c.id)}`), { label: v.label, group: v.group, color: v.color, ...(v.clear ? { mediaId: null } : {}) }));
+  await run(() => api.patch(url(`/cardwall/${encodeURIComponent(c.id)}`), { label: v.label, group: v.group, color: v.color, tags: String(v.tags ?? '').split(',').map((/** @type {string} */ t) => t.trim()).filter(Boolean), hotkey: String(v.hotkey ?? '').trim(), favorite: !!v.favorite, ...(v.clear ? { mediaId: null } : {}) }));
 }
 
 // ---------- Render: Archiv ----------
@@ -1934,6 +1978,20 @@ function bindStatic() {
   layout = mountLayout($('view-studio'));
   $('btn-windows').addEventListener('click', editWindows);
   // Tastatur: Alt+1…4 wechselt die Bereiche
+  // Soundboard: Tastenkürzel (ohne Modifier, nicht in Eingabefeldern), Esc = alle Carts stoppen
+  addEventListener('keydown', (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const t = /** @type {HTMLElement|null} */ (e.target);
+    if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (e.key === 'Escape') { if (S.carts.length) { stopAllCarts(); e.preventDefault(); } return; }
+    const c = S.carts.find((x) => x.mediaId && x.hotkey && x.hotkey.toLowerCase() === e.key.toLowerCase());
+    if (c) { e.preventDefault(); fireCart(c); const el = document.querySelector(`[data-cart="${c.id}"]`); el?.classList.add('hit'); setTimeout(() => el?.classList.remove('hit'), 250); }
+  });
+  $('cart-search').addEventListener('input', () => { S.cartQuery = /** @type {HTMLInputElement} */ ($('cart-search')).value; renderCarts(); });
+  $('cart-show').addEventListener('click', toggleShowMode);
+  $('cart-stop-all').addEventListener('click', stopAllCarts);
+  document.addEventListener('fullscreenchange', () => $('carts-panel').classList.toggle('show-mode', document.fullscreenElement === $('carts-panel')));
   addEventListener('keydown', (e) => {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
     const v = ({ 1: 'overview', 2: 'planning', 3: 'recorder', 4: 'lautfm', 5: 'ai', 6: 'nextcloud', 7: 'mediathek', 8: 'playlists', 9: 'handbuch' })[/** @type {1|2|3|4|5|6|7|8|9} */ (Number(e.key))];
