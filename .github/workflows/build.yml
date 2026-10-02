@@ -223,12 +223,12 @@ jobs:
         with:
           name: AnMaCha-Cast-Windows-Installer
           path: dist/AnMaCha-Cast-Setup-*.exe
-          retention-days: 3
+          retention-days: 1
       - uses: actions/upload-artifact@v4
         with:
           name: AnMaCha-Cast-Windows
           path: dist/AirDeck
-          retention-days: 3
+          retention-days: 1
 
   docker:
     needs: test
@@ -475,7 +475,7 @@ jobs:
         with:
           name: AnMaCha-Cast-Linux-Deb
           path: dist/airdeck_*.deb
-          retention-days: 3
+          retention-days: 1
 
   android:
     needs: test
@@ -498,7 +498,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           mkdir -p out
-          if [ -n "$KEYSTORE_B64" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [ -n "$KEYSTORE_B64" ] && [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/airdeck.jks"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/airdeck.jks"
             ./gradlew assembleRelease --no-daemon
@@ -513,12 +513,12 @@ jobs:
         with:
           name: AnMaCha-Cast-Android
           path: apps/android/out/AnMaCha-Cast-Android.apk
-          retention-days: 3
+          retention-days: 1
 
   # Download-Bereich: Nach jedem Push auf den Hauptbranch liegen Installer, portable Version und APK
   # unter „Releases → AnMaCha Cast (aktueller Stand)“, ohne GitHub-Login-Umweg über Artefakte.
   release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref_name == github.event.repository.default_branch)
     needs: [windows, android, linux]
     runs-on: ubuntu-latest
     permissions:
@@ -538,13 +538,23 @@ jobs:
           # stabiler Dateiname für den "latest"-Downloadlink; der Paketname (im Innern, für apt) bleibt "airdeck"
           cp artifacts/AnMaCha-Cast-Linux-Deb/airdeck_*.deb out/AnMaCha-Cast-Linux.deb
           ls -la out
+      - name: Release-Tag bestimmen (Tag-Push oder Version aus package.json)
+        id: rel
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tag="$GITHUB_REF_NAME"; else tag="v$(jq -r .version package.json)"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" != refs/tags/v* ]] && gh release view "$tag" >/dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - uses: softprops/action-gh-release@v2
+        if: steps.rel.outputs.exists != 'true'
         with:
           # Releases sind im Repository unveränderlich: jeder Build bekommt ein eigenes Release,
           # die Download-Links zeigen über „latest" immer auf das neueste
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.rel.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: AnMaCha Cast ${{ github.ref_name }}
+          name: AnMaCha Cast ${{ steps.rel.outputs.tag }}
           prerelease: false
           make_latest: true
           body: |

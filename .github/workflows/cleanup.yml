@@ -1,0 +1,56 @@
+name: Cleanup
+
+# Haelt Releases, Artefakte und Workflow-Laeufe schlank: es bleiben immer nur die letzten 2.
+on:
+  workflow_run:
+    workflows: ['Build']
+    types: [completed]
+    branches: ['main']
+  release:
+    types: [published]
+  workflow_dispatch:
+  schedule:
+    - cron: '43 3 * * *'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: anmacha-cast-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      KEEP: 2
+    steps:
+      - name: Alte Releases und Tags entfernen (letzte 2 bleiben)
+        run: |
+          gh release list --limit 200 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[env.KEEP|tonumber:] | .[].tagName' |
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            echo "Loesche Release $tag"
+            gh release delete "$tag" --cleanup-tag --yes || echo "::warning::$tag konnte nicht geloescht werden"
+          done
+      - name: Alte Artefakte entfernen (neueste 2 bleiben)
+        run: |
+          gh api --paginate "repos/$GH_REPO/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | [.id, .created_at, .workflow_run.id] | @tsv' |
+          sort -k2 -r | awk -v k="$KEEP" '{ if (!($3 in seen)) { seen[$3]=1; n++ } if (n>k) print $1 }' |
+          while read -r id; do
+            gh api -X DELETE "repos/$GH_REPO/actions/artifacts/$id" >/dev/null || true
+          done
+      - name: Alte Workflow-Laeufe entfernen (pro Workflow letzte 2 bleiben)
+        run: |
+          gh api --paginate "repos/$GH_REPO/actions/runs?per_page=100&status=completed" \
+            --jq '.workflow_runs[] | [.workflow_id, .created_at, .id] | @tsv' |
+          sort -k1,1 -k2,2r | awk -v k="$KEEP" '{ c[$1]++; if (c[$1]>k) print $3 }' |
+          while read -r id; do
+            gh api -X DELETE "repos/$GH_REPO/actions/runs/$id" >/dev/null || true
+          done
