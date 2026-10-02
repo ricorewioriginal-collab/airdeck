@@ -43,6 +43,8 @@ export interface MediaItem {
   album?: string;
   genre?: string;
   year?: number;
+  /** Frei vergebene Schlagworte (z. B. für den Massen-Tagger), kommagetrennt in der Oberfläche */
+  tags?: string[];
   /** Von der KI erzeugt (Moderation/Nachrichten) – wird automatisch aufgeräumt */
   generatedBy?: 'ai';
   /** Gemessene integrierte Lautheit (EBU R128, LUFS) */

@@ -17,12 +17,16 @@ import app.airdeck.engine.IcecastSource;
 import app.airdeck.engine.LiveEngine;
 import app.airdeck.engine.Mixer;
 
-final class EngineHub {
-    static final class Track {
-        final String uri;
-        final String title;
+/**
+ * Öffentliche API der Handy-Engine (Sendung, Mikrofon, Titelliste, Mithören, Zustand) - direkt von
+ * nativer UI aufrufbar (Compose-ViewModel), ohne Capacitor-Bridge dazwischen.
+ */
+public final class EngineHub {
+    public static final class Track {
+        public final String uri;
+        public final String title;
 
-        Track(String uri, String title) {
+        public Track(String uri, String title) {
             this.uri = uri;
             this.title = title;
         }
@@ -30,7 +34,7 @@ final class EngineHub {
 
     private static EngineHub instance;
 
-    static synchronized EngineHub get(Context ctx) {
+    public static synchronized EngineHub get(Context ctx) {
         if (instance == null) instance = new EngineHub(ctx.getApplicationContext());
         return instance;
     }
@@ -74,13 +78,68 @@ final class EngineHub {
         return prefs.getInt("bitrate", 128);
     }
 
+    /** Für die Oberfläche: nie das Passwort selbst, nur ob eins hinterlegt ist. */
+    public static final class ConfigView {
+        public String host;
+        public int port;
+        public boolean tls;
+        public String mount;
+        public String user;
+        public String name;
+        public int bitrate;
+        public boolean hasPassword;
+        public float micDb;
+        public float musicDb;
+        public float duckDb;
+        public boolean monitor;
+    }
+
+    public synchronized ConfigView getConfigView() {
+        ConfigView v = new ConfigView();
+        v.host = prefs.getString("host", "");
+        v.port = prefs.getInt("port", 8000);
+        v.tls = prefs.getBoolean("tls", false);
+        v.mount = prefs.getString("mount", "/live");
+        v.user = prefs.getString("user", "source");
+        v.name = prefs.getString("name", "AnMaCha Cast");
+        v.bitrate = prefs.getInt("bitrate", 128);
+        v.hasPassword = !prefs.getString("password", "").isEmpty();
+        v.micDb = prefs.getFloat("micDb", 0);
+        v.musicDb = prefs.getFloat("musicDb", 0);
+        v.duckDb = prefs.getFloat("duckDb", -10);
+        v.monitor = prefs.getBoolean("monitor", false);
+        return v;
+    }
+
+    /** @param password leer = unverändert lassen */
+    public synchronized ConfigView saveConfig(String host, int port, boolean tls, String mount, String user, String name, int bitrate, String password) {
+        host = host == null ? "" : host.trim();
+        if (host.isEmpty() || host.contains("/") || host.contains(" ")) throw new IllegalArgumentException("Server: nur der Name, z. B. stream.example.org");
+        if (port < 1 || port > 65535) throw new IllegalArgumentException("Port 1–65535");
+        if (bitrate != 64 && bitrate != 96 && bitrate != 128 && bitrate != 160 && bitrate != 192 && bitrate != 256 && bitrate != 320) {
+            throw new IllegalArgumentException("Bitrate: 64, 96, 128, 160, 192, 256 oder 320 kbit/s");
+        }
+        mount = mount == null ? "/live" : mount.trim();
+        SharedPreferences.Editor e = prefs.edit()
+            .putString("host", host)
+            .putInt("port", port)
+            .putBoolean("tls", tls)
+            .putString("mount", mount.startsWith("/") ? mount : "/" + mount)
+            .putString("user", user == null ? "source" : user.trim())
+            .putString("name", name == null ? "AnMaCha Cast" : name.trim())
+            .putInt("bitrate", bitrate);
+        if (password != null && !password.isEmpty()) e.putString("password", password);
+        e.apply();
+        return getConfigView();
+    }
+
     // ---------- Sendung ----------
 
-    synchronized boolean running() {
+    public synchronized boolean running() {
         return engine != null && engine.isRunning();
     }
 
-    synchronized void start(boolean withMicPermission) {
+    public synchronized void start(boolean withMicPermission) {
         if (running()) return;
         IcecastSource.Config c = config();
         if (c.host.isEmpty() || c.password.isEmpty()) throw new IllegalStateException("Bitte zuerst Server und Passwort eintragen");
@@ -109,7 +168,7 @@ final class EngineHub {
         if (prefs.getBoolean("monitor", false)) setMonitor(true);
     }
 
-    synchronized void stop() {
+    public synchronized void stop() {
         stopTrack();
         setMonitor(false);
         if (mic != null) {
@@ -124,13 +183,13 @@ final class EngineHub {
         ctx.stopService(new Intent(ctx, EngineService.class));
     }
 
-    synchronized void setMic(boolean on) {
+    public synchronized void setMic(boolean on) {
         if (engine == null) throw new IllegalStateException("Erst die Sendung starten");
         if (on && mic == null) throw new IllegalStateException("Kein Mikrofon (Berechtigung fehlt oder belegt)");
         engine.mixer.setMic(on);
     }
 
-    synchronized void setLevels(Float micDb, Float musicDb, Float duckDb) {
+    public synchronized void setLevels(Float micDb, Float musicDb, Float duckDb) {
         SharedPreferences.Editor e = prefs.edit();
         if (micDb != null) e.putFloat("micDb", micDb);
         if (musicDb != null) e.putFloat("musicDb", musicDb);
@@ -143,7 +202,7 @@ final class EngineHub {
     }
 
     /** Mithören über Kopfhörer (bei Lautsprecher und offenem Mikrofon droht Rückkopplung). */
-    synchronized void setMonitor(boolean on) {
+    public synchronized void setMonitor(boolean on) {
         prefs.edit().putBoolean("monitor", on).apply();
         if (!on) {
             if (engine != null) engine.tap = null;
@@ -170,17 +229,17 @@ final class EngineHub {
 
     // ---------- Titel ----------
 
-    synchronized void addTracks(List<Track> tracks) {
+    public synchronized void addTracks(List<Track> tracks) {
         playlist.addAll(tracks);
     }
 
-    synchronized void clearPlaylist() {
+    public synchronized void clearPlaylist() {
         stopTrack();
         playlist.clear();
         current = -1;
     }
 
-    synchronized void removeTrack(int index) {
+    public synchronized void removeTrack(int index) {
         if (index < 0 || index >= playlist.size()) return;
         if (index == current) stopTrack();
         playlist.remove(index);
@@ -188,11 +247,11 @@ final class EngineHub {
         else if (current == index) current = -1;
     }
 
-    synchronized void setAutoNext(boolean on) {
+    public synchronized void setAutoNext(boolean on) {
         autoNext = on;
     }
 
-    synchronized void play(int index) {
+    public synchronized void play(int index) {
         if (engine == null) throw new IllegalStateException("Erst die Sendung starten");
         if (index < 0 || index >= playlist.size()) throw new IllegalArgumentException("Titel nicht in der Liste");
         stopTrack();
@@ -203,7 +262,7 @@ final class EngineHub {
         engine.source().updateMetadata(t.title);
     }
 
-    synchronized void stopTrack() {
+    public synchronized void stopTrack() {
         if (player != null) {
             player.stop();
             player = null;
@@ -220,7 +279,7 @@ final class EngineHub {
 
     // ---------- Zustand für die Oberfläche ----------
 
-    synchronized Status status() {
+    public synchronized Status status() {
         Status s = new Status();
         s.running = running();
         s.state = state;
@@ -247,24 +306,24 @@ final class EngineHub {
         return s;
     }
 
-    static final class Status {
-        boolean running;
-        String state;
-        String error;
-        boolean micAvailable;
-        boolean micOn;
-        boolean monitor;
-        boolean autoNext;
-        float micDb = -90;
-        float musicDb = -90;
-        float masterDb = -90;
-        float peakDb = -90;
-        long startedAt;
-        long bytesSent;
-        long dropped;
-        int current = -1;
-        long positionMs;
-        long durationMs = -1;
-        List<Track> playlist;
+    public static final class Status {
+        public boolean running;
+        public String state;
+        public String error;
+        public boolean micAvailable;
+        public boolean micOn;
+        public boolean monitor;
+        public boolean autoNext;
+        public float micDb = -90;
+        public float musicDb = -90;
+        public float masterDb = -90;
+        public float peakDb = -90;
+        public long startedAt;
+        public long bytesSent;
+        public long dropped;
+        public int current = -1;
+        public long positionMs;
+        public long durationMs = -1;
+        public List<Track> playlist;
     }
 }

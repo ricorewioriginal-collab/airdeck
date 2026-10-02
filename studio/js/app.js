@@ -402,7 +402,7 @@ async function loadStation() {
     mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, stationId: () => S.station.id, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),
     playlists: mountPlaylistManagement($('view-playlists'), ctx),
     handbuch: mountHandbuch($('view-handbuch')),
-    recorder: mountRecorder($('view-recorder'), ctx),
+    recorder: mountRecorder($('view-recorder'), { ...ctx, stationId: () => S.station.id }),
     lautfm: mountLautfm($('view-lautfm'), { ...ctx, onLautfmConnected: () => run(async () => { S.stations = await api.get('/stations'); S.station = S.stations.find((/** @type {any} */ s) => s.id === S.station.id) ?? S.station; renderStationSelect(); updateLautfmNav(); }) }),
     ai: mountAi($('view-ai'), ctx),
     nextcloud: mountNextcloud($('view-nextcloud'), ctx),
@@ -1650,7 +1650,7 @@ async function manageStreamProfiles() {
     const rows = S.streamProfiles.map((sp) => h('li', { class: 'out' },
       h('span', { class: 'out-name' }, sp.name),
       h('button', { class: 'btn small', type: 'submit', name: 'action', value: `edit:${sp.id}`, formnovalidate: true }, '⋯'),
-      h('span', { class: 'out-meta' }, `${sp.format.toUpperCase()} · ${sp.bitrateKbps} kbit/s`),
+      h('span', { class: 'out-meta' }, `${sp.format.toUpperCase()} · ${sp.bitrateKbps} kbit/s${sp.window ? ` · Zeitfenster ${sp.window.from}–${sp.window.to}` : ''}`),
     ));
     form.replaceChildren(
       h('h3', {}, 'Zusatz-Stream-Profile'),
@@ -1706,13 +1706,18 @@ async function editStreamProfile(sp) {
     { name: 'format', label: 'Format', value: sp?.format ?? 'aac', options: [['mp3', 'MP3'], ['aac', 'AAC'], ['opus', 'Opus']] },
     { name: 'bitrateKbps', label: 'Bitrate (kbit/s)', type: 'number', value: sp?.bitrateKbps ?? 64 },
     { name: 'enabled', label: 'Encoder aktiv', type: 'checkbox', value: sp?.enabled !== false, hint: 'Unabhängig vom Stream-Ausgang: Encoder kann laufen, während der Stream-Ausgang aus ist.' },
+    { name: 'windowOn', label: 'Nur zu bestimmten Sendezeiten (Zeitfenster)', type: 'checkbox', value: !!sp?.window, hint: 'z. B. Simulcast auf eine zweite Plattform nur während der Live-Sendung.' },
+    { name: 'windowDays', label: 'Zeitfenster: Tage (keine Auswahl = täglich)', type: 'days', value: sp?.window?.days ?? [] },
+    { name: 'windowFrom', label: 'Zeitfenster: Von', type: 'time', value: sp?.window?.from ?? '20:00' },
+    { name: 'windowTo', label: 'Zeitfenster: Bis', type: 'time', value: sp?.window?.to ?? '22:00' },
     ...(isNew ? [] : [{ name: 'remove', label: 'Profil löschen', type: 'checkbox', value: false }]),
   ]);
   if (!v) return;
   if (v.remove) {
     await run(() => api.del(url(`/stream-profiles/${encodeURIComponent(sp.id)}`)));
   } else {
-    const body = { name: v.name, format: v.format, bitrateKbps: v.bitrateKbps };
+    const window = v.windowOn ? { label: v.name, days: v.windowDays, from: v.windowFrom, to: v.windowTo } : null;
+    const body = { name: v.name, format: v.format, bitrateKbps: v.bitrateKbps, enabled: v.enabled, window };
     await run(() => (isNew ? api.post(url('/stream-profiles'), body) : api.patch(url(`/stream-profiles/${encodeURIComponent(sp.id)}`), body)));
   }
   S.streamProfiles = (await run(() => api.get(url('/stream-profiles')))) ?? S.streamProfiles;
@@ -2301,6 +2306,13 @@ async function editNotify() {
     ...cur.events.map((/** @type {string} */ e) => ({ name: `ev_${e}`, label: `Webhook: ${labels[e] ?? e}`, type: 'checkbox', value: w ? w.events.includes(e) : ['now_playing', 'off_air', 'silence', 'encoder_crashed', 'stream_error'].includes(e) })),
     { name: 'tgChat', label: 'Telegram: Chat-ID (Alarme)', value: cur.telegram?.chatId ?? '' },
     { name: 'tgToken', label: `Telegram: Bot-Token${cur.telegram?.hasToken ? ' (leer = unverändert)' : ''}`, type: 'password', value: '' },
+    { name: 'mailTo', label: 'E-Mail: Empfänger (Alarme)', value: cur.email?.to ?? '' },
+    { name: 'mailHost', label: 'E-Mail: SMTP-Server', value: cur.email?.smtpHost ?? '' },
+    { name: 'mailPort', label: 'E-Mail: SMTP-Port', type: 'number', value: cur.email?.smtpPort ?? 587 },
+    { name: 'mailSecure', label: 'E-Mail: SSL/TLS direkt (Port 465, sonst STARTTLS)', type: 'checkbox', value: !!cur.email?.secure },
+    { name: 'mailUser', label: 'E-Mail: Benutzer', value: cur.email?.user ?? '' },
+    { name: 'mailPass', label: `E-Mail: Passwort${cur.email?.hasPassword ? ' (leer = unverändert)' : ''}`, type: 'password', value: '' },
+    { name: 'mailFrom', label: 'E-Mail: Absender (leer = Benutzer)', value: cur.email?.from ?? '' },
     { name: 'npFile', label: 'Now Playing als Datei (absoluter Pfad, z. B. C:\\Radio\\nowplaying.txt)', value: cur.nowPlayingFile ?? '' },
   ]);
   if (!v) return;
@@ -2308,13 +2320,14 @@ async function editNotify() {
   const body = {
     webhooks: v.url ? [{ id: w?.id, url: v.url, events, secret: v.secret || undefined, enabled: true }] : [],
     telegram: v.tgChat ? { chatId: v.tgChat, botToken: v.tgToken || undefined, enabled: true } : null,
+    email: v.mailTo ? { to: v.mailTo, smtpHost: v.mailHost, smtpPort: v.mailPort, secure: v.mailSecure, user: v.mailUser, password: v.mailPass || undefined, from: v.mailFrom || undefined, enabled: true } : null,
     nowPlayingFile: v.npFile || null,
   };
   const r = await run(() => api.put(url('/integrations'), body));
   if (!r) return;
   if (confirm('Gespeichert. Testmeldung jetzt senden?')) {
     const t = await run(() => api.post(url('/integrations/test')));
-    if (t) status(`Test: Webhook ${t.webhooks.map((/** @type {any} */ x) => (x.ok ? 'OK' : 'Fehler')).join(', ') || '–'} · Telegram ${t.telegram === null ? '–' : t.telegram ? 'OK' : 'Fehler'}`);
+    if (t) status(`Test: Webhook ${t.webhooks.map((/** @type {any} */ x) => (x.ok ? 'OK' : 'Fehler')).join(', ') || '–'} · Telegram ${t.telegram === null ? '–' : t.telegram ? 'OK' : 'Fehler'} · E-Mail ${t.email === null ? '–' : t.email ? 'OK' : 'Fehler'}`);
   }
 }
 

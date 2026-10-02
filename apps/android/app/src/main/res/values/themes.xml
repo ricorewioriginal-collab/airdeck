@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nur Starttheme (Statusbar/Fensterhintergrund vor dem ersten Compose-Frame); die eigentliche
+         Oberfläche ist komplett Jetpack Compose mit Material 3 (siehe ui/theme/Theme.kt). -->
+    <style name="Theme.AnMaChaCast" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/brand_bg</item>
+        <item name="android:navigationBarColor">@color/brand_bg</item>
+        <item name="android:windowBackground">@color/brand_bg</item>
+    </style>
+</resources>

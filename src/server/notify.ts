@@ -4,6 +4,7 @@
 import { createHmac } from 'node:crypto';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute } from 'node:path';
+import { sendMail, type SmtpConfig } from './smtp.ts';
 
 /** Ereignisse, die nach außen gemeldet werden können. */
 export const NOTIFY_EVENTS = [
@@ -24,9 +25,22 @@ export interface WebhookConfig {
   enabled: boolean;
 }
 
+export interface EmailConfig {
+  to: string;
+  smtpHost: string;
+  smtpPort: number;
+  /** true = SMTPS (Port 465), sonst STARTTLS */
+  secure: boolean;
+  user: string;
+  passRef: string;
+  from: string;
+  enabled: boolean;
+}
+
 export interface IntegrationsConfig {
   webhooks: WebhookConfig[];
   telegram?: { chatId: string; botTokenRef: string; enabled: boolean };
+  email?: EmailConfig;
   /** Absoluter Pfad für "Interpret - Titel" (Text) – daneben wird <pfad>.json geschrieben */
   nowPlayingFile?: string;
 }
@@ -72,17 +86,20 @@ export function alertText(p: NotifyPayload): string {
 }
 
 type Fetch = typeof fetch;
+type SendMailFn = typeof sendMail;
 
 export class Notifier {
   private readonly getSecret: (ref: string) => string | undefined;
   private readonly log: (event: string, data: Record<string, unknown>) => void;
   private readonly fetchFn: Fetch;
+  private readonly sendMailFn: SendMailFn;
   private inflight = 0;
 
-  constructor(getSecret: (ref: string) => string | undefined, log: (event: string, data: Record<string, unknown>) => void, fetchFn: Fetch = fetch) {
+  constructor(getSecret: (ref: string) => string | undefined, log: (event: string, data: Record<string, unknown>) => void, fetchFn: Fetch = fetch, sendMailFn: SendMailFn = sendMail) {
     this.getSecret = getSecret;
     this.log = log;
     this.fetchFn = fetchFn;
+    this.sendMailFn = sendMailFn;
   }
 
   /** Meldet ein Ereignis an alle passenden Ziele. Kehrt sofort zurück. */
@@ -94,6 +111,8 @@ export class Notifier {
     }
     const tg = cfg.telegram;
     if (tg?.enabled && ALERT_EVENTS.has(payload.event)) void this.deliverTelegram(tg.chatId, tg.botTokenRef, alertText(payload));
+    const em = cfg.email;
+    if (em?.enabled && ALERT_EVENTS.has(payload.event)) void this.deliverEmail(em, alertText(payload), payload);
   }
 
   /** Zustellung mit bis zu 3 Versuchen (1 s, 4 s Pause), Timeout 5 s. */
@@ -139,6 +158,24 @@ export class Notifier {
       return r.ok;
     } catch {
       this.log('telegram_failed', { status: 0 });
+      return false;
+    }
+  }
+
+  async deliverEmail(cfg: EmailConfig, text: string, payload?: NotifyPayload): Promise<boolean> {
+    const subject = payload ? `AnMaCha Cast – ${payload.event}` : 'AnMaCha Cast – Testmeldung';
+    return this.sendCustomEmail(cfg, subject, text);
+  }
+
+  /** Versendet eine freie Mail über den konfigurierten SMTP-Kanal (z. B. den Sendungs-Rückblick), ohne an das Alarm-Textschema gebunden zu sein. */
+  async sendCustomEmail(cfg: EmailConfig, subject: string, text: string, to?: string): Promise<boolean> {
+    const pass = this.getSecret(cfg.passRef) ?? '';
+    const smtp: SmtpConfig = { host: cfg.smtpHost, port: cfg.smtpPort, secure: cfg.secure, user: cfg.user, pass, from: cfg.from || cfg.user, to: to || cfg.to };
+    try {
+      await this.sendMailFn(smtp, subject, text);
+      return true;
+    } catch (err) {
+      this.log('email_failed', { message: (err as Error).message });
       return false;
     }
   }

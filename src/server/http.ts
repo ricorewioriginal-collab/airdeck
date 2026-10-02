@@ -500,6 +500,33 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('POST', '/api/v1/stations/:sid/playlists/:id/play', 'automation:write', (c) => app.svc.planning.playPlaylist(sid(c), c.params.id!));
   add('POST', '/api/v1/stations/:sid/playlists/:id/shuffle', 'queue:write', (c) => app.svc.planning.reshufflePlaylist(sid(c), c.params.id!));
 
+  // --- Playlist-Lifehacks ---
+  add('GET', '/api/v1/stations/:sid/lifehacks/health', 'queue:read', (c) => app.svc.lifehacks.healthCheck(sid(c)));
+  add('GET', '/api/v1/stations/:sid/lifehacks/runtime/:id', 'queue:read', (c) => app.svc.lifehacks.runtime(sid(c), c.params.id!, Number(c.url.searchParams.get('adBufferPct') ?? 0)));
+  add('POST', '/api/v1/stations/:sid/lifehacks/merge', 'queue:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.merge(sid(c), String(b.targetId ?? ''), String(b.sourceId ?? ''));
+  });
+  add('POST', '/api/v1/stations/:sid/lifehacks/top-tracks', 'queue:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.topTracksPlaylist(sid(c), { n: Number(b.n), name: typeof b.name === 'string' ? b.name : undefined, hours: Number(b.hours) });
+  });
+  add('POST', '/api/v1/stations/:sid/lifehacks/mass-tag', 'media:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.massTag(sid(c), String(b.playlistId ?? ''), Array.isArray(b.tags) ? b.tags.map(String) : [], b.mode === 'remove' ? 'remove' : 'add');
+  });
+  add('GET', '/api/v1/stations/:sid/lifehacks/analyze/:id', 'queue:read', (c) => app.svc.lifehacks.analyze(sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/lifehacks/find', 'media:read', (c) => app.svc.lifehacks.trackFinder(sid(c), c.url.searchParams.get('q') ?? ''));
+  add('POST', '/api/v1/stations/:sid/lifehacks/fill-year', 'media:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.fillYear(sid(c), String(b.playlistId ?? ''), Number(b.year));
+  });
+  add('GET', '/api/v1/stations/:sid/lifehacks/compare', 'queue:read', (c) => app.svc.lifehacks.compare(sid(c), c.url.searchParams.get('a') ?? '', c.url.searchParams.get('b') ?? ''));
+  add('POST', '/api/v1/stations/:sid/lifehacks/delete-many', 'queue:write', async (c) => {
+    const b = await c.body();
+    return app.svc.lifehacks.deleteMany(sid(c), Array.isArray(b.ids) ? b.ids.map(String) : []);
+  });
+
   // --- Planung: Zeitplan, Stunden-Uhr, Sendeplan ---
   add('GET', '/api/v1/stations/:sid/planning', 'schedule:read', (c) => app.svc.planning.planning(sid(c)));
   add('GET', '/api/v1/stations/:sid/preflight', 'schedule:read', (c) => app.svc.planning.preflight(sid(c)));
@@ -526,6 +553,47 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('DELETE', '/api/v1/stations/:sid/recordings/:id', 'automation:write', (c) => app.svc.recorder.deleteRecording(sid(c), c.params.id!));
   add('POST', '/api/v1/stations/:sid/rec-plans', 'automation:write', async (c) => app.svc.recorder.saveRecPlan(sid(c), null, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/rec-plans/:id', 'automation:write', (c) => app.svc.recorder.deleteRecPlan(sid(c), c.params.id!));
+
+  // --- Podcast: eigener Feed aus den eigenen Mitschnitten ---
+  add('GET', '/api/v1/stations/:sid/podcast', 'automation:read', (c) => app.svc.podcast.overview(sid(c)));
+  add('PUT', '/api/v1/stations/:sid/podcast', 'automation:write', async (c) => app.svc.podcast.saveConfig(sid(c), await c.body()));
+  add('PUT', '/api/v1/stations/:sid/podcast/cover', 'automation:write', async (c) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const d of c.req) {
+      size += (d as Buffer).length;
+      if (size > 5 * 1024 * 1024) throw new AppError(413, 'too_large', 'Cover höchstens 5 MB');
+      chunks.push(d as Buffer);
+    }
+    return app.svc.podcast.setCover(sid(c), String(c.req.headers['content-type'] ?? ''), Buffer.concat(chunks));
+  });
+  add('POST', '/api/v1/stations/:sid/podcast/episodes', 'automation:write', async (c) => {
+    const b = await c.body();
+    return app.svc.podcast.createEpisode(sid(c), String(b.recordingId ?? ''), b);
+  });
+  add('PATCH', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', async (c) => app.svc.podcast.updateEpisode(sid(c), c.params.id!, await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', (c) => app.svc.podcast.deleteEpisode(sid(c), c.params.id!));
+
+  // --- Sendungs-Rückblick ---
+  add('GET', '/api/v1/stations/:sid/recap', 'automation:read', (c) => {
+    const from = Number(c.url.searchParams.get('from'));
+    const to = Number(c.url.searchParams.get('to'));
+    return app.svc.recap.generate(sid(c), from, to);
+  });
+  add('GET', '/api/v1/stations/:sid/recap.csv', 'automation:read', (c) => {
+    const from = Number(c.url.searchParams.get('from'));
+    const to = Number(c.url.searchParams.get('to'));
+    const report = app.svc.recap.generate(sid(c), from, to);
+    const csv = app.svc.recap.csv(report);
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="sendungs-rueckblick-${sid(c)}.csv"` });
+    c.res.end('﻿' + csv);
+    return STREAMED;
+  });
+  add('POST', '/api/v1/stations/:sid/recap/email', 'automation:write', async (c) => {
+    const b = await c.body();
+    const ok = await app.svc.recap.email(sid(c), Number(b.from), Number(b.to), typeof b.recipient === 'string' ? b.recipient : undefined);
+    return { ok };
+  });
 
   // --- Datenspeicher / Sync (MySQL, Firebase) – nur globale Admins ---
   const globalAdmin = (c: Ctx) => {
@@ -722,6 +790,8 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return aiCall(() => app.ai.update(b));
   });
   add('GET', '/api/v1/ai/usage', null, (c) => (globalAdmin(c), app.ai.usageView()));
+  add('GET', '/api/v1/ai/health', null, (c) => (globalAdmin(c), app.ai.healthView()));
+  add('POST', '/api/v1/ai/providers/:id/release', null, (c) => (globalAdmin(c), app.ai.releaseProvider(c.params.id!)));
   add('GET', '/api/v1/ai/providers/:id/models', null, (c) => (globalAdmin(c), aiCall(() => app.ai.models(c.params.id!))));
   add('GET', '/api/v1/ai/providers/:id/voices', null, (c) => (globalAdmin(c), aiCall(() => app.ai.voices(c.params.id!))));
   add('GET', '/api/v1/stations/:sid/ai', 'ai:read', (c) => ({ config: app.svc.ai.aiConfig(sid(c)), state: app.director.view(sid(c)) }));
@@ -927,6 +997,41 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
       if (!l) return json(res, 404, { error: 'not_found' });
       res.writeHead(200, { 'Content-Type': l.type, 'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff' });
       return void createReadStream(l.path).pipe(res);
+    }
+
+    // Eigener Podcast-Feed: öffentlich erreichbar, damit Podcast-Apps (Apple Podcasts, Spotify, …) ihn abonnieren können
+    const podcastFeed = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/podcast\.xml$/.exec(path);
+    if (podcastFeed && req.method === 'GET') {
+      try {
+        const proto = String(req.headers['x-forwarded-proto'] ?? '').split(',')[0]?.trim() || ((req.socket as { encrypted?: boolean }).encrypted ? 'https' : 'http');
+        const xml = app.svc.podcast.feedXml(podcastFeed[1]!, `${proto}://${req.headers.host ?? 'localhost'}`);
+        res.writeHead(200, { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+        return void res.end(xml);
+      } catch (err) {
+        return json(res, err instanceof AppError ? err.status : 500, { error: 'podcast_feed_failed', message: (err as Error).message });
+      }
+    }
+    const podcastCover = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/podcast\/cover$/.exec(path);
+    if (podcastCover && req.method === 'GET') {
+      const c = app.svc.podcast.cover(podcastCover[1]!);
+      if (!c) return json(res, 404, { error: 'not_found' });
+      res.writeHead(200, { 'Content-Type': c.type, 'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff', 'Access-Control-Allow-Origin': '*' });
+      return void createReadStream(c.path).pipe(res);
+    }
+    const podcastAudio = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/podcast\/episodes\/([a-z0-9_-]{1,60})\/audio$/.exec(path);
+    if (podcastAudio && req.method === 'GET') {
+      try {
+        const stationId = podcastAudio[1]!;
+        const episodeId = podcastAudio[2]!;
+        const ep = app.stations.get(stationId)?.data.episodes?.find((e) => e.id === episodeId);
+        if (!ep?.publishedAt) return json(res, 404, { error: 'not_found' });
+        const { path: file, rec } = app.svc.recorder.recordingFile(stationId, ep.recordingId);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        sendFile(req, res, file, rec.contentType || 'application/octet-stream');
+        return;
+      } catch (err) {
+        return json(res, err instanceof AppError ? err.status : 404, { error: 'not_found' });
+      }
     }
 
     if (path.startsWith('/listen/')) {

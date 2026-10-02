@@ -10,12 +10,15 @@ import { RemoteLinkService } from './remote-link.ts';
 import { BridgeService } from './bridges.ts';
 import { DeviceService } from './devices.ts';
 import { LautfmService } from './lautfm.ts';
+import { LifehacksService } from './lifehacks.ts';
 import { ListenerService } from './listeners.ts';
 import { MediaService } from './media.ts';
 import { MusicHubService } from './musikhub.ts';
 import { NextcloudService } from './nextcloud.ts';
 import { NotificationService } from './notifications.ts';
 import { PlanningService } from './planning.ts';
+import { PodcastService } from './podcast.ts';
+import { RecapService } from './recap.ts';
 import { RecorderService } from './recorder.ts';
 import { SetupService } from './setup.ts';
 import { StationService } from './stations.ts';
@@ -38,6 +41,9 @@ export function createServices(app: AirDeckApp) {
     ai: new AiToolsService(app),
     recorder: new RecorderService(app),
     planning: new PlanningService(app),
+    lifehacks: new LifehacksService(app),
+    podcast: new PodcastService(app),
+    recap: new RecapService(app),
     setup: new SetupService(app),
     listeners: new ListenerService(app),
     backup: new BackupService(app),

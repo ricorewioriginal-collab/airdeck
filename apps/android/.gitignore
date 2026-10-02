@@ -1,1 +1,7 @@
-www/
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+*.aab
+.cxx/

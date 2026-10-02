@@ -287,7 +287,7 @@ jobs:
           sh packaging/demo/reset-demo.sh
           curl -fs http://127.0.0.1:8751/api/v1/health | grep -q '"ok":true'
 
-          LOGIN=$(curl -fs -X POST -H 'Content-Type: application/json'             -d '{"username":"demo","password":"airdeck-demo"}'             http://127.0.0.1:8751/api/v1/auth/login)
+          LOGIN=$(curl -fs -X POST -H 'Content-Type: application/json'             -d '{"username":"demo","password":"anmachacast-demo"}'             http://127.0.0.1:8751/api/v1/auth/login)
           TOKEN=$(printf '%s' "$LOGIN" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).token||''))")
           test -n "$TOKEN" || (echo "Demo-Login fehlgeschlagen" && exit 1)
 
@@ -299,7 +299,7 @@ jobs:
           sleep 2
           curl -fs -H "Authorization: Bearer $TOKEN"             http://127.0.0.1:8751/api/v1/stations/main/playout | grep -q '"running":true'             || (echo "Demo-Playout/Cardwall startet nicht" && exit 1)
 
-          docker compose -f packaging/demo/docker-compose.demo.yml logs airdeck-demo
+          docker compose -f packaging/demo/docker-compose.demo.yml logs anmachacast-demo
           docker compose -f packaging/demo/docker-compose.demo.yml down -v
           echo "Demo: Login, Cardwall, Playout und Reset OK"
 
@@ -323,8 +323,8 @@ jobs:
           sh packaging/demo/reset-demo.sh
           # Fuer die Dokumentationsbilder wird nur innerhalb des isolierten CI-Containers der
           # globale Bootstrap-Token benutzt, damit auch Admin-Ansichten fotografiert werden koennen.
-          # Der oeffentliche Demo-Login bleibt unveraendert demo / airdeck-demo und senderbeschraenkt.
-          TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs airdeck-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
+          # Der oeffentliche Demo-Login bleibt demo / anmachacast-demo und senderbeschraenkt.
+          TOKEN=$(docker compose -f packaging/demo/docker-compose.demo.yml logs anmachacast-demo 2>/dev/null | grep -o 'ad_[A-Za-z0-9_-]*' | head -1)
           test -n "$TOKEN"
           echo "AIRDECK_SCREENSHOT_TOKEN=$TOKEN" >> "$GITHUB_ENV"
       - name: Browser-Funktionen gegen echte Demo pruefen
@@ -482,16 +482,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
-        with: { node-version: '22' }
       - uses: actions/setup-java@v6
-        with: { distribution: temurin, java-version: '21' }
+        with: { distribution: temurin, java-version: '17' }
       - name: Handy-Engine testen (Encoder, Mischpult, Sendung an echten Icecast)
         run: |
           sudo apt-get update -q
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q icecast2 ffmpeg > /dev/null
           apps/android/engine/test.sh
-      - name: APK bauen (offiziell signiert, falls Keystore hinterlegt – sonst Debug)
+      - name: APK bauen (natives Gradle-Projekt; offiziell signiert, falls Keystore hinterlegt – sonst Debug)
         working-directory: apps/android
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
@@ -499,17 +497,16 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          npm install --no-audit --no-fund
           mkdir -p out
           if [ -n "$KEYSTORE_B64" ] && [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/airdeck.jks"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/airdeck.jks"
-            npm run build:release
-            cp android/app/build/outputs/apk/release/app-release.apk out/AnMaCha-Cast-Android.apk
+            ./gradlew assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk out/AnMaCha-Cast-Android.apk
             echo "Release-APK (offiziell signiert)"
           else
-            npm run build:debug
-            cp android/app/build/outputs/apk/debug/app-debug.apk out/AnMaCha-Cast-Android.apk
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk out/AnMaCha-Cast-Android.apk
             echo "Test-APK mit Debug-Signatur; Release-Signierung erfolgt bei Versionstags mit hinterlegtem Keystore."
           fi
       - uses: actions/upload-artifact@v4

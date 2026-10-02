@@ -70,7 +70,7 @@ jobs:
             # im Container-Log an (siehe docker-compose.yml) - fuer den lokalen Betreiber gedacht, nicht
             # fuer ein geteiltes CI-Log. Der Debug-Dump im ERR-Trap ersetzt Label- und Wertzeile.
             redact_demo_logs() {
-              docker compose -f packaging/demo/docker-compose.demo.yml logs --tail=80 airdeck-demo </dev/null 2>&1 | awk '
+              docker compose -f packaging/demo/docker-compose.demo.yml logs --tail=80 anmachacast-demo </dev/null 2>&1 | awk '
                 /Einmal-Passwort|Admin-Token/ { print; getline; print "  [redigiert]"; next }
                 /Studio (o|ö)ffnen:.*#token=/ { print "  Studio oeffnen: [redigiert - enthielt Admin-Token]"; next }
                 { print }

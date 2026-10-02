@@ -9,7 +9,7 @@ import {
   DECK_IDS, DEFAULT_CLOCK, DEFAULT_ROTATION, MEDIA_CATEGORIES, PlayQueue, backtime, defaultCardwall, fillFromClock, pickNext as pickFromPool, playLength,
   type CartSlot, type ClockTemplate, type DeckId, type DeckState, type MediaItem, type RotationRules,
 } from '../core/automation.ts';
-import { activeWindow, nextHardMark } from '../core/scheduler.ts';
+import { activeWindow, nextHardMark, validateWindow, type TimeWindow } from '../core/scheduler.ts';
 import { ModeState, automationRuns, type BaseMode, type Mode as BroadcastMode } from '../core/mode.ts';
 import {
   AppError, SYSTEM_PRINCIPAL, newId, normalizeMount, posInt, publicOutput, publicSource, relayKey, safeColor, timingSafeEqualStr, wrap,
@@ -331,6 +331,23 @@ export class AirDeckApp {
           o.state.listeners = n;
           this.publish('stream.state_changed', o.cfg.stationId, { id: o.cfg.id, ...o.state });
         });
+      }
+      // Sendungs-Rückblick: Stichprobe (Hörer-Spitze, gesendete Datenmenge) je Sender, 48 h Rollfenster
+      const now = Date.now();
+      const byStation = new Map<string, { listeners: number; bytesTotal: number }>();
+      for (const o of this.outputs.values()) {
+        const acc = byStation.get(o.cfg.stationId) ?? { listeners: 0, bytesTotal: 0 };
+        acc.listeners += o.state.status === 'connected' ? (o.state.listeners ?? 0) : 0;
+        acc.bytesTotal += o.state.bytesSent;
+        byStation.set(o.cfg.stationId, acc);
+      }
+      for (const [stationId, acc] of byStation) {
+        const rt = this.stations.get(stationId);
+        if (!rt) continue;
+        const samples = (rt.data.recapSamples ??= []);
+        samples.push({ at: now, ...acc });
+        const cutoff = now - 48 * 3_600_000;
+        while (samples.length && samples[0]!.at < cutoff) samples.shift();
       }
     }
     // KI-Musikplanung alle 10 s prüfen (nur wenn aktiviert, sonst kostenlos)
@@ -830,6 +847,23 @@ export class AirDeckApp {
     }
     const mp3Mode = input.mp3Mode === 'cbr' || input.mp3Mode === 'vbr' ? input.mp3Mode : prev?.mp3Mode;
     const mp3Quality = typeof input.mp3Quality === 'number' && input.mp3Quality >= 0 && input.mp3Quality <= 9 ? Math.round(input.mp3Quality) : prev?.mp3Quality;
+    let window: TimeWindow | undefined = prev?.window;
+    if (input.window === null) window = undefined;
+    else if (input.window && typeof input.window === 'object') {
+      const w = input.window as Record<string, unknown>;
+      window = {
+        id: prev?.window?.id ?? newId('tw'),
+        label: String(w.label ?? '').slice(0, 80),
+        days: Array.isArray(w.days) ? w.days.map(Number) : [],
+        from: String(w.from ?? ''),
+        to: String(w.to ?? ''),
+      };
+      try {
+        validateWindow(window);
+      } catch (err) {
+        throw new AppError(400, 'invalid_window', (err as Error).message);
+      }
+    }
     const cfg: StreamProfileConfig = {
       id: prev?.id ?? newId('sp'),
       name: String(input.name ?? prev?.name ?? 'Profil').slice(0, 80),
@@ -838,6 +872,7 @@ export class AirDeckApp {
       mp3Mode,
       mp3Quality,
       enabled: Boolean(input.enabled ?? prev?.enabled ?? true),
+      window,
     };
     if (prev) Object.assign(prev, cfg);
     else list.push(cfg);
@@ -860,15 +895,19 @@ export class AirDeckApp {
     this.changed();
   }
 
-  /** Gleicht die tatsächlich laufenden Zusatz-Encoderprofile des Sendebusses mit den aktivierten Ausgängen ab. */
-  private syncStreamProfiles(stationId: string): void {
+  /** Gleicht die tatsächlich laufenden Zusatz-Encoderprofile des Sendebusses mit den aktivierten Ausgängen ab.
+   *  Wird auch minütlich erneut aufgerufen (PlanningService), damit Profile mit Zeitfenster pünktlich an-/abschalten. */
+  syncStreamProfiles(stationId: string): void {
     const po = this.playouts.get(stationId);
     if (!po) return;
     const list = this.rt(stationId).data.streamProfiles ?? [];
     // Encoder und Stream-Ausgang sind getrennte Schalter: Ein Profil kann laufen,
     // auch wenn gerade kein Ausgang verbunden ist. Die Source-Priority entscheidet
     // davor, welche Quelle den Programmbus speist; der Encoder folgt diesem Bus.
-    const neededIds = new Set(list.filter((sp) => sp.enabled !== false).map((sp) => sp.id));
+    const now = new Date();
+    const neededIds = new Set(
+      list.filter((sp) => sp.enabled !== false).filter((sp) => !sp.window || activeWindow([sp.window], now)).map((sp) => sp.id),
+    );
     for (const id of po.playout.listProfiles()) if (!neededIds.has(id)) po.playout.removeProfile(id);
     for (const id of neededIds) {
       const sp = list.find((s) => s.id === id);

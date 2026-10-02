@@ -407,13 +407,14 @@ export function mountPlanning(root, ctx) {
   return { show: () => run(load), onEvent: (/** @type {string} */ t) => { if (['planning.changed', 'playlists.changed', 'now_playing.changed'].includes(t) && root.isConnected && !root.hidden) run(load); } };
 }
 
-/** @param {HTMLElement} root @param {Ctx} ctx */
+/** @param {HTMLElement} root @param {Ctx & { stationId: () => string }} ctx */
 export function mountRecorder(root, ctx) {
   /** @type {any} */ let data = { recordings: [], recording: null, recPlans: [] };
+  /** @type {any} */ let podcast = { config: {}, episodes: [], hasCover: false };
   /** @type {HTMLAudioElement|null} */ let player = null;
 
   async function load() {
-    data = await ctx.api.get(ctx.url('/recordings'));
+    [data, podcast] = await Promise.all([ctx.api.get(ctx.url('/recordings')), ctx.api.get(ctx.url('/podcast'))]);
     render();
   }
 
@@ -436,6 +437,7 @@ export function mountRecorder(root, ctx) {
             const u = await ctx.api.post(ctx.url(`/recordings/${r.id}/nextcloud`), { dir: 'AnMaCha-Cast-Mitschnitte' });
             status(`In der Nextcloud: ${u.uploaded}`);
           })) : null,
+          r.endedAt ? iconBtn('Als Podcast-Episode anlegen', '🎙', () => createEpisode(r)) : null,
           iconBtn('Löschen', '✕', () => confirm(`„${r.label}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/recordings/${r.id}`)); await load(); }))))),
       'Noch keine Aufnahmen.'));
     const plans = panel('Automatische Aufnahmen', [h('button', { class: 'btn small primary', onclick: addPlan }, '＋ Zeitfenster')],
@@ -443,7 +445,142 @@ export function mountRecorder(root, ctx) {
         h('td', {}, p.label), h('td', {}, daysText(p.days)), h('td', { class: 'num' }, `${p.from}–${p.to}`),
         act(iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/rec-plans/${p.id}`)); await load(); }))))),
       'Z. B. jede Sendung „Morning Show“ Mo–Fr 06:00–10:00 automatisch mitschneiden.'));
-    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans));
+    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastEpisodesPanel(), recapPanel()));
+  }
+
+  // ---------- Sendungs-Rückblick ----------
+
+  /** @type {{ from: number, to: number } } */
+  let recapRange = { from: Date.now() - 4 * 3600e3, to: Date.now() };
+  /** @type {any|null} */ let recapReport = null;
+
+  function recapPanel() {
+    const body = recapReport ? recapResultView(recapReport) : h('p', { class: 'muted' }, '„Anzeigen“ klicken, um den Rückblick für den gewählten Zeitraum zu erzeugen.');
+    return panel('Sendungs-Rückblick', [], h('div', {},
+      h('p', { class: 'muted' }, 'Gespielte Titel, Hörer-Spitze und gesendete Datenmenge für einen Zeitraum – als Übersicht, CSV-Export oder per E-Mail.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn small primary', onclick: showRecap }, 'Anzeigen'),
+        h('button', { class: 'btn small', onclick: downloadRecapCsv }, 'Als CSV herunterladen'),
+        h('button', { class: 'btn small', onclick: emailRecap }, 'Per E-Mail senden')),
+      body));
+  }
+
+  /** @param {any} r */
+  function recapResultView(r) {
+    return h('div', { class: 'recap-result' },
+      h('p', {}, `${new Date(r.from).toLocaleString('de-DE')} – ${new Date(r.to).toLocaleString('de-DE')} · ${Math.round(r.durationMs / 60000)} Min. · ${r.trackCount} Titel · Hörer-Spitze ${r.listenersPeak} · gesendet ${r.bytesSent == null ? 'unbekannt' : `${(r.bytesSent / 1048576).toFixed(1)} MB`}`),
+      r.tracks.length
+        ? h('ul', {}, ...r.tracks.map((/** @type {any} */ t) => h('li', {}, `${new Date(t.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} – ${mediaTitle(t)}`)))
+        : h('p', { class: 'muted' }, 'Keine Titel in diesem Zeitraum.'));
+  }
+
+  async function pickRecapRange() {
+    const v = await formDialog('Zeitraum wählen', [
+      { name: 'from', label: 'Von', type: 'datetime-local', value: localInput(recapRange.from), required: true },
+      { name: 'to', label: 'Bis', type: 'datetime-local', value: localInput(recapRange.to), required: true },
+    ], 'Übernehmen');
+    if (!v) return null;
+    const range = { from: new Date(v.from).getTime(), to: new Date(v.to).getTime() };
+    if (!(range.from < range.to)) { status('„Von“ muss vor „Bis“ liegen', true); return null; }
+    recapRange = range;
+    return range;
+  }
+
+  async function showRecap() {
+    const range = await pickRecapRange();
+    if (!range) return;
+    const r = await run(() => ctx.api.get(ctx.url(`/recap?from=${range.from}&to=${range.to}`)));
+    if (!r) return;
+    recapReport = r;
+    render();
+  }
+
+  async function downloadRecapCsv() {
+    const range = await pickRecapRange();
+    if (!range) return;
+    const blob = await run(() => ctx.api.blob(ctx.url(`/recap.csv?from=${range.from}&to=${range.to}`)));
+    if (blob) download(blob, `sendungs-rueckblick-${ctx.stationId()}.csv`);
+  }
+
+  async function emailRecap() {
+    const range = await pickRecapRange();
+    if (!range) return;
+    const v = await formDialog('Rückblick per E-Mail senden', [
+      { name: 'recipient', label: 'Empfänger (leer = Standard-Adresse unter Benachrichtigungen)', value: '' },
+    ], 'Senden');
+    if (!v) return;
+    const r = await run(() => ctx.api.post(ctx.url('/recap/email'), { from: range.from, to: range.to, recipient: v.recipient || undefined }));
+    if (r) status(r.ok ? 'Rückblick per E-Mail gesendet' : 'E-Mail-Versand fehlgeschlagen', !r.ok);
+  }
+
+  // ---------- Podcast: eigener Feed aus den eigenen Mitschnitten ----------
+
+  function feedUrl() {
+    return `${location.origin}/api/v1/public/stations/${ctx.stationId()}/podcast.xml`;
+  }
+
+  function podcastSettingsPanel() {
+    const cfg = podcast.config ?? {};
+    return panel('Podcast', [h('button', { class: 'btn small', onclick: editPodcastConfig }, 'Einstellungen')], h('div', { class: 'podcast-head' },
+      h('p', {}, `„${cfg.title ?? ''}“ – ${podcast.episodes?.length ?? 0} Episode${(podcast.episodes?.length ?? 0) === 1 ? '' : 'n'}, davon ${podcast.episodes?.filter((/** @type {any} */ e) => e.publishedAt).length ?? 0} veröffentlicht.`),
+      h('div', { class: 'podcast-feed-url' },
+        h('input', { type: 'text', readonly: true, value: feedUrl(), onclick: (/** @type {Event} */ e) => /** @type {HTMLInputElement} */ (e.target).select() }),
+        h('button', { class: 'btn small', onclick: () => { navigator.clipboard?.writeText(feedUrl()); status('Feed-URL kopiert'); } }, 'Kopieren')),
+      h('p', { class: 'muted' }, 'Diese URL bei Apple Podcasts, Spotify for Podcasters oder einer beliebigen Podcast-App als Feed einreichen.')));
+  }
+
+  function podcastEpisodesPanel() {
+    const rows = (podcast.episodes ?? []).map((/** @type {any} */ e) => h('tr', {},
+      h('td', {}, e.title), h('td', {}, h('span', { class: `pill ${e.publishedAt ? 'connected' : ''}` }, e.publishedAt ? 'veröffentlicht' : 'Entwurf')),
+      h('td', { class: 'num' }, e.publishedAt ? new Date(e.publishedAt).toLocaleDateString('de-DE') : '–'),
+      act(iconBtn(e.publishedAt ? 'Zurückziehen' : 'Veröffentlichen', e.publishedAt ? '◧' : '◨', () => run(async () => { await ctx.api.patch(ctx.url(`/podcast/episodes/${e.id}`), { published: !e.publishedAt }); await load(); })),
+        iconBtn('Bearbeiten', '✎', () => editEpisode(e)),
+        iconBtn('Löschen', '✕', () => confirm(`Episode „${e.title}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/podcast/episodes/${e.id}`)); await load(); })))));
+    return panel('Episoden', [], table(['Titel', 'Status', 'Veröffentlicht', ''], rows, 'Noch keine Episoden – bei einem fertigen Mitschnitt auf 🎙 klicken.'));
+  }
+
+  async function editPodcastConfig() {
+    const cfg = podcast.config ?? {};
+    const v = await formDialog('Podcast-Einstellungen', [
+      { name: 'title', label: 'Titel', value: cfg.title ?? '', required: true },
+      { name: 'description', label: 'Beschreibung', type: 'textarea', value: cfg.description ?? '' },
+      { name: 'author', label: 'Autor/Sprecher', value: cfg.author ?? '' },
+      { name: 'language', label: 'Sprache (z. B. de-de)', value: cfg.language ?? 'de-de' },
+      { name: 'category', label: 'Kategorie (iTunes, z. B. "Music")', value: cfg.category ?? '' },
+      { name: 'explicit', label: 'Enthält nicht jugendfreie Inhalte', type: 'checkbox', value: !!cfg.explicit },
+      { name: 'cover', label: `Cover${podcast.hasCover ? ' (neu hochladen ersetzt)' : ''}`, type: 'file', value: 'image/png,image/jpeg,image/webp', hint: 'PNG, JPG oder WebP, max. 5 MB – am besten quadratisch' },
+    ]);
+    if (!v) return;
+    await run(() => ctx.api.put(ctx.url('/podcast'), { title: v.title, description: v.description, author: v.author, language: v.language, category: v.category, explicit: v.explicit }));
+    if (v.cover) await run(() => ctx.api.req('PUT', ctx.url('/podcast/cover'), v.cover, { 'Content-Type': v.cover.type }));
+    await load();
+  }
+
+  /** @param {any} r */
+  async function createEpisode(r) {
+    const v = await formDialog('Episode anlegen', [
+      { name: 'title', label: 'Titel', value: r.label, required: true },
+      { name: 'description', label: 'Shownotes', type: 'textarea', value: '' },
+    ], 'Als Entwurf anlegen');
+    if (!v) return;
+    await run(() => ctx.api.post(ctx.url('/podcast/episodes'), { recordingId: r.id, title: v.title, description: v.description }));
+    status('Episode als Entwurf angelegt – in „Episoden“ veröffentlichen, sobald bereit.');
+    await load();
+  }
+
+  /** @param {any} e */
+  async function editEpisode(e) {
+    const v = await formDialog(`Episode: ${e.title}`, [
+      { name: 'title', label: 'Titel', value: e.title, required: true },
+      { name: 'description', label: 'Shownotes', type: 'textarea', value: e.description ?? '' },
+      { name: 'season', label: 'Staffel (optional)', type: 'number', value: e.season ?? '' },
+      { name: 'episodeNumber', label: 'Episodennummer (optional)', type: 'number', value: e.episodeNumber ?? '' },
+    ]);
+    if (!v) return;
+    await run(() => ctx.api.patch(ctx.url(`/podcast/episodes/${e.id}`), {
+      title: v.title, description: v.description, season: v.season === '' ? null : Number(v.season), episodeNumber: v.episodeNumber === '' ? null : Number(v.episodeNumber),
+    }));
+    await load();
   }
 
   async function startRec() {

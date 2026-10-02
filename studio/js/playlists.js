@@ -15,11 +15,16 @@ export function mountPlaylistManagement(root, ctx) {
   /** @type {any[]} */ let playlists = [];
   /** @type {string[]} */ let folders = [];
   /** @type {string|null} */ let openPl = null;
+  /** @type {HTMLElement|null} */ let lifehackResult = null;
+  /** @type {Set<string>} */ const deleteSelection = new Set();
 
   async function load() {
     [playlists, folders] = await Promise.all([ctx.api.get(ctx.url('/playlists')), ctx.folders()]);
     render();
   }
+
+  const libMap = () => new Map(ctx.library().map((/** @type {any} */ m) => [m.id, m]));
+  const plOptions = () => /** @type {[string,string][]} */ ([['', 'Playlist wählen…'], ...playlists.map((p) => [p.id, p.name])]);
 
   const move = (/** @type {string[]} */ arr, /** @type {number} */ a, /** @type {number} */ b) => {
     const c = [...arr];
@@ -83,8 +88,163 @@ export function mountPlaylistManagement(root, ctx) {
           h('p', {}, 'Playlists anlegen, sortieren, mischen und direkt in Queue oder Sendeplan verwenden.')),
         h('div', { class: 'playlist-hero-stats' },
           h('span', {}, `${playlists.length} Playlist${playlists.length === 1 ? '' : 's'}`))),
-      workspace
+      workspace,
+      lifehacksPanel()
     );
+  }
+
+  // ---------- Lifehacks: Funktionen, die der normale Betrieb nicht bietet ----------
+
+  function lifehackBtn(label, fn) {
+    return h('button', { class: 'btn small', onclick: () => run(fn) }, label);
+  }
+
+  function showResult(node) {
+    lifehackResult = h('div', { class: 'lifehack-result' }, node);
+    render();
+  }
+
+  async function runHealthCheck() {
+    const r = await ctx.api.get(ctx.url('/lifehacks/health'));
+    const line = (/** @type {string} */ t, /** @type {any[]} */ items, /** @type {(x:any)=>string} */ fmtItem) =>
+      h('div', {}, h('strong', {}, `${t} (${items.length})`), items.length ? h('ul', {}, ...items.slice(0, 20).map((x) => h('li', {}, fmtItem(x)))) : h('p', { class: 'muted' }, 'Keine Funde.'));
+    showResult(h('div', { class: 'lifehack-health' },
+      line('Duplikate', r.duplicates, (/** @type {any} */ d) => `${d.artist} – ${d.title} (${d.ids.length}×)`),
+      line('Ohne Metadaten', r.noMetadata, (/** @type {any} */ d) => `${d.artist || '–'} – ${d.title || '–'}: fehlt ${d.missing.join(', ')}`),
+      line('Zu kurz (<60 s)', r.tooShort, (/** @type {any} */ d) => `${d.artist} – ${d.title} (${fmt(d.durationMs)})`),
+      line('Nicht in einer Playlist', r.unassigned, (/** @type {any} */ d) => `${d.artist} – ${d.title}`)));
+  }
+
+  async function calcRuntime() {
+    const v = await formDialog('Laufzeit-Kalkulator', [
+      { name: 'playlistId', label: 'Playlist', value: '', options: plOptions() },
+      { name: 'adBufferPct', label: 'Werbepuffer (%)', type: 'number', value: 0 },
+    ], 'Berechnen');
+    if (!v || !v.playlistId) return;
+    const r = await ctx.api.get(ctx.url(`/lifehacks/runtime/${v.playlistId}?adBufferPct=${Number(v.adBufferPct) || 0}`));
+    showResult(h('p', {}, `${r.trackCount} Titel · Gesamtlänge ${fmt(r.totalMs)}${v.adBufferPct ? ` · mit Puffer ${fmt(r.withBufferMs)}` : ''}`));
+  }
+
+  async function mergePlaylists() {
+    const v = await formDialog('Playlisten zusammenführen', [
+      { name: 'targetId', label: 'Ziel (A)', value: '', options: plOptions() },
+      { name: 'sourceId', label: 'Quelle (B)', value: '', options: plOptions() },
+    ], 'Zusammenführen');
+    if (!v || !v.targetId || !v.sourceId) return;
+    const r = await ctx.api.post(ctx.url('/lifehacks/merge'), v);
+    status(`${r.added} Titel übernommen, ${r.skipped} Duplikate übersprungen`);
+    await load();
+  }
+
+  async function createTopPlaylist() {
+    const v = await formDialog('Top-Tracks → neue Playlist', [
+      { name: 'n', label: 'Anzahl Top-Tracks', type: 'number', value: 20 },
+      { name: 'hours', label: 'Zeitraum (Stunden)', type: 'number', value: 24 },
+      { name: 'name', label: 'Name der neuen Playlist', value: '' },
+    ], 'Playlist erstellen');
+    if (!v) return;
+    const pl = await ctx.api.post(ctx.url('/lifehacks/top-tracks'), v);
+    status(`Playlist „${pl.name}“ mit ${pl.items.length} Titeln erstellt`);
+    await load();
+  }
+
+  async function massTagger() {
+    const v = await formDialog('Massen-Tagger', [
+      { name: 'playlistId', label: 'Playlist', value: '', options: plOptions() },
+      { name: 'tags', label: 'Tags (kommagetrennt)', value: '' },
+      { name: 'mode', label: 'Aktion', value: 'add', options: [['add', 'Hinzufügen'], ['remove', 'Entfernen']] },
+    ], 'Anwenden');
+    if (!v || !v.playlistId || !v.tags) return;
+    const tags = v.tags.split(',').map((/** @type {string} */ t) => t.trim()).filter(Boolean);
+    const r = await ctx.api.post(ctx.url('/lifehacks/mass-tag'), { playlistId: v.playlistId, tags, mode: v.mode });
+    status(`${r.changed} Titel aktualisiert`);
+    await load();
+  }
+
+  async function analyzePlaylist() {
+    const v = await formDialog('Playlist-Analyse', [{ name: 'playlistId', label: 'Playlist', value: '', options: plOptions() }], 'Analysieren');
+    if (!v || !v.playlistId) return;
+    const r = await ctx.api.get(ctx.url(`/lifehacks/analyze/${v.playlistId}`));
+    const list = (/** @type {string} */ label, /** @type {any[]} */ items, /** @type {(x:any)=>string} */ fmtItem) =>
+      h('div', {}, h('strong', {}, label), items.length ? h('ul', {}, ...items.map((x) => h('li', {}, fmtItem(x)))) : h('p', { class: 'muted' }, '–'));
+    showResult(h('div', { class: 'lifehack-analysis' },
+      h('p', {}, `${r.trackCount} Titel · Ø-Länge ${fmt(r.avgDurationMs)}`),
+      list('Genre-Mix', r.genreMix, (/** @type {any} */ g) => `${g.genre}: ${g.count}`),
+      list('Jahrzehnte', r.decades, (/** @type {any} */ d) => `${d.decade}: ${d.count}`),
+      list('Beliebteste Artists', r.topArtists, (/** @type {any} */ a) => `${a.artist}: ${a.count}`)));
+  }
+
+  async function trackFinder() {
+    const v = await formDialog('Globale Track-Suche', [{ name: 'q', label: 'Artist oder Titel', value: '' }], 'Suchen');
+    if (!v || !v.q) return;
+    const hits = await ctx.api.get(ctx.url(`/lifehacks/find?q=${encodeURIComponent(v.q)}`));
+    showResult(hits.length
+      ? h('ul', {}, ...hits.map((/** @type {any} */ x) => h('li', {}, `${mediaTitle(x.media)} — in: ${x.playlists.map((/** @type {any} */ p) => p.name).join(', ') || '(keiner Playlist zugewiesen)'}`)))
+      : h('p', { class: 'muted' }, 'Kein Treffer.'));
+  }
+
+  async function batchFillYear() {
+    const v = await formDialog('Erscheinungsjahr Batch-Füllen', [
+      { name: 'playlistId', label: 'Playlist', value: '', options: plOptions() },
+      { name: 'year', label: 'Jahr', type: 'number', value: new Date().getFullYear() },
+    ], 'Jahr eintragen');
+    if (!v || !v.playlistId || !v.year) return;
+    const r = await ctx.api.post(ctx.url('/lifehacks/fill-year'), v);
+    status(`${r.filled} Titel gefüllt, ${r.skipped} hatten bereits ein Jahr`);
+    await load();
+  }
+
+  async function comparePlaylists() {
+    const v = await formDialog('Playlist-Vergleich', [
+      { name: 'a', label: 'Playlist A', value: '', options: plOptions() },
+      { name: 'b', label: 'Playlist B', value: '', options: plOptions() },
+    ], 'Vergleichen');
+    if (!v || !v.a || !v.b) return;
+    const r = await ctx.api.get(ctx.url(`/lifehacks/compare?a=${v.a}&b=${v.b}`));
+    showResult(h('div', {},
+      h('div', {}, h('strong', {}, `Nur in A (${r.onlyA.length})`), r.onlyA.length ? h('ul', {}, ...r.onlyA.map((/** @type {any} */ m) => h('li', {}, mediaTitle(m)))) : h('p', { class: 'muted' }, '–')),
+      h('div', {}, h('strong', {}, `Nur in B (${r.onlyB.length})`), r.onlyB.length ? h('ul', {}, ...r.onlyB.map((/** @type {any} */ m) => h('li', {}, mediaTitle(m)))) : h('p', { class: 'muted' }, '–'))));
+  }
+
+  function toggleDeleteSel(/** @type {string} */ id) {
+    if (deleteSelection.has(id)) deleteSelection.delete(id); else deleteSelection.add(id);
+    render();
+  }
+
+  async function deleteSelectedPlaylists() {
+    if (!deleteSelection.size) return;
+    if (!confirm(`${deleteSelection.size} Playlist(en) dauerhaft löschen? Titel bleiben in der Bibliothek erhalten.`)) return;
+    const r = await ctx.api.post(ctx.url('/lifehacks/delete-many'), { ids: [...deleteSelection] });
+    deleteSelection.clear();
+    status(`${r.deleted.length} Playlist(en) gelöscht`);
+    await load();
+  }
+
+  function deletePlaylistsSection() {
+    return h('div', { class: 'lifehack-card' },
+      h('h4', {}, 'Playlisten löschen'),
+      h('p', { class: 'muted' }, 'Titel bleiben in der Bibliothek erhalten.'),
+      h('div', { class: 'lifehack-delete-list' }, ...playlists.map((p) =>
+        h('label', {}, h('input', { type: 'checkbox', checked: deleteSelection.has(p.id), onchange: () => toggleDeleteSel(p.id) }), ` ${p.name}`))),
+      h('button', { class: 'btn small danger', onclick: deleteSelectedPlaylists }, 'Ausgewählte löschen'));
+  }
+
+  function lifehacksPanel() {
+    const grid = h('div', { class: 'lifehack-grid' },
+      lifehackBtn('🩺 Gesundheitscheck', runHealthCheck),
+      lifehackBtn('⏱ Laufzeit-Kalkulator', calcRuntime),
+      lifehackBtn('🔀 Zusammenführen', mergePlaylists),
+      lifehackBtn('🏆 Top-Tracks → Playlist', createTopPlaylist),
+      lifehackBtn('🏷 Massen-Tagger', massTagger),
+      lifehackBtn('📊 Playlist-Analyse', analyzePlaylist),
+      lifehackBtn('🔎 Globale Track-Suche', trackFinder),
+      lifehackBtn('📅 Jahr Batch-Füllen', batchFillYear),
+      lifehackBtn('🔁 Playlist-Vergleich', comparePlaylists));
+    return panel('Lifehacks ✨', [], h('div', {},
+      h('p', { class: 'muted' }, 'Funktionen, die die normale Playlistverwaltung nicht bietet.'),
+      grid,
+      lifehackResult,
+      deletePlaylistsSection()));
   }
 
   async function newPlaylist() {

@@ -67,6 +67,9 @@ export class NotificationService {
       events: NOTIFY_EVENTS,
       webhooks: cfg.webhooks.map(({ secretRef, ...w }) => ({ ...w, hasSecret: !!secretRef && this.app.secrets.has(secretRef) })),
       telegram: cfg.telegram ? { chatId: cfg.telegram.chatId, enabled: cfg.telegram.enabled, hasToken: this.app.secrets.has(cfg.telegram.botTokenRef) } : null,
+      email: cfg.email
+        ? { to: cfg.email.to, smtpHost: cfg.email.smtpHost, smtpPort: cfg.email.smtpPort, secure: cfg.email.secure, user: cfg.email.user, from: cfg.email.from, enabled: cfg.email.enabled, hasPassword: this.app.secrets.has(cfg.email.passRef) }
+        : null,
       nowPlayingFile: cfg.nowPlayingFile ?? null,
     };
   }
@@ -91,6 +94,22 @@ export class NotificationService {
         if (typeof input.telegram.botToken === 'string' && input.telegram.botToken) this.app.secrets.set(botTokenRef, input.telegram.botToken.trim());
         cur.telegram = { chatId: String(input.telegram.chatId ?? '').slice(0, 64), botTokenRef, enabled: input.telegram.enabled !== false };
       }
+      if (input.email === null) cur.email = undefined;
+      else if (input.email && typeof input.email === 'object') {
+        const passRef = cur.email?.passRef ?? `email:${stationId}`;
+        if (typeof input.email.password === 'string' && input.email.password) this.app.secrets.set(passRef, input.email.password);
+        const port = Number(input.email.smtpPort);
+        cur.email = {
+          to: String(input.email.to ?? '').slice(0, 200),
+          smtpHost: String(input.email.smtpHost ?? '').slice(0, 200),
+          smtpPort: Number.isFinite(port) && port > 0 ? Math.floor(port) : 587,
+          secure: input.email.secure === true,
+          user: String(input.email.user ?? '').slice(0, 200),
+          from: String(input.email.from ?? input.email.user ?? '').slice(0, 200),
+          passRef,
+          enabled: input.email.enabled !== false,
+        };
+      }
       if (input.nowPlayingFile === null || input.nowPlayingFile === '') cur.nowPlayingFile = undefined;
       else if (typeof input.nowPlayingFile === 'string') cur.nowPlayingFile = validateExportPath(input.nowPlayingFile);
     } catch (err) {
@@ -105,10 +124,11 @@ export class NotificationService {
   /** Testmeldung an alle Webhooks/Telegram senden und Ergebnisse zurückgeben. */
   async testIntegrations(stationId: string): Promise<unknown> {
     const cfg = this.app.rt(stationId).data.integrations;
-    if (!cfg) return { webhooks: [], telegram: null };
+    if (!cfg) return { webhooks: [], telegram: null, email: null };
     const payload = { event: 'schedule_fired' as const, station: stationId, at: new Date().toISOString(), data: { test: true, label: 'AirDeck Testmeldung' } };
     const webhooks = await Promise.all(cfg.webhooks.map(async (w) => ({ id: w.id, ok: await this.app.notifier.deliverWebhook(w, payload) })));
     const telegram = cfg.telegram ? await this.app.notifier.deliverTelegram(cfg.telegram.chatId, cfg.telegram.botTokenRef, `✅ AirDeck ${stationId}: Testmeldung`) : null;
-    return { webhooks, telegram };
+    const email = cfg.email ? await this.app.notifier.deliverEmail(cfg.email, `✅ AnMaCha Cast ${stationId}: Testmeldung`) : null;
+    return { webhooks, telegram, email };
   }
 }

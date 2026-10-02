@@ -62,6 +62,18 @@ interface UsageState {
   recent: UsageEntry[];
 }
 
+export interface ProviderHealth {
+  consecutiveFailures: number;
+  lastError?: string;
+  lastErrorAt?: number;
+  /** Gesetzt, solange der Provider wegen wiederholter Fehler übersprungen wird (Fallback springt sofort weiter) */
+  quarantinedUntil?: number;
+}
+
+/** Wartezeit je aufeinanderfolgendem Fehler ab der dritten Fehlschlagsserie (davor noch kein Quarantäne-Grund). */
+const QUARANTINE_AFTER = 3;
+const QUARANTINE_STEPS_MS = [2, 5, 15, 30, 60].map((m) => m * 60_000);
+
 export interface TextTarget {
   providerId: string;
   model: string;
@@ -86,6 +98,7 @@ export class AiService {
   private readonly docs: DocStore;
   private settings: AiSettings;
   private readonly usage: UsageState;
+  private readonly health: Record<string, ProviderHealth>;
   private readonly getKey: (ref: string) => string | undefined;
   private readonly setKey: (ref: string, value: string | null) => void;
   private readonly log: (event: string, data: Record<string, unknown>) => void;
@@ -97,6 +110,8 @@ export class AiService {
     this.settings = { providers: [], pricing: [], budgets: { providers: {}, stations: {} }, currency: 'EUR', ...docs.get<Partial<AiSettings>>('ai', {}) };
     this.usage = { month: month(), byProvider: {}, byStation: {}, recent: [], ...docs.get<Partial<UsageState>>('ai-usage', {}) };
     docs.bind('ai-usage', () => this.usage);
+    this.health = docs.get<Record<string, ProviderHealth>>('ai-health', {});
+    docs.bind('ai-health', () => this.health);
     this.getKey = keys.get;
     this.setKey = keys.set;
     this.log = log;
@@ -230,6 +245,48 @@ export class AiService {
     return { ...this.usage, currency: this.settings.currency, budgets: this.settings.budgets };
   }
 
+  // ---------- Gesundheit / Quarantäne ----------
+
+  /** Nach wiederholten Fehlern in Folge wird ein Provider vorübergehend übersprungen, statt bei jedem
+   *  Sendeereignis erneut die Timeout-Strecke abzuwarten. Ein einzelner Erfolg hebt die Sperre sofort auf. */
+  private noteFailure(providerId: string, error: string): void {
+    const h = (this.health[providerId] ??= { consecutiveFailures: 0 });
+    h.consecutiveFailures++;
+    h.lastError = error;
+    h.lastErrorAt = Date.now();
+    if (h.consecutiveFailures >= QUARANTINE_AFTER) {
+      const step = Math.min(h.consecutiveFailures - QUARANTINE_AFTER, QUARANTINE_STEPS_MS.length - 1);
+      h.quarantinedUntil = Date.now() + QUARANTINE_STEPS_MS[step]!;
+      this.log('provider_quarantined', { providerId, untilMs: h.quarantinedUntil, consecutiveFailures: h.consecutiveFailures });
+    }
+    this.docs.touch('ai-health');
+  }
+
+  private noteSuccess(providerId: string): void {
+    if (!this.health[providerId]) return;
+    delete this.health[providerId];
+    this.docs.touch('ai-health');
+  }
+
+  private quarantined(providerId: string): boolean {
+    const h = this.health[providerId];
+    return !!h?.quarantinedUntil && h.quarantinedUntil > Date.now();
+  }
+
+  /** Gesundheitsübersicht aller konfigurierten Provider für das Verwaltungs-Dashboard. */
+  healthView(): { providerId: string; name: string; consecutiveFailures: number; lastError?: string; lastErrorAt?: number; quarantinedUntil?: number }[] {
+    return this.settings.providers.map((p) => {
+      const h = this.health[p.id];
+      return { providerId: p.id, name: p.name, consecutiveFailures: h?.consecutiveFailures ?? 0, lastError: h?.lastError, lastErrorAt: h?.lastErrorAt, quarantinedUntil: h?.quarantinedUntil };
+    });
+  }
+
+  /** Quarantäne/Fehlerzähler eines Providers manuell zurücksetzen (z. B. nach einem behobenen Problem). */
+  releaseProvider(providerId: string): void {
+    delete this.health[providerId];
+    this.docs.touch('ai-health');
+  }
+
   // ---------- Aufrufe mit Fallback ----------
 
   private usable(t: { providerId: string } | undefined, role: 'text' | 'voice'): ProviderConfig | null {
@@ -248,16 +305,22 @@ export class AiService {
         errors.push(`${p.name}: Budget ausgeschöpft`);
         continue;
       }
+      if (this.quarantined(p.id)) {
+        errors.push(`${p.name}: in Quarantäne nach wiederholten Fehlern`);
+        continue;
+      }
       const started = Date.now();
       try {
         const r = await chat(p, this.getKey(`ai:${p.id}`), { model: t.model, system, prompt, maxTokens: t.maxTokens ?? 600, temperature: t.temperature, timeoutMs }, this.fetchFn);
         const cost = this.cost(p.id, t.model, r);
         this.record({ at: started, stationId, providerId: p.id, model: t.model, kind: 'text', purpose, inputTokens: r.inputTokens, outputTokens: r.outputTokens, chars: 0, cost, ms: Date.now() - started, ok: true });
+        this.noteSuccess(p.id);
         return { ...r, providerId: p.id, model: t.model, cost };
       } catch (err) {
         const msg = (err as Error).message;
         errors.push(`${p.name}: ${msg}`);
         this.record({ at: started, stationId, providerId: p.id, model: t.model, kind: 'text', purpose, inputTokens: 0, outputTokens: 0, chars: 0, cost: 0, ms: Date.now() - started, ok: false, error: msg });
+        this.noteFailure(p.id, msg);
       }
     }
     throw new AiError('all_failed', errors.length ? errors.join(' · ') : 'Kein Text-Provider konfiguriert');
@@ -272,17 +335,23 @@ export class AiService {
         errors.push(`${p.name}: Budget ausgeschöpft`);
         continue;
       }
+      if (this.quarantined(p.id)) {
+        errors.push(`${p.name}: in Quarantäne nach wiederholten Fehlern`);
+        continue;
+      }
       const started = Date.now();
       const model = t.model ?? '';
       try {
         const r = await speak(p, this.getKey(`ai:${p.id}`), { text, voice: t.voice, model: t.model, speed: t.speed, timeoutMs }, this.fetchFn);
         const cost = this.cost(p.id, model, { chars: r.chars });
         this.record({ at: started, stationId, providerId: p.id, model, kind: 'voice', purpose, inputTokens: 0, outputTokens: 0, chars: r.chars, cost, ms: Date.now() - started, ok: true });
+        this.noteSuccess(p.id);
         return { ...r, providerId: p.id, cost };
       } catch (err) {
         const msg = (err as Error).message;
         errors.push(`${p.name}: ${msg}`);
         this.record({ at: started, stationId, providerId: p.id, model, kind: 'voice', purpose, inputTokens: 0, outputTokens: 0, chars: 0, cost: 0, ms: Date.now() - started, ok: false, error: msg });
+        this.noteFailure(p.id, msg);
       }
     }
     throw new AiError('all_failed', errors.length ? errors.join(' · ') : 'Kein Sprach-Provider konfiguriert');

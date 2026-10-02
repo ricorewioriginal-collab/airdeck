@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>AnMaCha Cast Demo – Anmeldung</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #10141c; color: #e8edf5; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 28rem; padding: 24px; text-align: center; }
+    h1 { font-size: 1.25rem; margin: 0 0 12px; }
+    p { margin: 0 0 12px; }
+    a { color: #6cc4ff; }
+    code { background: #1c2331; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>AnMaCha Cast Demo</h1>
+    <p id="msg">Du wirst automatisch angemeldet …</p>
+    <p id="manual" hidden>
+      <a href="/demo-login.html">Erneut versuchen</a> oder im <a href="/">Studio</a> von Hand anmelden:
+      Benutzername <code>demo</code>, Passwort <code>anmachacast-demo</code>.
+    </p>
+    <noscript><p>Bitte JavaScript aktivieren oder im <a href="/">Studio</a> mit Benutzername <code>demo</code> und Passwort <code>anmachacast-demo</code> anmelden.</p></noscript>
+  </main>
+  <script src="/demo-login.js"></script>
+</body>
+</html>
