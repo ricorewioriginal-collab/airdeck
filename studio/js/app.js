@@ -11,6 +11,9 @@ import { AudioEngine, DECKS, SilenceDetector, openMic, recordStream } from './au
 import { $, CATEGORY_STYLE, DAYS, clockTime, download, fmt, formDialog, h, hydrateIcons, icon, mediaTitle, run, status } from './ui.js';
 import { mountPlanning, mountRecorder } from './planning.js';
 import { mountMediaManagement } from './mediamgmt.js';
+import { mountJingles } from './jingles.js';
+import { mountNews } from './news.js';
+import { mountStats } from './stats.js';
 import { mountPlaylistManagement } from './playlists.js';
 import { mountHandbuch } from './handbuch.js';
 import { mountLautfm } from './lautfm.js';
@@ -400,6 +403,9 @@ async function loadStation() {
   views = {
     planning: mountPlanning($('view-planning'), ctx),
     mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, stationId: () => S.station.id, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),
+    jingles: mountJingles($('view-jingles'), { ...ctx, upload: (files, category) => upload(files, category) }),
+    news: mountNews($('view-news'), ctx),
+    stats: mountStats($('view-stats'), ctx),
     playlists: mountPlaylistManagement($('view-playlists'), ctx),
     handbuch: mountHandbuch($('view-handbuch')),
     recorder: mountRecorder($('view-recorder'), { ...ctx, stationId: () => S.station.id }),
@@ -768,6 +774,12 @@ function renderPlayout() {
   $('po-meta').textContent = (st?.running
     ? `${fmt(st.current?.positionMs)} / ${fmt(st.current?.durationMs)} · ${st.format.toUpperCase()} ${st.bitrateKbps} kbit/s${p.config.autostart ? ' · Autostart' : ''}`
     : p?.config ? `${p.config.format.toUpperCase()} ${p.config.bitrateKbps} kbit/s · Überblendung ${p.config.crossfadeMs / 1000}s` : '') + hls;
+  // Motion-Carts in Endlosschleife: Cart hervorheben, ∞-Knopf wird zum „Weiter“
+  const looping = new Set((st?.loops ?? []).filter((/** @type {any} */ l) => l.inLoop).map((/** @type {any} */ l) => l.mediaId));
+  for (const el of document.querySelectorAll('#carts [data-cart]')) {
+    const c = S.carts.find((x) => x.id === /** @type {HTMLElement} */ (el).dataset.cart);
+    el.classList.toggle('looping', !!c?.mediaId && looping.has(c.mediaId));
+  }
   /** @type {HTMLButtonElement} */ ($('po-start')).disabled = !p?.supported || !!st?.running;
   /** @type {HTMLButtonElement} */ ($('po-stop')).disabled = !st?.running;
   /** @type {HTMLButtonElement} */ ($('po-skip')).disabled = !st?.running;
@@ -785,6 +797,8 @@ async function editPlayout() {
   const eq = c.dsp?.eq ?? [];
   const presets = /** @type {Record<string, any>} */ ((await run(() => api.get('/dsp/presets'))) ?? {});
   const loud = /** @type {any} */ (await run(() => api.get(url('/media/loudness')))) ?? { total: 0, measured: 0, pending: 0 };
+  const f = c.fades ?? {};
+  const profiles = /** @type {any[]} */ (S.playout?.fadeProfiles ?? []);
   const v = await formDialog('Server-Automation 24/7', [
     { name: 'format', label: 'Format', value: c.format ?? 'mp3', options: [['mp3', `MP3${enc.mp3 ? '' : ' (nicht verfügbar)'}`], ['aac', 'AAC (ADTS)'], ['opus', `Ogg/Opus${enc.opus ? '' : ' (nicht verfügbar)'}`]] },
     { name: 'bitrateKbps', label: 'Bitrate (kbit/s)', type: 'number', value: c.bitrateKbps ?? 128 },
@@ -794,8 +808,15 @@ async function editPlayout() {
     { name: 'loudAuto', label: `Lautheit automatisch angleichen (EBU R128, gemessen: ${loud.measured}/${loud.total}${loud.pending ? `, ${loud.pending} in Arbeit` : ''})`, type: 'checkbox', value: c.loudness?.auto ?? true },
     { name: 'loudTarget', label: 'Ziel-Lautheit pro Titel (LUFS, üblich −16 … −14)', type: 'number', value: c.loudness?.targetLufs ?? -16 },
     { name: 'analyze', label: 'Bibliothek jetzt (neu) messen', type: 'checkbox', value: false, hint: 'Läuft im Hintergrund, ein Titel nach dem anderen' },
+    { name: 'fadeProfile', label: 'Überblend-Profil', value: f.profile ?? 'standard', options: [...profiles.map((p) => /** @type {[string,string]} */ ([p.id, p.label])), ['custom', 'Eigene Werte (unten)']], hint: 'Ein neu gewähltes Profil setzt alle Blendzeiten und die Kurve – danach frei anpassbar' },
     { name: 'crossfadeMs', label: 'Überblendung Musik (ms)', type: 'number', value: c.crossfadeMs ?? 3000 },
     { name: 'fadeInMs', label: 'Einblenden neuer Titel (ms)', type: 'number', value: c.fadeInMs ?? 0 },
+    { name: 'fadeStopMs', label: 'Fade-Out beim Stoppen eines Decks (ms)', type: 'number', value: f.stopMs ?? 1000 },
+    { name: 'fadeSkipMs', label: 'Fade-Out bei „Nächster Titel“ (ms)', type: 'number', value: f.skipMs ?? 1000 },
+    { name: 'fadeEndMs', label: 'Sendungsende: Ausblenden vor dem Stopp (ms)', type: 'number', value: f.endMs ?? 1500 },
+    { name: 'fadeFxMs', label: 'Jingles, IDs & Spots: Überblendung (ms, 0 = harter Schnitt)', type: 'number', value: f.fxMs ?? 0 },
+    { name: 'fadeShortSec', label: 'Kurze Titel unter … Sekunden nur 1 s blenden (0 = aus)', type: 'number', value: Math.round((f.shortTrackMs ?? 30000) / 1000) },
+    { name: 'fadeCurve', label: 'Überblend-Kurve', value: f.curve ?? 'equal', options: [['equal', 'Equal-Power (gleichbleibend laut, Radio-Standard)'], ['s', 'S-Kurve (weich an- und ausschwingend)'], ['linear', 'Linear']] },
     { name: 'monitor', label: `Programm über die Lautsprecher dieses PCs mithören${dev.monitor ? '' : ' (ffplay fehlt)'}`, type: 'checkbox', value: !!c.monitor },
     { name: 'inputDevice', label: 'Mikrofon / Line-In (am PC)', value: c.inputDevice ?? '', options: [['', '– kein Eingang –'], ...(dev.devices ?? []).map((/** @type {any} */ d) => /** @type {[string,string]} */ ([d.id, d.name]))] },
     { name: 'micGainDb', label: 'Mikrofon-Pegel (dB)', type: 'number', value: c.micGainDb ?? 0 },
@@ -819,8 +840,14 @@ async function editPlayout() {
   const dsp = chosen
     ? { ...chosen, preset: v.preset }
     : { eq: (dev.eqBands ?? []).map((/** @type {number} */ _, /** @type {number} */ i) => v[`eq${i}`] ?? 0), compressor: v.compressor, limiter: v.limiter, highpass: v.highpass, multiband: v.multiband, agc: v.agc, targetLufs: v.targetLufs ?? -16, preset: v.preset };
-  const { hlsEnabled, hlsBitrateKbps, hlsSegmentSeconds, ...rest } = v;
-  const body = { ...rest, dsp, loudness: { auto: v.loudAuto, targetLufs: v.loudTarget ?? -16 }, hls: { enabled: hlsEnabled, bitrateKbps: hlsBitrateKbps ?? 128, segmentSeconds: hlsSegmentSeconds ?? 6 } };
+  const { hlsEnabled, hlsBitrateKbps, hlsSegmentSeconds, fadeProfile, fadeStopMs, fadeSkipMs, fadeEndMs, fadeFxMs, fadeShortSec, fadeCurve, ...rest } = v;
+  // Neu gewähltes Profil setzt alle Blendwerte; sonst gelten die Felder (Profil → „eigene Werte“)
+  const prof = fadeProfile !== (f.profile ?? 'standard') ? profiles.find((p) => p.id === fadeProfile) : null;
+  const fades = prof
+    ? { profile: prof.id, stopMs: prof.stopMs, skipMs: prof.skipMs, endMs: prof.endMs, fxMs: prof.fxMs, shortTrackMs: prof.shortTrackMs, curve: prof.curve }
+    : { profile: fadeProfile || 'custom', stopMs: fadeStopMs ?? 1000, skipMs: fadeSkipMs ?? 1000, endMs: fadeEndMs ?? 1500, fxMs: fadeFxMs ?? 0, shortTrackMs: Math.max(0, (fadeShortSec ?? 30) * 1000), curve: fadeCurve || 'equal' };
+  if (prof) { rest.crossfadeMs = prof.crossfadeMs; rest.fadeInMs = prof.fadeInMs; }
+  const body = { ...rest, fades, dsp, loudness: { auto: v.loudAuto, targetLufs: v.loudTarget ?? -16 }, hls: { enabled: hlsEnabled, bitrateKbps: hlsBitrateKbps ?? 128, segmentSeconds: hlsSegmentSeconds ?? 6 } };
   if (v.analyze) {
     const a = await run(() => api.post(url('/media/loudness'), { force: true }));
     if (a) status(`${a.queued} Titel werden im Hintergrund gemessen`);
@@ -1018,6 +1045,7 @@ function buildDecks() {
         h('button', { class: 'deck-btn small', title: '10 Sekunden vor', onclick: () => skipDeck(id, 10_000) }, '+10'),
         h('button', { class: 'deck-btn', title: 'Nächsten Titel aus der Queue laden', onclick: () => loadFromQueue(id) }, icon('next', 14)),
         els.cue,
+        (els.advance = h('button', { class: 'deck-btn advance', hidden: true, title: 'Motion-Cart: Loop verlassen → Drop/Outro (Weiterschalten)', onclick: () => void deckCmd(id, 'advance') }, '∞ Weiter')),
         h('button', { class: 'deck-btn', title: 'Stop', onclick: () => { if (eng()) return void deckCmd(id, 'stop'); ensureAudio().decks[id].stop(); run(() => api.put(url(`/decks/${id}`), { status: 'cued' })); renderDeck(id); } }, icon('stop', 14)),
         h('button', { class: 'deck-btn', title: 'Auswerfen', onclick: () => { stopPfl(id); if (eng()) return void deckCmd(id, 'eject'); ensureAudio().decks[id].eject(); run(() => api.put(url(`/decks/${id}`), { mediaId: null, status: 'empty' })); renderDeck(id); } }, icon('eject', 14)),
         vol),
@@ -1212,7 +1240,8 @@ function renderCarts() {
       ondragstart: (/** @type {DragEvent} */ e) => m && e.dataTransfer?.setData(MIME.MEDIA, m.id),
     },
       h('div', { class: 'cart-top' }, h('span', { class: 'cart-ico' }, icon(ico, 16)), h('span', { class: 'cart-label' }, c.label),
-        m?.loopEndMs ? h('span', { class: 'cart-motion', title: 'Motion-Cart: hat einen markierten Loop-Bereich (Drop/Outro ab Loop-Ende)' }, '∞') : null),
+        m?.loopEndMs ? h('button', { class: 'cart-motion', title: 'Motion-Cart: läuft als Endlos-Loop bis zum Weiterschalten – Klick = Weiter (Drop/Outro)', 'aria-label': 'Loop weiterschalten',
+          onclick: (/** @type {Event} */ e) => { e.stopPropagation(); run(() => api.post(url('/playout/loop-advance'), { mediaId: m.id })); } }, '∞') : null),
       h('span', { class: 'cart-sub' }, m ? m.title : 'leer'),
       m ? h('span', { class: 'cart-dur' }, fmt(m.durationMs)) : null,
       m ? h('div', { class: 'cart-actions' },
@@ -1315,8 +1344,9 @@ async function editMedia(m) {
 
 /** @param {FileList|File[]} files */
 /** @returns {Promise<any[]>} angelegte Medien */
-async function upload(files) {
-  const cat = /** @type {HTMLSelectElement} */ ($('lib-cat')).value || 'music';
+/** @param {File[]|FileList} files @param {string} [category] feste Kategorie (z. B. Jingles & IDs), sonst Auswahl aus der Bibliothek */
+async function upload(files, category) {
+  const cat = category || /** @type {HTMLSelectElement} */ ($('lib-cat')).value || 'music';
   const selFolder = /** @type {HTMLSelectElement} */ ($('lib-folder')).value;
   files = [...files].filter((f) => AUDIO_FILE.test(f.name));
   if (!files.length) {
@@ -1862,7 +1892,7 @@ function bindStatic() {
   });
   const nav = (/** @type {Event} */ e) => {
     const b = /** @type {HTMLElement} */ (e.target).closest('button');
-    if (b?.dataset.view) showView(b.dataset.view);
+    if (b?.dataset.view) showView(b.dataset.view, b.dataset.sub);
     if (b?.dataset.jump) {
       showView('studio');
       const win = JUMP_TO_WIN[b.dataset.jump];
@@ -2116,14 +2146,37 @@ async function pollSystem() {
   }
 }
 
-/** @param {string} name */
-function showView(name) {
+// Unterpunkte der Seitenleiste (data-sub) zeigen auf Abschnitte innerhalb einer Ansicht: gesucht wird ein
+// Element mit data-sub, sonst die Panel-Überschrift anhand des Stichworts - und dorthin gescrollt.
+const SUB_HEADING = /** @type {Record<string, string>} */ ({
+  clock: 'Stunden-Uhr', events: 'Zeitplan', rotation: 'Rotation', news: 'Nachrichten', podcast: 'Podcast',
+  lifehacks: 'Lifehacks', recap: 'Rückblick', help: 'Hilfe',
+});
+
+/** @param {string} name @param {string} [sub] */
+function showView(name, sub) {
   currentView = name;
-  for (const b of document.querySelectorAll('#view-tabs button, #bottom-nav button')) b.setAttribute('aria-pressed', String(/** @type {HTMLElement} */ (b).dataset.view === name));
+  for (const b of document.querySelectorAll('#view-tabs button, #bottom-nav button')) {
+    const el = /** @type {HTMLElement} */ (b);
+    b.setAttribute('aria-pressed', String(el.dataset.view === name && (el.dataset.sub ?? '') === (sub ?? '')));
+  }
   $('sidebar').classList.remove('open');
-  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
-  if (name !== 'studio') views[name]?.show();
-  else void refreshStudioSchedule();
+  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'jingles', 'news', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'stats', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
+  if (name !== 'studio') {
+    const shown = views[name]?.show();
+    if (sub) void Promise.resolve(shown).then(() => jumpToSub($(`view-${name}`), sub));
+  } else void refreshStudioSchedule();
+}
+
+/** @param {HTMLElement} root @param {string} sub */
+function jumpToSub(root, sub) {
+  const want = (SUB_HEADING[sub] ?? sub).toLowerCase();
+  const target = root.querySelector(`[data-sub="${sub}"]`)
+    ?? [...root.querySelectorAll('h2, h3, .panel-head, .lf-head strong')].find((el) => (el.textContent ?? '').toLowerCase().includes(want))?.closest('.panel, section, .algo') ?? null;
+  if (!target) return;
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  target.classList.add('sub-flash');
+  setTimeout(() => target.classList.remove('sub-flash'), 1600);
 }
 
 // ---------- Liquidsoap ----------
@@ -2441,8 +2494,10 @@ function renderEngineDecks(force = false) {
       els.total.textContent = fmt(d?.durationMs ?? m?.durationMs);
       els.cover.replaceWith((els.cover = coverEl(m, 'cover', id)));
     }
+    const loop = st?.loops?.find((/** @type {any} */ l) => l.deck === id);
+    if (els.advance) { els.advance.hidden = !loop; els.advance.classList.toggle('active', !!loop?.inLoop); }
     const dur = d?.durationMs ?? null;
-    const pos = d ? d.positionMs + (state === 'playing' ? elapsed : 0) : 0;
+    const pos = d ? (loop?.inLoop ? d.positionMs : d.positionMs + (state === 'playing' ? elapsed : 0)) : 0;
     const rem = dur != null ? Math.max(0, dur - pos) : null;
     els.elapsed.textContent = d?.mediaId ? fmt(pos) : '0:00';
     els.remain.textContent = rem != null && d?.mediaId ? `-${fmt(rem)}` : '--:--';

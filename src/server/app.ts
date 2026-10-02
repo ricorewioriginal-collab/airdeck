@@ -27,7 +27,7 @@ import { fetchListeners } from './stats.ts';
 import { RelayTarget } from './relay.ts';
 import { detectFfmpeg, detectFfmpegAsync, generateTestTone, inputDeviceArgs, listInputDevices, type FfmpegInfo } from './ffmpeg.ts';
 import { IcyMetadataReader } from './icy.ts';
-import { DEFAULT_PLAYOUT, DSP_PRESETS, DeckError, EQ_BANDS, Playout } from './playout.ts';
+import { DEFAULT_FADES, DEFAULT_PLAYOUT, DSP_PRESETS, DeckError, EQ_BANDS, FADE_PROFILES, Playout, type FadeOptions } from './playout.ts';
 import { SyncManager } from './sync.ts';
 import { appVersion, type AirDeckConfig, type Mode } from './config.ts';
 import { HealthManager } from './health.ts';
@@ -348,6 +348,14 @@ export class AirDeckApp {
         samples.push({ at: now, ...acc });
         const cutoff = now - 48 * 3_600_000;
         while (samples.length && samples[0]!.at < cutoff) samples.shift();
+        // Stunden-Aggregat für die Hörerstatistik (7/30/90 Tage)
+        const hours = (rt.data.listenerHours ??= []);
+        const hourAt = now - (now % 3_600_000);
+        const last = hours[hours.length - 1];
+        if (last && last.at === hourAt) { last.sum += acc.listeners; last.n++; last.peak = Math.max(last.peak, acc.listeners); }
+        else hours.push({ at: hourAt, sum: acc.listeners, n: 1, peak: acc.listeners });
+        const hourCutoff = now - 100 * 24 * 3_600_000;
+        while (hours.length && hours[0]!.at < hourCutoff) hours.shift();
       }
     }
     // KI-Musikplanung alle 10 s prüfen (nur wenn aktiviert, sonst kostenlos)
@@ -1022,8 +1030,10 @@ export class AirDeckApp {
       rt.data.history.length = Math.min(rt.data.history.length, 200);
     }
     const log = (rt.data.playLog ??= []);
-    log.unshift({ at: Date.now(), mediaId, title: m.title, artist: m.artist, category: m.category });
-    if (log.length > 1000) log.length = 1000;
+    const active = this.engine.activeFor(stationId, '/live');
+    const live = !!active && active.type !== 'automation' && active.type !== 'backup_automation';
+    log.unshift({ at: Date.now(), mediaId, title: m.title, artist: m.artist, category: m.category, listeners: this.listenersNow(stationId), live });
+    if (log.length > 5000) log.length = 5000;
     this.changed();
     this.director.onTrack(stationId, m);
     // Externer Stream: ICY-Metadaten (StreamTitle) live mitlesen, statt nur den einmalig eingetragenen
@@ -1096,7 +1106,14 @@ export class AirDeckApp {
    */
   deckAction(p: Principal, stationId: string, deckId: string, action: string, body: Record<string, unknown>): unknown {
     if (!(DECK_IDS as readonly string[]).includes(deckId)) throw new AppError(404, 'not_found', 'Deck nicht gefunden');
-    if (!['load', 'play', 'pause', 'stop', 'eject', 'seek'].includes(action)) throw new AppError(404, 'not_found', 'Unbekannte Deck-Aktion');
+    if (!['load', 'play', 'pause', 'stop', 'eject', 'seek', 'advance'].includes(action)) throw new AppError(404, 'not_found', 'Unbekannte Deck-Aktion');
+    if (action === 'advance') {
+      // Motion-Cart im Deck: Loop verlassen → Drop/Outro
+      const po = this.playouts.get(stationId);
+      const mediaId = po?.playout.status().decks.find((d) => d.id === deckId)?.mediaId;
+      if (po && mediaId) po.playout.advanceLoop(mediaId);
+      return this.playoutView(stationId);
+    }
     let po = this.playouts.get(stationId);
     if (!po && (action === 'load' || action === 'play')) {
       this.startPlayout(p, stationId, {});
@@ -1132,7 +1149,8 @@ export class AirDeckApp {
     return {
       supported: !!this.ffmpeg,
       ffmpeg: this.ffmpeg ? { version: this.ffmpeg.version, encoders: this.ffmpeg.encoders, probe: !!this.ffmpeg.ffprobe } : null,
-      config: cfg,
+      config: { ...cfg, fades: { ...DEFAULT_FADES, ...cfg.fades } },
+      fadeProfiles: Object.entries(FADE_PROFILES).map(([id, p]) => ({ id, ...p })),
       status: this.playouts.get(stationId)?.playout.status() ?? null,
     };
   }
@@ -1223,12 +1241,13 @@ export class AirDeckApp {
     return this.playoutView(stationId);
   }
 
-  stopPlayout(p: Principal, stationId: string): unknown {
+  /** Sendungsende: Titel über den eingestellten Fade ausblenden (fades.endMs), dann stoppen. */
+  async stopPlayout(p: Principal, stationId: string): Promise<unknown> {
     const rt = this.rt(stationId);
     const po = this.playouts.get(stationId);
     if (po) {
       this.playouts.delete(stationId);
-      po.playout.stop();
+      await po.playout.fadeOutAndStop();
       this.engine.setHealth(po.source.id, true);
       this.silenced.delete(stationId);
       this.applyProgram(stationId, po.source.target, 'bus_stopped');
@@ -1257,6 +1276,22 @@ export class AirDeckApp {
   }
 
   /** Schnelltrigger: Titel einer Kategorie (Rotation) über der Musik oder als Nächstes. */
+  /** Motion-Carts: Endlosschleife verlassen (alle oder ein Titel) → Drop/Outro läuft nahtlos weiter. */
+  advanceLoop(stationId: string, mediaId?: string): { advanced: number } {
+    const po = this.playouts.get(stationId);
+    if (!po) throw new AppError(409, 'not_running', 'Server-Playout läuft nicht');
+    const advanced = po.playout.advanceLoop(mediaId);
+    if (advanced) this.audit.write({ kind: 'playout', event: 'loop_advanced', stationId, mediaId, advanced });
+    return { advanced };
+  }
+
+  /** Hörer jetzt: Summe über alle verbundenen Ausgänge des Senders. */
+  listenersNow(stationId: string): number {
+    let n = 0;
+    for (const o of this.outputs.values()) if (o.cfg.stationId === stationId && o.state.status === 'connected') n += o.state.listeners ?? 0;
+    return n;
+  }
+
   quickTrigger(stationId: string, category: string, mode?: string): MediaItem {
     const rt = this.rt(stationId);
     if (!(MEDIA_CATEGORIES as readonly string[]).includes(category)) throw new AppError(400, 'invalid_category', 'Unbekannte Kategorie');
@@ -1310,6 +1345,19 @@ export class AirDeckApp {
     cur.bitrateKbps = num(input.bitrateKbps, 32, 320) ?? cur.bitrateKbps;
     cur.crossfadeMs = num(input.crossfadeMs, 0, 15000) ?? cur.crossfadeMs;
     cur.fadeInMs = num(input.fadeInMs, 0, 10000) ?? cur.fadeInMs ?? 0;
+    if (input.fades && typeof input.fades === 'object') {
+      const f = input.fades as Partial<FadeOptions>;
+      const prev = cur.fades ?? DEFAULT_FADES;
+      cur.fades = {
+        profile: typeof f.profile === 'string' ? f.profile.slice(0, 40) : prev.profile,
+        stopMs: num(f.stopMs, 0, 15000) ?? prev.stopMs,
+        skipMs: num(f.skipMs, 0, 15000) ?? prev.skipMs,
+        endMs: num(f.endMs, 0, 30000) ?? prev.endMs,
+        fxMs: num(f.fxMs, 0, 5000) ?? prev.fxMs,
+        shortTrackMs: num(f.shortTrackMs, 0, 300000) ?? prev.shortTrackMs,
+        curve: f.curve === 'linear' || f.curve === 'equal' || f.curve === 's' ? f.curve : prev.curve,
+      };
+    }
     cur.micGainDb = num(input.micGainDb, -20, 20) ?? cur.micGainDb ?? 0;
     cur.duckDb = num(input.duckDb, -40, 0) ?? cur.duckDb;
     cur.silenceThresholdDb = num(input.silenceThresholdDb, -90, -10) ?? cur.silenceThresholdDb;

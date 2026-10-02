@@ -70,12 +70,52 @@ export interface PlayoutOptions {
   silenceMs: number;
   /** Überblendzeit beim Wechsel zwischen Automation und Live-Quelle in ms */
   liveFadeMs?: number;
+  /** Überblendung & Fades (Profil wie "Radio – knackig", Kurve, Einzelzeiten) */
+  fades?: FadeOptions;
+}
+
+export type FadeCurve = 'linear' | 'equal' | 's';
+
+export interface FadeOptions {
+  /** Name des gewählten Profils (nur Anzeige; "custom" = frei eingestellt) */
+  profile: string;
+  /** Ausblenden beim Stoppen/Auswerfen eines Decks */
+  stopMs: number;
+  /** Ausblenden bei "Nächster Titel"/Skip und beim Laden über einen laufenden Titel */
+  skipMs: number;
+  /** Ausblenden am Sendungsende (Playout stoppen) */
+  endMs: number;
+  /** Überblendung für Jingles/IDs/Sweeper/Spots (0 = harter Schnitt) */
+  fxMs: number;
+  /** Titel kürzer als das blenden nur 1 s (damit kurze Elemente nicht halb im Übergang verschwinden) */
+  shortTrackMs: number;
+  curve: FadeCurve;
+}
+
+export const FADE_PROFILES: Record<string, Omit<FadeOptions, 'profile'> & { label: string; crossfadeMs: number; fadeInMs: number }> = {
+  standard: { label: 'Standard', crossfadeMs: 3000, fadeInMs: 0, stopMs: 1000, skipMs: 1000, endMs: 1500, fxMs: 0, shortTrackMs: 30_000, curve: 'equal' },
+  soft: { label: 'Radio – weich', crossfadeMs: 5000, fadeInMs: 500, stopMs: 1500, skipMs: 1500, endMs: 3000, fxMs: 500, shortTrackMs: 30_000, curve: 's' },
+  crisp: { label: 'Radio – knackig', crossfadeMs: 2000, fadeInMs: 300, stopMs: 1000, skipMs: 1000, endMs: 1500, fxMs: 300, shortTrackMs: 30_000, curve: 'equal' },
+  club: { label: 'Club / Dance', crossfadeMs: 8000, fadeInMs: 0, stopMs: 2000, skipMs: 2000, endMs: 4000, fxMs: 200, shortTrackMs: 45_000, curve: 'equal' },
+  talk: { label: 'Talk & News', crossfadeMs: 1000, fadeInMs: 0, stopMs: 500, skipMs: 500, endMs: 1000, fxMs: 0, shortTrackMs: 20_000, curve: 'linear' },
+  ambient: { label: 'Ambient / Chill', crossfadeMs: 10_000, fadeInMs: 2000, stopMs: 3000, skipMs: 3000, endMs: 6000, fxMs: 1000, shortTrackMs: 60_000, curve: 's' },
+  seamless: { label: 'Nahtlos (kein Fade)', crossfadeMs: 0, fadeInMs: 0, stopMs: 50, skipMs: 50, endMs: 200, fxMs: 0, shortTrackMs: 0, curve: 'linear' },
+};
+
+export const DEFAULT_FADES: FadeOptions = { profile: 'standard', stopMs: 1000, skipMs: 1000, endMs: 1500, fxMs: 0, shortTrackMs: 30_000, curve: 'equal' };
+
+/** Rampenform: Fortschritt 0..1 → Anteil der Pegeländerung. Equal-Power hält die Summe zweier Blenden hörbar gleich laut. */
+export function fadeShape(curve: FadeCurve, p: number, rising: boolean): number {
+  const x = Math.max(0, Math.min(1, p));
+  if (curve === 'equal') return rising ? Math.sin((x * Math.PI) / 2) : 1 - Math.cos((x * Math.PI) / 2);
+  if (curve === 's') return x * x * (3 - 2 * x);
+  return x;
 }
 
 export const DEFAULT_PLAYOUT: PlayoutOptions = {
   format: 'mp3', bitrateKbps: 128, crossfadeMs: 3000, duckDb: -10, silenceThresholdDb: -50, silenceMs: 10_000,
   fadeInMs: 0, dsp: { eq: EQ_BANDS.map(() => 0), compressor: false, limiter: true }, monitor: false, inputDevice: '', micGainDb: 0,
-  mp3Mode: 'cbr', mp3Quality: 2, loudness: { auto: true, targetLufs: -16 },
+  mp3Mode: 'cbr', mp3Quality: 2, loudness: { auto: true, targetLufs: -16 }, fades: { ...DEFAULT_FADES },
 };
 
 /**
@@ -201,6 +241,8 @@ class LiveChannel {
 }
 const MAX_BUFFER_BYTES = 10 * SAMPLE_RATE * BYTES_PER_FRAME; // 10 s Vorlauf pro Stimme
 const RESUME_BYTES = 5 * SAMPLE_RATE * BYTES_PER_FRAME;
+/** Längster Loop-Bereich eines Motion-Carts, der im Speicher gehalten wird (2 min ≈ 23 MB PCM). */
+const MAX_LOOP_MS = 120_000;
 
 class Voice {
   readonly media: MediaItem;
@@ -224,8 +266,21 @@ class Voice {
   lvSum = 0;
   lvN = 0;
   lvPeak = 0;
+  /**
+   * Motion-Cart (Endlos-Loop mit Weiterschalten): Frame (relativ zum Start der Stimme), an dem der
+   * Loop-Bereich endet; null = kein Loop. Solange `looping`, wird am Loop-Ende der bereits gespielte
+   * Bereich aus `loopPcm` nahtlos wiederholt; der Decoder bleibt an Loop-Ende stehen (Puffer voll →
+   * pausiert). advance() setzt `looping` auf false: der nächste Mixer-Block liest wieder aus dem Decoder-
+   * Puffer, der exakt am Loop-Ende steht - Drop/Outro folgt sample-genau ohne Neustart von ffmpeg.
+   */
+  readonly loopEndFrame: number | null;
+  looping = false;
+  loopCount = 0;
+  private loopChunks: Int16Array[] = [];
+  private loopPcm: Int16Array | null = null;
+  private loopOff = 0;
 
-  constructor(media: MediaItem, kind: 'track' | 'cart', duck: boolean, gainDb = media.gainDb ?? 0, startMs = media.cueInMs ?? 0) {
+  constructor(media: MediaItem, kind: 'track' | 'cart', duck: boolean, gainDb = media.gainDb ?? 0, startMs = media.cueInMs ?? 0, loop = false) {
     this.media = media;
     this.kind = kind;
     this.duck = duck;
@@ -233,6 +288,59 @@ class Voice {
     this.startMs = Math.max(0, startMs);
     const end = media.cueOutMs ?? media.durationMs;
     this.totalFrames = end != null ? Math.max(0, msToFrames(end - this.startMs)) : null;
+    const loopMs = media.loopEndMs != null ? media.loopEndMs - this.startMs : 0;
+    this.loopEndFrame = loop && loopMs >= 100 && loopMs <= MAX_LOOP_MS && (end == null || media.loopEndMs! < end) ? msToFrames(loopMs) : null;
+    this.looping = this.loopEndFrame != null;
+  }
+
+  /** Steht die Stimme gerade in der Endlosschleife (Loop-Ende erreicht, wiederholt)? */
+  get inLoop(): boolean {
+    return this.looping && this.loopEndFrame != null && this.played >= this.loopEndFrame;
+  }
+
+  /**
+   * Nächsten Block lesen - mit Loop-Logik. Vor dem Loop-Ende kommt alles aus dem Decoder und wird für
+   * die Wiederholung mitgeschnitten; ab Loop-Ende wird der Mitschnitt zyklisch ausgegeben, `played`
+   * bleibt stehen (Anzeige/Restzeit bleiben am Loop-Ende).
+   */
+  readBlock(want: number): { samples: Int16Array; got: number; fromDecoder: boolean } {
+    if (this.looping && this.loopEndFrame != null) {
+      if (this.played < this.loopEndFrame) {
+        const r = this.fifo.read(Math.min(want, this.loopEndFrame - this.played));
+        if (r.got > 0) this.loopChunks.push(r.got * CHANNELS === r.samples.length ? r.samples : r.samples.subarray(0, r.got * CHANNELS));
+        return { ...r, fromDecoder: true };
+      }
+      if (!this.loopPcm) {
+        let n = 0;
+        for (const c of this.loopChunks) n += c.length;
+        this.loopPcm = new Int16Array(n);
+        let o = 0;
+        for (const c of this.loopChunks) { this.loopPcm.set(c, o); o += c.length; }
+        this.loopChunks = [];
+        this.loopOff = 0;
+      }
+      const samples = new Int16Array(want * CHANNELS);
+      if (this.loopPcm.length === 0) { this.looping = false; return this.readBlock(want); }
+      let filled = 0;
+      while (filled < samples.length) {
+        if (this.loopOff >= this.loopPcm.length) { this.loopOff = 0; this.loopCount++; }
+        const take = Math.min(samples.length - filled, this.loopPcm.length - this.loopOff);
+        samples.set(this.loopPcm.subarray(this.loopOff, this.loopOff + take), filled);
+        filled += take;
+        this.loopOff += take;
+      }
+      return { samples, got: want, fromDecoder: false };
+    }
+    return { ...this.fifo.read(want), fromDecoder: true };
+  }
+
+  /** Weiterschalten: Schleife verlassen, ab dem nächsten Block folgt Drop/Outro aus dem Decoder. */
+  advance(): boolean {
+    if (!this.looping) return false;
+    this.looping = false;
+    this.loopPcm = null;
+    this.loopChunks = [];
+    return true;
   }
 
   /** aktuelle Position in der Datei (ms) */
@@ -251,9 +359,17 @@ class Voice {
     return this.fadeTo === 0 && this.fadeFramesLeft === 0;
   }
 
-  fade(to: number, frames: number): void {
+  /** Startpegel und Gesamtlänge der laufenden Blende, damit die Rampe geformt werden kann (Kurve). */
+  fadeFrom = 0;
+  fadeTotal = 0;
+  fadeCurve: FadeCurve = 'linear';
+
+  fade(to: number, frames: number, curve: FadeCurve = 'linear'): void {
     this.fadeTo = to;
-    this.fadeFramesLeft = Math.max(1, frames);
+    this.fadeFrom = this.gain;
+    this.fadeTotal = Math.max(1, frames);
+    this.fadeFramesLeft = this.fadeTotal;
+    this.fadeCurve = curve;
   }
 
   stop(): void {
@@ -300,6 +416,8 @@ export interface PlayoutStatus {
   fading: { mediaId: string; title: string; deck: DeckId } | null;
   /** Die vier Decks der Engine (A/B: Automation und Hand, C/D: nur Hand) */
   decks: EngineDeckView[];
+  /** Motion-Carts in Endlosschleife (Weiterschalten über advanceLoop) */
+  loops?: { mediaId: string; title: string; kind: 'track' | 'cart'; deck: DeckId | null; loopCount: number; inLoop: boolean }[];
   carts: number;
   startedAt: number | null;
   underruns: number;
@@ -489,7 +607,7 @@ export class Playout {
   /** Stoppen (kurz ausblenden) und an den Anfang zurück. */
   deckStop(id: string): void {
     const d = this.deck(id);
-    if (d.voice) this.releaseVoice(d, 250);
+    if (d.voice) this.releaseVoice(d, this.fades().stopMs);
     if (!d.media) return;
     d.state = 'cued';
     d.posMs = d.media.cueInMs ?? 0;
@@ -498,7 +616,7 @@ export class Playout {
 
   deckEject(id: string): void {
     const d = this.deck(id);
-    if (d.voice) this.releaseVoice(d, 250);
+    if (d.voice) this.releaseVoice(d, this.fades().stopMs);
     d.media = null;
     d.state = 'empty';
     d.posMs = 0;
@@ -522,7 +640,8 @@ export class Playout {
 
   private startDeckVoice(d: EngineDeck, fromMs: number, auto: boolean): Voice {
     const m = d.media!;
-    const v = new Voice(m, 'track', false, trackGainDb(m, this.opts.loudness, this.opts.dsp.limiter), fromMs);
+    // Loop nur von Hand gestartete Decks: die Automation darf nie in einer Endlosschleife hängen bleiben.
+    const v = new Voice(m, 'track', false, trackGainDb(m, this.opts.loudness, this.opts.dsp.limiter), fromMs, !auto);
     v.deck = d.id;
     v.auto = auto;
     d.voice = v;
@@ -540,7 +659,23 @@ export class Playout {
     d.voice = null;
     if (!v) return;
     v.deck = null;
-    v.fade(0, msToFrames(fadeMs));
+    v.fade(0, msToFrames(fadeMs), this.fades().curve);
+  }
+
+  private fades(): FadeOptions {
+    return this.opts.fades ?? DEFAULT_FADES;
+  }
+
+  /**
+   * Sendungsende: laufende Titel über die eingestellte Zeit ausblenden, dann erst stoppen - statt des
+   * harten Schnitts von stop().
+   */
+  async fadeOutAndStop(): Promise<void> {
+    const ms = this.fades().endMs;
+    if (!this.running || ms <= 0) { this.stop(); return; }
+    for (const v of this.voices) if (v.kind === 'track' && v.fadeTo !== 0) v.fade(0, msToFrames(ms), this.fades().curve);
+    await new Promise((r) => setTimeout(r, ms + 50));
+    this.stop();
   }
 
   /**
@@ -646,12 +781,12 @@ export class Playout {
     for (const id of ['A', 'B'] as const) {
       const d = this.decks[id];
       if (d === target || !d.voice) continue;
-      this.releaseVoice(d, 500);
+      this.releaseVoice(d, this.fades().skipMs);
       d.state = d.auto ? 'empty' : 'cued';
       if (d.auto) d.media = null;
       d.posMs = d.media?.cueInMs ?? 0;
     }
-    if (target.voice) this.releaseVoice(target, 500);
+    if (target.voice) this.releaseVoice(target, this.fades().skipMs);
     target.media = media;
     this.lastAutoDeck = target.id as 'A' | 'B';
     this.startDeckVoice(target, media.cueInMs ?? 0, false);
@@ -709,7 +844,22 @@ export class Playout {
 
   playCart(media: MediaItem, duck: boolean): void {
     if (!this.running) return;
-    this.startVoice(new Voice(media, 'cart', duck, trackGainDb(media, this.opts.loudness, this.opts.dsp.limiter)));
+    this.startVoice(new Voice(media, 'cart', duck, trackGainDb(media, this.opts.loudness, this.opts.dsp.limiter), media.cueInMs ?? 0, true));
+  }
+
+  /** Laufende Endlos-Loops (Motion-Carts) - für Anzeige und „Weiter“-Knopf. */
+  loops(): { mediaId: string; title: string; kind: 'track' | 'cart'; deck: DeckId | null; loopCount: number; inLoop: boolean }[] {
+    return this.voices.filter((v) => v.looping && v.fadeTo !== 0).map((v) => ({ mediaId: v.media.id, title: v.media.title, kind: v.kind, deck: v.deck, loopCount: v.loopCount, inLoop: v.inLoop }));
+  }
+
+  /**
+   * Weiterschalten (Motion Mixes: Loop → Drop/Outro). Ohne mediaId alle laufenden Loops, mit mediaId nur
+   * diesen Titel. Liefert die Zahl der weitergeschalteten Stimmen.
+   */
+  advanceLoop(mediaId?: string): number {
+    let n = 0;
+    for (const v of this.voices) if ((!mediaId || v.media.id === mediaId) && v.advance()) n++;
+    return n;
   }
 
   status(): PlayoutStatus {
@@ -739,6 +889,7 @@ export class Playout {
         auto: d.auto,
       })),
       carts: this.voices.filter((v) => v.kind === 'cart').length,
+      loops: this.loops(),
       startedAt: this.startedAt,
       underruns: this.underruns,
       micOn: this.micOn,
@@ -973,7 +1124,11 @@ export class Playout {
     // Musik, externe Stream-URLs (category 'stream') und Moderationslinks (category 'voice_track')
     // sollen sauber ein-/ausgeblendet werden, nicht hart geschnitten. Jingles/Sweeper/Station-IDs/News/
     // Werbung bleiben bewusst beim harten Schnitt (knackige Kennung), außer per Titel (segueMs) gesetzt.
-    const base = m.segueMs ?? (m.category === 'music' || m.category === 'stream' || m.category === 'voice_track' ? this.opts.crossfadeMs : 0);
+    const f = this.fades();
+    const musical = m.category === 'music' || m.category === 'stream' || m.category === 'voice_track';
+    let base = m.segueMs ?? (musical ? this.opts.crossfadeMs : f.fxMs);
+    // Kurze Titel (Jingles, Ansagen) nur 1 s blenden, sonst verschwindet die Hälfte im Übergang.
+    if (m.segueMs == null && total && f.shortTrackMs > 0 && framesToMs(total) < f.shortTrackMs) base = Math.min(base, 1000);
     return msToFrames(total ? Math.min(base, framesToMs(total) / 2) : base);
   }
 
@@ -1001,14 +1156,15 @@ export class Playout {
     for (const v of this.voices) {
       let want = due;
       if (v.remainingFrames != null) want = Math.min(want, v.remainingFrames);
-      const { samples, got } = v.fifo.read(want);
-      if (got < want && !v.decoderDone) this.underruns++;
+      const { samples, got, fromDecoder } = v.readBlock(want);
+      if (fromDecoder && got < want && !v.decoderDone && !v.inLoop) this.underruns++;
       const from = v.gain;
       let to = v.gain;
       if (v.fadeTo != null && v.fadeFramesLeft > 0) {
         const step = Math.min(due, v.fadeFramesLeft);
-        to = from + ((v.fadeTo - from) * step) / v.fadeFramesLeft;
         v.fadeFramesLeft -= step;
+        const p = 1 - v.fadeFramesLeft / v.fadeTotal;
+        to = v.fadeFrom + (v.fadeTo - v.fadeFrom) * fadeShape(v.fadeCurve, p, v.fadeTo > v.fadeFrom);
         v.gain = to;
       }
       const k = v.kind === 'track' ? 1 : 0;
@@ -1019,7 +1175,7 @@ export class Playout {
         for (let i = 0; i < samples.length; i++) v.lvSum += samples[i]! * samples[i]! * g * g;
         v.lvN += samples.length;
       }
-      v.played += got;
+      if (fromDecoder) v.played += got;
       if (v.proc && v.fifo.bytes < RESUME_BYTES) v.proc.stdout?.resume();
     }
     this.mixLive(bus, due);
@@ -1096,7 +1252,7 @@ export class Playout {
       this.skipRequested = false;
       if (cur?.deck) {
         const d = this.decks[cur.deck];
-        this.releaseVoice(d, 500);
+        this.releaseVoice(d, this.fades().skipMs);
         d.state = d.auto ? 'empty' : 'cued';
         if (d.auto) d.media = null;
         d.posMs = d.media?.cueInMs ?? 0;
