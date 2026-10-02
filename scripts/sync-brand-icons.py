@@ -23,19 +23,19 @@ def square(source: Image.Image, size: int, fill: float = 0.90) -> Image.Image:
 
 
 for platform in ("windows", "server"):
-    artwork = symbol(f"airdeck-{platform}.png")
+    artwork = symbol(f"anmachacast-{platform}.png")
     square(artwork, 256).save(
-        ASSETS / f"airdeck-{platform}.ico",
+        ASSETS / f"anmachacast-{platform}.ico",
         format="ICO",
         sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
     )
 
-general = symbol("airdeck-gesamt.png")
+general = symbol("anmachacast-gesamt.png")
 for size in (32, 180, 192):
     square(general, size).save(ROOT / "studio" / "icons" / f"icon-{size}.png")
 square(general, 512, fill=0.96).save(ROOT / "studio" / "icons" / "icon-512.png")
 
-android = symbol("airdeck-android.png")
+android = symbol("anmachacast-android.png")
 for folder in (ROOT / "apps" / "android" / "app" / "src" / "main" / "res").glob("mipmap-*dpi"):
     for filename in ("ic_launcher.png", "ic_launcher_round.png", "ic_launcher_foreground.png"):
         target = folder / filename

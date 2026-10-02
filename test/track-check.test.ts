@@ -11,7 +11,7 @@ import type { MediaItem } from '../src/core/automation.ts';
 const ff = detectFfmpeg(process.cwd());
 
 test('Track-Check mit echten Dateien: Stille, Übersteuerung, Einblendung, stille Datei', { skip: !ff && 'ffmpeg fehlt', timeout: 60_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-tc-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-tc-'));
   const gen = (name: string, args: string[]) => {
     execFileSync(ff!.ffmpeg, ['-loglevel', 'error', '-y', ...args, join(dir, name)]);
     return join(dir, name);

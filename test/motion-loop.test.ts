@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 import type { PlayoutStatus } from '../src/server/playout.ts';
 
@@ -39,7 +39,7 @@ test('Motion-Cart loopt bis zum Weiterschalten, Automation loopt nie', { skip: !
   const ice = createServer((req, res) => { if (req.url?.startsWith('/admin/')) return void res.end('ok'); res.writeHead(200); res.flushHeaders(); req.on('data', () => {}); });
   await new Promise<void>((r) => ice.listen(0, '127.0.0.1', r));
   const port = (ice.address() as { port: number }).port;
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
   try {
     wav(join(app.mediaDir, 'main', 'bed.wav'), 3, 440);
     wav(join(app.mediaDir, 'main', 'song.wav'), 3, 550);

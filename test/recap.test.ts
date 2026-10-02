@@ -5,12 +5,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { Notifier } from '../src/server/notify.ts';
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-recap-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-recap-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   return { dir, app, done: () => { app.shutdown(); rmSync(dir, { recursive: true, force: true }); } };
 }
 

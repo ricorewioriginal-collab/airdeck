@@ -5,7 +5,7 @@ import { createHmac } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { alertText, Notifier, sign, validateExportPath, validateWebhookUrl } from '../src/server/notify.ts';
 
 const admin = { id: 'admin', tokenId: 't', roles: ['admin'], stationIds: ['*'], scopes: ['*'] };
@@ -26,19 +26,19 @@ test('Validierung und Alarmtexte', () => {
 });
 
 test('Webhook (signiert), Now-Playing-Datei und Stream-Ereignisse', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-notify-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-notify-'));
   const got: { event: string; sig?: string; body: string }[] = [];
   const hook = createServer((req, res) => {
     let body = '';
     req.on('data', (d) => (body += d));
     req.on('end', () => {
-      got.push({ event: String(req.headers['x-airdeck-event']), sig: req.headers['x-airdeck-signature'] as string, body });
+      got.push({ event: String(req.headers['x-anmacha-cast-event']), sig: req.headers['x-anmacha-cast-signature'] as string, body });
       res.end('ok');
     });
   });
   await new Promise<void>((r) => hook.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${(hook.address() as { port: number }).port}/hook`;
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     app.svc.media.addMedia('main', { id: 'a', title: 'Believer', artist: 'Imagine Dragons', category: 'music', file: 'a.mp3', durationMs: 1000, addedAt: 0 });
     const npFile = join(dir, 'export', 'nowplaying.txt');
@@ -75,8 +75,8 @@ test('Webhook (signiert), Now-Playing-Datei und Stream-Ereignisse', async () => 
 });
 
 test('E-Mail-Alarm: Konfiguration, Secret-Handling und Versand (SMTP gemockt)', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-mail-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-mail-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     const cfg = app.svc.notifications.setIntegrations(admin, 'main', {
       email: { to: 'alarm@example.com', smtpHost: 'smtp.example.com', smtpPort: 587, secure: false, user: 'bot@example.com', password: 'geheim', from: 'bot@example.com' },
@@ -107,8 +107,8 @@ test('E-Mail-Alarm: Konfiguration, Secret-Handling und Versand (SMTP gemockt)', 
 });
 
 test('Notfall-Ordner wird genutzt, wenn nichts anderes spielt', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-em-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-em-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   try {
     app.svc.media.addMedia('main', { id: 'n1', title: 'Notfall', artist: '', category: 'jingle', file: 'n.mp3', durationMs: 1000, addedAt: 0, folder: 'Notfall' });
     app.savePlayoutConfig('main', { emergencyFolder: 'Notfall' });

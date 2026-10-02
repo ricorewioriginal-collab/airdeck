@@ -9,8 +9,8 @@ function fsOf(files: Record<string, string>): Pick<ResolveInput, 'exists' | 'rea
 const base = { root: '/opt/ad', packaged: true, desktop: true, platform: 'linux' as const, home: '/home/u' };
 
 test('parseConf: Abschnitte, Kommentare, Anführungszeichen, BOM', () => {
-  const c = parseConf('\uFEFF# x\nmode = hybrid\n[network]\nport=9000\n; y\n[paths]\ndata = "D:\\\\AirDeck data"\nkaputt\n');
-  assert.deepEqual(c, { mode: 'hybrid', 'network.port': '9000', 'paths.data': 'D:\\\\AirDeck data' });
+  const c = parseConf('\uFEFF# x\nmode = hybrid\n[network]\nport=9000\n; y\n[paths]\ndata = "D:\\\\AnMaChaCast data"\nkaputt\n');
+  assert.deepEqual(c, { mode: 'hybrid', 'network.port': '9000', 'paths.data': 'D:\\\\AnMaChaCast data' });
 });
 
 test('ohne airdeck.conf: bisherige Orte und Verhalten bleiben', () => {

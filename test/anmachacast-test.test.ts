@@ -1,4 +1,4 @@
-// Masterprompt V1 Beta, P3 #31 (AirDeckCast-Teststream "AIRDECKCAST TEST"): bisher gab es keine Möglichkeit,
+// Masterprompt V1 Beta, P3 #31 (AnMaCha-Cast-Teststream "ANMACHACAST TEST"): bisher gab es keine Möglichkeit,
 // die komplette Ausliefer-Kette (Hauptstream + Zusatzprofile + HLS) auf einen Blick zu prüfen, ohne die
 // Automation zu unterbrechen. "Ausgang zeigt verbunden" bedeutet nicht "es kommen wirklich Daten an" -
 // dieser Test prüft echten Datenzuwachs an jedem Ziel während eines kurzen, echt hörbaren Testtons.
@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 
 const ff = detectFfmpeg(process.cwd());
@@ -46,13 +46,13 @@ function fakeIcecast(): { server: import('node:http').Server; port: Promise<numb
 }
 
 test(
-  'AirDeckCast-Teststream: Testton läuft über den Sendebus, ohne die Automation zu unterbrechen, und wird an Hauptstream, Zusatzprofil und HLS auf echten Datenzuwachs geprüft',
+  'AnMaCha-Cast-Teststream: Testton läuft über den Sendebus, ohne die Automation zu unterbrechen, und wird an Hauptstream, Zusatzprofil und HLS auf echten Datenzuwachs geprüft',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-cast-test-'));
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-cast-test-'));
     const main = fakeIcecast();
     const mobile = fakeIcecast();
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 30, 440);
       app.svc.media.addMedia('main', { id: 'a.wav', title: 'a', artist: 'A', category: 'music', file: 'a.wav', durationMs: null, addedAt: 0 });
@@ -71,7 +71,7 @@ test(
       await until(() => app.engine.get(auto.id)?.state === 'active');
       await until(() => (app.nowPlaying('main') as { mediaId: string } | null)?.mediaId === 'a.wav');
 
-      const report = await app.runAirDeckCastTest('main');
+      const report = await app.runAnMaChaCastTest('main');
 
       assert.equal(report.outputs.length, 2, 'beide aktivierten Ausgänge werden geprüft');
       const byName = new Map(report.outputs.map((o) => [o.name, o]));
@@ -82,7 +82,7 @@ test(
 
       // Die normale Automation lief währenddessen unbeeinflusst weiter (Testton läuft als Cart darüber, nicht in der Queue)
       assert.equal((app.nowPlaying('main') as { mediaId: string }).mediaId, 'a.wav', 'Testton stört die laufende Automation nicht');
-      assert.equal(app.svc.media.library('main').some((m) => m.id === '_airdeckcast_test'), false, 'Testton landet nicht in der Medienbibliothek');
+      assert.equal(app.svc.media.library('main').some((m) => m.id === '_anmachacast_test'), false, 'Testton landet nicht in der Medienbibliothek');
     } finally {
       app.shutdown();
       main.server.closeAllConnections();

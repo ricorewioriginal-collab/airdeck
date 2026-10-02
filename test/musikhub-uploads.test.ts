@@ -5,12 +5,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
 test('MusikHub: privater Upload, getrenntes Vorhören/Download, Cover-Filter, Widerruf, Löschung', async () => {
   const dir = mkdtempSync(join(process.cwd(), '.musikhub-uploads-test-'));
-  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

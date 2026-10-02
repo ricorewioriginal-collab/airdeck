@@ -1,15 +1,15 @@
 // Öffentlicher Stream-Status (wie Icecast status-json) für alle Sendewege, mit kurzem Zwischenspeicher.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError } from '../model.ts';
 import { PUBLIC_API } from '../lautfm.ts';
 import { lautfmStatus, listenUrlOf, type StreamStatus } from '../status.ts';
 import type { ExternalNow } from '../bridge.ts';
 
 export class StatusService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -37,7 +37,7 @@ export class StatusService {
     return [...this.app.stations.values()].filter((r) => r.station.publicStatus !== false).map((r) => ({ id: r.station.id, name: r.station.name, ...(r.data.lautfm?.stationName ? { lautfm: r.data.lautfm.stationName } : {}) }));
   }
 
-  /** Status eines AirDeck-Senders: aktive Quelle, verbundene Ausgänge, laut.fm (falls verbunden), Now Playing, Verlauf. */
+  /** Status eines AnMaCha-Cast-Senders: aktive Quelle, verbundene Ausgänge, laut.fm (falls verbunden), Now Playing, Verlauf. */
   streamStatus(stationId: string, host: string): Promise<StreamStatus> {
     const rt = this.app.stations.get(stationId);
     if (!rt || rt.station.publicStatus === false) return Promise.reject(new AppError(404, 'not_found', 'Sender nicht gefunden oder nicht öffentlich'));
@@ -79,8 +79,8 @@ export class StatusService {
       }
       const log = (rt.data.playLog ?? []).filter((e) => e.category === 'music').slice(0, 10);
       return {
-        kind: 'airdeck', station: stationId, name: rt.station.name, description: rt.station.slogan,
-        icestats: { admin: '', host, location: 'AirDeck', server_id: `AirDeck ${this.app.updater.current}`, server_start_iso8601: this.startedAt, source: sources },
+        kind: 'anmachacast', station: stationId, name: rt.station.name, description: rt.station.slogan,
+        icestats: { admin: '', host, location: 'AnMaCha Cast', server_id: `AnMaCha Cast ${this.app.updater.current}`, server_start_iso8601: this.startedAt, source: sources },
         now: m ? { artist: m.artist, title: m.title, album: m.album, started_at: rt.nowPlaying.startedAt ? new Date(rt.nowPlaying.startedAt).toISOString() : null,
           ends_at: rt.nowPlaying.startedAt && m.durationMs ? new Date(rt.nowPlaying.startedAt + m.durationMs - (m.cueInMs ?? 0)).toISOString() : null } : ext?.now ?? laut?.now ?? null,
         last_songs: log.length ? log.map((e) => ({ started_at: new Date(e.at).toISOString(), artist: e.artist, title: e.title })) : ext?.history.length ? ext.history : laut?.last_songs ?? [],
@@ -97,13 +97,13 @@ export class StatusService {
   }
 
   /**
-   * Wer automatisiert diesen Sender gerade tatsächlich? AirDeck-Server-Playout, laut.fm über den
-   * Radioadmin (eigener Algorithmus, AirDeck hat darauf keinen Einfluss) oder gar niemand. Das Studio
+   * Wer automatisiert diesen Sender gerade tatsächlich? AnMaCha-Cast-Server-Playout, laut.fm über den
+   * Radioadmin (eigener Algorithmus, AnMaCha Cast hat darauf keinen Einfluss) oder gar niemand. Das Studio
    * zeigt bei "lautfm" den aktuellen/letzten Titel aus der öffentlichen laut.fm-API statt leerer Decks -
-   * AirDeck kennt den nächsten Titel in diesem Fall nicht (laut.fm veröffentlicht ihn nicht im Voraus).
+   * AnMaCha Cast kennt den nächsten Titel in diesem Fall nicht (laut.fm veröffentlicht ihn nicht im Voraus).
    */
-  async automationSource(stationId: string): Promise<{ source: 'airdeck' | 'lautfm' | 'none'; now: StreamStatus['now'] }> {
-    if (this.app.playouts.get(stationId)?.playout.status().running) return { source: 'airdeck', now: null };
+  async automationSource(stationId: string): Promise<{ source: 'anmachacast' | 'lautfm' | 'none'; now: StreamStatus['now'] }> {
+    if (this.app.playouts.get(stationId)?.playout.status().running) return { source: 'anmachacast', now: null };
     const stationName = this.app.rt(stationId).data.lautfm?.stationName;
     if (!stationName) return { source: 'none', now: null };
     const laut = await this.lautfmPublicStatus(stationName).catch(() => null);

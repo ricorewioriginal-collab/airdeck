@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { analyzeLoudness, detectFfmpeg } from '../src/server/ffmpeg.ts';
 import { DSP_PRESETS, dspFilter, trackGainDb } from '../src/server/playout.ts';
 import type { MediaItem } from '../src/core/automation.ts';
@@ -35,9 +35,9 @@ test('Klangprofile ergeben gültige ffmpeg-Filterketten', { skip: !ff && 'ffmpeg
 });
 
 test('Titel werden automatisch gemessen (EBU R128)', { skip: !ff && 'ffmpeg nicht installiert', timeout: 30_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-loud-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-loud-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     mkdirSync(join(dir, 'media', 'main'), { recursive: true });
     const file = join(dir, 'media', 'main', 'leise.mp3');
     execFileSync(ff!.ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=f=440:d=4', '-af', 'volume=-20dB', '-c:a', 'libmp3lame', '-b:a', '128k', file]);

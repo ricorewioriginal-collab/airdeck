@@ -13,9 +13,9 @@ test('Liquidsoap-Skript: alle aktiven Ausgänge, keine Passwörter, SHOUTcast/la
     out({ name: 'laut.fm', host: 'stream.laut.fm', mount: '/meinradio', priority: 5, bitrateKbps: 192 }),
     out({ name: 'SC', type: 'shoutcast', host: 'sc.example.org', port: 8010, streamId: 2 }),
     out({ name: 'Aus', enabled: false }),
-  ], { stationName: 'Radio "Test"', harborPort: 8005, harborMount: '/airdeck', bitrateKbps: 128, processing: true });
+  ], { stationName: 'Radio "Test"', harborPort: 8005, harborMount: '/anmachacast', bitrateKbps: 128, processing: true });
   assert.deepEqual(env, ['ANMACHA_CAST_LIQ_INPUT_PASSWORD', 'ANMACHA_CAST_LIQ_OUT1_PASSWORD', 'ANMACHA_CAST_LIQ_OUT2_PASSWORD']);
-  assert.match(script, /input\.harbor\("airdeck", port=8005, password=pw\("ANMACHA_CAST_LIQ_INPUT_PASSWORD"\)\)/);
+  assert.match(script, /input\.harbor\("anmachacast", port=8005, password=pw\("ANMACHA_CAST_LIQ_INPUT_PASSWORD"\)\)/);
   assert.match(script, /mount="\/meinradio\?prio=5"/);
   assert.match(script, /%mp3\(bitrate=192\)/);
   assert.match(script, /protocol="icy", icy_id=2/);
@@ -23,7 +23,7 @@ test('Liquidsoap-Skript: alle aktiven Ausgänge, keine Passwörter, SHOUTcast/la
   assert.match(script, /radio = nrj\(radio\)/);
   assert.equal((script.match(/output\.icecast/g) ?? []).length, 2, 'deaktivierter Ausgang fehlt');
   assert.ok(!/passwordRef|output:o/.test(script), 'keine Secret-Referenzen');
-  const none = liquidsoapScript([], { stationName: 'X', harborPort: 8005, harborMount: 'airdeck', bitrateKbps: 128, processing: false });
+  const none = liquidsoapScript([], { stationName: 'X', harborPort: 8005, harborMount: 'anmachacast', bitrateKbps: 128, processing: false });
   assert.match(none.script, /output\.dummy\(radio\)/);
   assert.ok(!none.script.includes('nrj'));
 });

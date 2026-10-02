@@ -77,7 +77,7 @@ test('Queue mischen behält alle Einträge', () => {
 });
 
 test('ID3-Tags, AAC-Stream mit DSP und Mikrofon/Line-In (ffmpeg)', { skip: !ff && 'ffmpeg fehlt', timeout: 30_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-local-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-local-'));
   try {
     const file = join(dir, 'song.mp3');
     execFileSync(ff!.ffmpeg, ['-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=f=440:d=2', '-metadata', 'title=Mondlicht', '-metadata', 'artist=Luna', '-metadata', 'genre=Pop', '-metadata', 'date=1999', file]);

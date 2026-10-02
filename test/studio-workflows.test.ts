@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 
 function fresh() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-workflows-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-workflows-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   for (const [id, artist] of [['a','Alpha'],['b','Beta'],['c','Gamma']] as const) {
     app.svc.media.addMedia('main', {
       id, title: `Titel ${id.toUpperCase()}`, artist, category: 'music',

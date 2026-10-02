@@ -1,5 +1,5 @@
 // Brücke zu bestehenden Systemen (AzuraCast, eigener Icecast, SAM/mAirList/RadioDJ über ihren Stream, reine Web-Relays):
-//  • Pull-Relay: fremden Stream als AirDeck-Quelle mit eigener Priorität übernehmen (Automation dort läuft weiter)
+//  • Pull-Relay: fremden Stream als AnMaCha-Cast-Quelle mit eigener Priorität übernehmen (Automation dort läuft weiter)
 //  • Status-Spiegel: Now Playing, Hörer, Verlauf aus AzuraCast- bzw. Icecast-Status übernehmen
 //  • Zuordnung über externe Schlüssel: nichts wird doppelt angelegt, Sync ist wiederholbar (idempotent)
 
@@ -17,7 +17,7 @@ export interface ExternalNow {
 type Fetch = typeof fetch;
 
 async function getJson<T>(fetchFn: Fetch, url: string, headers: Record<string, string> = {}): Promise<T> {
-  const r = await fetchFn(url, { headers: { 'User-Agent': 'AirDeck-Bridge', Accept: 'application/json', ...headers }, signal: AbortSignal.timeout(10_000) }).catch((e: Error) => {
+  const r = await fetchFn(url, { headers: { 'User-Agent': 'AnMaCha-Cast-Bridge', Accept: 'application/json', ...headers }, signal: AbortSignal.timeout(10_000) }).catch((e: Error) => {
     throw new Error(`nicht erreichbar: ${e.message}`);
   });
   if (r.status === 401 || r.status === 403) throw new Error('Zugriff verweigert (API-Key prüfen)');
@@ -135,7 +135,7 @@ export class PullRelay {
     this.ctrl = ctrl;
     let opened = false;
     try {
-      const r = await fetch(this.url, { headers: { 'User-Agent': 'AirDeck-Relay', 'Icy-MetaData': '0' }, signal: ctrl.signal, redirect: 'follow' });
+      const r = await fetch(this.url, { headers: { 'User-Agent': 'AnMaCha-Cast-Relay', 'Icy-MetaData': '0' }, signal: ctrl.signal, redirect: 'follow' });
       if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
       const type = (r.headers.get('content-type') ?? 'audio/mpeg').split(';')[0]!.trim();
       if (!/^(audio|application\/ogg|video\/mp2t)/.test(type)) throw new Error(`kein Audio-Stream (${type})`);

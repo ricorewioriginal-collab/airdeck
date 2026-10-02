@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 import type { MotionMixJob } from '../src/server/model.ts';
 
@@ -57,8 +57,8 @@ test(
   'Motion-Mix-Video: aus einer Playlist gerendert, echte Video-/Audiospur, passende Dauer',
   { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 },
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'airdeck-mmx-'));
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+    const dir = mkdtempSync(join(tmpdir(), 'anmachacast-mmx-'));
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
     try {
       wav(join(app.mediaDir, 'main', 'a.wav'), 3, 440);
       wav(join(app.mediaDir, 'main', 'b.wav'), 2, 660);
@@ -94,8 +94,8 @@ test(
 );
 
 test('Motion-Mix: Playlist ohne lokale Titel (nur Streams) wird klar abgelehnt', { skip: !ff && 'ffmpeg nicht installiert' }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-mmx-empty-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-mmx-empty-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
   try {
     app.svc.media.addMedia('main', { id: 's', title: 'Stream', artist: '', category: 'stream', file: '', url: 'https://example.invalid/stream.mp3', durationMs: null, addedAt: 0 });
     const pl = app.svc.planning.savePlaylist('main', null, { name: 'Nur Stream', items: ['s'] });

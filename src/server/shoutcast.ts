@@ -63,7 +63,7 @@ export class ShoutcastOutput implements BroadcastOutput {
       host: this.cfg.host,
       port: this.cfg.port,
       path: `/admin.cgi?${sid}pass=${encodeURIComponent(pass)}&mode=updinfo&song=${encodeURIComponent(song)}`,
-      headers: { 'User-Agent': 'Mozilla/5.0 (AirDeck)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (AnMaCha Cast)' },
       timeout: 5000,
     });
     req.on('response', (r) => r.resume());

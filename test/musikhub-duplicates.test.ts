@@ -7,12 +7,12 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
 test('MusikHub: Dublettenerkennung per Inhalts-Hash (Upload, Ersetzen, Nextcloud-Import)', async () => {
   const dir = mkdtempSync(join(process.cwd(), '.musikhub-dup-test-'));
-  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

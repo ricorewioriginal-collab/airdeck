@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { detectFfmpeg } from '../src/server/ffmpeg.ts';
 import type { PlayoutStatus } from '../src/server/playout.ts';
 
@@ -32,8 +32,8 @@ function wav(file: string, seconds: number, freq: number): void {
 }
 
 test('Decks: Handbetrieb (MANUAL) und AutoDJ (AUTO) in der Engine', { skip: !ff && 'ffmpeg nicht installiert', timeout: 60_000 }, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-decks-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: ff });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-decks-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: ff });
   const levels: { rmsDb: number; decks: Record<string, number> }[] = [];
   const lv = (l: { decks: Record<string, number> }, d: string) => l.decks[d] ?? -90;
   const unsub = app.subscribe((e) => {

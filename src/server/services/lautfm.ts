@@ -1,13 +1,13 @@
 // laut.fm: Zugang (Radioadmin-Token, Origin), Radioadmin-Anfragen, Live-Zugang als Ausgang übernehmen.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, SLUG, type Principal } from '../model.ts';
 import { DEFAULT_ORIGIN, ORIGIN_RE, RADIOADMIN, TOKEN_RE, cleanToken, detectOrigin, loginUrl, type LautfmConfig, type RaStation } from '../lautfm.ts';
 
 export class LautfmService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -48,7 +48,7 @@ export class LautfmService {
    * Verbinden: Token prüfen und dabei den passenden Origin selbst ermitteln.
    * laut.fm akzeptiert ein Token nur mit dem Origin, für den es ausgestellt wurde – beim Login über
    * die Webseite ist das die Adresse des Studios, bei einem Skript-Token der Name aus „callback_url=“.
-   * Wer das nicht genau weiß, soll trotzdem verbinden können: AirDeck probiert die Kandidaten durch.
+   * Wer das nicht genau weiß, soll trotzdem verbinden können: AnMaCha Cast probiert die Kandidaten durch.
    */
   async connect(p: Principal, stationId: string, input: { token?: unknown; origin?: unknown; pageOrigin?: unknown }): Promise<unknown> {
     const token = input.token === undefined ? this.lautfmToken(stationId) : cleanToken(input.token);
@@ -68,8 +68,8 @@ export class LautfmService {
     const next: LautfmConfig = { ...cfg, origin, stationId: pick?.id, stationName: pick?.name ?? cfg.stationName };
     this.app.rt(stationId).data.lautfm = next;
     this.app.audit.write({ kind: 'lautfm', event: 'connect', actor: p.id, stationId, origin: found.origin, stations: stations.length });
-    // Weitere Sender desselben laut.fm-Kontos, die noch keinem AirDeck-Sender zugeordnet sind, automatisch
-    // als eigene AirDeck-Sender anlegen ("Meine Sender" oben zeigt sie dann direkt mit an) - nur für globale
+    // Weitere Sender desselben laut.fm-Kontos, die noch keinem AnMaCha-Cast-Sender zugeordnet sind, automatisch
+    // als eigene AnMaCha-Cast-Sender anlegen ("Meine Sender" oben zeigt sie dann direkt mit an) - nur für globale
     // Admins, sonst könnte die anlegende Person die neuen Sender hinterher gar nicht sehen/verwalten.
     if (p.stationIds.includes('*')) this.autoCreateStations(p, stations, token, origin, pick?.id);
     this.app.changed();
@@ -85,7 +85,7 @@ export class LautfmService {
     return id;
   }
 
-  /** Sender des verbundenen laut.fm-Kontos, die noch an keinem AirDeck-Sender hängen, neu anlegen und verknüpfen. */
+  /** Sender des verbundenen laut.fm-Kontos, die noch an keinem AnMaCha-Cast-Sender hängen, neu anlegen und verknüpfen. */
   private autoCreateStations(p: Principal, stations: RaStation[], token: string, origin: string | undefined, skipId: number | undefined): void {
     const linked = new Set([...this.app.stations.values()].map((r) => r.data.lautfm?.stationId).filter((x): x is number => x !== undefined));
     for (const s of stations) {
@@ -120,7 +120,7 @@ export class LautfmService {
     const send = async (origin: string) => {
       const r = await fetch(RADIOADMIN + path, {
         method,
-        headers: { Authorization: `Bearer ${token}`, Origin: origin, Accept: 'application/json', 'User-Agent': 'AirDeck', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        headers: { Authorization: `Bearer ${token}`, Origin: origin, Accept: 'application/json', 'User-Agent': 'AnMaCha Cast', ...(body ? { 'Content-Type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(20_000),
       }).catch(() => {
@@ -155,7 +155,7 @@ export class LautfmService {
     const send = async (origin: string) => {
       const r = await fetch(RADIOADMIN + path, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, Origin: origin, Accept: 'application/json', 'User-Agent': 'AirDeck' },
+        headers: { Authorization: `Bearer ${token}`, Origin: origin, Accept: 'application/json', 'User-Agent': 'AnMaCha Cast' },
         body: form,
         signal: AbortSignal.timeout(60_000),
       }).catch(() => {
@@ -182,7 +182,7 @@ export class LautfmService {
   private async fetchLive(token: string, origin: string, lautfmStationId: number): Promise<{ server: string; port?: number; mountpoint: string; user?: string; password: string; protocol?: string }> {
     const send = async (path: string) => {
       const r = await fetch(RADIOADMIN + path, {
-        headers: { Authorization: `Bearer ${token}`, Origin: origin, Accept: 'application/json', 'User-Agent': 'AirDeck' },
+        headers: { Authorization: `Bearer ${token}`, Origin: origin, Accept: 'application/json', 'User-Agent': 'AnMaCha Cast' },
         signal: AbortSignal.timeout(20_000),
       }).catch(() => {
         throw new AppError(502, 'upstream_unreachable', 'laut.fm nicht erreichbar');
@@ -209,8 +209,8 @@ export class LautfmService {
   }
 
   /**
-   * Live-Zugang der laut.fm-Station als AirDeck-Ausgang übernehmen (Icecast-Source mit optionalem ?prio=).
-   * Nur wenn dieser AirDeck-Sender selbst die laut.fm-Station ist (unter „laut.fm“ verbunden).
+   * Live-Zugang der laut.fm-Station als AnMaCha-Cast-Ausgang übernehmen (Icecast-Source mit optionalem ?prio=).
+   * Nur wenn dieser AnMaCha-Cast-Sender selbst die laut.fm-Station ist (unter „laut.fm“ verbunden).
    */
   async lautfmCreateOutput(p: Principal, stationId: string, priority?: number): Promise<unknown> {
     const cfg = this.lautfmConfig(stationId);

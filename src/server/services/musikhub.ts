@@ -2,7 +2,7 @@
 // ein vorhandenes Sendermedium; Dateiabruf und Sendebereitstellung folgen in
 // eigenen, erneut autorisierten Phasen.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile } from 'node:fs/promises';
@@ -100,10 +100,10 @@ const validAction = (value: unknown): value is HubAction => typeof value === 'st
 const same = (a: HubSubject, b: HubSubject) => a.kind === b.kind && a.id === b.id;
 
 export class MusicHubService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
   private loaded: HubState | null = null;
 
-  constructor(app: AirDeckApp) { this.app = app; }
+  constructor(app: AnMaChaCastApp) { this.app = app; }
 
   private get state(): HubState {
     if (!this.loaded) {
@@ -777,7 +777,7 @@ export class MusicHubService {
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
     if (item.source.kind === 'upload') return { ok: false, reason: 'not_staged', itemId, stationId };
     if (item.source.stationId !== stationId) return { ok: false, reason: 'other_station', itemId, stationId };
-    let media: ReturnType<AirDeckApp['svc']['media']['media']>;
+    let media: ReturnType<AnMaChaCastApp['svc']['media']['media']>;
     try {
       media = this.app.svc.media.media(item.source.stationId, item.source.mediaId);
     } catch {

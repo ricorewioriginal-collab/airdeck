@@ -1,6 +1,6 @@
-// Nutzerbericht: Automation muss erkennen, ob AirDeck-Server-Playout oder laut.fm (über den
+// Nutzerbericht: Automation muss erkennen, ob AnMaCha-Cast-Server-Playout oder laut.fm (über den
 // Radioadmin) einen Sender automatisiert - und bei laut.fm den echten aktuellen Titel zeigen statt
-// leerer Decks (den nächsten Titel kennt AirDeck dabei nicht, laut.fm veröffentlicht ihn nicht vorab).
+// leerer Decks (den nächsten Titel kennt AnMaCha Cast dabei nicht, laut.fm veröffentlicht ihn nicht vorab).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -19,19 +19,19 @@ const mock = createServer((req, res) => {
 await new Promise<void>((r) => mock.listen(0, '127.0.0.1', r));
 process.env.AIRDECK_LAUTFM_API_URL = `http://127.0.0.1:${(mock.address() as { port: number }).port}`;
 
-const { AirDeckApp } = await import('../src/server/app.ts');
+const { AnMaChaCastApp } = await import('../src/server/app.ts');
 const { createHttpServer } = await import('../src/server/http.ts');
 
-test('Automationsquelle erkennen: AirDeck-Playout, laut.fm (Radioadmin) oder keine', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-autosrc-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+test('Automationsquelle erkennen: AnMaCha-Cast-Playout, laut.fm (Radioadmin) oder keine', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-autosrc-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const token = app.svc.auth.createToken({ name: 't', scopes: ['*'], roles: ['admin'], stationIds: ['*'] }).token;
   const get = () => fetch(`${base}/api/v1/stations/main/automation-source`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()) as Promise<{ source: string; now: unknown }>;
   try {
-    // Weder AirDeck-Playout noch laut.fm verbunden
+    // Weder AnMaCha-Cast-Playout noch laut.fm verbunden
     assert.deepEqual(await get(), { source: 'none', now: null });
 
     // laut.fm verbunden (Radioadmin macht die Automation) - echter Titel aus der öffentlichen API
@@ -40,9 +40,9 @@ test('Automationsquelle erkennen: AirDeck-Playout, laut.fm (Radioadmin) oder kei
     assert.equal(r.source, 'lautfm');
     assert.deepEqual(r.now, { artist: 'DJ Beispiel', title: 'Titelmelodie', started_at: null, ends_at: null });
 
-    // AirDeck-Server-Playout hat Vorrang, auch wenn nebenbei noch laut.fm konfiguriert ist
+    // AnMaCha-Cast-Server-Playout hat Vorrang, auch wenn nebenbei noch laut.fm konfiguriert ist
     app.playouts.set('main', { playout: { status: () => ({ running: true }), stop: () => {} } } as never);
-    assert.deepEqual(await get(), { source: 'airdeck', now: null });
+    assert.deepEqual(await get(), { source: 'anmachacast', now: null });
   } finally {
     app.shutdown();
     server.close();

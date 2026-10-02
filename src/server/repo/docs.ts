@@ -1,4 +1,7 @@
-// Ablage der Programmdaten als benannte Dokumente („airdeck“, „users“, „tokens“ …).
+// Ablage der Programmdaten als benannte Dokumente („airdeck“, „users“, „tokens“ …). Der Name „airdeck“
+// bleibt bewusst der historische Schlüssel (siehe legacy-branding.ts): jede bestehende Installation hat
+// ihren Programmzustand bereits unter diesem Dokumentnamen gespeichert; eine Umbenennung ohne Migration
+// würde den Zustand beim nächsten Start als leer erscheinen lassen.
 //
 //  FileDocStore – eine JSON-Datei je Dokument (bisheriges Verhalten; für eigenständige Module und Tests)
 //  DbDocStore   – Datenbank: jedes Dokument wird auf Tabellenzeilen abgebildet (siehe mappings.ts).

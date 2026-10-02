@@ -1,7 +1,7 @@
 // Medien: Bibliothek, Tags und Laufzeit, Lautheitsanalyse (EBU R128), URL-Streams, M3U, Cover,
 // eingebundene Ordner (vorhandene Musiksammlung wird indiziert und überwacht statt kopiert).
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -16,9 +16,9 @@ const MAX_DEPTH = 8;
 import { writeFileAtomic } from '../store.ts';
 
 export class MediaService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -295,7 +295,7 @@ export class MediaService {
     return this.app.rt(stationId).data.linkedFolders ?? [];
   }
 
-  /** Vorhandenen Musikordner einbinden: Dateien bleiben, wo sie sind; AirDeck indiziert und überwacht sie. */
+  /** Vorhandenen Musikordner einbinden: Dateien bleiben, wo sie sind; AnMaCha Cast indiziert und überwacht sie. */
   async linkFolder(stationId: string, input: { path?: unknown; category?: unknown }): Promise<LinkedFolder> {
     const rt = this.app.rt(stationId);
     const raw = String(input.path ?? '').trim();
@@ -310,7 +310,7 @@ export class MediaService {
     if (!st.isDirectory()) throw new AppError(400, 'not_directory', 'Das ist kein Ordner');
     // der eigene Datenordner wird nicht eingebunden (Medien liegen dort bereits)
     const inside = (a: string, b: string) => a === b || a.startsWith(b + sep);
-    if (inside(path, resolve(this.app.dataDir)) || inside(resolve(this.app.dataDir), path)) throw new AppError(400, 'invalid_path', 'Der AirDeck-Datenordner kann nicht eingebunden werden');
+    if (inside(path, resolve(this.app.dataDir)) || inside(resolve(this.app.dataDir), path)) throw new AppError(400, 'invalid_path', 'Der AnMaCha-Cast-Datenordner kann nicht eingebunden werden');
     const list = (rt.data.linkedFolders ??= []);
     if (list.some((f) => inside(path, f.path) || inside(f.path, path))) throw new AppError(409, 'exists', 'Dieser Ordner (oder ein über-/untergeordneter) ist bereits eingebunden');
     const category = (MEDIA_CATEGORIES as readonly string[]).includes(String(input.category)) ? (input.category as MediaCategory) : 'music';

@@ -1,8 +1,11 @@
-// Baut das AirDeck-Programm:
-//   node scripts/build.mjs            → dist/airdeck.cjs (ein gebündeltes Skript, ohne Abhängigkeiten)
-//   node scripts/build.mjs --sea      → dist/AirDeck/AirDeck(.exe) als Einzeldatei mit eingebettetem Node
-//                                       (Node Single Executable Application) + studio/ + Startskripte
-// ffmpeg wird nicht mitgebaut: liegt es in dist/AirDeck/ffmpeg/, nutzt AirDeck es automatisch.
+// Baut das AnMaCha-Cast-Programm:
+//   node scripts/build.mjs            → dist/anmachacast.cjs (ein gebündeltes Skript, ohne Abhängigkeiten)
+//   node scripts/build.mjs --sea      → dist/AirDeck/AirDeck.exe (Windows) bzw. dist/AirDeck/airdeck-server
+//                                       (Linux) als Einzeldatei mit eingebettetem Node (Node Single
+//                                       Executable Application) + studio/ + Startskripte. Programmname/
+//                                       -pfade bleiben dort bewusst "AirDeck"/"airdeck" (siehe
+//                                       apps/windows/AnMaChaCast.csproj, scripts/build-deb.mjs).
+// ffmpeg wird nicht mitgebaut: liegt es in dist/AirDeck/ffmpeg/, nutzt AnMaCha Cast es automatisch.
 
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
@@ -27,7 +30,7 @@ mkdirSync(dist, { recursive: true });
 
 await build({
   entryPoints: [join(root, 'src/server/main.ts')],
-  outfile: join(dist, 'airdeck.cjs'),
+  outfile: join(dist, 'anmachacast.cjs'),
   bundle: true,
   platform: 'node',
   format: 'cjs',
@@ -36,7 +39,7 @@ await build({
   define: { 'import.meta.url': 'undefined' },
   banner: {
     js: [
-      '/* AirDeck ' + version + ' */',
+      '/* AnMaCha Cast ' + version + ' */',
       'const __sea = (() => { try { return require("node:sea").isSea(); } catch { return false; } })();',
       'globalThis.__AIRDECK_PACKAGED = __sea;',
       `globalThis.__AIRDECK_BUILD = ${JSON.stringify(buildId)};`,
@@ -46,17 +49,22 @@ await build({
   },
   logLevel: 'warning',
 });
-console.log('✓ dist/airdeck.cjs');
+console.log('✓ dist/anmachacast.cjs');
 
 if (sea) {
   const win = process.platform === 'win32';
   const out = join(dist, 'AirDeck');
-  // Windows: die Engine heißt airdeck-engine.exe, AirDeck.exe ist das eigentliche Programm (Fenster, Tray).
-  // Linux: airdeck-server (systemd-Dienst, siehe scripts/build-deb.mjs). macOS: noch ohne eigenes Paket.
+  // Windows: Programmname/-dateien bleiben bewusst "AirDeck"/"airdeck-engine.exe" (siehe apps/windows/AnMaChaCast.csproj) -
+  // Update-/Neustart-Mechanismus (main.ts), Installer-Verknüpfungen, Registry-Autostart, Firewall-Regel und der
+  // %LOCALAPPDATA%\AirDeck-Datenordner bestehender Installationen hängen exakt an diesen Namen.
+  // Linux: Programmname/-pfade bleiben bewusst "airdeck-server" (siehe scripts/build-deb.mjs, nur die
+  // systemd-Diensteinheit selbst heißt "anmachacast-server.service" - Paketname/-pfade/Binärname eine
+  // Umbenennung ohne Migration würde bestehende Installationen bei "apt upgrade" verwaisen lassen).
+  // macOS: noch ohne eigenes Paket.
   const exe = join(out, win ? 'airdeck-engine.exe' : process.platform === 'darwin' ? 'AirDeck' : 'airdeck-server');
   mkdirSync(out, { recursive: true });
   writeFileSync(join(dist, 'sea-config.json'), JSON.stringify({
-    main: join(dist, 'airdeck.cjs'),
+    main: join(dist, 'anmachacast.cjs'),
     output: join(dist, 'sea-prep.blob'),
     disableExperimentalSEAWarning: true,
     useCodeCache: false,
@@ -71,9 +79,9 @@ if (sea) {
     const rcedit = /** @type {any} */ (rceditModule).rcedit ?? /** @type {any} */ (rceditModule).default;
     if (typeof rcedit !== 'function') throw new TypeError('rcedit export not found');
     await rcedit(exe, {
-      icon: join(root, 'assets', 'icons', 'airdeck-windows.ico'),
+      icon: join(root, 'assets', 'icons', 'anmachacast-windows.ico'),
       'file-version': version, 'product-version': version,
-      'version-string': { ProductName: 'AirDeck', FileDescription: 'AirDeck Engine', CompanyName: 'AnMaCha Radioproduktion & RicoReWi', LegalCopyright: 'AirDeck – Powered by AnMaCha Radioproduktion & RicoReWi – für Broadcast, Automation, Live und laut.fm', OriginalFilename: 'airdeck-engine.exe' },
+      'version-string': { ProductName: 'AnMaCha Cast', FileDescription: 'AnMaCha Cast Engine', CompanyName: 'AnMaCha Radioproduktion & RicoReWi', LegalCopyright: 'AnMaCha Cast – Powered by AnMaCha Radioproduktion & RicoReWi – für Broadcast, Automation, Live und laut.fm', OriginalFilename: 'airdeck-engine.exe' },
     });
     console.log('✓ Icon & Versionsinfo gesetzt');
   }
@@ -92,7 +100,7 @@ if (sea) {
 
   if (win) {
     // Das Windows-Programm (eigenes Fenster mit WebView2, Tray-Symbol) – .NET Framework 4.8, auf jedem Windows 10/11 vorhanden
-    const csproj = join(root, 'apps', 'windows', 'AirDeck.csproj');
+    const csproj = join(root, 'apps', 'windows', 'AnMaChaCast.csproj'); // AssemblyName bleibt bewusst "AirDeck" (siehe .csproj-Kommentar)
     const hostOut = join(dist, 'windows-app');
     execFileSync('dotnet', ['build', csproj, '-c', 'Release', `-p:Version=${version}`, '-o', hostOut, '-nologo', '-v', 'q'], { stdio: 'inherit' });
     cpSync(hostOut, out, { recursive: true, filter: (src) => !/\.(pdb|xml)$/i.test(src) && !src.endsWith('Microsoft.Web.WebView2.Wpf.dll') });
@@ -107,7 +115,7 @@ if (sea) {
     // Hilfsskripte ins Programmverzeichnis – ohne Installer-Quelle und -Grafiken
     cpSync(join(root, 'packaging', 'windows'), out, { recursive: true, filter: (src) => !src.endsWith('.iss') && !src.includes(join('windows', 'installer')) });
     mkdirSync(join(out, 'icons'), { recursive: true });
-    for (const f of ['airdeck-windows.ico', 'airdeck-server.ico']) copyFileSync(join(root, 'assets', 'icons', f), join(out, 'icons', f));
+    for (const f of ['anmachacast-windows.ico', 'anmachacast-server.ico']) copyFileSync(join(root, 'assets', 'icons', f), join(out, 'icons', f));
   }
   mkdirSync(join(out, 'ffmpeg'), { recursive: true });
   console.log(`✓ ${exe}`);

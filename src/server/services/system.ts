@@ -1,6 +1,6 @@
 // System: Updates, Netzwerkfreigabe und Android-Download, Liquidsoap-Skript, Monitoring (CPU/RAM/Durchsatz).
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { existsSync } from 'node:fs';
 import { cpus, freemem, networkInterfaces, totalmem, uptime as osUptime } from 'node:os';
 import { join } from 'node:path';
@@ -11,9 +11,9 @@ import { DEFAULT_SOURCE, type UpdateSource } from '../update.ts';
 import { liquidsoapScript } from '../liquidsoap.ts';
 
 export class SystemService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 
@@ -82,7 +82,7 @@ export class SystemService {
     return this.app.updater.check(this.updateConfig(), this.app.secrets.get('update:token'), force);
   }
 
-  /** Windows (installiertes Programm): Setup laden, prüfen, still installieren, AirDeck beenden. */
+  /** Windows (installiertes Programm): Setup laden, prüfen, still installieren, AnMaCha Cast beenden. */
   async installUpdate(exit: () => void): Promise<unknown> {
     if (process.platform !== 'win32' || !this.app.packaged) throw new AppError(409, 'not_supported', 'Automatische Installation nur im installierten Windows-Programm – sonst bitte manuell herunterladen');
     const info = await this.app.updater.check(this.updateConfig(), this.app.secrets.get('update:token'), true);
@@ -100,7 +100,7 @@ export class SystemService {
     const outputs = [...this.app.outputs.values()].filter((o) => o.cfg.stationId === stationId).map((o) => o.cfg);
     const port = Number.isInteger(opts.port) && opts.port! > 1023 && opts.port! < 65536 ? opts.port! : 8005;
     return liquidsoapScript(outputs, {
-      stationName: rt.station.name, harborPort: port, harborMount: String(opts.mount ?? 'airdeck').replace(/[^\w/-]/g, '').slice(0, 40) || 'airdeck',
+      stationName: rt.station.name, harborPort: port, harborMount: String(opts.mount ?? 'anmachacast').replace(/[^\w/-]/g, '').slice(0, 40) || 'anmachacast',
       bitrateKbps: rt.data.playout?.bitrateKbps ?? 128, processing: opts.processing !== false,
     });
   }

@@ -4,7 +4,7 @@
 
 ```
 ┌──────────── Windows-PC ─────────────────────────────────────────────┐
-│ Dienst „AirDeck Server“ (Session 0)   AirDeck.exe (natives Fenster) │
+│ Dienst „AnMaCha Cast Server“ (Session 0)   AirDeck.exe (natives Fenster) │
 │  Core · API · SQLite · Encoder ◄─HTTP─► WPF: Sender/On-Air/Modus,   │
 │  Ausgänge ins Internet                  Decks A–D, Cardwall         │
 │                                         Mithören/CUE (Soundkarte)    │
@@ -13,7 +13,7 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Das Windows-Programm (`apps/windows/`, Projekt `AirDeck.csproj`) ist **kein Browser-in-der-Box** mehr für die
+Das Windows-Programm (`apps/windows/`, Projekt `AnMaChaCast.csproj`, AssemblyName weiterhin `AirDeck`) ist **kein Browser-in-der-Box** mehr für die
 Kernbedienung: Das Hauptfenster (`MainWindow`) ist natives WPF – echte Windows-Bedienelemente (Buttons,
 Slider, ToggleButtons, ComboBox), kein HTML/WebView. Es deckt die primäre Sendebedienung ab:
 
@@ -45,7 +45,7 @@ Nicht nur eine WebView. Die Oberfläche bleibt Web (dieselbe wie auf dem Desktop
 | Modul | Zweck |
 |---|---|
 | Serververbindung | Erkennung (UDP), QR-Kopplung, Verbindungstest, Profile, Token im Android Keystore |
-| Live-Sender (Foreground-Service mit Benachrichtigung) | Mikrofon → nativer Encoder (AAC über MediaCodec) → an den AirDeck-Ingest **oder direkt** an Icecast/laut.fm (Standalone). Läuft weiter, wenn die App im Hintergrund ist |
+| Live-Sender (Foreground-Service mit Benachrichtigung) | Mikrofon → nativer Encoder (AAC über MediaCodec) → an den AnMaCha-Cast-Ingest **oder direkt** an Icecast/laut.fm (Standalone). Läuft weiter, wenn die App im Hintergrund ist |
 | Audio | Mithören über den nativen Player (weiterläuft im Hintergrund) |
 | Berechtigungen | Mikrofon, Benachrichtigungen, Netzwerk, sauber abgefragt |
 

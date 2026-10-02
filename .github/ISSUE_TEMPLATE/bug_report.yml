@@ -1,5 +1,5 @@
 name: Bug melden
-description: Einen reproduzierbaren Fehler in AirDeck melden
+description: Einen reproduzierbaren Fehler in AnMaCha Cast melden
 title: "[Bug]: "
 labels:
   - bug
@@ -12,7 +12,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: AirDeck-Version / Commit
+      label: AnMaCha-Cast-Version / Commit
       description: Release-Version oder Commit-SHA, falls bekannt.
       placeholder: "z. B. 0.4.0 oder abc1234"
     validations:

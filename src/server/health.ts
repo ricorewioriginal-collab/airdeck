@@ -2,7 +2,7 @@
 // Öffentlich gibt es nur die Zusammenfassung ohne Details; die Einzelberichte sind angemeldet abrufbar.
 
 import { accessSync, constants, existsSync, statfsSync } from 'node:fs';
-import { API_VERSION, type AirDeckConfig, type Mode } from './config.ts';
+import { API_VERSION, type AnMaChaCastConfig, type Mode } from './config.ts';
 import type { FfmpegInfo } from './ffmpeg.ts';
 
 export type DepState = 'READY' | 'MISSING' | 'OUTDATED' | 'BROKEN';
@@ -48,7 +48,7 @@ export interface HealthSource {
   build: string;
   mode: Mode;
   packaged: boolean;
-  paths: AirDeckConfig['paths'];
+  paths: AnMaChaCastConfig['paths'];
   ffmpeg(): FfmpegInfo | null;
   database(): { provider: string; state: DepState; detail?: string; [k: string]: unknown };
   aiProviders(): AiProviderInfo[];
@@ -68,7 +68,7 @@ export function nodeState(version = process.versions.node): DepState {
 
 export interface StorageReport {
   state: 'ok' | 'low' | 'error';
-  dirs: { id: keyof AirDeckConfig['paths']; path: string; writable: boolean; freeBytes: number | null }[];
+  dirs: { id: keyof AnMaChaCastConfig['paths']; path: string; writable: boolean; freeBytes: number | null }[];
 }
 
 function writable(p: string): boolean {
@@ -89,7 +89,7 @@ function freeBytes(p: string): number | null {
   }
 }
 
-export function storageReport(paths: AirDeckConfig['paths']): StorageReport {
+export function storageReport(paths: AnMaChaCastConfig['paths']): StorageReport {
   // Sicherungsordner wird erst bei der ersten Sicherung angelegt – fehlt er, zählt der Datenordner
   const ids = ['data', 'media', 'logs', 'backups'] as const;
   const dirs = ids.map((id) => {

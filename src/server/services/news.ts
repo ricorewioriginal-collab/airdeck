@@ -8,7 +8,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import type { JobMode } from '../../core/scheduler.ts';
 import { AppError } from '../model.ts';
 
@@ -43,9 +43,9 @@ export class NewsService {
   /** Test-/Austauschpunkt: Download-Funktion */
   fetchImpl: typeof fetch = (...a) => fetch(...a);
 
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

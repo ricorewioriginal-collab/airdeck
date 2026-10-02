@@ -4,12 +4,12 @@ import { createServer, type Server, type ServerResponse } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { parseLinkCode } from '../src/server/services/remote-link.ts';
 
 let dir: string;
-let app: AirDeckApp;
+let app: AnMaChaCastApp;
 let server: Server;
 let base: string;
 let admin: string;
@@ -89,8 +89,8 @@ before(async () => {
   await new Promise<void>((r) => hub.listen(0, '127.0.0.1', r));
   hubBase = `http://127.0.0.1:${(hub.address() as { port: number }).port}`;
 
-  dir = mkdtempSync(join(tmpdir(), 'airdeck-remote-'));
-  app = new AirDeckApp(dir, { stableMs: 0 });
+  dir = mkdtempSync(join(tmpdir(), 'anmachacast-remote-'));
+  app = new AnMaChaCastApp(dir, { stableMs: 0 });
   admin = app.svc.auth.createToken({ name: 'a', scopes: ['*'], roles: ['admin'], stationIds: ['*'] }).token;
   server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -116,7 +116,7 @@ test('Verbindungscode: nur gültige Codes mit https-Vermittler (http nur lokal)'
   assert.throws(() => parseLinkCode('kein-code'), /adl1/);
 });
 
-test('Einrichten: AirDeck verbindet sich selbst mit dem Vermittler', async () => {
+test('Einrichten: AnMaCha Cast verbindet sich selbst mit dem Vermittler', async () => {
   const r = await api('PUT', '/api/v1/app/remote-link', { code: code(), role: 'operator' });
   assert.equal(r.status, 200);
   assert.equal(r.body.configured, true);

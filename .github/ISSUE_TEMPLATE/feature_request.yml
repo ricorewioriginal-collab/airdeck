@@ -1,5 +1,5 @@
 name: Feature vorschlagen
-description: Eine neue Funktion oder Verbesserung für AirDeck vorschlagen
+description: Eine neue Funktion oder Verbesserung für AnMaCha Cast vorschlagen
 title: "[Feature]: "
 labels:
   - enhancement
@@ -13,7 +13,7 @@ body:
     id: problem
     attributes:
       label: Problem / Anwendungsfall
-      description: Welches konkrete Problem soll AirDeck lösen oder welcher Workflow soll verbessert werden?
+      description: Welches konkrete Problem soll AnMaCha Cast lösen oder welcher Workflow soll verbessert werden?
     validations:
       required: true
 
@@ -35,7 +35,7 @@ body:
         - Mediathek
         - MusikHub
         - Playlists / Sendeplan
-        - Streaming / AirDeckCast
+        - Streaming / AnMaCha Cast
         - laut.fm / Provider
         - Nextcloud / Cloud / Storage
         - Benutzer / Rollen / Sicherheit
@@ -58,7 +58,7 @@ body:
     id: alternatives
     attributes:
       label: Alternativen / bestehende Möglichkeiten
-      description: Gibt es heute einen Workaround oder eine ähnliche AirDeck-Funktion?
+      description: Gibt es heute einen Workaround oder eine ähnliche AnMaCha-Cast-Funktion?
 
   - type: textarea
     id: references
@@ -71,7 +71,7 @@ body:
     attributes:
       label: Projektgrundsätze
       options:
-        - label: Der Vorschlag soll vorhandene AirDeck-Systeme möglichst erweitern statt unnötig ein paralleles System zu erzeugen.
+        - label: Der Vorschlag soll vorhandene AnMaCha-Cast-Systeme möglichst erweitern statt unnötig ein paralleles System zu erzeugen.
           required: true
         - label: Mir ist bewusst, dass ein Vorschlag keine Zusage für Implementierung oder Release darstellt.
           required: true

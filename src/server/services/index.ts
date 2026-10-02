@@ -2,7 +2,7 @@
 // Der Sendekern (Sender, Quellen, Relay, Ausgänge, Queue, Playout) liegt in app.ts und wird in Schritt 4
 // mit Audio-Engine und Mode-Manager neu gebaut; alles Übrige liegt hier.
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AiToolsService } from './ai.ts';
 import { AuthService } from './auth.ts';
 import { BackupService } from './backup.ts';
@@ -28,7 +28,7 @@ import { StatsService } from './stats.ts';
 import { StatusService } from './status.ts';
 import { SystemService } from './system.ts';
 
-export function createServices(app: AirDeckApp) {
+export function createServices(app: AnMaChaCastApp) {
   return {
     auth: new AuthService(app),
     devices: new DeviceService(app),

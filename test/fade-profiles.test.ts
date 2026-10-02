@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { DEFAULT_FADES, FADE_PROFILES, fadeShape } from '../src/server/playout.ts';
 
 test('fadeShape: Grenzen und Kurvenformen', () => {
@@ -40,7 +40,7 @@ test('Profile sind vollständig und enthalten die Voreinstellung', () => {
 test('savePlayoutConfig: Fades speichern, klemmen und in der Ansicht liefern', () => {
   const dir = mkdtempSync(join(tmpdir(), 'cast-fades-'));
   try {
-    const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+    const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const view0 = app.playoutView('main') as any;
     assert.deepEqual(view0.config.fades, DEFAULT_FADES);
     assert.ok(view0.fadeProfiles.some((p: any) => p.id === 'club' && p.label === 'Club / Dance'));

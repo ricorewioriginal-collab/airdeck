@@ -24,7 +24,7 @@ function decodeGifDataUrl(dataUrl: string): { width: number; height: number; rgb
   return { width: reader.width, height: reader.height, rgba };
 }
 
-test('AirDeckCast-Ger채te-Pairing: die erzeugte QR-Grafik ist eine echte, unabh채ngig scanbare QR-Codierung des Kopplungslinks', () => {
+test('AnMaCha-Cast-Ger채te-Pairing: die erzeugte QR-Grafik ist eine echte, unabh채ngig scanbare QR-Codierung des Kopplungslinks', () => {
   const url = 'http://192.168.1.20:8750/#pair=384021';
   const dataUrl = qrDataUrl(url);
   assert.match(dataUrl, /^data:image\/gif;base64,/, 'echte GIF-Grafik, kein Platzhalter');
@@ -37,7 +37,7 @@ test('AirDeckCast-Ger채te-Pairing: die erzeugte QR-Grafik ist eine echte, unabh�
   assert.equal(result!.data, url, 'der dekodierte Inhalt ist genau der Kopplungslink, den das Studio codiert hat');
 });
 
-test('AirDeckCast-Ger채te-Pairing: unterschiedliche Codes/Adressen ergeben unterschiedliche, aber je f체r sich korrekt lesbare QR-Grafiken', () => {
+test('AnMaCha-Cast-Ger채te-Pairing: unterschiedliche Codes/Adressen ergeben unterschiedliche, aber je f체r sich korrekt lesbare QR-Grafiken', () => {
   for (const url of ['http://10.0.0.5:8750/#pair=000001', 'https://radio.example.org/#pair=999999']) {
     const { width, height, rgba } = decodeGifDataUrl(qrDataUrl(url));
     const result = jsQR(rgba, width, height);

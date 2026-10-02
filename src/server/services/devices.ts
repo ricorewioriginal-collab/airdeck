@@ -4,7 +4,7 @@
 // So braucht eine Desktop-Installation kein Benutzerkonto, damit sich die App verbinden kann (behebt AUDIT 5.1).
 
 import { randomInt } from 'node:crypto';
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, type ApiToken, type Principal } from '../model.ts';
 import { ROLE_SCOPES, type Role } from '../users.ts';
 import { API_VERSION } from '../config.ts';
@@ -30,11 +30,11 @@ export interface PairResult {
 }
 
 export class DeviceService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
   private readonly pending = new Map<string, Pairing>();
   private readonly fails = new Map<string, { count: number; until: number; first: number }>();
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

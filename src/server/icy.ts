@@ -69,7 +69,7 @@ export class IcyMetadataReader {
     const ctrl = new AbortController();
     this.ctrl = ctrl;
     try {
-      const r = await this.fetchFn(this.url, { headers: { 'User-Agent': 'AirDeck-Icy', 'Icy-MetaData': '1' }, signal: ctrl.signal, redirect: 'follow' });
+      const r = await this.fetchFn(this.url, { headers: { 'User-Agent': 'AnMaCha-Cast-Icy', 'Icy-MetaData': '1' }, signal: ctrl.signal, redirect: 'follow' });
       if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
       const metaint = Number(r.headers.get('icy-metaint') ?? '0');
       if (!metaint || !Number.isFinite(metaint)) {

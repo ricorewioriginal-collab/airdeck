@@ -251,7 +251,7 @@ export class AiDirector {
     const hit = this.feedCache.get(s.url);
     if (hit && Date.now() - hit.at < 15 * 60_000) return hit.text;
     try {
-      const r = await this.fetchFn(s.url, { headers: { 'User-Agent': 'AirDeck/1.0 (Radio-Automation)' }, signal: AbortSignal.timeout(8000) });
+      const r = await this.fetchFn(s.url, { headers: { 'User-Agent': 'AnMaCha Cast/1.0 (Radio-Automation)' }, signal: AbortSignal.timeout(8000) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const body = (await r.text()).slice(0, 512 * 1024);
       const text = s.kind === 'rss' ? parseFeed(body).join('\n') : body.replace(/\s+/g, ' ').slice(0, 1500);

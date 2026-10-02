@@ -1,16 +1,16 @@
-// AirDeckCast-Preflight (Phase 4, erster Schritt): reine Sendefähigkeits-Prüfung eines Hub-Titels für
+// AnMaCha-Cast-Preflight (Phase 4, erster Schritt): reine Sendefähigkeits-Prüfung eines Hub-Titels für
 // einen Sender - Berechtigung, Senderzugehörigkeit der Quelldatei, tatsächliches Vorhandensein, Format.
 // Kein Wiring in Queue/Planung/Cardwall (bewusst separater, noch offener Schritt).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
-test('MusikHub: AirDeckCast-Preflight prüft Berechtigung, Senderzugehörigkeit, Datei und Format', async () => {
+test('MusikHub: AnMaCha-Cast-Preflight prüft Berechtigung, Senderzugehörigkeit, Datei und Format', async () => {
   const dir = mkdtempSync(join(process.cwd(), '.musikhub-preflight-test-'));
-  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

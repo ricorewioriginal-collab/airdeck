@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
 test('Studio-Einstellungen: Outputs und Stream-Profile ueber echte HTTP-Wege verwalten', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-settings-http-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-settings-http-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;
@@ -28,7 +28,7 @@ test('Studio-Einstellungen: Outputs und Stream-Profile ueber echte HTTP-Wege ver
 
     const output = await call('POST','/stations/main/outputs',{
       name:'Demo Stream', type:'icecast', host:'127.0.0.1', port:8000,
-      mount:'/airdeck', username:'source', password:'secret-1234', profileId:profile.body.id,
+      mount:'/anmachacast', username:'source', password:'secret-1234', profileId:profile.body.id,
     });
     assert.equal(output.status, 200);
     assert.equal(output.body.name, 'Demo Stream');

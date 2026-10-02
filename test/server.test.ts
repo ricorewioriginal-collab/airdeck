@@ -4,11 +4,11 @@ import { createServer, request, type Server } from 'node:http';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
 let dir: string;
-let app: AirDeckApp;
+let app: AnMaChaCastApp;
 let server: Server;
 let base: string;
 let token: string;
@@ -51,7 +51,7 @@ function ingest(mount: string, user: string, pass: string, method = 'PUT') {
 }
 
 before(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'airdeck-'));
+  dir = mkdtempSync(join(tmpdir(), 'anmachacast-'));
   icecast = createServer((req, res) => {
     const entry = { path: req.url ?? '', auth: String(req.headers.authorization), type: String(req.headers['content-type']), data: '' };
     received.push(entry);
@@ -63,7 +63,7 @@ before(async () => {
   await new Promise<void>((r) => icecast.listen(0, '127.0.0.1', r));
   icePort = (icecast.address() as { port: number }).port;
 
-  app = new AirDeckApp(dir, { stableMs: 0 });
+  app = new AnMaChaCastApp(dir, { stableMs: 0 });
   token = app.svc.auth.createToken({ name: 't', scopes: ['*'], roles: ['admin'], stationIds: ['*'] }).token;
   server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -245,7 +245,7 @@ test('Mehrere Sender: anlegen, Logo setzen (öffentlich), löschen', async () =>
 test('Persistenz: Neustart stellt Konfiguration ohne aktive Quellen wieder her', async () => {
   await api('PUT', '/api/v1/stations/main/lautfm', { stationName: 'meinradio' });
   app.shutdown();
-  const again = new AirDeckApp(dir, { stableMs: 0 });
+  const again = new AnMaChaCastApp(dir, { stableMs: 0 });
   assert.equal(again.svc.lautfm.lautfmConfig('main').stationName, 'meinradio', 'laut.fm-Einstellungen überleben den Neustart');
   const list = again.engine.list('main');
   assert.equal(list.length, 4);
@@ -259,10 +259,10 @@ test('Persistenz: Neustart stellt Konfiguration ohne aktive Quellen wieder her',
 test('Pfadprüfung funktioniert mit Windows- und Linux-Pfaden', async () => {
   const { isInside } = await import('../src/server/http.ts');
   const path = await import('node:path');
-  assert.equal(isInside('C:\\Program Files\\AirDeck\\studio', 'C:\\Program Files\\AirDeck\\studio\\index.html', path.win32), true);
-  assert.equal(isInside('C:\\Program Files\\AirDeck\\studio', 'C:\\Program Files\\AirDeck\\studio\\js\\app.js', path.win32), true);
-  assert.equal(isInside('C:\\Program Files\\AirDeck\\studio', 'C:\\Program Files\\AirDeck\\secret.txt', path.win32), false);
-  assert.equal(isInside('C:\\Program Files\\AirDeck\\studio', 'D:\\x.html', path.win32), false);
+  assert.equal(isInside('C:\\Program Files\\AnMaChaCast\\studio', 'C:\\Program Files\\AnMaChaCast\\studio\\index.html', path.win32), true);
+  assert.equal(isInside('C:\\Program Files\\AnMaChaCast\\studio', 'C:\\Program Files\\AnMaChaCast\\studio\\js\\app.js', path.win32), true);
+  assert.equal(isInside('C:\\Program Files\\AnMaChaCast\\studio', 'C:\\Program Files\\AnMaChaCast\\secret.txt', path.win32), false);
+  assert.equal(isInside('C:\\Program Files\\AnMaChaCast\\studio', 'D:\\x.html', path.win32), false);
   assert.equal(isInside('/opt/airdeck/studio', '/opt/airdeck/studio/index.html', path.posix), true);
   assert.equal(isInside('/opt/airdeck/studio', '/opt/airdeck/studio-evil/x', path.posix), false);
   assert.equal(isInside('/opt/airdeck/studio', '/opt/airdeck/studio', path.posix), false);

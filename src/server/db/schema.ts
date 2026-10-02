@@ -97,7 +97,7 @@ export async function migrate(db: DatabaseProvider): Promise<{ from: number; to:
   const metaSql = createTableSql({ name: 'meta', columns: { name: 'key', value: 'text' }, primaryKey: ['name'] }, db.dialect)[0]!;
   await db.exec(metaSql);
   const cur = Number((await db.query<{ value: string }>("SELECT value FROM meta WHERE name = 'schema_version'"))[0]?.value ?? 0);
-  if (cur > SCHEMA_VERSION) throw new Error(`Die Datenbank hat Schema ${cur}, dieses Programm kennt nur ${SCHEMA_VERSION}. Bitte AirDeck aktualisieren.`);
+  if (cur > SCHEMA_VERSION) throw new Error(`Die Datenbank hat Schema ${cur}, dieses Programm kennt nur ${SCHEMA_VERSION}. Bitte AnMaCha Cast aktualisieren.`);
   for (const m of MIGRATIONS.filter((x) => x.version > cur)) {
     // SQLite und PostgreSQL führen DDL transaktional aus; bei MySQL schützt die Sicherung vor der Migration
     await db.transaction(async (tx) => {
@@ -113,7 +113,7 @@ export function migrateSync(db: DatabaseProvider): { from: number; to: number } 
   const s = db.sync!;
   s.exec(createTableSql({ name: 'meta', columns: { name: 'key', value: 'text' }, primaryKey: ['name'] }, 'sqlite')[0]!);
   const cur = Number(s.query<{ value: string }>("SELECT value FROM meta WHERE name = 'schema_version'")[0]?.value ?? 0);
-  if (cur > SCHEMA_VERSION) throw new Error(`Die Datenbank hat Schema ${cur}, dieses Programm kennt nur ${SCHEMA_VERSION}. Bitte AirDeck aktualisieren.`);
+  if (cur > SCHEMA_VERSION) throw new Error(`Die Datenbank hat Schema ${cur}, dieses Programm kennt nur ${SCHEMA_VERSION}. Bitte AnMaCha Cast aktualisieren.`);
   for (const m of MIGRATIONS.filter((x) => x.version > cur)) {
     s.transaction(() => {
       for (const sql of m.up('sqlite')) s.exec(sql);

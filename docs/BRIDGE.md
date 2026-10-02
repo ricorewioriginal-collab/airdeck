@@ -36,7 +36,7 @@ Für eigene Skripte, Plugins oder Synchronisierungsdienste gibt es ein Token mit
 ```bash
 curl -X POST -H "Authorization: Bearer <admin-token>" -H "Content-Type: application/json" \
   -d '{"name":"sync-azuracast","scopes":["bridge:write"],"roles":[],"stationIds":["*"]}' \
-  https://airdeck.example/api/v1/tokens
+  https://anmachacast.example/api/v1/tokens
 ```
 
 ### Sender über einen externen Schlüssel (idempotent)
@@ -85,11 +85,11 @@ Titelwechsel meldest du so aus gängiger Software (jeweils mit der GET-Adresse u
 ```bash
 KEY="azuracast:radio.example:azuratest_radio"
 curl -X PUT -H "Authorization: Bearer $BRIDGE" -H "Content-Type: application/json" \
-  -d '{"name":"AzuraTest Radio","genre":"Pop"}' "https://airdeck.example/api/v1/bridge/stations/$KEY"
+  -d '{"name":"AzuraTest Radio","genre":"Pop"}' "https://anmachacast.example/api/v1/bridge/stations/$KEY"
 # → Sender-ID merken (z. B. azuracast-radio-example-azuratest-radio) und dort die Anbindung anlegen:
 curl -X POST -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" \
   -d '{"kind":"azuracast","name":"AzuraCast","url":"https://radio.example","station":"azuratest_radio","mirror":true,"pull":true,"priority":20}' \
-  https://airdeck.example/api/v1/stations/<sender-id>/bridges
+  https://anmachacast.example/api/v1/stations/<sender-id>/bridges
 ```
 
 Beide Aufrufe lassen sich beliebig wiederholen. Es entsteht weder ein zweiter Sender noch eine zweite Relay-Quelle.

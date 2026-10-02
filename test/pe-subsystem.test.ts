@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { setSubsystem } from '../scripts/pe-subsystem.mjs';
 
 test('Windows-Programm ohne Konsolenfenster: PE-Subsystem wird korrekt umgestellt', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-pe-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-pe-'));
   try {
     const b = Buffer.alloc(512);
     b.write('MZ', 0, 'latin1');

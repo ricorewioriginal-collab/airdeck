@@ -63,7 +63,7 @@ async function roundtrip(db: DatabaseProvider) {
 }
 
 test('SQLite: Migration, Laden/Speichern, nur Änderungen, Übernahme der JSON-Dateien', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-db-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-db-'));
   try {
     const db = openSqliteSync(join(dir, 'airdeck.db'));
     assert.equal((await db.query<{ value: string }>("SELECT value FROM meta WHERE name = 'schema_version'"))[0]!.value, String(SCHEMA_VERSION));
@@ -95,7 +95,7 @@ test('SQLite: Migration, Laden/Speichern, nur Änderungen, Übernahme der JSON-D
 });
 
 test('Datenbank ausgefallen: Stand bleibt im Speicher, Schreiben wird wiederholt', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-db-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-db-'));
   try {
     const db = openSqliteSync(join(dir, 'airdeck.db'));
     const s = DbDocStore.openSync(db);
@@ -131,8 +131,8 @@ test('SQL-Hilfen je Dialekt', () => {
   assert.equal(databaseConfig({}, {}, '/d').url, join('/d', 'airdeck.db'));
 });
 
-// Server-Datenbanken: in der CI als Service-Container (AIRDECK_TEST_PG / AIRDECK_TEST_MYSQL_URL)
-for (const [provider, env] of [['postgres', 'AIRDECK_TEST_PG'], ['mysql', 'AIRDECK_TEST_MYSQL_URL'], ['mysql', 'AIRDECK_TEST_MARIADB_URL']] as const) {
+// Server-Datenbanken: in der CI als Service-Container (ANMACHA_CAST_TEST_PG / ANMACHA_CAST_TEST_MYSQL_URL)
+for (const [provider, env] of [['postgres', 'ANMACHA_CAST_TEST_PG'], ['mysql', 'ANMACHA_CAST_TEST_MYSQL_URL'], ['mysql', 'ANMACHA_CAST_TEST_MARIADB_URL']] as const) {
   test(`${env}: dieselben Prüfungen`, { skip: !process.env[env] && `${env} nicht gesetzt` }, async () => {
     const db = await openDatabase({ provider, url: process.env[env]! });
     try {
@@ -145,8 +145,8 @@ for (const [provider, env] of [['postgres', 'AIRDECK_TEST_PG'], ['mysql', 'AIRDE
   });
 }
 
-test('postgres: Passwort getrennt von der Adresse (AIRDECK_DB_PASSWORD)', { skip: !process.env.AIRDECK_TEST_PG && 'AIRDECK_TEST_PG nicht gesetzt' }, async () => {
-  const u = new URL(process.env.AIRDECK_TEST_PG!);
+test('postgres: Passwort getrennt von der Adresse (AIRDECK_DB_PASSWORD)', { skip: !process.env.ANMACHA_CAST_TEST_PG && 'ANMACHA_CAST_TEST_PG nicht gesetzt' }, async () => {
+  const u = new URL(process.env.ANMACHA_CAST_TEST_PG!);
   const password = decodeURIComponent(u.password);
   u.password = '';
   const db = await openDatabase({ provider: 'postgres', url: u.toString(), password });
@@ -158,10 +158,10 @@ test('postgres: Passwort getrennt von der Adresse (AIRDECK_DB_PASSWORD)', { skip
 });
 
 test('Datenbank ausgefallen: Konfiguration → 503, Sendebetrieb bleibt bedienbar', async () => {
-  const { AirDeckApp } = await import('../src/server/app.ts');
+  const { AnMaChaCastApp } = await import('../src/server/app.ts');
   const { createHttpServer, ON_AIR_OPS } = await import('../src/server/http.ts');
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-db-'));
-  const app = new AirDeckApp(dir, { stableMs: 0, ffmpeg: null });
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-db-'));
+  const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;

@@ -1,13 +1,13 @@
 // Brücke zu bestehenden Systemen (AzuraCast, Icecast, Streams) und Bridge-API für Entwickler (externe Schlüssel → Sender).
 
-import type { AirDeckApp } from '../app.ts';
+import type { AnMaChaCastApp } from '../app.ts';
 import { AppError, newId, type BridgeConfig, type Principal, type Station } from '../model.ts';
 import { PullRelay, fetchAzuracast, fetchIcecastMount, type ExternalNow } from '../bridge.ts';
 
 export class BridgeService {
-  private readonly app: AirDeckApp;
+  private readonly app: AnMaChaCastApp;
 
-  constructor(app: AirDeckApp) {
+  constructor(app: AnMaChaCastApp) {
     this.app = app;
   }
 

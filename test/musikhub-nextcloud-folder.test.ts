@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { AirDeckApp } from '../src/server/app.ts';
+import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 import { MAX_FOLDER_IMPORT_FILES } from '../src/server/services/musikhub.ts';
 
@@ -47,7 +47,7 @@ test('MusikHub: rekursiver Nextcloud-Ordner-Import - Tiefenbegrenzung, Dateitypf
   const davUrl = `http://127.0.0.1:${(davSrv.address() as { port: number }).port}/`;
 
   const dir = mkdtempSync(join(process.cwd(), '.musikhub-nextcloud-folder-test-'));
-  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;
@@ -101,7 +101,7 @@ test('MusikHub: rekursiver Nextcloud-Ordner-Import - harte Obergrenze an Dateien
   const davUrl = `http://127.0.0.1:${(davSrv.address() as { port: number }).port}/`;
 
   const dir = mkdtempSync(join(process.cwd(), '.musikhub-nextcloud-folder-cap-test-'));
-  const app = new AirDeckApp(dir, { ffmpeg: null });
+  const app = new AnMaChaCastApp(dir, { ffmpeg: null });
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/v1`;
