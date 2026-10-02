@@ -2197,3 +2197,20 @@ dialog h3 { font-size:17px; color:#f2fbff; }
 .st-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
 .st-legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; border-radius: 2px; }
 @media print { #sidebar, #topbar, .listener-hero-actions, .st-tabs, .st-foot { display: none !important; } .view-page { padding: 0; } }
+/* Trackliste: Cover + aufgeräumte Aktionen */
+.mm-cover-cell { width: 44px; padding: 3px 4px !important; }
+.mm-cover { width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(135deg, rgba(56, 189, 248, .25), rgba(129, 140, 248, .2)); display: grid; place-items: center; color: var(--muted); font-size: 16px; overflow: hidden; }
+.mm-cover.has-img { background: none; }
+.mm-cover img { width: 40px; height: 40px; object-fit: cover; display: block; }
+.list .act { overflow: visible; }
+.list .act .act-main { width: 30px; height: 30px; border-radius: 8px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); color: var(--text); font-size: 14px; padding: 0; }
+.list .act .act-main:hover { border-color: var(--accent); color: var(--accent); }
+.act-wrap { position: relative; display: inline-block; }
+.list .act .act-more { width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; color: var(--muted); font-size: 18px; line-height: 1; padding: 0; }
+.list .act .act-more:hover, .list .act .act-more[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.act-menu { position: fixed; z-index: 60; min-width: 230px; background: var(--panel-solid, #0d1a30); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 14px 40px rgba(0, 0, 0, .45); text-align: left; white-space: nowrap; }
+.list .act .act-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border-radius: 8px; color: var(--text); font-size: 13px; text-align: left; }
+.list .act .act-item:hover { background: rgba(56, 189, 248, .14); color: var(--text); }
+.list .act .act-item.danger { color: #f87171; }
+.act-ico { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, .06); font-size: 12px; font-weight: 800; flex: none; }
+.act-sep { height: 1px; background: var(--line); margin: 4px 2px; }
