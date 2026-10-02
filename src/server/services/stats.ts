@@ -98,6 +98,24 @@ export class StatsService {
     };
   }
 
+  /**
+   * Kennzahlen für die Senderkarten der Sendezentrale: Hörer jetzt (verbundene Ausgänge), Ø 24 h aus den
+   * 30-s-Stichproben, Ø 7 Tage aus dem Stunden-Aggregat. null = noch keine Daten.
+   */
+  cardNumbers(stationId: string, now = Date.now()): { live: number; avg24h: number | null; avg7d: number | null } {
+    const rt = this.app.rt(stationId);
+    const h = 3_600_000;
+    let sum = 0, n = 0;
+    for (const s of rt.data.recapSamples ?? []) if (s.at >= now - 24 * h) { sum += s.listeners; n++; }
+    let sum7 = 0, n7 = 0;
+    for (const x of rt.data.listenerHours ?? []) if (x.at >= now - 7 * 24 * h) { sum7 += x.sum; n7 += x.n; }
+    return {
+      live: this.app.listenersNow(stationId),
+      avg24h: n ? Math.round((sum / n) * 10) / 10 : null,
+      avg7d: n7 ? Math.round((sum7 / n7) * 10) / 10 : null,
+    };
+  }
+
   private series(stationId: string, period: StatsPeriod, from: number, to: number) {
     const rt = this.app.rt(stationId);
     const byHour: { sum: number; n: number }[] = Array.from({ length: 24 }, () => ({ sum: 0, n: 0 }));

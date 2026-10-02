@@ -29,7 +29,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 ### Überblick
 1. ~~[P1 · S] `data-sub`-Navigation verdrahten~~ - erledigt: Unterpunkte springen zum Abschnitt
    (data-sub-Element oder Panel-Überschrift) und heben ihn kurz hervor.
-2. [P2 · M] Sendezentrale: Netzwerk-Senderkarten mit Sortierung Live (Meiste/Wenigste), Ø 24h, Ø 7 Tage, A–Z; Sync.
+2. ~~[P2 · M] Sendezentrale: Netzwerk-Senderkarten mit Sortierung Live (Meiste/Wenigste), Ø 24h, Ø 7 Tage, A–Z; Sync~~ -
+   erledigt: `GET /network` liefert je sichtbarem Sender Live/Ø 24h/Ø 7 Tage (Stichproben + Stunden-Aggregat), Karten
+   zeigen die Zahlen, Sortierleiste (gemerkt), „⟳ Sync“ mit Zeitstempel.
 
 ### Programm planen
 3. ~~[P1 · M] Nachrichten & Wetter (laut.fm)~~ - erledigt: eigene Ansicht (`studio/js/news.js`,
@@ -55,13 +57,22 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
    Teleprompter (Größe, Serif, Tempo, Pause).
 9. ~~[P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export~~ - erledigt (KI-Werkstatt → Sendeablauf-Planer:
    Zeilen per Drag & Drop, Zeile hinzufügen, CSV-Export, Drucken).
+7. ~~[P2 · M] KI-Studio-Tab wie `relay-pro6`: Ansage-Typen als Knöpfe, Meldungen zusammenfassen,
+   Playlist per KI erstellen/neu ordnen, geplante KI-Ansagen mit Wochentagen~~ - erledigt: KI-Werkstatt → „KI-Studio“
+   (8 Ansage-Typen, Ton, Länge, Text → Vertonen → Bibliothek → als Nächstes/sofort senden), „KI-Playlist“ (erstellen,
+   neu ordnen/ergänzen, nur Bibliotheks-IDs, Liste mit ↑↓✕ und Speichern/Ersetzen), „Automatische KI-Ansagen“ (Uhr-Events
+   Art „KI-Ansage“ mit Wochentagen, ▶ Jetzt).
+8. [P2 · M] News-Zentrale (Show-Prep): Feed-/Artikelwahl, Wetter-Block, KI-Vorschlag, Teleprompter.
+9. [P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export.
 
 ### Musik & Inhalte
 10. ~~[P1 · M] Cardwall → Soundboard~~ - erledigt: Tags (Filter-Chips) + Suche, Favoriten, Zuletzt gespielt,
     Tastenkürzel je Cart (eindeutig je Sender), Show-Modus (Vollbild mit großen Carts), Esc/„Alle stoppen“
     blendet alle Carts aus (`POST /playout/carts-stop`, auch Browser-Wiedergabe).
 11. [P2 · M] Track-TÜV: Tonart-Analyse, Online-Tag-/Cover-Suche, Vorher/Nachher-Export (LUFS-Messung existiert).
-12. [P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen; [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
+12. ~~[P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen~~ - erledigt: Podcast-Einstellungen
+    → „Automatisch veröffentlichen“ (Vorlagen mit {label} {date} {time} {weekday} {duration} {station} {n}, Mindestdauer,
+    nur Zeitfenster, sofort/Entwurf, fortlaufende Nummer); offen: [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
 13. [P3 · M] Media & Jingle Exchange: Netzwerk-Sichtbarkeit, Dokumente/Logos (an MusikHub andocken).
 14. [P3 · L] Voice Studio: Wellenform-Schnitt, Musikbett-Mischer, Rauschentfernung; Stimm-Klonen nur mit lokaler Engine.
 15. [P3 · L] Transkription (Whisper lokal, Export TXT/SRT/VTT/JSON); Musik-Studio (Suno) nur mit gewünschtem Anbieter.
