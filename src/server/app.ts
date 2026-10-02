@@ -332,6 +332,23 @@ export class AirDeckApp {
           this.publish('stream.state_changed', o.cfg.stationId, { id: o.cfg.id, ...o.state });
         });
       }
+      // Sendungs-Rückblick: Stichprobe (Hörer-Spitze, gesendete Datenmenge) je Sender, 48 h Rollfenster
+      const now = Date.now();
+      const byStation = new Map<string, { listeners: number; bytesTotal: number }>();
+      for (const o of this.outputs.values()) {
+        const acc = byStation.get(o.cfg.stationId) ?? { listeners: 0, bytesTotal: 0 };
+        acc.listeners += o.state.status === 'connected' ? (o.state.listeners ?? 0) : 0;
+        acc.bytesTotal += o.state.bytesSent;
+        byStation.set(o.cfg.stationId, acc);
+      }
+      for (const [stationId, acc] of byStation) {
+        const rt = this.stations.get(stationId);
+        if (!rt) continue;
+        const samples = (rt.data.recapSamples ??= []);
+        samples.push({ at: now, ...acc });
+        const cutoff = now - 48 * 3_600_000;
+        while (samples.length && samples[0]!.at < cutoff) samples.shift();
+      }
     }
     // KI-Musikplanung alle 10 s prüfen (nur wenn aktiviert, sonst kostenlos)
     if (this.tickCount % 20 === 0) for (const id of this.stations.keys()) this.director.tick(id);

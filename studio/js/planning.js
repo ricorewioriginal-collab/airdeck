@@ -445,7 +445,72 @@ export function mountRecorder(root, ctx) {
         h('td', {}, p.label), h('td', {}, daysText(p.days)), h('td', { class: 'num' }, `${p.from}–${p.to}`),
         act(iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/rec-plans/${p.id}`)); await load(); }))))),
       'Z. B. jede Sendung „Morning Show“ Mo–Fr 06:00–10:00 automatisch mitschneiden.'));
-    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastEpisodesPanel()));
+    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastEpisodesPanel(), recapPanel()));
+  }
+
+  // ---------- Sendungs-Rückblick ----------
+
+  /** @type {{ from: number, to: number } } */
+  let recapRange = { from: Date.now() - 4 * 3600e3, to: Date.now() };
+  /** @type {any|null} */ let recapReport = null;
+
+  function recapPanel() {
+    const body = recapReport ? recapResultView(recapReport) : h('p', { class: 'muted' }, '„Anzeigen“ klicken, um den Rückblick für den gewählten Zeitraum zu erzeugen.');
+    return panel('Sendungs-Rückblick', [], h('div', {},
+      h('p', { class: 'muted' }, 'Gespielte Titel, Hörer-Spitze und gesendete Datenmenge für einen Zeitraum – als Übersicht, CSV-Export oder per E-Mail.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn small primary', onclick: showRecap }, 'Anzeigen'),
+        h('button', { class: 'btn small', onclick: downloadRecapCsv }, 'Als CSV herunterladen'),
+        h('button', { class: 'btn small', onclick: emailRecap }, 'Per E-Mail senden')),
+      body));
+  }
+
+  /** @param {any} r */
+  function recapResultView(r) {
+    return h('div', { class: 'recap-result' },
+      h('p', {}, `${new Date(r.from).toLocaleString('de-DE')} – ${new Date(r.to).toLocaleString('de-DE')} · ${Math.round(r.durationMs / 60000)} Min. · ${r.trackCount} Titel · Hörer-Spitze ${r.listenersPeak} · gesendet ${r.bytesSent == null ? 'unbekannt' : `${(r.bytesSent / 1048576).toFixed(1)} MB`}`),
+      r.tracks.length
+        ? h('ul', {}, ...r.tracks.map((/** @type {any} */ t) => h('li', {}, `${new Date(t.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} – ${mediaTitle(t)}`)))
+        : h('p', { class: 'muted' }, 'Keine Titel in diesem Zeitraum.'));
+  }
+
+  async function pickRecapRange() {
+    const v = await formDialog('Zeitraum wählen', [
+      { name: 'from', label: 'Von', type: 'datetime-local', value: localInput(recapRange.from), required: true },
+      { name: 'to', label: 'Bis', type: 'datetime-local', value: localInput(recapRange.to), required: true },
+    ], 'Übernehmen');
+    if (!v) return null;
+    const range = { from: new Date(v.from).getTime(), to: new Date(v.to).getTime() };
+    if (!(range.from < range.to)) { status('„Von“ muss vor „Bis“ liegen', true); return null; }
+    recapRange = range;
+    return range;
+  }
+
+  async function showRecap() {
+    const range = await pickRecapRange();
+    if (!range) return;
+    const r = await run(() => ctx.api.get(ctx.url(`/recap?from=${range.from}&to=${range.to}`)));
+    if (!r) return;
+    recapReport = r;
+    render();
+  }
+
+  async function downloadRecapCsv() {
+    const range = await pickRecapRange();
+    if (!range) return;
+    const blob = await run(() => ctx.api.blob(ctx.url(`/recap.csv?from=${range.from}&to=${range.to}`)));
+    if (blob) download(blob, `sendungs-rueckblick-${ctx.stationId()}.csv`);
+  }
+
+  async function emailRecap() {
+    const range = await pickRecapRange();
+    if (!range) return;
+    const v = await formDialog('Rückblick per E-Mail senden', [
+      { name: 'recipient', label: 'Empfänger (leer = Standard-Adresse unter Benachrichtigungen)', value: '' },
+    ], 'Senden');
+    if (!v) return;
+    const r = await run(() => ctx.api.post(ctx.url('/recap/email'), { from: range.from, to: range.to, recipient: v.recipient || undefined }));
+    if (r) status(r.ok ? 'Rückblick per E-Mail gesendet' : 'E-Mail-Versand fehlgeschlagen', !r.ok);
   }
 
   // ---------- Podcast: eigener Feed aus den eigenen Mitschnitten ----------

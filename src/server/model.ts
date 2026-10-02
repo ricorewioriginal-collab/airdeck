@@ -85,6 +85,15 @@ export interface StationData {
   streamProfiles?: StreamProfileConfig[];
   podcast?: PodcastConfig;
   episodes?: Episode[];
+  /** Stichproben für den Sendungs-Rückblick (alle 30 s: aktuelle Hörerzahl + gesendete Bytes über alle Ausgänge). */
+  recapSamples?: RecapSample[];
+}
+
+/** Eine Stichprobe für den Sendungs-Rückblick (Hörer-Spitze, gesendete Datenmenge über einen Zeitraum). */
+export interface RecapSample {
+  at: number;
+  listeners: number;
+  bytesTotal: number;
 }
 
 /** Zusatz-Streams-Profil: eigenes Format/Bitrate, gespeist aus demselben Programmbus wie der Hauptencoder. */

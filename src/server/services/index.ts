@@ -18,6 +18,7 @@ import { NextcloudService } from './nextcloud.ts';
 import { NotificationService } from './notifications.ts';
 import { PlanningService } from './planning.ts';
 import { PodcastService } from './podcast.ts';
+import { RecapService } from './recap.ts';
 import { RecorderService } from './recorder.ts';
 import { SetupService } from './setup.ts';
 import { StationService } from './stations.ts';
@@ -42,6 +43,7 @@ export function createServices(app: AirDeckApp) {
     planning: new PlanningService(app),
     lifehacks: new LifehacksService(app),
     podcast: new PodcastService(app),
+    recap: new RecapService(app),
     setup: new SetupService(app),
     listeners: new ListenerService(app),
     backup: new BackupService(app),

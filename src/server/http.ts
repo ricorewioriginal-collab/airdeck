@@ -574,6 +574,27 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
   add('PATCH', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', async (c) => app.svc.podcast.updateEpisode(sid(c), c.params.id!, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', (c) => app.svc.podcast.deleteEpisode(sid(c), c.params.id!));
 
+  // --- Sendungs-Rückblick ---
+  add('GET', '/api/v1/stations/:sid/recap', 'automation:read', (c) => {
+    const from = Number(c.url.searchParams.get('from'));
+    const to = Number(c.url.searchParams.get('to'));
+    return app.svc.recap.generate(sid(c), from, to);
+  });
+  add('GET', '/api/v1/stations/:sid/recap.csv', 'automation:read', (c) => {
+    const from = Number(c.url.searchParams.get('from'));
+    const to = Number(c.url.searchParams.get('to'));
+    const report = app.svc.recap.generate(sid(c), from, to);
+    const csv = app.svc.recap.csv(report);
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="sendungs-rueckblick-${sid(c)}.csv"` });
+    c.res.end('﻿' + csv);
+    return STREAMED;
+  });
+  add('POST', '/api/v1/stations/:sid/recap/email', 'automation:write', async (c) => {
+    const b = await c.body();
+    const ok = await app.svc.recap.email(sid(c), Number(b.from), Number(b.to), typeof b.recipient === 'string' ? b.recipient : undefined);
+    return { ok };
+  });
+
   // --- Datenspeicher / Sync (MySQL, Firebase) – nur globale Admins ---
   const globalAdmin = (c: Ctx) => {
     if (!c.p.stationIds.includes('*') || !c.p.roles.includes('admin')) throw new AppError(403, 'forbidden', 'Nur für Administratoren');

@@ -163,10 +163,15 @@ export class Notifier {
   }
 
   async deliverEmail(cfg: EmailConfig, text: string, payload?: NotifyPayload): Promise<boolean> {
+    const subject = payload ? `AnMaCha Cast – ${payload.event}` : 'AnMaCha Cast – Testmeldung';
+    return this.sendCustomEmail(cfg, subject, text);
+  }
+
+  /** Versendet eine freie Mail über den konfigurierten SMTP-Kanal (z. B. den Sendungs-Rückblick), ohne an das Alarm-Textschema gebunden zu sein. */
+  async sendCustomEmail(cfg: EmailConfig, subject: string, text: string, to?: string): Promise<boolean> {
     const pass = this.getSecret(cfg.passRef) ?? '';
-    const smtp: SmtpConfig = { host: cfg.smtpHost, port: cfg.smtpPort, secure: cfg.secure, user: cfg.user, pass, from: cfg.from || cfg.user, to: cfg.to };
+    const smtp: SmtpConfig = { host: cfg.smtpHost, port: cfg.smtpPort, secure: cfg.secure, user: cfg.user, pass, from: cfg.from || cfg.user, to: to || cfg.to };
     try {
-      const subject = payload ? `AnMaCha Cast – ${payload.event}` : 'AnMaCha Cast – Testmeldung';
       await this.sendMailFn(smtp, subject, text);
       return true;
     } catch (err) {
