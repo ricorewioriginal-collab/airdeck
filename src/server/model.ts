@@ -73,6 +73,8 @@ export interface StationData {
   insertCounters?: Record<string, number>;
   /** Nachrichten & Wetter (laut.fm): gewählter Ausgang als Zugangsquelle */
   news?: import('./services/news.ts').NewsConfig;
+  /** News-Zentrale (Show-Prep): eigene Feeds + ausgeblendete Standard-Feeds */
+  prepFeeds?: { custom: import('./services/showprep.ts').PrepFeed[]; removed: string[] };
   plans?: ProgramPlan[];
   recPlans?: RecordingPlan[];
   recordings?: Recording[];

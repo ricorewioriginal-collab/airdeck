@@ -23,6 +23,7 @@ import { PodcastService } from './podcast.ts';
 import { RecapService } from './recap.ts';
 import { RecorderService } from './recorder.ts';
 import { SetupService } from './setup.ts';
+import { ShowPrepService } from './showprep.ts';
 import { StationService } from './stations.ts';
 import { StatsService } from './stats.ts';
 import { StatusService } from './status.ts';
@@ -51,6 +52,7 @@ export function createServices(app: AnMaChaCastApp) {
     stats: new StatsService(app),
     motionMix: new MotionMixService(app),
     setup: new SetupService(app),
+    showprep: new ShowPrepService(app),
     listeners: new ListenerService(app),
     backup: new BackupService(app),
     remoteLink: new RemoteLinkService(app),

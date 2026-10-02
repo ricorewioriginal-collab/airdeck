@@ -49,8 +49,12 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 ### KI & Automatik
 7. [P2 · M] KI-Studio-Tab wie `relay-pro6`: Ansage-Typen als Knöpfe, Meldungen zusammenfassen,
    Playlist per KI erstellen/neu ordnen, geplante KI-Ansagen mit Wochentagen.
-8. [P2 · M] News-Zentrale (Show-Prep): Feed-/Artikelwahl, Wetter-Block, KI-Vorschlag, Teleprompter.
-9. [P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export.
+8. ~~[P2 · M] News-Zentrale (Show-Prep): Feed-/Artikelwahl, Wetter-Block, KI-Vorschlag, Teleprompter~~ - erledigt: eigene
+   Ansicht (`studio/js/showprep.js`, `services/showprep.ts`): Standard-Feeds nach Kategorie + eigene, Artikel serverseitig
+   geholt (Cache), Auswahl per Haken → KI-Moderationsnotizen, Wetter-Block (Open-Meteo, sprechbarer Text), Leseansicht mit
+   Teleprompter (Größe, Serif, Tempo, Pause).
+9. ~~[P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export~~ - erledigt (KI-Werkstatt → Sendeablauf-Planer:
+   Zeilen per Drag & Drop, Zeile hinzufügen, CSV-Export, Drucken).
 
 ### Musik & Inhalte
 10. ~~[P1 · M] Cardwall → Soundboard~~ - erledigt: Tags (Filter-Chips) + Suche, Favoriten, Zuletzt gespielt,
