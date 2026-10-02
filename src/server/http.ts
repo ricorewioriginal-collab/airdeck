@@ -556,6 +556,14 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     sendFile(c.req, c.res, path, 'audio/mpeg');
     return STREAMED;
   });
+  // --- News-Zentrale (Show-Prep) ---
+  add('GET', '/api/v1/stations/:sid/showprep/feeds', 'automation:read', (c) => app.svc.showprep.feeds(sid(c)));
+  add('POST', '/api/v1/stations/:sid/showprep/feeds', 'automation:write', async (c) => app.svc.showprep.addFeed(sid(c), await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/showprep/feeds/:id', 'automation:write', (c) => app.svc.showprep.removeFeed(sid(c), c.params.id!));
+  add('POST', '/api/v1/stations/:sid/showprep/feeds/reset', 'automation:write', (c) => app.svc.showprep.resetFeeds(sid(c)));
+  add('GET', '/api/v1/stations/:sid/showprep/articles', 'automation:read', (c) => app.svc.showprep.articles(sid(c), { feedId: c.url.searchParams.get('feed') ?? undefined, category: c.url.searchParams.get('category') ?? undefined }, c.url.searchParams.get('force') === '1'));
+  add('GET', '/api/v1/stations/:sid/showprep/weather', 'automation:read', (c) => app.svc.showprep.weather(c.url.searchParams.get('city') ?? ''));
+  add('POST', '/api/v1/stations/:sid/showprep/notes', 'ai:write', async (c) => app.svc.showprep.notes(sid(c), await c.body()));
   add('POST', '/api/v1/stations/:sid/news/:id/air', 'automation:write', async (c) => { const b = await c.body(); return app.svc.news.air(sid(c), Number(c.params.id) as 1 | 2 | 3, b.mode === 'now' ? 'now' : 'track', 'manual'); });
   add('POST', '/api/v1/stations/:sid/clock-events', 'automation:write', async (c) => app.svc.planning.saveClockEvent(sid(c), null, await c.body()));
   add('PATCH', '/api/v1/stations/:sid/clock-events/:id', 'automation:write', async (c) => app.svc.planning.saveClockEvent(sid(c), c.params.id!, await c.body()));
