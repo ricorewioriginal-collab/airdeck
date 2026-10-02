@@ -128,6 +128,11 @@ export class StationService {
     return [...this.app.stations.values()].filter((r) => canSee(p, r.station.id)).map((r) => this.withLautfmFlag(r));
   }
 
+  /** Netzwerk-Übersicht: alle sichtbaren Sender mit Hörer-Kennzahlen (für die Senderkarten der Sendezentrale). */
+  network(p: Principal): (Station & { lautfmConnected: boolean; live: number; avg24h: number | null; avg7d: number | null })[] {
+    return this.listStations(p).map((st) => ({ ...st, ...this.app.svc.stats.cardNumbers(st.id) }));
+  }
+
   station(id: string): Station & { lautfmConnected: boolean } {
     return this.withLautfmFlag(this.app.rt(id));
   }
