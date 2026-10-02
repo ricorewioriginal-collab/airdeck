@@ -1,9 +1,10 @@
 // KI je Sender: Einstellungen der Automation, Redaktionsassistent (Text) und Voice Studio (Sprache).
 
 import type { AnMaChaCastApp } from '../app.ts';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
+import { probeMedia } from '../ffmpeg.ts';
 import { execFile, spawnSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { MEDIA_CATEGORIES, type MediaItem } from '../../core/automation.ts';
@@ -12,6 +13,8 @@ import { DEFAULT_AI, type AiSource, type AiStationConfig } from '../ai/director.
 import { AiError, type TranscriptSegment } from '../ai/providers.ts';
 
 const execFileP = promisify(execFile);
+/** Whisper-Endpunkte nehmen höchstens 25 MB an */
+const TRANSCRIBE_MAX_BYTES = 25 * 1024 * 1024;
 const CHAT_MAX = 200;
 /** Ansage-Typen des KI-Studios (Knöpfe): [Beschriftung, Auftrag an die KI] */
 export const STUDIO_KINDS: Record<string, [string, string]> = {
@@ -182,11 +185,21 @@ export class AiToolsService {
     const rt = this.app.rt(stationId);
     const history = (rt.data.aiChat ??= []);
     const c = this.aiConfig(stationId);
-    const context = history.slice(-12).map((m) => `${m.role === 'user' ? 'Nutzer' : 'Assistent'}: ${m.text}`).join('\n');
+    // Verlauf nur so weit mitgeben, dass die neue Nachricht immer vollständig ankommt (ältere Beiträge fallen zuerst weg)
+    const budget = Math.max(0, 20_000 - text.length - 60);
+    const lines: string[] = [];
+    let used = 0;
+    for (const m of history.slice(-12).reverse()) {
+      const line = `${m.role === 'user' ? 'Nutzer' : 'Assistent'}: ${m.text}`;
+      if (used + line.length + 1 > budget) break;
+      lines.unshift(line);
+      used += line.length + 1;
+    }
+    const context = lines.join('\n');
     const system = `Du bist der KI-Assistent des Radiosenders „${rt.station.name}“: Moderationstexte, Social-Media-Posts, Gewinnspiel-Ideen, Sendeplanung, Recherche. Antworte auf ${c.language}, konkret und radiotauglich. ${instruction?.trim() ? `Zusätzliche Anweisung des Senders: ${instruction.trim().slice(0, 600)}` : ''}`;
     const full = context ? `Bisheriger Verlauf:\n${context}\n\nNeue Nachricht: ${text}` : text;
     try {
-      const r = await this.app.ai.text(stationId, 'assistant', [c.text, c.text.fallback], system, full.slice(0, 20_000), 90_000);
+      const r = await this.app.ai.text(stationId, 'assistant', [c.text, c.text.fallback], system, full, 90_000);
       history.push({ at: Date.now(), role: 'user', text: text.slice(0, 4000) }, { at: Date.now(), role: 'assistant', text: r.text.slice(0, 20_000) });
       if (history.length > CHAT_MAX) history.splice(0, history.length - CHAT_MAX);
       this.app.changed();
@@ -306,7 +319,9 @@ ${pool.map(line).join('\n')}`, system) as { text: string; model: string };
     const voice = this.app.svc.media.media(stationId, String(input.voiceMediaId ?? ''));
     const bed = this.app.svc.media.media(stationId, String(input.bedMediaId ?? ''));
     if (voice.url || bed.url) throw new AppError(400, 'stream', 'Stimme und Bett müssen Dateien sein, keine Streams');
-    const voiceSec = Math.max(1, (voice.durationMs ?? 30_000) / 1000);
+    // Länge der Stimme: aus der Bibliothek, sonst frisch messen - 30 s Pauschale würde das Bett zu früh abschneiden
+    const voiceMs = voice.durationMs ?? (ff.ffprobe ? (await probeMedia(ff.ffprobe, this.app.svc.media.mediaPath(stationId, voice))).durationMs : null);
+    const voiceSec = Math.max(1, (voiceMs ?? 30_000) / 1000);
     const tail = Math.max(0, Math.min(15, (input.tailMs ?? 2500) / 1000));
     const lead = 0.6;
     const total = lead + voiceSec + tail;
@@ -353,7 +368,8 @@ ${pool.map(line).join('\n')}`, system) as { text: string; model: string };
     const path = this.app.svc.media.mediaPath(stationId, m);
     if (!existsSync(path)) throw new AppError(404, 'missing_file', 'Datei fehlt');
     const language = /^[a-z]{2}$/.test(String(input.language ?? '')) ? String(input.language) : 'de';
-    const local = this.app.ai.transcribers().length === 0 || process.env.ANMACHA_CAST_WHISPER ? this.localWhisper() : null;
+    // Lokales whisper hat Vorrang (kostenlos, keine Datei verlässt den Server); Online-Provider nur, wenn keins da ist
+    const local = this.localWhisper();
     if (local) {
       const dir = mkdtempSync(join(tmpdir(), 'cast-whisper-'));
       try {
@@ -369,8 +385,10 @@ ${pool.map(line).join('\n')}`, system) as { text: string; model: string };
         rmSync(dir, { recursive: true, force: true });
       }
     }
+    const bytes = statSync(path).size;
+    if (bytes > TRANSCRIBE_MAX_BYTES) throw new AppError(413, 'too_large', `Datei ist ${(bytes / 1048576).toFixed(0)} MB - Online-Transkription geht bis ${TRANSCRIBE_MAX_BYTES / 1048576} MB (lokales whisper installieren)`);
     try {
-      const r = await this.app.ai.transcribe(stationId, readFileSync(path), m.file, language);
+      const r = await this.app.ai.transcribe(stationId, readFileSync(path), basename(m.originalName || path), language);
       return { text: r.text, srt: toSrt(r.segments), segments: r.segments, engine: r.providerId };
     } catch (err) {
       throw new AppError(502, 'ai_failed', (err as Error).message);

@@ -155,3 +155,20 @@ test('fillFromClock: Einschübe „nach N Songs aus Ordner“ laufen zwischen de
   fillFromClock(q3, lib, { id: 'c', name: 'c', slots: ['music'] }, [], 0, 1, { artistSeparation: 0, titleSeparation: 0 }, () => 0, null, rules, c3);
   assert.equal(c3.r1, 1);
 });
+
+test('fillFromClock: Einschub respektiert den festen Termin - passt er nicht mehr, bleibt der Zähler stehen', () => {
+  // 2 Songs à 3 min, Spot 30 s; Termin 10 s nach den beiden Songs → Spot fällt aus, Zähler steht auf "fällig"
+  const lib = [m('s1', 'A'), m('s2', 'B'), m('s3', 'C'), { ...m('spot', 'Werbung', 'music', 30_000), folder: 'Spots' }];
+  const q = new PlayQueue();
+  const counters: Record<string, number> = {};
+  const rules = [{ id: 'r1', label: 'Spots', folder: 'Spots', every: 2, enabled: true }];
+  const deadline = { at: 2 * 180_000 + 10_000, startAt: 0 };
+  fillFromClock(q, lib, { id: 'c', name: 'c', slots: ['music'] }, [], 0, 2, { artistSeparation: 0, titleSeparation: 0 }, () => 0, deadline, rules, counters);
+  const ids = q.list().map((x) => x.mediaId);
+  assert.ok(!ids.includes('spot'), 'Spot würde den Termin überschreiten');
+  assert.equal(counters.r1, 2, 'Zähler bleibt auf dem Schwellwert stehen');
+  // Ohne Termin kommt der Spot wie gewohnt nach dem zweiten Song
+  const q2 = new PlayQueue();
+  fillFromClock(q2, lib, { id: 'c', name: 'c', slots: ['music'] }, [], 0, 2, { artistSeparation: 0, titleSeparation: 0 }, () => 0, null, rules, { ...counters, r1: 0 });
+  assert.equal(q2.list().map((x) => x.mediaId)[2], 'spot');
+});

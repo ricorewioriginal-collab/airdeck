@@ -251,7 +251,10 @@ export class PlanningService {
       }
       case 'ai': {
         const aiKind = input.aiKind === 'news' ? 'news' : 'break';
-        if (!this.app.svc.ai.aiConfig(stationId).enabled) throw new AppError(409, 'ai_disabled', 'KI-Regisseur ist aus: zuerst unter KI einen Text- und Stimm-Anbieter einrichten und einschalten');
+        const ai = this.app.svc.ai.aiConfig(stationId);
+        if (!ai.enabled) throw new AppError(409, 'ai_disabled', 'KI-Regisseur ist aus: zuerst unter KI einen Text- und Stimm-Anbieter einrichten und einschalten');
+        if (!ai.text.providerId || !ai.voice.providerId) throw new AppError(409, 'ai_incomplete', 'KI-Regisseur braucht einen Text- und einen Stimm-Anbieter (KI → Regisseur)');
+        if (aiKind === 'news' && !ai.sources.some((s) => s.use === 'news')) throw new AppError(409, 'no_news_source', 'KI-Nachrichten brauchen eine Nachrichtenquelle (KI → Regisseur → Quellen)');
         return { kind, aiKind, mode: 'track', label: label ?? (aiKind === 'news' ? 'KI-Nachrichten' : 'KI-Ansage') };
       }
       default:
@@ -468,8 +471,12 @@ export class PlanningService {
     }
     if (t.kind === 'ai') {
       // Text + Stimme werden zur Startzeit erzeugt; der Regisseur hängt das Ergebnis vorn in die Warteschlange (oder zur Freigabe).
+      if (!this.app.svc.ai.aiConfig(stationId).enabled) {
+        this.app.audit.write({ kind: 'schedule', event: 'ai_skipped', stationId, label: t.label, reason: 'KI-Regisseur ist aus' });
+        return;
+      }
       this.app.director.produce(stationId, t.aiKind ?? 'break')
-        .then((r) => { if (!r) this.app.audit.write({ kind: 'schedule', event: 'ai_busy', stationId, label: t.label }); })
+        .then((r) => { if (!r) this.app.audit.write({ kind: 'schedule', event: 'ai_busy', stationId, label: t.label, reason: 'Regisseur produziert gerade' }); })
         .catch((err: Error) => this.app.audit.write({ kind: 'schedule', event: 'ai_failed', stationId, label: t.label, error: err.message }));
       return;
     }
@@ -479,9 +486,11 @@ export class PlanningService {
       let m: MediaItem | undefined;
       if (t.kind === 'media') m = rt.data.library.find((x) => x.id === t.mediaId);
       else {
-        const pool = t.kind === 'category'
+        // nur spielbare Titel: fehlende Dateien würden sonst als Lücke im Programm landen
+        const playable = (x: MediaItem): boolean => (x.url ? !!x.url.trim() : existsSync(this.app.svc.media.mediaPath(stationId, x)));
+        const pool = (t.kind === 'category'
           ? rt.data.library.filter((x) => x.category === t.category)
-          : rt.data.library.filter((x) => (x.folder ?? '') === t.folder);
+          : rt.data.library.filter((x) => (x.folder ?? '') === t.folder)).filter(playable);
         const picked = pickFromPool(pool.map((x) => ({ ...x, category: 'music' as const })), 'music', rt.data.history, rt.data.rotation);
         m = picked ? rt.data.library.find((x) => x.id === picked.id) : undefined;
       }
