@@ -57,7 +57,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     Tastenkürzel je Cart (eindeutig je Sender), Show-Modus (Vollbild mit großen Carts), Esc/„Alle stoppen“
     blendet alle Carts aus (`POST /playout/carts-stop`, auch Browser-Wiedergabe).
 11. [P2 · M] Track-TÜV: Tonart-Analyse, Online-Tag-/Cover-Suche, Vorher/Nachher-Export (LUFS-Messung existiert).
-12. [P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen; [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
+12. ~~[P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen~~ - erledigt: Podcast-Einstellungen
+    → „Automatisch veröffentlichen“ (Vorlagen mit {label} {date} {time} {weekday} {duration} {station} {n}, Mindestdauer,
+    nur Zeitfenster, sofort/Entwurf, fortlaufende Nummer); offen: [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
 13. [P3 · M] Media & Jingle Exchange: Netzwerk-Sichtbarkeit, Dokumente/Logos (an MusikHub andocken).
 14. [P3 · L] Voice Studio: Wellenform-Schnitt, Musikbett-Mischer, Rauschentfernung; Stimm-Klonen nur mit lokaler Engine.
 15. [P3 · L] Transkription (Whisper lokal, Export TXT/SRT/VTT/JSON); Musik-Studio (Suno) nur mit gewünschtem Anbieter.

@@ -198,6 +198,21 @@ export interface PodcastConfig {
   explicit: boolean;
   /** Cover: Dateiendung + Version (z. B. "png:lq3x"), Datei liegt in data/podcast-covers, wie Station.logo */
   cover?: string;
+  /** Auto-Veröffentlichung: fertige Mitschnitte werden nach Vorlage zur Episode (und auf Wunsch sofort in den Feed) */
+  auto?: PodcastAuto;
+}
+
+/** Platzhalter in den Vorlagen: {label} {station} {date} {time} {weekday} {duration} {n} (nächste Episodennummer) */
+export interface PodcastAuto {
+  enabled: boolean;
+  titleTemplate: string;
+  descriptionTemplate: string;
+  /** true = direkt im Feed, false = als Entwurf */
+  publish: boolean;
+  /** Kürzere Mitschnitte (Minuten) werden übersprungen, 0 = alle */
+  minMinutes: number;
+  /** Nur Mitschnitte aus Aufnahme-Zeitfenstern (keine manuellen) */
+  onlyPlanned: boolean;
 }
 
 /** Eine veröffentlichte (oder noch im Entwurf befindliche) Episode, aus einem bestehenden Mitschnitt erzeugt. */

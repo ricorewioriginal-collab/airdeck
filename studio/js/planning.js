@@ -709,7 +709,8 @@ export function mountRecorder(root, ctx) {
       h('div', { class: 'podcast-feed-url' },
         h('input', { type: 'text', readonly: true, value: feedUrl(), onclick: (/** @type {Event} */ e) => /** @type {HTMLInputElement} */ (e.target).select() }),
         h('button', { class: 'btn small', onclick: () => { navigator.clipboard?.writeText(feedUrl()); status('Feed-URL kopiert'); } }, 'Kopieren')),
-      h('p', { class: 'muted' }, 'Diese URL bei Apple Podcasts, Spotify for Podcasters oder einer beliebigen Podcast-App als Feed einreichen.')));
+      h('p', { class: 'muted' }, 'Diese URL bei Apple Podcasts, Spotify for Podcasters oder einer beliebigen Podcast-App als Feed einreichen.'),
+      cfg.auto?.enabled ? h('p', { class: 'muted' }, `⚡ Auto-Veröffentlichung an: fertige Mitschnitte werden ${cfg.auto.publish ? 'sofort veröffentlicht' : 'als Entwurf angelegt'} („${cfg.auto.titleTemplate}“${cfg.auto.minMinutes ? `, ab ${cfg.auto.minMinutes} Min.` : ''}${cfg.auto.onlyPlanned ? ', nur Zeitfenster' : ''}).`) : null));
   }
 
   function podcastEpisodesPanel() {
@@ -724,6 +725,7 @@ export function mountRecorder(root, ctx) {
 
   async function editPodcastConfig() {
     const cfg = podcast.config ?? {};
+    const auto = cfg.auto ?? {};
     const v = await formDialog('Podcast-Einstellungen', [
       { name: 'title', label: 'Titel', value: cfg.title ?? '', required: true },
       { name: 'description', label: 'Beschreibung', type: 'textarea', value: cfg.description ?? '' },
@@ -732,9 +734,19 @@ export function mountRecorder(root, ctx) {
       { name: 'category', label: 'Kategorie (iTunes, z. B. "Music")', value: cfg.category ?? '' },
       { name: 'explicit', label: 'Enthält nicht jugendfreie Inhalte', type: 'checkbox', value: !!cfg.explicit },
       { name: 'cover', label: `Cover${podcast.hasCover ? ' (neu hochladen ersetzt)' : ''}`, type: 'file', value: 'image/png,image/jpeg,image/webp', hint: 'PNG, JPG oder WebP, max. 5 MB – am besten quadratisch' },
+      { type: 'section', label: 'Automatisch veröffentlichen', hint: 'Jeder fertige Mitschnitt wird nach Vorlage zur Episode. Platzhalter: {label} {date} {time} {weekday} {duration} {station} {n}' },
+      { name: 'autoEnabled', label: 'Mitschnitte automatisch als Episode anlegen', type: 'checkbox', value: !!auto.enabled },
+      { name: 'autoPublish', label: 'Sofort im Feed veröffentlichen (sonst Entwurf)', type: 'checkbox', value: !!auto.publish },
+      { name: 'autoOnlyPlanned', label: 'Nur Mitschnitte aus Aufnahme-Zeitfenstern', type: 'checkbox', value: !!auto.onlyPlanned },
+      { name: 'autoTitle', label: 'Titel-Vorlage', value: auto.titleTemplate ?? '{label} vom {date}' },
+      { name: 'autoMin', label: 'Mindestdauer in Minuten (0 = alle)', type: 'number', value: auto.minMinutes ?? 0 },
+      { name: 'autoDescription', label: 'Shownotes-Vorlage', type: 'textarea', value: auto.descriptionTemplate ?? 'Mitschnitt „{label}“ vom {weekday}, {date} um {time} Uhr ({duration}) auf {station}.' },
     ]);
     if (!v) return;
-    await run(() => ctx.api.put(ctx.url('/podcast'), { title: v.title, description: v.description, author: v.author, language: v.language, category: v.category, explicit: v.explicit }));
+    await run(() => ctx.api.put(ctx.url('/podcast'), {
+      title: v.title, description: v.description, author: v.author, language: v.language, category: v.category, explicit: v.explicit,
+      auto: { enabled: v.autoEnabled, publish: v.autoPublish, onlyPlanned: v.autoOnlyPlanned, titleTemplate: v.autoTitle, minMinutes: v.autoMin ?? 0, descriptionTemplate: v.autoDescription },
+    }));
     if (v.cover) await run(() => ctx.api.req('PUT', ctx.url('/podcast/cover'), v.cover, { 'Content-Type': v.cover.type }));
     await load();
   }

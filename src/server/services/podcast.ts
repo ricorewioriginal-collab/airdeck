@@ -5,11 +5,34 @@
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AnMaChaCastApp } from '../app.ts';
-import { AppError, newId, type Episode, type PodcastConfig } from '../model.ts';
+import { AppError, newId, type Episode, type PodcastAuto, type PodcastConfig, type Recording } from '../model.ts';
 
 const xmlEsc = (s: unknown) => String(s ?? '').replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!);
 
 const COVER_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+
+export const DEFAULT_AUTO: PodcastAuto = {
+  enabled: false, titleTemplate: '{label} vom {date}', descriptionTemplate: 'Mitschnitt „{label}“ vom {weekday}, {date} um {time} Uhr ({duration}) auf {station}.',
+  publish: false, minMinutes: 0, onlyPlanned: false,
+};
+
+/** Platzhalter {name} ersetzen; unbekannte bleiben stehen. */
+export function renderTemplate(tpl: string, vars: Record<string, string>): string {
+  return tpl.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? vars[k]! : m)).trim();
+}
+
+export function templateVars(station: string, rec: Recording, n: number): Record<string, string> {
+  const start = new Date(rec.startedAt);
+  const mins = Math.max(1, Math.round(((rec.endedAt ?? Date.now()) - rec.startedAt) / 60_000));
+  const duration = mins >= 60 ? `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, '0')} min` : `${mins} min`;
+  return {
+    label: rec.label, station,
+    date: start.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    time: start.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
+    weekday: start.toLocaleDateString('de-DE', { weekday: 'long' }),
+    duration, n: String(n),
+  };
+}
 
 export class PodcastService {
   private readonly app: AnMaChaCastApp;
@@ -28,6 +51,15 @@ export class PodcastService {
   saveConfig(stationId: string, input: Record<string, unknown>): PodcastConfig {
     const rt = this.app.rt(stationId);
     const cur = this.config(stationId);
+    const a = input.auto as Partial<PodcastAuto> | undefined;
+    const auto: PodcastAuto | undefined = a && typeof a === 'object' ? {
+      enabled: a.enabled === true,
+      titleTemplate: String(a.titleTemplate ?? cur.auto?.titleTemplate ?? DEFAULT_AUTO.titleTemplate).slice(0, 200) || DEFAULT_AUTO.titleTemplate,
+      descriptionTemplate: String(a.descriptionTemplate ?? cur.auto?.descriptionTemplate ?? DEFAULT_AUTO.descriptionTemplate).slice(0, 4000),
+      publish: a.publish === true,
+      minMinutes: Math.max(0, Math.min(600, Math.round(Number(a.minMinutes ?? cur.auto?.minMinutes ?? 0)) || 0)),
+      onlyPlanned: a.onlyPlanned === true,
+    } : cur.auto;
     const cfg: PodcastConfig = {
       title: String(input.title ?? cur.title).slice(0, 120) || rt.station.name,
       description: String(input.description ?? cur.description).slice(0, 4000),
@@ -36,6 +68,7 @@ export class PodcastService {
       category: typeof input.category === 'string' ? input.category.slice(0, 80) || undefined : cur.category,
       explicit: Boolean(input.explicit ?? cur.explicit),
       cover: cur.cover,
+      ...(auto ? { auto } : {}),
     };
     rt.data.podcast = cfg;
     this.app.publish('podcast.changed', stationId, this.overview(stationId));
@@ -81,6 +114,32 @@ export class PodcastService {
 
   overview(stationId: string): { config: PodcastConfig; episodes: Episode[]; hasCover: boolean } {
     return { config: this.config(stationId), episodes: this.episodes(stationId), hasCover: !!this.cover(stationId) };
+  }
+
+  /**
+   * Vom Recorder nach jedem fertigen Mitschnitt aufgerufen: legt nach Vorlage eine Episode an, wenn die
+   * Auto-Veröffentlichung eingeschaltet ist und der Mitschnitt die Regeln erfüllt. null = übersprungen.
+   */
+  autoEpisode(stationId: string, rec: Recording): Episode | null {
+    const auto = this.config(stationId).auto;
+    if (!auto?.enabled || !rec.endedAt || rec.bytes === 0) return null;
+    if (auto.onlyPlanned && !rec.planId) return null;
+    const minutes = (rec.endedAt - rec.startedAt) / 60_000;
+    if (auto.minMinutes > 0 && minutes < auto.minMinutes) return null;
+    const rt = this.app.rt(stationId);
+    if (rt.data.episodes?.some((e) => e.recordingId === rec.id)) return null;
+    const n = (rt.data.episodes ?? []).reduce((max, e) => Math.max(max, e.episodeNumber ?? 0), 0) + 1;
+    const vars = templateVars(rt.station.name, rec, n);
+    const ep = this.createEpisode(stationId, rec.id, {
+      title: renderTemplate(auto.titleTemplate || DEFAULT_AUTO.titleTemplate, vars),
+      description: renderTemplate(auto.descriptionTemplate, vars),
+    });
+    ep.episodeNumber = n;
+    if (auto.publish) ep.publishedAt = Date.now();
+    this.app.audit.write({ kind: 'podcast', event: auto.publish ? 'auto_published' : 'auto_draft', stationId, episode: ep.id, recording: rec.id });
+    this.app.publish('podcast.changed', stationId, this.overview(stationId));
+    this.app.changed();
+    return ep;
   }
 
   /** Episode aus einem bestehenden Mitschnitt anlegen (Entwurf, noch nicht im Feed). */
