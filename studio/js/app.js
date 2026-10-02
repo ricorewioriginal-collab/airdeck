@@ -11,6 +11,7 @@ import { AudioEngine, DECKS, SilenceDetector, openMic, recordStream } from './au
 import { $, CATEGORY_STYLE, DAYS, clockTime, download, fmt, formDialog, h, hydrateIcons, icon, mediaTitle, run, status } from './ui.js';
 import { mountPlanning, mountRecorder } from './planning.js';
 import { mountMediaManagement } from './mediamgmt.js';
+import { mountJingles } from './jingles.js';
 import { mountPlaylistManagement } from './playlists.js';
 import { mountHandbuch } from './handbuch.js';
 import { mountLautfm } from './lautfm.js';
@@ -400,6 +401,7 @@ async function loadStation() {
   views = {
     planning: mountPlanning($('view-planning'), ctx),
     mediathek: mountMediaManagement($('view-mediathek'), { ...ctx, stationId: () => S.station.id, sendToDeck: (deckId, media) => loadDeck(deckId, media), upload }),
+    jingles: mountJingles($('view-jingles'), { ...ctx, upload: (files, category) => upload(files, category) }),
     playlists: mountPlaylistManagement($('view-playlists'), ctx),
     handbuch: mountHandbuch($('view-handbuch')),
     recorder: mountRecorder($('view-recorder'), { ...ctx, stationId: () => S.station.id }),
@@ -1315,8 +1317,9 @@ async function editMedia(m) {
 
 /** @param {FileList|File[]} files */
 /** @returns {Promise<any[]>} angelegte Medien */
-async function upload(files) {
-  const cat = /** @type {HTMLSelectElement} */ ($('lib-cat')).value || 'music';
+/** @param {File[]|FileList} files @param {string} [category] feste Kategorie (z. B. Jingles & IDs), sonst Auswahl aus der Bibliothek */
+async function upload(files, category) {
+  const cat = category || /** @type {HTMLSelectElement} */ ($('lib-cat')).value || 'music';
   const selFolder = /** @type {HTMLSelectElement} */ ($('lib-folder')).value;
   files = [...files].filter((f) => AUDIO_FILE.test(f.name));
   if (!files.length) {
@@ -2121,7 +2124,7 @@ function showView(name) {
   currentView = name;
   for (const b of document.querySelectorAll('#view-tabs button, #bottom-nav button')) b.setAttribute('aria-pressed', String(/** @type {HTMLElement} */ (b).dataset.view === name));
   $('sidebar').classList.remove('open');
-  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
+  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'jingles', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
   if (name !== 'studio') views[name]?.show();
   else void refreshStudioSchedule();
 }

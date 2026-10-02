@@ -2,7 +2,7 @@
 
 import { existsSync } from 'node:fs';
 import type { AirDeckApp } from '../app.ts';
-import { pickNext as pickFromPool, shuffleSeparated, type MediaItem } from '../../core/automation.ts';
+import { MEDIA_CATEGORIES, pickNext as pickFromPool, shuffleSeparated, type MediaItem } from '../../core/automation.ts';
 import {
   activeWindow, clockDue, dueJobs, nextOccurrence, validateClock, validateWindow,
   type ClockEvent, type JobTarget, type ProgramPlan, type Repeat, type ScheduledJob,
@@ -209,8 +209,14 @@ export class PlanningService {
       case 'playlist':
         if (!rt.data.playlists?.some((p) => p.id === input.playlistId)) throw new AppError(400, 'invalid_playlist', 'Playlist wählen');
         return { kind, playlistId: String(input.playlistId), mode: 'now', label };
+      case 'category': {
+        const category = String(input.category ?? '');
+        if (!(MEDIA_CATEGORIES as readonly string[]).includes(category)) throw new AppError(400, 'invalid_category', 'Unbekannte Kategorie');
+        if (!rt.data.library.some((m) => m.category === category)) throw new AppError(400, 'empty_category', 'In dieser Kategorie ist noch nichts hochgeladen');
+        return { kind, category, mode, label };
+      }
       default:
-        throw new AppError(400, 'invalid_kind', 'Art: media, folder, url oder playlist');
+        throw new AppError(400, 'invalid_kind', 'Art: media, folder, url, playlist oder category');
     }
   }
 
@@ -296,7 +302,9 @@ export class PlanningService {
       let m: MediaItem | undefined;
       if (t.kind === 'media') m = rt.data.library.find((x) => x.id === t.mediaId);
       else {
-        const pool = rt.data.library.filter((x) => (x.folder ?? '') === t.folder);
+        const pool = t.kind === 'category'
+          ? rt.data.library.filter((x) => x.category === t.category)
+          : rt.data.library.filter((x) => (x.folder ?? '') === t.folder);
         const picked = pickFromPool(pool.map((x) => ({ ...x, category: 'music' as const })), 'music', rt.data.history, rt.data.rotation);
         m = picked ? rt.data.library.find((x) => x.id === picked.id) : undefined;
       }
