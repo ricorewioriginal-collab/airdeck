@@ -11,7 +11,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · ⏳ geplant
 | Funktion | Status | In AnMaCha Cast |
 |---|---|---|
 | Decks A/B (Auto-DJ, Crossfade), C/D manuell | ✅ | 4 Decks, Automation, Server-Playout 24/7 |
-| Cue-Marke, Loop, Tempo, ±10 s | 🟡 | Cue-In/Segue pro Titel, Springen per Klick. Loop/Tempo ⏳ |
+| Cue-Marke, Loop, Tempo, ±10 s | 🟡 | Cue-In/Segue pro Titel, Springen per Klick, ±10-s-Tasten am Deck. Loop/Tempo (Zeitdehnung ohne Tonhöhenänderung) ⏳ |
 | Bibliothek mit Ordnern, Titel-/Ordner-Upload, Drag & Drop | ✅ | Ordner, Ordner-Upload, Drag & Drop |
 | Titeldaten bearbeiten (F2), Löschen | ✅ | ✎ im Archiv |
 | Warteschlange: füllen aus Ordner/Kategorie, leeren, verschieben | ✅ | „Aus Ordner …“, Drag & Drop |
@@ -23,16 +23,16 @@ Legende: ✅ vorhanden · 🟡 teilweise · ⏳ geplant
 | Programm: Playlists & Sendeplan (Zeitfenster → Playlist) | ✅ | Planung → Sendeplan |
 | Sound FX / Jingles / Pads | ✅ | Cardwall (12 Carts, Gruppen, Ducking) |
 | Sprecher/Mikrofon, Live übernehmen, zurück zur Automatik | ✅ | MIC LIVE, Source Priority, Freigeben |
-| Mithören & Audio-Routing | 🟡 | 🎧 Mithören. Ausgabegerät-Wahl/PFL auf zweites Gerät ⏳ |
+| Mithören & Audio-Routing | ✅ | 🎧 Mithören, CUE/PFL auf wählbarem zweiten Ausgabegerät (setSinkId) |
 | Encoder / Sender, Zusatz-Streams (Simulcast), Stream-Status | ✅ | Ausgänge (mehrere Icecast/laut.fm, ?prio=) |
 | Recorder / Replays, zeitgesteuerte Aufnahme | ✅ | Recorder |
 | Titelanzeige senden | ✅ | „Titelanzeige senden …“ |
-| Verlauf / Sendungs-Rückblick | 🟡 | Planung → Verlauf (CSV). Rückblick-Auswertung ⏳ |
-| Voicetrack (über Musik sprechen, speichern) | ⏳ | nächster Schritt |
-| Einstellungen: Notfall-Programm, Sound-Prozessor | 🟡 | Notfall-Auswahl, Limiter. Volle DSP-Kette ⏳ |
+| Verlauf / Sendungs-Rückblick | ✅ | Planung → Verlauf (CSV). Rückblick: Titelliste, Hörer-Spitze, Datenmenge je Zeitraum (CSV/E-Mail) |
+| Voicetrack (über Musik sprechen, speichern) | ✅ | 🎙 an der Queue - Moderationslink zwischen zwei Titeln aufnehmen, landet als eigener Titel exakt an der Stelle |
+| Einstellungen: Notfall-Programm, Sound-Prozessor | ✅ | Notfall-Auswahl, volle DSP-Kette (10-Band-EQ, Hochpass, Multiband-Kompander, Kompressor, Limiter, AGC/Loudnorm je Encoder-Preset) |
 | Nachrichten & Wetter, Werbe-Trigger (laut.fm) | ⏳ | nur über reale laut.fm-Schnittstellen |
-| Studiomail (Hörernachrichten), Prep-Feeds (RSS) | ⏳ | |
-| HLS-Stream (m3u8) | ⏳ | |
+| Studiomail (Hörernachrichten), Prep-Feeds (RSS) | 🟡 | Studiomail (Hörernachrichten/Anfragen/Sprachnachrichten als Inbox) vorhanden. Prep-Feeds (externe RSS-Show-Vorbereitung importieren) ⏳ |
+| HLS-Stream (m3u8) | ✅ | eigener HLS-Ausgang (ffmpeg-Segmentierung, konfigurierbare Bitrate/Segmentlänge) |
 | Cloud-Kachel (Team-Dateien) | ⏳ | Cloud-Adapter (WebDAV/S3/NAS) laut Spezifikation |
 
 ## lautCast (vormals „laut.fm" im Menü) - Radioadmin-Anbindung (automation.html als 1:1-Funktionsreferenz)
@@ -103,14 +103,14 @@ gelesen, kein Code übernommen), mairlist.com/en/products/radio-automation, radi
 | Remote-Relays / mehrere Ausgänge gleichzeitig | ✅ | 🟡 | 🟡 (externer Encoder) | ✅ | ✅ Ausgänge mit Priorität |
 | Webhooks/Integrationen | ✅ Slack/Discord/TuneIn | 🟡 (REST/Skripte) | ✗ | ✗ | ✅ signierte Webhooks, Telegram |
 | Sound-Prozessor (EQ/Kompressor/Lautheit) | 🟡 (Liquidsoap-Filter) | ✅ (VST/Winamp-Plugins) | ✅ (Plugin) | ✅ 5-Band | ✅ 10-Band-EQ, Multiband, EBU-R128-Lautheitsangleich pro Titel |
-| Podcast-/RSS-Hosting (Episoden, Feed) | ✅ | ✗ | 🟡 | ✗ | ⏳ geplant |
+| Podcast-/RSS-Hosting (Episoden, Feed) | ✅ | ✗ | 🟡 | ✗ | ✅ eigener RSS-2.0-Feed (iTunes-Namensraum) aus eigenen Mitschnitten |
 | Erweiterte Playlisten mit eigenem Skript (Liquidsoap von Hand) | ✅ „Advanced Playlist“ | ✗ | ✗ | ✗ | ⏳ nicht geplant (AnMaCha Cast bleibt ohne Skriptsprache bedienbar) |
 | Fernsteuerung professioneller Misch­pulte (DHD, Lawo, Studer, Axia, Ember+) | ✗ | ✅ | ✗ | ✗ | ✗ bewusst nicht: Hardware-spezifisch, sehr kleine Zielgruppe |
 | MusicMaster-Anbindung (externe Musikplanung) | ✗ | ✅ | ✗ | ✗ | ✗ nicht geplant: eigene Rotation/Sendeuhr deckt den Bedarf |
 | Monetarisierung (Musikverkauf, Werbe-/Merch-Links) | ✗ | ✗ | ✗ | ✅ | ✗ nicht der Zweck von AnMaCha Cast (Hobbyprojekt, ohne Gewähr) |
 
 **Einordnung:** Bei Kern-Playout, Lautheit/DSP, Mehr-Sender-Betrieb und Hörer-Interaktion liegt AnMaCha Cast vor allen vier
-Vergleichssystemen. Die einzige verbliebene, wirklich genutzte Lücke war Voice Tracking – jetzt umgesetzt (siehe
-oben). Podcast-/RSS-Hosting ist die einzige noch offene, tatsächlich nachgefragte Funktion (AzuraCast bietet sie);
-alles andere in der Tabelle ist entweder Nischenhardware, eine externe Abhängigkeit, die dem Ziel von AnMaCha Cast
-„läuft komplett lokal, ohne Zusatzsoftware“ widerspräche, oder außerhalb des Projektzwecks.
+Vergleichssystemen. Voice Tracking und Podcast-/RSS-Hosting – die beiden zuletzt noch offenen, tatsächlich
+nachgefragten Funktionen – sind inzwischen umgesetzt (siehe oben). Alles andere in der Tabelle ist entweder
+Nischenhardware, eine externe Abhängigkeit, die dem Ziel von AnMaCha Cast „läuft komplett lokal, ohne
+Zusatzsoftware“ widerspräche, oder außerhalb des Projektzwecks.

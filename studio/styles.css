@@ -198,6 +198,7 @@ button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none !important
 .deck-btn.play[aria-pressed="true"] { background: var(--c); color: #04101f; box-shadow: 0 0 14px var(--c); }
 .deck-btn.cue { font-size: 11px; font-weight: 750; letter-spacing: .05em; }
 .deck-btn.cue[aria-pressed="true"] { background: var(--amber); border-color: var(--amber); color: #1f1300; }
+.deck-btn.small { font-size: 10px; font-weight: 700; padding: 5px 6px; }
 .deck-ctrl input[type=range] { flex: 1; min-width: 30px; accent-color: var(--c); }
 .deck-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 10px 10px; font-size: 11px; }
 .deck-stats div { background: rgba(0, 0, 0, .22); border-radius: 6px; padding: 3px 6px; display: flex; flex-direction: column; }
