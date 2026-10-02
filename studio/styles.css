@@ -640,6 +640,56 @@ tr.active-row td { background: rgba(34,197,94,.08); }
   #view-handbuch table { display: block; overflow-x: auto; }
 }
 
+/* lautCast (laut.fm-Anbindung) - Design 1:1 aus automation.html (AnMaCha Radionetzwerk-Dashboard) übernommen:
+   Gold-Akzent auf Beinahe-Schwarz statt des globalen Orange/Pink-Themas, da das hier explizit die
+   laut.fm-Radioadmin-Optik sein soll, nicht die restliche AnMaCha-Cast-Oberfläche. */
+#view-lautfm {
+  --lfc-accent: #ffce00;
+  --lfc-accent-dim: #c9a200;
+  --lfc-accent-glow: rgba(255, 206, 0, .12);
+  --lfc-bg: #06060a;
+  --lfc-surface: #0e0e14;
+  --lfc-surface2: #151520;
+  --lfc-surface3: #1c1c28;
+  --lfc-border: rgba(255, 255, 255, .07);
+  --lfc-border-a: rgba(255, 206, 0, .22);
+  --lfc-text: #eeeef2;
+  --lfc-dim: #8e94a0;
+  background: var(--lfc-bg);
+  border-radius: 16px;
+  padding: 10px;
+  color: var(--lfc-text);
+}
+#view-lautfm .panel {
+  background: var(--lfc-surface);
+  border-color: var(--lfc-border);
+  border-radius: 12px;
+  box-shadow: none;
+}
+#view-lautfm .panel:hover { border-color: var(--lfc-border-a); }
+#view-lautfm .lf-head strong { color: #fff; font-weight: 900; }
+#view-lautfm .tabs button {
+  border-radius: 8px;
+  font-weight: 700;
+  color: var(--lfc-dim);
+}
+#view-lautfm .tabs button:hover { background: var(--lfc-surface2); color: var(--lfc-text); }
+#view-lautfm .tabs button[aria-pressed="true"] {
+  background: var(--lfc-accent-glow);
+  border-color: var(--lfc-border-a);
+  color: var(--lfc-accent);
+}
+#view-lautfm .btn { background: var(--lfc-surface2); border-color: var(--lfc-border); border-radius: 8px; }
+#view-lautfm .btn:hover { border-color: var(--lfc-accent-dim); box-shadow: 0 0 10px var(--lfc-accent-glow); }
+#view-lautfm .btn.primary { background: var(--lfc-accent); border-color: var(--lfc-accent); color: #000; font-weight: 800; }
+#view-lautfm .lf-pl-item { background: var(--lfc-surface2); border-color: var(--lfc-border); border-radius: 8px; }
+#view-lautfm .lf-pl-item:hover { border-color: var(--lfc-accent); }
+#view-lautfm .algo { background: var(--lfc-surface2); border-color: var(--lfc-border); border-radius: 12px; }
+#view-lautfm .algo.on { border-color: var(--lfc-accent); }
+#view-lautfm .pill.live { background: var(--lfc-accent-glow); color: var(--lfc-accent); }
+#view-lautfm input, #view-lautfm select, #view-lautfm textarea { background: var(--lfc-surface2); border-color: var(--lfc-border); color: var(--lfc-text); }
+#view-lautfm a { color: var(--lfc-accent); }
+
 
 /* ========================================================================
    AirDeck UI 2026 – Referenzdesign
