@@ -304,6 +304,11 @@ export function mountAi(root, ctx) {
   /** @type {string} */ let spotText = '';
   /** @type {any|null} */ let spotVoice = null;
   /** @type {any|null} */ let transcript = null;
+  /** @type {string} */ let studioKind = 'mod';
+  /** @type {string} */ let studioTopic = '';
+  /** @type {string} */ let studioText = '';
+  /** @type {any|null} */ let studioSaved = null;
+  /** @type {any|null} */ let studioPl = null;
 
   /** @param {string} id @param {string} title @param {string} color @param {string} desc @param {...any} body */
   const tool = (id, title, color, desc, ...body) => h('section', { class: 'panel kt-tool', style: `--c:${color}`, id: `kt-${id}` },
@@ -313,6 +318,91 @@ export function mountAi(root, ctx) {
   const mediaSelect = (filter, empty) => /** @type {HTMLSelectElement} */ (h('select', {}, h('option', { value: '' }, empty), ...libMedia().filter(filter).slice(0, 400).map((m) => h('option', { value: m.id }, `${m.artist ? `${m.artist} – ` : ''}${m.title}`))));
 
   async function tools() {
+    // --- KI-Studio: Ansage-Typen als Knöpfe, Text → Stimme → Bibliothek → Queue/Senden (nach relay-pro6) ---
+    const studioMeta = await ctx.api.get(ctx.url('/ai/studio')).catch(() => ({ kinds: {}, tones: [] }));
+    const kindRow = h('div', { class: 'kt-chips' });
+    const drawKinds = () => kindRow.replaceChildren(...Object.entries(studioMeta.kinds).map(([k, v]) => h('button', { class: `kt-chip${studioKind === k ? ' active' : ''}`, onclick: () => { studioKind = k; drawKinds(); stTopic.placeholder = k === 'news' ? 'Meldungen hier einfügen – die KI fasst sie sprechbar zusammen' : k === 'an' ? 'Stichpunkte (leer lassen = nächster Titel aus der Warteschlange)' : 'Stichpunkte / Thema …'; } }, v[0])));
+    const stTone = /** @type {HTMLSelectElement} */ (h('select', {}, ...studioMeta.tones.map((/** @type {string} */ t) => h('option', { value: t }, t))));
+    const stLen = /** @type {HTMLInputElement} */ (h('input', { type: 'number', value: '25', min: '5', max: '180', class: 'kt-num', title: 'Ziel-Länge in Sekunden' }));
+    const stTopic = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '3', placeholder: 'Stichpunkte / Thema …', value: studioTopic, oninput: () => { studioTopic = stTopic.value; } }));
+    const stText = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '6', placeholder: 'Sprechertext (hier auch von Hand bearbeitbar)', value: studioText, oninput: () => { studioText = stText.value; } }));
+    const stCount = h('span', { class: 'muted small' }, studioText ? `${(studioText.match(/\S+/g) ?? []).length} Wörter` : '');
+    const stTitle = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Name in der Bibliothek', value: '' }));
+    const stCat = /** @type {HTMLSelectElement} */ (h('select', {}, ...[['voice_track', 'Voice Track'], ['station_id', 'Station ID'], ['news', 'News'], ['tts', 'TTS'], ['ad', 'Werbung'], ['jingle', 'Jingle']].map(([v, l]) => h('option', { value: v }, l))));
+    const stSaved = h('div', { class: 'kt-row' });
+    const drawSaved = () => stSaved.replaceChildren(...(studioSaved ? [
+      h('span', { class: 'muted small' }, `„${studioSaved.title}“ liegt in der Bibliothek`),
+      h('button', { class: 'btn small', onclick: () => preview(studioSaved.id) }, '▶ Anhören'),
+      h('button', { class: 'btn small', onclick: async () => { if (await run(() => ctx.api.post(ctx.url('/queue'), { mediaId: studioSaved.id, index: 0 }))) status('Läuft als Nächstes'); } }, '⏭ Als Nächstes einreihen'),
+      h('button', { class: 'btn small primary', title: 'Sofort einblenden (Playout muss laufen)', onclick: async () => { if (await run(() => ctx.api.post(ctx.url('/onair'), { mediaId: studioSaved.id }))) status('Wird eingeblendet'); } }, '📡 Jetzt senden'),
+    ] : [h('span', { class: 'muted small' }, 'Erst vertonen & speichern – dann einreihen oder senden.')]));
+    drawKinds(); drawSaved();
+    const studio = tool('studio', 'KI-Studio', '#f97316', 'Ansage-Typen als Knöpfe: Text erstellen → Stimme → Bibliothek → als Nächstes einreihen oder sofort senden. KI-Texte immer kurz gegenlesen.',
+      kindRow,
+      h('div', { class: 'kt-row' }, h('label', { class: 'kt-lbl' }, 'Ton', stTone), h('label', { class: 'kt-lbl' }, 'Länge', stLen, 's'),
+        h('button', { class: 'btn small primary', onclick: async () => { status('KI schreibt …'); const r = await run(() => ctx.api.post(ctx.url('/ai/studio/write'), { kind: studioKind, topic: stTopic.value, tone: stTone.value, seconds: Number(stLen.value) })); if (r) { stText.value = r.text; studioText = r.text; stCount.textContent = `${r.words} Wörter · ca. ${r.seconds} s`; status('Text erstellt – gern anpassen, dann „Vertonen“'); } } }, '✍️ Text erstellen'), stCount),
+      stTopic, stText,
+      h('div', { class: 'kt-row' }, stTitle, stCat,
+        h('button', { class: 'btn small primary', onclick: async () => { if (!stText.value.trim()) { status('Erst einen Text erstellen oder schreiben', true); return; } status('KI spricht …'); const m = await run(() => ctx.api.post(ctx.url('/ai/speech'), { text: stText.value, title: stTitle.value || `${(studioMeta.kinds[studioKind]?.[0] ?? 'KI-Beitrag').replace(/^\S+\s/, '')} ${new Date().toLocaleDateString('de-DE')}`, category: stCat.value })); if (m) { studioSaved = m; drawSaved(); status(`„${m.title}“ gespeichert`); } } }, '🔊 Vertonen & speichern')),
+      stSaved);
+
+    // --- KI-Playlist: erstellen oder bestehende neu ordnen/ergänzen ---
+    const playlists = /** @type {any[]} */ ((await ctx.api.get(ctx.url('/playlists')).catch(() => [])) ?? []);
+    const folders = /** @type {string[]} */ ((await ctx.api.get(ctx.url('/folders')).catch(() => [])) ?? []);
+    const plPrompt = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '2', placeholder: 'Beschreibe die Playlist, z. B. „fröhlicher Schlager für den Sonntagnachmittag“ oder „Party-Klassiker, ab der Mitte mehr Tempo“' }));
+    const plMin = /** @type {HTMLInputElement} */ (h('input', { type: 'number', value: '60', min: '10', max: '600', class: 'kt-num' }));
+    const plFolder = /** @type {HTMLSelectElement} */ (h('select', {}, h('option', { value: '' }, 'Alle Musik-Ordner'), ...folders.map((f) => h('option', { value: f }, f))));
+    const plUniq = /** @type {HTMLInputElement} */ (h('input', { type: 'checkbox', checked: true }));
+    const plEx = /** @type {HTMLSelectElement} */ (h('select', {}, h('option', { value: '' }, 'Bestehende verbessern …'), ...playlists.filter((p) => !p.block).map((p) => h('option', { value: p.id }, p.name))));
+    const plOut = h('div', { class: 'kt-plist' });
+    const plName = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Name der Playlist' }));
+    const plReplace = /** @type {HTMLInputElement} */ (h('input', { type: 'checkbox' }));
+    const mmss = (/** @type {number} */ ms) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+    const drawPl = () => {
+      if (!studioPl) { plOut.replaceChildren(); return; }
+      const items = studioPl.items;
+      plOut.replaceChildren(
+        h('div', { class: 'kt-row' }, h('b', {}, `${items.length} Titel · ${mmss(items.reduce((/** @type {number} */ a, /** @type {any} */ i) => a + i.durationMs, 0))} min`), plName,
+          studioPl.playlistId ? h('label', { class: 'kt-lbl' }, plReplace, 'bestehende ersetzen') : null,
+          h('button', { class: 'btn small primary', onclick: async () => {
+            const name = plName.value.trim(); if (!name) { status('Bitte einen Namen angeben', true); return; }
+            const body = { name, items: items.map((/** @type {any} */ i) => i.id) };
+            const r = await run(() => studioPl.playlistId && plReplace.checked ? ctx.api.patch(ctx.url(`/playlists/${studioPl.playlistId}`), body) : ctx.api.post(ctx.url('/playlists'), body));
+            if (r) { status('Playlist gespeichert – zu finden unter „Playlisten“'); studioPl = null; drawPl(); }
+          } }, '💾 Playlist speichern')),
+        h('div', { class: 'kt-pl-rows' }, ...items.map((/** @type {any} */ i, /** @type {number} */ n) => h('div', { class: 'kt-pl-row' },
+          h('span', { class: 'muted num' }, String(n + 1)), h('span', { class: 'kt-pl-title' }, h('b', {}, i.title), ' ', h('span', { class: 'muted' }, i.artist)), h('span', { class: 'muted num' }, mmss(i.durationMs)),
+          h('button', { class: 'btn small', disabled: n === 0, onclick: () => { [items[n - 1], items[n]] = [items[n], items[n - 1]]; drawPl(); } }, '↑'),
+          h('button', { class: 'btn small', disabled: n === items.length - 1, onclick: () => { [items[n + 1], items[n]] = [items[n], items[n + 1]]; drawPl(); } }, '↓'),
+          h('button', { class: 'btn small danger', onclick: () => { items.splice(n, 1); drawPl(); } }, '✕')))));
+      plName.value = plName.value || studioPl.name;
+    };
+    drawPl();
+    const gen = async (/** @type {boolean} */ fix) => {
+      if (fix && !plEx.value) { status('Bitte eine bestehende Playlist wählen', true); return; }
+      status('KI stellt die Playlist zusammen …');
+      const r = await run(() => ctx.api.post(ctx.url('/ai/studio/playlist'), { prompt: plPrompt.value, minutes: Number(plMin.value), folder: plFolder.value, playlistId: fix ? plEx.value : undefined, uniqueArtists: plUniq.checked }));
+      if (r) { studioPl = r; plName.value = r.name; drawPl(); status(`${r.items.length} Titel gewählt (${r.model})`); }
+    };
+    const kiPlaylist = tool('playlist', 'KI-Playlist', '#22c55e', `Die KI wählt nur Titel aus deiner Bibliothek (${libMedia().filter((m) => m.category === 'music').length} Musiktitel) – nichts wird erfunden. Erstellen nach Beschreibung oder bestehende neu ordnen und ergänzen.`,
+      plPrompt,
+      h('div', { class: 'kt-row' }, h('label', { class: 'kt-lbl' }, 'Dauer', plMin, 'Min.'), plFolder, h('label', { class: 'kt-lbl' }, plUniq, 'Interpreten trennen')),
+      h('div', { class: 'kt-row' }, h('button', { class: 'btn primary', onclick: () => gen(false) }, '✨ Playlist erstellen'), plEx, h('button', { class: 'btn small', onclick: () => gen(true) }, '🔁 Neu ordnen / ergänzen')),
+      plOut);
+
+    // --- Automatische KI-Ansagen (Stunden-Uhr, Art „KI-Ansage“) ---
+    const planning = await ctx.api.get(ctx.url('/planning')).catch(() => null);
+    const aiEvents = /** @type {any[]} */ (planning?.clockEvents?.filter((/** @type {any} */ e) => e.kind === 'ai') ?? []);
+    const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    const autoCard = tool('auto', 'Automatische KI-Ansagen', '#a78bfa', 'Läuft ohne dein Zutun zur eingestellten Zeit: Moderation oder KI-Nachrichten als Uhr-Event mit Minuten, Stunden und Wochentagen.',
+      aiEvents.length ? h('table', { class: 'tbl kt-tbl' }, h('thead', {}, h('tr', {}, h('th', {}, 'Bezeichnung'), h('th', {}, 'Art'), h('th', {}, 'Wann'), h('th', {}, 'Status'), h('th', {}))),
+        h('tbody', {}, ...aiEvents.map((e) => h('tr', { style: e.enabled ? '' : 'opacity:.5' },
+          h('td', {}, h('b', {}, e.label || 'KI-Ansage')), h('td', {}, e.aiKind === 'news' ? 'KI-Nachrichten' : 'Moderation'),
+          h('td', {}, `${e.minutes.map((/** @type {number} */ m) => `:${String(m).padStart(2, '0')}`).join(' ')} · ${e.hours.length ? `${e.hours.join(', ')} Uhr` : 'jede Stunde'} · ${!e.days?.length || e.days.length === 7 ? 'täglich' : e.days.map((/** @type {number} */ d) => DAYS[d]).join(' ')}`),
+          h('td', {}, e.enabled ? 'aktiv' : 'aus'),
+          h('td', { class: 'kt-actions' }, h('button', { class: 'btn small', title: 'Jetzt erzeugen und einreihen', onclick: async () => { if (await run(() => ctx.api.post(ctx.url(`/clock-events/${e.id}/fire`)))) status('KI-Ansage wird erzeugt und eingereiht'); } }, '▶ Jetzt')))))) : h('div', { class: 'empty' }, 'Noch keine automatischen KI-Ansagen geplant.'),
+      h('div', { class: 'kt-row' }, h('button', { class: 'btn small', onclick: () => document.querySelector('[data-view="planning"][data-sub="events"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })) }, '＋ In der Stunden-Uhr planen (Art „KI-Ansage“)')));
+
     // --- KI-Assistent mit Verlauf ---
     const chatLog = h('div', { class: 'kt-chat' });
     const chatIn = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: '3', placeholder: 'Frag die KI: Moderationstext, Social-Media-Post, Gewinnspiel-Idee, Recherche …' }));
@@ -418,7 +508,7 @@ export function mountAi(root, ctx) {
     const notYet = h('section', { class: 'panel kt-tool kt-dim', style: '--c:#64748b' },
       h('div', { class: 'kt-head' }, h('span', { class: 'kt-badge' }, '…'), h('div', {}, h('h2', {}, 'Musik-Studio (Suno) & Office-Studio'), h('p', { class: 'muted small' }, 'Bewusst nicht enthalten: Songs komponieren (Suno) und Word/Excel/PowerPoint erzeugen brauchen externe Dienste mit eigenem Vertrag. Jingles und Betten entstehen über die Sendeuhr-Elemente, Berichte über „Berichte“ (CSV/E-Mail).'))));
 
-    return [h('div', { class: 'kt-grid' }, assistant, spot, plan, trans, voiceStudio, notYet)];
+    return [h('div', { class: 'kt-grid' }, studio, kiPlaylist, autoCard, assistant, spot, plan, trans, voiceStudio, notYet)];
   }
 
   return {

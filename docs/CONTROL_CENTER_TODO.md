@@ -49,8 +49,11 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 6. [P2 · L] Rundown-/Sendeablauf-Planer mit Segmenttypen, Backtiming und Live-Modus.
 
 ### KI & Automatik
-7. [P2 · M] KI-Studio-Tab wie `relay-pro6`: Ansage-Typen als Knöpfe, Meldungen zusammenfassen,
-   Playlist per KI erstellen/neu ordnen, geplante KI-Ansagen mit Wochentagen.
+7. ~~[P2 · M] KI-Studio-Tab wie `relay-pro6`: Ansage-Typen als Knöpfe, Meldungen zusammenfassen,
+   Playlist per KI erstellen/neu ordnen, geplante KI-Ansagen mit Wochentagen~~ - erledigt: KI-Werkstatt → „KI-Studio“
+   (8 Ansage-Typen, Ton, Länge, Text → Vertonen → Bibliothek → als Nächstes/sofort senden), „KI-Playlist“ (erstellen,
+   neu ordnen/ergänzen, nur Bibliotheks-IDs, Liste mit ↑↓✕ und Speichern/Ersetzen), „Automatische KI-Ansagen“ (Uhr-Events
+   Art „KI-Ansage“ mit Wochentagen, ▶ Jetzt).
 8. [P2 · M] News-Zentrale (Show-Prep): Feed-/Artikelwahl, Wetter-Block, KI-Vorschlag, Teleprompter.
 9. [P2 · M] Sendeablauf-Planer als Maske mit Drag-&-Drop-Tabelle und Export.
 
