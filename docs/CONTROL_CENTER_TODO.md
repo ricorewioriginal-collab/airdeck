@@ -55,8 +55,11 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 15. [P3 · L] Transkription (Whisper lokal, Export TXT/SRT/VTT/JSON); Musik-Studio (Suno) nur mit gewünschtem Anbieter.
 
 ### Sender & Ausspielung
-16. **[P1 · M] Sendereinstellungen**: Überblend-Profile (Standard, weich, knackig, Club, Talk & News, Ambient,
-    Nahtlos), Kurve (linear / Equal-Power / S), Fade-Out beim Stoppen, Sendungsende-Fade, Kurvenvorschau.
+16. ~~[P1 · M] Sendereinstellungen: Überblend-Profile, Kurve, Fade-Out beim Stoppen, Sendungsende-Fade~~ - erledigt:
+    7 Profile (Standard, weich, knackig, Club, Talk & News, Ambient, Nahtlos) + eigene Werte, Kurve
+    linear / Equal-Power / S in der Engine, getrennte Zeiten für Deck-Stopp, Skip, Sendungsende und
+    Jingles/IDs/Spots, Kurztitel-Regel; `POST /playout/stop` blendet jetzt aus statt hart zu schneiden.
+    Offen bleibt nur die grafische Kurvenvorschau (P3 · S).
 17. **[P1 · M] Regeln & Sicherung**: Einschübe-Liste "nach N Songs aus Ordner" im Rotation-Panel.
 18. [P2 · M] Sound & Stimme: Presets Radio/Warm/Hell/Laut/Sprache, Stereo-Breite, Bass/Höhen, Mikro-Gate/De-Esser.
 19. [P2 · L] Verbreitung: bis zu 2 eigene Mount-Streams mit Bitrate, SFTP-Eingang, Video-Radiostream (Visualizer, RTMP).

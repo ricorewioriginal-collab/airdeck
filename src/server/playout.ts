@@ -70,12 +70,52 @@ export interface PlayoutOptions {
   silenceMs: number;
   /** Überblendzeit beim Wechsel zwischen Automation und Live-Quelle in ms */
   liveFadeMs?: number;
+  /** Überblendung & Fades (Profil wie "Radio – knackig", Kurve, Einzelzeiten) */
+  fades?: FadeOptions;
+}
+
+export type FadeCurve = 'linear' | 'equal' | 's';
+
+export interface FadeOptions {
+  /** Name des gewählten Profils (nur Anzeige; "custom" = frei eingestellt) */
+  profile: string;
+  /** Ausblenden beim Stoppen/Auswerfen eines Decks */
+  stopMs: number;
+  /** Ausblenden bei "Nächster Titel"/Skip und beim Laden über einen laufenden Titel */
+  skipMs: number;
+  /** Ausblenden am Sendungsende (Playout stoppen) */
+  endMs: number;
+  /** Überblendung für Jingles/IDs/Sweeper/Spots (0 = harter Schnitt) */
+  fxMs: number;
+  /** Titel kürzer als das blenden nur 1 s (damit kurze Elemente nicht halb im Übergang verschwinden) */
+  shortTrackMs: number;
+  curve: FadeCurve;
+}
+
+export const FADE_PROFILES: Record<string, Omit<FadeOptions, 'profile'> & { label: string; crossfadeMs: number; fadeInMs: number }> = {
+  standard: { label: 'Standard', crossfadeMs: 3000, fadeInMs: 0, stopMs: 1000, skipMs: 1000, endMs: 1500, fxMs: 0, shortTrackMs: 30_000, curve: 'equal' },
+  soft: { label: 'Radio – weich', crossfadeMs: 5000, fadeInMs: 500, stopMs: 1500, skipMs: 1500, endMs: 3000, fxMs: 500, shortTrackMs: 30_000, curve: 's' },
+  crisp: { label: 'Radio – knackig', crossfadeMs: 2000, fadeInMs: 300, stopMs: 1000, skipMs: 1000, endMs: 1500, fxMs: 300, shortTrackMs: 30_000, curve: 'equal' },
+  club: { label: 'Club / Dance', crossfadeMs: 8000, fadeInMs: 0, stopMs: 2000, skipMs: 2000, endMs: 4000, fxMs: 200, shortTrackMs: 45_000, curve: 'equal' },
+  talk: { label: 'Talk & News', crossfadeMs: 1000, fadeInMs: 0, stopMs: 500, skipMs: 500, endMs: 1000, fxMs: 0, shortTrackMs: 20_000, curve: 'linear' },
+  ambient: { label: 'Ambient / Chill', crossfadeMs: 10_000, fadeInMs: 2000, stopMs: 3000, skipMs: 3000, endMs: 6000, fxMs: 1000, shortTrackMs: 60_000, curve: 's' },
+  seamless: { label: 'Nahtlos (kein Fade)', crossfadeMs: 0, fadeInMs: 0, stopMs: 50, skipMs: 50, endMs: 200, fxMs: 0, shortTrackMs: 0, curve: 'linear' },
+};
+
+export const DEFAULT_FADES: FadeOptions = { profile: 'standard', stopMs: 1000, skipMs: 1000, endMs: 1500, fxMs: 0, shortTrackMs: 30_000, curve: 'equal' };
+
+/** Rampenform: Fortschritt 0..1 → Anteil der Pegeländerung. Equal-Power hält die Summe zweier Blenden hörbar gleich laut. */
+export function fadeShape(curve: FadeCurve, p: number, rising: boolean): number {
+  const x = Math.max(0, Math.min(1, p));
+  if (curve === 'equal') return rising ? Math.sin((x * Math.PI) / 2) : 1 - Math.cos((x * Math.PI) / 2);
+  if (curve === 's') return x * x * (3 - 2 * x);
+  return x;
 }
 
 export const DEFAULT_PLAYOUT: PlayoutOptions = {
   format: 'mp3', bitrateKbps: 128, crossfadeMs: 3000, duckDb: -10, silenceThresholdDb: -50, silenceMs: 10_000,
   fadeInMs: 0, dsp: { eq: EQ_BANDS.map(() => 0), compressor: false, limiter: true }, monitor: false, inputDevice: '', micGainDb: 0,
-  mp3Mode: 'cbr', mp3Quality: 2, loudness: { auto: true, targetLufs: -16 },
+  mp3Mode: 'cbr', mp3Quality: 2, loudness: { auto: true, targetLufs: -16 }, fades: { ...DEFAULT_FADES },
 };
 
 /**
@@ -251,9 +291,17 @@ class Voice {
     return this.fadeTo === 0 && this.fadeFramesLeft === 0;
   }
 
-  fade(to: number, frames: number): void {
+  /** Startpegel und Gesamtlänge der laufenden Blende, damit die Rampe geformt werden kann (Kurve). */
+  fadeFrom = 0;
+  fadeTotal = 0;
+  fadeCurve: FadeCurve = 'linear';
+
+  fade(to: number, frames: number, curve: FadeCurve = 'linear'): void {
     this.fadeTo = to;
-    this.fadeFramesLeft = Math.max(1, frames);
+    this.fadeFrom = this.gain;
+    this.fadeTotal = Math.max(1, frames);
+    this.fadeFramesLeft = this.fadeTotal;
+    this.fadeCurve = curve;
   }
 
   stop(): void {
@@ -489,7 +537,7 @@ export class Playout {
   /** Stoppen (kurz ausblenden) und an den Anfang zurück. */
   deckStop(id: string): void {
     const d = this.deck(id);
-    if (d.voice) this.releaseVoice(d, 250);
+    if (d.voice) this.releaseVoice(d, this.fades().stopMs);
     if (!d.media) return;
     d.state = 'cued';
     d.posMs = d.media.cueInMs ?? 0;
@@ -498,7 +546,7 @@ export class Playout {
 
   deckEject(id: string): void {
     const d = this.deck(id);
-    if (d.voice) this.releaseVoice(d, 250);
+    if (d.voice) this.releaseVoice(d, this.fades().stopMs);
     d.media = null;
     d.state = 'empty';
     d.posMs = 0;
@@ -540,7 +588,23 @@ export class Playout {
     d.voice = null;
     if (!v) return;
     v.deck = null;
-    v.fade(0, msToFrames(fadeMs));
+    v.fade(0, msToFrames(fadeMs), this.fades().curve);
+  }
+
+  private fades(): FadeOptions {
+    return this.opts.fades ?? DEFAULT_FADES;
+  }
+
+  /**
+   * Sendungsende: laufende Titel über die eingestellte Zeit ausblenden, dann erst stoppen - statt des
+   * harten Schnitts von stop().
+   */
+  async fadeOutAndStop(): Promise<void> {
+    const ms = this.fades().endMs;
+    if (!this.running || ms <= 0) { this.stop(); return; }
+    for (const v of this.voices) if (v.kind === 'track' && v.fadeTo !== 0) v.fade(0, msToFrames(ms), this.fades().curve);
+    await new Promise((r) => setTimeout(r, ms + 50));
+    this.stop();
   }
 
   /**
@@ -646,12 +710,12 @@ export class Playout {
     for (const id of ['A', 'B'] as const) {
       const d = this.decks[id];
       if (d === target || !d.voice) continue;
-      this.releaseVoice(d, 500);
+      this.releaseVoice(d, this.fades().skipMs);
       d.state = d.auto ? 'empty' : 'cued';
       if (d.auto) d.media = null;
       d.posMs = d.media?.cueInMs ?? 0;
     }
-    if (target.voice) this.releaseVoice(target, 500);
+    if (target.voice) this.releaseVoice(target, this.fades().skipMs);
     target.media = media;
     this.lastAutoDeck = target.id as 'A' | 'B';
     this.startDeckVoice(target, media.cueInMs ?? 0, false);
@@ -973,7 +1037,11 @@ export class Playout {
     // Musik, externe Stream-URLs (category 'stream') und Moderationslinks (category 'voice_track')
     // sollen sauber ein-/ausgeblendet werden, nicht hart geschnitten. Jingles/Sweeper/Station-IDs/News/
     // Werbung bleiben bewusst beim harten Schnitt (knackige Kennung), außer per Titel (segueMs) gesetzt.
-    const base = m.segueMs ?? (m.category === 'music' || m.category === 'stream' || m.category === 'voice_track' ? this.opts.crossfadeMs : 0);
+    const f = this.fades();
+    const musical = m.category === 'music' || m.category === 'stream' || m.category === 'voice_track';
+    let base = m.segueMs ?? (musical ? this.opts.crossfadeMs : f.fxMs);
+    // Kurze Titel (Jingles, Ansagen) nur 1 s blenden, sonst verschwindet die Hälfte im Übergang.
+    if (m.segueMs == null && total && f.shortTrackMs > 0 && framesToMs(total) < f.shortTrackMs) base = Math.min(base, 1000);
     return msToFrames(total ? Math.min(base, framesToMs(total) / 2) : base);
   }
 
@@ -1007,8 +1075,9 @@ export class Playout {
       let to = v.gain;
       if (v.fadeTo != null && v.fadeFramesLeft > 0) {
         const step = Math.min(due, v.fadeFramesLeft);
-        to = from + ((v.fadeTo - from) * step) / v.fadeFramesLeft;
         v.fadeFramesLeft -= step;
+        const p = 1 - v.fadeFramesLeft / v.fadeTotal;
+        to = v.fadeFrom + (v.fadeTo - v.fadeFrom) * fadeShape(v.fadeCurve, p, v.fadeTo > v.fadeFrom);
         v.gain = to;
       }
       const k = v.kind === 'track' ? 1 : 0;
@@ -1096,7 +1165,7 @@ export class Playout {
       this.skipRequested = false;
       if (cur?.deck) {
         const d = this.decks[cur.deck];
-        this.releaseVoice(d, 500);
+        this.releaseVoice(d, this.fades().skipMs);
         d.state = d.auto ? 'empty' : 'cued';
         if (d.auto) d.media = null;
         d.posMs = d.media?.cueInMs ?? 0;

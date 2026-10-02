@@ -787,6 +787,8 @@ async function editPlayout() {
   const eq = c.dsp?.eq ?? [];
   const presets = /** @type {Record<string, any>} */ ((await run(() => api.get('/dsp/presets'))) ?? {});
   const loud = /** @type {any} */ (await run(() => api.get(url('/media/loudness')))) ?? { total: 0, measured: 0, pending: 0 };
+  const f = c.fades ?? {};
+  const profiles = /** @type {any[]} */ (S.playout?.fadeProfiles ?? []);
   const v = await formDialog('Server-Automation 24/7', [
     { name: 'format', label: 'Format', value: c.format ?? 'mp3', options: [['mp3', `MP3${enc.mp3 ? '' : ' (nicht verfügbar)'}`], ['aac', 'AAC (ADTS)'], ['opus', `Ogg/Opus${enc.opus ? '' : ' (nicht verfügbar)'}`]] },
     { name: 'bitrateKbps', label: 'Bitrate (kbit/s)', type: 'number', value: c.bitrateKbps ?? 128 },
@@ -796,8 +798,15 @@ async function editPlayout() {
     { name: 'loudAuto', label: `Lautheit automatisch angleichen (EBU R128, gemessen: ${loud.measured}/${loud.total}${loud.pending ? `, ${loud.pending} in Arbeit` : ''})`, type: 'checkbox', value: c.loudness?.auto ?? true },
     { name: 'loudTarget', label: 'Ziel-Lautheit pro Titel (LUFS, üblich −16 … −14)', type: 'number', value: c.loudness?.targetLufs ?? -16 },
     { name: 'analyze', label: 'Bibliothek jetzt (neu) messen', type: 'checkbox', value: false, hint: 'Läuft im Hintergrund, ein Titel nach dem anderen' },
+    { name: 'fadeProfile', label: 'Überblend-Profil', value: f.profile ?? 'standard', options: [...profiles.map((p) => /** @type {[string,string]} */ ([p.id, p.label])), ['custom', 'Eigene Werte (unten)']], hint: 'Ein neu gewähltes Profil setzt alle Blendzeiten und die Kurve – danach frei anpassbar' },
     { name: 'crossfadeMs', label: 'Überblendung Musik (ms)', type: 'number', value: c.crossfadeMs ?? 3000 },
     { name: 'fadeInMs', label: 'Einblenden neuer Titel (ms)', type: 'number', value: c.fadeInMs ?? 0 },
+    { name: 'fadeStopMs', label: 'Fade-Out beim Stoppen eines Decks (ms)', type: 'number', value: f.stopMs ?? 1000 },
+    { name: 'fadeSkipMs', label: 'Fade-Out bei „Nächster Titel“ (ms)', type: 'number', value: f.skipMs ?? 1000 },
+    { name: 'fadeEndMs', label: 'Sendungsende: Ausblenden vor dem Stopp (ms)', type: 'number', value: f.endMs ?? 1500 },
+    { name: 'fadeFxMs', label: 'Jingles, IDs & Spots: Überblendung (ms, 0 = harter Schnitt)', type: 'number', value: f.fxMs ?? 0 },
+    { name: 'fadeShortSec', label: 'Kurze Titel unter … Sekunden nur 1 s blenden (0 = aus)', type: 'number', value: Math.round((f.shortTrackMs ?? 30000) / 1000) },
+    { name: 'fadeCurve', label: 'Überblend-Kurve', value: f.curve ?? 'equal', options: [['equal', 'Equal-Power (gleichbleibend laut, Radio-Standard)'], ['s', 'S-Kurve (weich an- und ausschwingend)'], ['linear', 'Linear']] },
     { name: 'monitor', label: `Programm über die Lautsprecher dieses PCs mithören${dev.monitor ? '' : ' (ffplay fehlt)'}`, type: 'checkbox', value: !!c.monitor },
     { name: 'inputDevice', label: 'Mikrofon / Line-In (am PC)', value: c.inputDevice ?? '', options: [['', '– kein Eingang –'], ...(dev.devices ?? []).map((/** @type {any} */ d) => /** @type {[string,string]} */ ([d.id, d.name]))] },
     { name: 'micGainDb', label: 'Mikrofon-Pegel (dB)', type: 'number', value: c.micGainDb ?? 0 },
@@ -821,8 +830,14 @@ async function editPlayout() {
   const dsp = chosen
     ? { ...chosen, preset: v.preset }
     : { eq: (dev.eqBands ?? []).map((/** @type {number} */ _, /** @type {number} */ i) => v[`eq${i}`] ?? 0), compressor: v.compressor, limiter: v.limiter, highpass: v.highpass, multiband: v.multiband, agc: v.agc, targetLufs: v.targetLufs ?? -16, preset: v.preset };
-  const { hlsEnabled, hlsBitrateKbps, hlsSegmentSeconds, ...rest } = v;
-  const body = { ...rest, dsp, loudness: { auto: v.loudAuto, targetLufs: v.loudTarget ?? -16 }, hls: { enabled: hlsEnabled, bitrateKbps: hlsBitrateKbps ?? 128, segmentSeconds: hlsSegmentSeconds ?? 6 } };
+  const { hlsEnabled, hlsBitrateKbps, hlsSegmentSeconds, fadeProfile, fadeStopMs, fadeSkipMs, fadeEndMs, fadeFxMs, fadeShortSec, fadeCurve, ...rest } = v;
+  // Neu gewähltes Profil setzt alle Blendwerte; sonst gelten die Felder (Profil → „eigene Werte“)
+  const prof = fadeProfile !== (f.profile ?? 'standard') ? profiles.find((p) => p.id === fadeProfile) : null;
+  const fades = prof
+    ? { profile: prof.id, stopMs: prof.stopMs, skipMs: prof.skipMs, endMs: prof.endMs, fxMs: prof.fxMs, shortTrackMs: prof.shortTrackMs, curve: prof.curve }
+    : { profile: fadeProfile || 'custom', stopMs: fadeStopMs ?? 1000, skipMs: fadeSkipMs ?? 1000, endMs: fadeEndMs ?? 1500, fxMs: fadeFxMs ?? 0, shortTrackMs: Math.max(0, (fadeShortSec ?? 30) * 1000), curve: fadeCurve || 'equal' };
+  if (prof) { rest.crossfadeMs = prof.crossfadeMs; rest.fadeInMs = prof.fadeInMs; }
+  const body = { ...rest, fades, dsp, loudness: { auto: v.loudAuto, targetLufs: v.loudTarget ?? -16 }, hls: { enabled: hlsEnabled, bitrateKbps: hlsBitrateKbps ?? 128, segmentSeconds: hlsSegmentSeconds ?? 6 } };
   if (v.analyze) {
     const a = await run(() => api.post(url('/media/loudness'), { force: true }));
     if (a) status(`${a.queued} Titel werden im Hintergrund gemessen`);

@@ -27,7 +27,7 @@ import { fetchListeners } from './stats.ts';
 import { RelayTarget } from './relay.ts';
 import { detectFfmpeg, detectFfmpegAsync, generateTestTone, inputDeviceArgs, listInputDevices, type FfmpegInfo } from './ffmpeg.ts';
 import { IcyMetadataReader } from './icy.ts';
-import { DEFAULT_PLAYOUT, DSP_PRESETS, DeckError, EQ_BANDS, Playout } from './playout.ts';
+import { DEFAULT_FADES, DEFAULT_PLAYOUT, DSP_PRESETS, DeckError, EQ_BANDS, FADE_PROFILES, Playout, type FadeOptions } from './playout.ts';
 import { SyncManager } from './sync.ts';
 import { appVersion, type AirDeckConfig, type Mode } from './config.ts';
 import { HealthManager } from './health.ts';
@@ -1132,7 +1132,8 @@ export class AirDeckApp {
     return {
       supported: !!this.ffmpeg,
       ffmpeg: this.ffmpeg ? { version: this.ffmpeg.version, encoders: this.ffmpeg.encoders, probe: !!this.ffmpeg.ffprobe } : null,
-      config: cfg,
+      config: { ...cfg, fades: { ...DEFAULT_FADES, ...cfg.fades } },
+      fadeProfiles: Object.entries(FADE_PROFILES).map(([id, p]) => ({ id, ...p })),
       status: this.playouts.get(stationId)?.playout.status() ?? null,
     };
   }
@@ -1223,12 +1224,13 @@ export class AirDeckApp {
     return this.playoutView(stationId);
   }
 
-  stopPlayout(p: Principal, stationId: string): unknown {
+  /** Sendungsende: Titel über den eingestellten Fade ausblenden (fades.endMs), dann stoppen. */
+  async stopPlayout(p: Principal, stationId: string): Promise<unknown> {
     const rt = this.rt(stationId);
     const po = this.playouts.get(stationId);
     if (po) {
       this.playouts.delete(stationId);
-      po.playout.stop();
+      await po.playout.fadeOutAndStop();
       this.engine.setHealth(po.source.id, true);
       this.silenced.delete(stationId);
       this.applyProgram(stationId, po.source.target, 'bus_stopped');
@@ -1310,6 +1312,19 @@ export class AirDeckApp {
     cur.bitrateKbps = num(input.bitrateKbps, 32, 320) ?? cur.bitrateKbps;
     cur.crossfadeMs = num(input.crossfadeMs, 0, 15000) ?? cur.crossfadeMs;
     cur.fadeInMs = num(input.fadeInMs, 0, 10000) ?? cur.fadeInMs ?? 0;
+    if (input.fades && typeof input.fades === 'object') {
+      const f = input.fades as Partial<FadeOptions>;
+      const prev = cur.fades ?? DEFAULT_FADES;
+      cur.fades = {
+        profile: typeof f.profile === 'string' ? f.profile.slice(0, 40) : prev.profile,
+        stopMs: num(f.stopMs, 0, 15000) ?? prev.stopMs,
+        skipMs: num(f.skipMs, 0, 15000) ?? prev.skipMs,
+        endMs: num(f.endMs, 0, 30000) ?? prev.endMs,
+        fxMs: num(f.fxMs, 0, 5000) ?? prev.fxMs,
+        shortTrackMs: num(f.shortTrackMs, 0, 300000) ?? prev.shortTrackMs,
+        curve: f.curve === 'linear' || f.curve === 'equal' || f.curve === 's' ? f.curve : prev.curve,
+      };
+    }
     cur.micGainDb = num(input.micGainDb, -20, 20) ?? cur.micGainDb ?? 0;
     cur.duckDb = num(input.duckDb, -40, 0) ?? cur.duckDb;
     cur.silenceThresholdDb = num(input.silenceThresholdDb, -90, -10) ?? cur.silenceThresholdDb;
