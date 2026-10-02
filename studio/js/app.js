@@ -774,6 +774,12 @@ function renderPlayout() {
   $('po-meta').textContent = (st?.running
     ? `${fmt(st.current?.positionMs)} / ${fmt(st.current?.durationMs)} · ${st.format.toUpperCase()} ${st.bitrateKbps} kbit/s${p.config.autostart ? ' · Autostart' : ''}`
     : p?.config ? `${p.config.format.toUpperCase()} ${p.config.bitrateKbps} kbit/s · Überblendung ${p.config.crossfadeMs / 1000}s` : '') + hls;
+  // Motion-Carts in Endlosschleife: Cart hervorheben, ∞-Knopf wird zum „Weiter“
+  const looping = new Set((st?.loops ?? []).filter((/** @type {any} */ l) => l.inLoop).map((/** @type {any} */ l) => l.mediaId));
+  for (const el of document.querySelectorAll('#carts [data-cart]')) {
+    const c = S.carts.find((x) => x.id === /** @type {HTMLElement} */ (el).dataset.cart);
+    el.classList.toggle('looping', !!c?.mediaId && looping.has(c.mediaId));
+  }
   /** @type {HTMLButtonElement} */ ($('po-start')).disabled = !p?.supported || !!st?.running;
   /** @type {HTMLButtonElement} */ ($('po-stop')).disabled = !st?.running;
   /** @type {HTMLButtonElement} */ ($('po-skip')).disabled = !st?.running;
@@ -1039,6 +1045,7 @@ function buildDecks() {
         h('button', { class: 'deck-btn small', title: '10 Sekunden vor', onclick: () => skipDeck(id, 10_000) }, '+10'),
         h('button', { class: 'deck-btn', title: 'Nächsten Titel aus der Queue laden', onclick: () => loadFromQueue(id) }, icon('next', 14)),
         els.cue,
+        (els.advance = h('button', { class: 'deck-btn advance', hidden: true, title: 'Motion-Cart: Loop verlassen → Drop/Outro (Weiterschalten)', onclick: () => void deckCmd(id, 'advance') }, '∞ Weiter')),
         h('button', { class: 'deck-btn', title: 'Stop', onclick: () => { if (eng()) return void deckCmd(id, 'stop'); ensureAudio().decks[id].stop(); run(() => api.put(url(`/decks/${id}`), { status: 'cued' })); renderDeck(id); } }, icon('stop', 14)),
         h('button', { class: 'deck-btn', title: 'Auswerfen', onclick: () => { stopPfl(id); if (eng()) return void deckCmd(id, 'eject'); ensureAudio().decks[id].eject(); run(() => api.put(url(`/decks/${id}`), { mediaId: null, status: 'empty' })); renderDeck(id); } }, icon('eject', 14)),
         vol),
@@ -1233,7 +1240,8 @@ function renderCarts() {
       ondragstart: (/** @type {DragEvent} */ e) => m && e.dataTransfer?.setData(MIME.MEDIA, m.id),
     },
       h('div', { class: 'cart-top' }, h('span', { class: 'cart-ico' }, icon(ico, 16)), h('span', { class: 'cart-label' }, c.label),
-        m?.loopEndMs ? h('span', { class: 'cart-motion', title: 'Motion-Cart: hat einen markierten Loop-Bereich (Drop/Outro ab Loop-Ende)' }, '∞') : null),
+        m?.loopEndMs ? h('button', { class: 'cart-motion', title: 'Motion-Cart: läuft als Endlos-Loop bis zum Weiterschalten – Klick = Weiter (Drop/Outro)', 'aria-label': 'Loop weiterschalten',
+          onclick: (/** @type {Event} */ e) => { e.stopPropagation(); run(() => api.post(url('/playout/loop-advance'), { mediaId: m.id })); } }, '∞') : null),
       h('span', { class: 'cart-sub' }, m ? m.title : 'leer'),
       m ? h('span', { class: 'cart-dur' }, fmt(m.durationMs)) : null,
       m ? h('div', { class: 'cart-actions' },
@@ -2486,8 +2494,10 @@ function renderEngineDecks(force = false) {
       els.total.textContent = fmt(d?.durationMs ?? m?.durationMs);
       els.cover.replaceWith((els.cover = coverEl(m, 'cover', id)));
     }
+    const loop = st?.loops?.find((/** @type {any} */ l) => l.deck === id);
+    if (els.advance) { els.advance.hidden = !loop; els.advance.classList.toggle('active', !!loop?.inLoop); }
     const dur = d?.durationMs ?? null;
-    const pos = d ? d.positionMs + (state === 'playing' ? elapsed : 0) : 0;
+    const pos = d ? (loop?.inLoop ? d.positionMs : d.positionMs + (state === 'playing' ? elapsed : 0)) : 0;
     const rem = dur != null ? Math.max(0, dur - pos) : null;
     els.elapsed.textContent = d?.mediaId ? fmt(pos) : '0:00';
     els.remain.textContent = rem != null && d?.mediaId ? `-${fmt(rem)}` : '--:--';

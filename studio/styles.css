@@ -232,7 +232,13 @@ button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none !important
 .cart.playing { outline: 2px solid #fff; box-shadow: 0 0 22px var(--c); }
 .cart.drop { outline: 2px dashed #fff; }
 .cart-label { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cart-motion { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--c); opacity: .85; flex-shrink: 0; }
+.cart-motion { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--c); opacity: .85; flex-shrink: 0; background: none; border: 1px solid transparent; border-radius: 6px; padding: 0 5px; cursor: pointer; font-family: inherit; }
+.cart.looping { box-shadow: 0 0 0 2px var(--c), 0 0 18px color-mix(in srgb, var(--c) 60%, transparent); animation: loop-pulse 1.4s ease-in-out infinite; }
+.cart.looping .cart-motion { background: var(--c); color: #041018; border-color: var(--c); opacity: 1; }
+.cart.looping .cart-motion::after { content: ' Weiter'; font-size: 10px; }
+.deck-btn.advance { color: var(--amber); border-color: rgba(245, 158, 11, .5); font-weight: 700; }
+.deck-btn.advance.active { background: var(--amber); color: #041018; animation: loop-pulse 1.4s ease-in-out infinite; }
+@keyframes loop-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.35); } }
 .cart-sub { font-size: 11px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cart-dur { position: absolute; right: 9px; bottom: 7px; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .9; }
 .cart-edit { position: absolute; top: 4px; right: 5px; background: none; border: 0; color: inherit; opacity: .75; cursor: pointer; font-size: 14px; }

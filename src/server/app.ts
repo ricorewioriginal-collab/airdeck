@@ -1106,7 +1106,14 @@ export class AirDeckApp {
    */
   deckAction(p: Principal, stationId: string, deckId: string, action: string, body: Record<string, unknown>): unknown {
     if (!(DECK_IDS as readonly string[]).includes(deckId)) throw new AppError(404, 'not_found', 'Deck nicht gefunden');
-    if (!['load', 'play', 'pause', 'stop', 'eject', 'seek'].includes(action)) throw new AppError(404, 'not_found', 'Unbekannte Deck-Aktion');
+    if (!['load', 'play', 'pause', 'stop', 'eject', 'seek', 'advance'].includes(action)) throw new AppError(404, 'not_found', 'Unbekannte Deck-Aktion');
+    if (action === 'advance') {
+      // Motion-Cart im Deck: Loop verlassen → Drop/Outro
+      const po = this.playouts.get(stationId);
+      const mediaId = po?.playout.status().decks.find((d) => d.id === deckId)?.mediaId;
+      if (po && mediaId) po.playout.advanceLoop(mediaId);
+      return this.playoutView(stationId);
+    }
     let po = this.playouts.get(stationId);
     if (!po && (action === 'load' || action === 'play')) {
       this.startPlayout(p, stationId, {});
@@ -1269,6 +1276,15 @@ export class AirDeckApp {
   }
 
   /** Schnelltrigger: Titel einer Kategorie (Rotation) über der Musik oder als Nächstes. */
+  /** Motion-Carts: Endlosschleife verlassen (alle oder ein Titel) → Drop/Outro läuft nahtlos weiter. */
+  advanceLoop(stationId: string, mediaId?: string): { advanced: number } {
+    const po = this.playouts.get(stationId);
+    if (!po) throw new AppError(409, 'not_running', 'Server-Playout läuft nicht');
+    const advanced = po.playout.advanceLoop(mediaId);
+    if (advanced) this.audit.write({ kind: 'playout', event: 'loop_advanced', stationId, mediaId, advanced });
+    return { advanced };
+  }
+
   /** Hörer jetzt: Summe über alle verbundenen Ausgänge des Senders. */
   listenersNow(stationId: string): number {
     let n = 0;

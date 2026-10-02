@@ -241,6 +241,8 @@ class LiveChannel {
 }
 const MAX_BUFFER_BYTES = 10 * SAMPLE_RATE * BYTES_PER_FRAME; // 10 s Vorlauf pro Stimme
 const RESUME_BYTES = 5 * SAMPLE_RATE * BYTES_PER_FRAME;
+/** Längster Loop-Bereich eines Motion-Carts, der im Speicher gehalten wird (2 min ≈ 23 MB PCM). */
+const MAX_LOOP_MS = 120_000;
 
 class Voice {
   readonly media: MediaItem;
@@ -264,8 +266,21 @@ class Voice {
   lvSum = 0;
   lvN = 0;
   lvPeak = 0;
+  /**
+   * Motion-Cart (Endlos-Loop mit Weiterschalten): Frame (relativ zum Start der Stimme), an dem der
+   * Loop-Bereich endet; null = kein Loop. Solange `looping`, wird am Loop-Ende der bereits gespielte
+   * Bereich aus `loopPcm` nahtlos wiederholt; der Decoder bleibt an Loop-Ende stehen (Puffer voll →
+   * pausiert). advance() setzt `looping` auf false: der nächste Mixer-Block liest wieder aus dem Decoder-
+   * Puffer, der exakt am Loop-Ende steht - Drop/Outro folgt sample-genau ohne Neustart von ffmpeg.
+   */
+  readonly loopEndFrame: number | null;
+  looping = false;
+  loopCount = 0;
+  private loopChunks: Int16Array[] = [];
+  private loopPcm: Int16Array | null = null;
+  private loopOff = 0;
 
-  constructor(media: MediaItem, kind: 'track' | 'cart', duck: boolean, gainDb = media.gainDb ?? 0, startMs = media.cueInMs ?? 0) {
+  constructor(media: MediaItem, kind: 'track' | 'cart', duck: boolean, gainDb = media.gainDb ?? 0, startMs = media.cueInMs ?? 0, loop = false) {
     this.media = media;
     this.kind = kind;
     this.duck = duck;
@@ -273,6 +288,59 @@ class Voice {
     this.startMs = Math.max(0, startMs);
     const end = media.cueOutMs ?? media.durationMs;
     this.totalFrames = end != null ? Math.max(0, msToFrames(end - this.startMs)) : null;
+    const loopMs = media.loopEndMs != null ? media.loopEndMs - this.startMs : 0;
+    this.loopEndFrame = loop && loopMs >= 100 && loopMs <= MAX_LOOP_MS && (end == null || media.loopEndMs! < end) ? msToFrames(loopMs) : null;
+    this.looping = this.loopEndFrame != null;
+  }
+
+  /** Steht die Stimme gerade in der Endlosschleife (Loop-Ende erreicht, wiederholt)? */
+  get inLoop(): boolean {
+    return this.looping && this.loopEndFrame != null && this.played >= this.loopEndFrame;
+  }
+
+  /**
+   * Nächsten Block lesen - mit Loop-Logik. Vor dem Loop-Ende kommt alles aus dem Decoder und wird für
+   * die Wiederholung mitgeschnitten; ab Loop-Ende wird der Mitschnitt zyklisch ausgegeben, `played`
+   * bleibt stehen (Anzeige/Restzeit bleiben am Loop-Ende).
+   */
+  readBlock(want: number): { samples: Int16Array; got: number; fromDecoder: boolean } {
+    if (this.looping && this.loopEndFrame != null) {
+      if (this.played < this.loopEndFrame) {
+        const r = this.fifo.read(Math.min(want, this.loopEndFrame - this.played));
+        if (r.got > 0) this.loopChunks.push(r.got * CHANNELS === r.samples.length ? r.samples : r.samples.subarray(0, r.got * CHANNELS));
+        return { ...r, fromDecoder: true };
+      }
+      if (!this.loopPcm) {
+        let n = 0;
+        for (const c of this.loopChunks) n += c.length;
+        this.loopPcm = new Int16Array(n);
+        let o = 0;
+        for (const c of this.loopChunks) { this.loopPcm.set(c, o); o += c.length; }
+        this.loopChunks = [];
+        this.loopOff = 0;
+      }
+      const samples = new Int16Array(want * CHANNELS);
+      if (this.loopPcm.length === 0) { this.looping = false; return this.readBlock(want); }
+      let filled = 0;
+      while (filled < samples.length) {
+        if (this.loopOff >= this.loopPcm.length) { this.loopOff = 0; this.loopCount++; }
+        const take = Math.min(samples.length - filled, this.loopPcm.length - this.loopOff);
+        samples.set(this.loopPcm.subarray(this.loopOff, this.loopOff + take), filled);
+        filled += take;
+        this.loopOff += take;
+      }
+      return { samples, got: want, fromDecoder: false };
+    }
+    return { ...this.fifo.read(want), fromDecoder: true };
+  }
+
+  /** Weiterschalten: Schleife verlassen, ab dem nächsten Block folgt Drop/Outro aus dem Decoder. */
+  advance(): boolean {
+    if (!this.looping) return false;
+    this.looping = false;
+    this.loopPcm = null;
+    this.loopChunks = [];
+    return true;
   }
 
   /** aktuelle Position in der Datei (ms) */
@@ -348,6 +416,8 @@ export interface PlayoutStatus {
   fading: { mediaId: string; title: string; deck: DeckId } | null;
   /** Die vier Decks der Engine (A/B: Automation und Hand, C/D: nur Hand) */
   decks: EngineDeckView[];
+  /** Motion-Carts in Endlosschleife (Weiterschalten über advanceLoop) */
+  loops?: { mediaId: string; title: string; kind: 'track' | 'cart'; deck: DeckId | null; loopCount: number; inLoop: boolean }[];
   carts: number;
   startedAt: number | null;
   underruns: number;
@@ -570,7 +640,8 @@ export class Playout {
 
   private startDeckVoice(d: EngineDeck, fromMs: number, auto: boolean): Voice {
     const m = d.media!;
-    const v = new Voice(m, 'track', false, trackGainDb(m, this.opts.loudness, this.opts.dsp.limiter), fromMs);
+    // Loop nur von Hand gestartete Decks: die Automation darf nie in einer Endlosschleife hängen bleiben.
+    const v = new Voice(m, 'track', false, trackGainDb(m, this.opts.loudness, this.opts.dsp.limiter), fromMs, !auto);
     v.deck = d.id;
     v.auto = auto;
     d.voice = v;
@@ -773,7 +844,22 @@ export class Playout {
 
   playCart(media: MediaItem, duck: boolean): void {
     if (!this.running) return;
-    this.startVoice(new Voice(media, 'cart', duck, trackGainDb(media, this.opts.loudness, this.opts.dsp.limiter)));
+    this.startVoice(new Voice(media, 'cart', duck, trackGainDb(media, this.opts.loudness, this.opts.dsp.limiter), media.cueInMs ?? 0, true));
+  }
+
+  /** Laufende Endlos-Loops (Motion-Carts) - für Anzeige und „Weiter“-Knopf. */
+  loops(): { mediaId: string; title: string; kind: 'track' | 'cart'; deck: DeckId | null; loopCount: number; inLoop: boolean }[] {
+    return this.voices.filter((v) => v.looping && v.fadeTo !== 0).map((v) => ({ mediaId: v.media.id, title: v.media.title, kind: v.kind, deck: v.deck, loopCount: v.loopCount, inLoop: v.inLoop }));
+  }
+
+  /**
+   * Weiterschalten (Motion Mixes: Loop → Drop/Outro). Ohne mediaId alle laufenden Loops, mit mediaId nur
+   * diesen Titel. Liefert die Zahl der weitergeschalteten Stimmen.
+   */
+  advanceLoop(mediaId?: string): number {
+    let n = 0;
+    for (const v of this.voices) if ((!mediaId || v.media.id === mediaId) && v.advance()) n++;
+    return n;
   }
 
   status(): PlayoutStatus {
@@ -803,6 +889,7 @@ export class Playout {
         auto: d.auto,
       })),
       carts: this.voices.filter((v) => v.kind === 'cart').length,
+      loops: this.loops(),
       startedAt: this.startedAt,
       underruns: this.underruns,
       micOn: this.micOn,
@@ -1069,8 +1156,8 @@ export class Playout {
     for (const v of this.voices) {
       let want = due;
       if (v.remainingFrames != null) want = Math.min(want, v.remainingFrames);
-      const { samples, got } = v.fifo.read(want);
-      if (got < want && !v.decoderDone) this.underruns++;
+      const { samples, got, fromDecoder } = v.readBlock(want);
+      if (fromDecoder && got < want && !v.decoderDone && !v.inLoop) this.underruns++;
       const from = v.gain;
       let to = v.gain;
       if (v.fadeTo != null && v.fadeFramesLeft > 0) {
@@ -1088,7 +1175,7 @@ export class Playout {
         for (let i = 0; i < samples.length; i++) v.lvSum += samples[i]! * samples[i]! * g * g;
         v.lvN += samples.length;
       }
-      v.played += got;
+      if (fromDecoder) v.played += got;
       if (v.proc && v.fifo.bytes < RESUME_BYTES) v.proc.stdout?.resume();
     }
     this.mixLive(bus, due);
