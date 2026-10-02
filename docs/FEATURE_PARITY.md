@@ -108,6 +108,7 @@ gelesen, kein Code übernommen), mairlist.com/en/products/radio-automation, radi
 | Fernsteuerung professioneller Misch­pulte (DHD, Lawo, Studer, Axia, Ember+) | ✗ | ✅ | ✗ | ✗ | ✗ bewusst nicht: Hardware-spezifisch, sehr kleine Zielgruppe |
 | MusicMaster-Anbindung (externe Musikplanung) | ✗ | ✅ | ✗ | ✗ | ✗ nicht geplant: eigene Rotation/Sendeuhr deckt den Bedarf |
 | Monetarisierung (Musikverkauf, Werbe-/Merch-Links) | ✗ | ✗ | ✗ | ✅ | ✗ nicht der Zweck von AnMaCha Cast (Hobbyprojekt, ohne Gewähr) |
+| Motion-Mix-Video aus einer Playlist (animierter Hintergrund, Wellenform, Titel-Einblendungen, z. B. für YouTube) | ✗ | ✗ | ✗ | ✗ | ✅ eigene, generative Visuals (ffmpeg gradients/showwaves), keine fremden Assets |
 
 **Einordnung:** Bei Kern-Playout, Lautheit/DSP, Mehr-Sender-Betrieb und Hörer-Interaktion liegt AnMaCha Cast vor allen vier
 Vergleichssystemen. Voice Tracking und Podcast-/RSS-Hosting – die beiden zuletzt noch offenen, tatsächlich

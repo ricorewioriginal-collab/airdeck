@@ -415,9 +415,15 @@ export function mountRecorder(root, ctx) {
   /** @type {any} */ let data = { recordings: [], recording: null, recPlans: [] };
   /** @type {any} */ let podcast = { config: {}, episodes: [], hasCover: false };
   /** @type {HTMLAudioElement|null} */ let player = null;
+  /** @type {any[]} */ let playlists = [];
+  /** @type {any[]} */ let motionPresets = [];
+  /** @type {any[]} */ let motionJobs = [];
 
   async function load() {
-    [data, podcast] = await Promise.all([ctx.api.get(ctx.url('/recordings')), ctx.api.get(ctx.url('/podcast'))]);
+    [data, podcast, playlists, motionPresets, motionJobs] = await Promise.all([
+      ctx.api.get(ctx.url('/recordings')), ctx.api.get(ctx.url('/podcast')), ctx.api.get(ctx.url('/playlists')),
+      ctx.api.get(ctx.url('/motion-mix/presets')), ctx.api.get(ctx.url('/motion-mix/jobs')),
+    ]);
     render();
   }
 
@@ -448,7 +454,44 @@ export function mountRecorder(root, ctx) {
         h('td', {}, p.label), h('td', {}, daysText(p.days)), h('td', { class: 'num' }, `${p.from}–${p.to}`),
         act(iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/rec-plans/${p.id}`)); await load(); }))))),
       'Z. B. jede Sendung „Morning Show“ Mo–Fr 06:00–10:00 automatisch mitschneiden.'));
-    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastEpisodesPanel(), recapPanel()));
+    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastEpisodesPanel(), recapPanel(), motionMixPanel()));
+  }
+
+  // ---------- Motion-Mix: Video aus einer Playlist (animierter Hintergrund + Wellenform + Titel-Einblendungen) ----------
+
+  const MOTION_JOB_STATUS = /** @type {Record<string,string>} */ ({ queued: 'wartet', running: 'rendert', succeeded: 'fertig', failed: 'fehlgeschlagen' });
+
+  function motionMixPanel() {
+    const rows = motionJobs.map((/** @type {any} */ j) => h('tr', {},
+      h('td', {}, j.playlistName), h('td', {}, motionPresets.find((/** @type {any} */ p) => p.id === j.preset)?.label ?? j.preset),
+      h('td', {}, h('span', { class: `pill ${j.status === 'succeeded' ? 'connected' : j.status === 'failed' ? 'failed' : ''}` }, MOTION_JOB_STATUS[j.status] ?? j.status),
+        j.status === 'running' || j.status === 'queued' ? h('span', { class: 'muted' }, ` ${j.progress}%`) : null,
+        j.status === 'failed' && j.error ? h('span', { class: 'muted' }, ` – ${j.error}`) : null),
+      h('td', { class: 'num' }, j.durationMs ? fmt(j.durationMs) : '–'),
+      act(
+        j.status === 'succeeded' ? iconBtn('Herunterladen', '⭳', () => downloadMotionMix(j)) : null,
+        j.status !== 'queued' && j.status !== 'running' ? iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/motion-mix/jobs/${j.id}`)); await load(); })) : null,
+      )));
+    return panel('Motion-Mix-Videos', [h('button', { class: 'btn small primary', onclick: newMotionMix }, '🎬 Neues Video')], h('div', {},
+      h('p', { class: 'muted' }, 'Aus einer Playlist ein MP4 erzeugen: animierter, senderfarbener Hintergrund, Audio-Wellenform und Titel-Einblendungen – eigene Visuals, fertig für YouTube & Co.'),
+      table(['Playlist', 'Vorlage', 'Status', 'Länge', ''], rows, 'Noch kein Motion-Mix-Video erzeugt.')));
+  }
+
+  async function newMotionMix() {
+    if (!playlists.length) return status('Zuerst unter Planung → Playlists eine Playlist anlegen', true);
+    const v = await formDialog('Motion-Mix-Video erzeugen', [
+      { name: 'playlistId', label: 'Playlist', options: playlists.map((/** @type {any} */ p) => [p.id, `${p.name} (${p.items.length} Titel)`]) },
+      { name: 'preset', label: 'Vorlage', options: motionPresets.map((/** @type {any} */ p) => [p.id, p.label]) },
+    ], 'Erzeugen');
+    if (!v) return;
+    await run(async () => { await ctx.api.post(ctx.url('/motion-mix/jobs'), v); await load(); });
+    status('Rendern gestartet – läuft im Hintergrund, Fortschritt oben sichtbar');
+  }
+
+  /** @param {any} j */
+  async function downloadMotionMix(j) {
+    const blob = await run(() => ctx.api.blob(ctx.url(`/motion-mix/jobs/${j.id}/file`)));
+    if (blob) download(blob, `${j.playlistName}.mp4`);
   }
 
   // ---------- Sendungs-Rückblick ----------
@@ -617,5 +660,5 @@ export function mountRecorder(root, ctx) {
     if (blob) download(blob, `${r.label}.${r.file.split('.').pop()}`);
   }
 
-  return { show: () => run(load), onEvent: (/** @type {string} */ t) => { if (t === 'recorder.changed' && !root.hidden) run(load); } };
+  return { show: () => run(load), onEvent: (/** @type {string} */ t) => { if ((t === 'recorder.changed' || t === 'motionmix.changed') && !root.hidden) run(load); } };
 }

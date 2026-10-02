@@ -595,6 +595,22 @@ export function createHttpServer(app: AirDeckApp, studioDir: string): Server {
     return { ok };
   });
 
+  // --- Motion-Mix-Videos (animierter Hintergrund + Wellenform + Titel-Einblendungen aus einer Playlist) ---
+  add('GET', '/api/v1/stations/:sid/motion-mix/presets', 'automation:read', () => app.svc.motionMix.presets());
+  add('GET', '/api/v1/stations/:sid/motion-mix/jobs', 'automation:read', (c) => app.svc.motionMix.jobs(sid(c)));
+  add('POST', '/api/v1/stations/:sid/motion-mix/jobs', 'automation:write', async (c) => {
+    const b = await c.body();
+    return app.svc.motionMix.start(sid(c), String(b.playlistId ?? ''), String(b.preset ?? ''));
+  });
+  add('DELETE', '/api/v1/stations/:sid/motion-mix/jobs/:id', 'automation:write', (c) => app.svc.motionMix.deleteJob(sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/motion-mix/jobs/:id/file', 'automation:read', (c) => {
+    const job = app.svc.motionMix.job(sid(c), c.params.id!);
+    const path = app.svc.motionMix.file(sid(c), c.params.id!);
+    c.res.setHeader('Content-Disposition', `attachment; filename="${job.playlistName.replace(/[^\w .()-]/g, '_')}.mp4"`);
+    sendFile(c.req, c.res, path, 'video/mp4');
+    return STREAMED;
+  });
+
   // --- Datenspeicher / Sync (MySQL, Firebase) – nur globale Admins ---
   const globalAdmin = (c: Ctx) => {
     if (!c.p.stationIds.includes('*') || !c.p.roles.includes('admin')) throw new AppError(403, 'forbidden', 'Nur für Administratoren');

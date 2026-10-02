@@ -87,6 +87,29 @@ export interface StationData {
   episodes?: Episode[];
   /** Stichproben für den Sendungs-Rückblick (alle 30 s: aktuelle Hörerzahl + gesendete Bytes über alle Ausgänge). */
   recapSamples?: RecapSample[];
+  /** Motion-Mix-Videos (animierter Hintergrund + Wellenform + Titel-Einblendungen aus einer Playlist). */
+  motionMixJobs?: MotionMixJob[];
+}
+
+/**
+ * Motion-Mix-Video: aus einer Playlist erzeugtes MP4 (animierter, senderfarbener Hintergrund,
+ * Audio-Wellenform, Titel-Einblendungen je Track) - eigene, generative Visuals, kein fremdes Material.
+ * Läuft als Hintergrundjob (ffmpeg braucht bei längeren Mixes etwas Zeit), gleiches
+ * queued/running/succeeded/failed-Muster wie die MusikHub-Importjobs.
+ */
+export interface MotionMixJob {
+  id: string;
+  playlistId: string;
+  playlistName: string;
+  preset: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  progress: number;
+  trackCount: number;
+  durationMs: number | null;
+  file?: string;
+  error?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /** Eine Stichprobe für den Sendungs-Rückblick (Hörer-Spitze, gesendete Datenmenge über einen Zeitraum). */
