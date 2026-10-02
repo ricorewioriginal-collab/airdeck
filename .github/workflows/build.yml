@@ -138,7 +138,7 @@ jobs:
           $out = Get-Content "$env:RUNNER_TEMP/out.txt"
           $out
           if (-not ($out | Select-String 'ffmpeg version')) { throw 'ffmpeg wurde nicht erkannt' }
-          if (-not (Test-Path "$env:AIRDECK_DATA/logs/airdeck.log")) { throw 'Logdatei fehlt' }
+          if (-not (Test-Path "$env:AIRDECK_DATA/logs/anmachacast.log")) { throw 'Logdatei fehlt' }
           $p = Start-Process -FilePath $engine -ArgumentList '--headless', '--no-tray' -PassThru
           Start-Sleep -Seconds 5
           $r = Invoke-RestMethod http://127.0.0.1:8753/api/v1/health
