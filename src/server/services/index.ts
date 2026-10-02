@@ -13,6 +13,7 @@ import { LautfmService } from './lautfm.ts';
 import { LifehacksService } from './lifehacks.ts';
 import { ListenerService } from './listeners.ts';
 import { MediaService } from './media.ts';
+import { MotionMixService } from './motionmix.ts';
 import { MusicHubService } from './musikhub.ts';
 import { NextcloudService } from './nextcloud.ts';
 import { NotificationService } from './notifications.ts';
@@ -44,6 +45,7 @@ export function createServices(app: AirDeckApp) {
     lifehacks: new LifehacksService(app),
     podcast: new PodcastService(app),
     recap: new RecapService(app),
+    motionMix: new MotionMixService(app),
     setup: new SetupService(app),
     listeners: new ListenerService(app),
     backup: new BackupService(app),
