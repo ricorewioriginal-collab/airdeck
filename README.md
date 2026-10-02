@@ -58,9 +58,17 @@ AnMaCha Cast kann direkt im Browser ausprobiert werden.
 
 <p align="center"><a href="https://anmachacast-demo.ricorewi-radio.de"><img src="assets/readme/actions/live-demo.svg" alt="AnMaCha Cast Demo starten" width="420"></a></p>
 
-**Demo-Zugang:** `demo` / `anmachacast-demo`
+### 🔐 Öffentlicher Demo-Zugang
 
-> Die Instanz dient ausschließlich zum Testen. Bitte dort keine produktiven oder vertraulichen Daten hinterlegen.
+| | |
+|---|---|
+| **🌐 Live-Demo** | [anmachacast-demo.ricorewi-radio.de](https://anmachacast-demo.ricorewi-radio.de/) |
+| **👤 Benutzername** | `demo` |
+| **🔑 Passwort** | `anmachacast-demo` |
+
+<p align="center"><a href="https://anmachacast-demo.ricorewi-radio.de/"><strong>▶ Demo jetzt öffnen</strong></a></p>
+
+> **Hinweis:** Dieser Zugang ist ausschließlich für die öffentliche Testinstanz vorgesehen. Bitte keine produktiven, persönlichen oder vertraulichen Daten in der Demo hinterlegen.
 
 ---
 
