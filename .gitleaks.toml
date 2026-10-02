@@ -1,0 +1,12 @@
+# Gitleaks configuration for AnMaCha Cast
+# Keep the default rules and exclude only known synthetic credentials used by automated tests.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic credentials in test fixtures only"
+paths = [
+  '''^test/musikhub\.test\.ts$''',
+  '''^test/installer-bootstrap\.test\.ts$''',
+  '''^test/lautfm-connect\.test\.ts$'''
+]
