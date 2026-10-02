@@ -996,6 +996,7 @@ export class AirDeckApp {
         artistSeparation: clamp(r.artistSeparation, 0, 500, rt.data.rotation.artistSeparation),
         titleSeparation: clamp(r.titleSeparation, 0, 5000, rt.data.rotation.titleSeparation),
         genreSeparation: clamp(r.genreSeparation, 0, 500, rt.data.rotation.genreSeparation ?? 0),
+        maxBpmJump: clamp(r.maxBpmJump, 0, 200, rt.data.rotation.maxBpmJump ?? 0),
       };
     }
     this.publish('automation.state_changed', stationId, this.automationView(stationId));

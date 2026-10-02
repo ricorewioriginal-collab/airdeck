@@ -41,6 +41,24 @@ test('pickNext beachtet Genre-Trennung, wenn eingestellt (P2 #17 Rotation)', () 
   assert.equal(withoutGenre?.genre, 'Pop');
 });
 
+test('pickNext beachtet Energie-Fluss (maxBpmJump): bevorzugt einen Titel mit ähnlichem Tempo', () => {
+  const lib = [
+    { ...m('slow', 'A', 'music'), bpm: 90 },
+    { ...m('fast', 'B', 'music'), bpm: 170 },
+    { ...m('mid', 'C', 'music'), bpm: 100 },
+  ];
+  // Zuletzt lief "slow" (90 BPM): mit maxBpmJump=20 darf nur "mid" (100) kommen, nicht "fast" (170)
+  const limited = pickNext(lib, 'music', ['slow'], { artistSeparation: 0, titleSeparation: 0, maxBpmJump: 20 }, () => 0);
+  assert.equal(limited?.id, 'mid');
+  // Ohne Grenze (Standard: 0 = aus) ist auch der große Sprung erlaubt
+  const unlimited = pickNext(lib, 'music', ['slow'], { artistSeparation: 0, titleSeparation: 0 }, () => 1);
+  assert.ok(unlimited);
+  // Titel ohne BPM-Angabe sind von der Regel unberührt
+  const noBpm = [...lib, m('unknown', 'D', 'music')];
+  const withUnknown = pickNext(noBpm, 'music', ['slow'], { artistSeparation: 0, titleSeparation: 0, maxBpmJump: 5 }, () => 0);
+  assert.ok(withUnknown && (withUnknown.id === 'mid' || withUnknown.id === 'unknown'));
+});
+
 test('pickNext beachtet Hard-Time-Grenze (P2 #19 Soft Timing): wählt einen passenden statt blind einen zu langen Titel', () => {
   const lib = [m('long', 'A', 'music', 6 * 60_000), m('short', 'B', 'music', 90_000)];
   // Nur noch 2 Minuten bis zum harten Termin: der 6-Minuten-Titel passt nicht, der 90-Sekunden-Titel schon
