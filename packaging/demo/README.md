@@ -52,6 +52,10 @@ AnMaCha Cast selbst ist am Host nur über `127.0.0.1:8751` erreichbar. Icecast i
 | Benutzername | `demo` |
 | Passwort | `anmachacast-demo` |
 
+Direktlink mit automatischer Anmeldung (nur im Demo-Image enthalten):
+
+`https://anmachacast-demo.ricorewi-radio.de/demo-login.html`
+
 Der Zugang ist auf die Demo beschränkt. Alle Demo-Daten werden beim nächsten Reset verworfen.
 
 ## Wichtig
