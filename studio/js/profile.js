@@ -52,7 +52,7 @@ export function mountProfile(root, ctx) {
             h('tbody', {}, ...(tokens.length ? tokens.map((/** @type {any} */ t) => h('tr', {},
               h('td', {}, h('b', {}, t.name), h('div', { class: 'muted small' }, t.id)),
               h('td', { class: 'muted small' }, t.scopes.includes('*') ? 'alle Rechte des Kontos' : t.scopes.every((/** @type {string} */ s) => s.endsWith(':read')) ? 'nur lesen' : `${t.scopes.length} Rechte`),
-              h('td', { class: 'num muted' }, new Date(t.createdAt).toLocaleDateString('de-DE')),
+              h('td', { class: 'num muted', style: 'white-space:nowrap' }, new Date(t.createdAt).toLocaleDateString('de-DE')),
               h('td', { class: 'act' }, h('button', { class: 'btn small danger', onclick: () => confirm(`Schlüssel „${t.name}“ widerrufen? Verbundene Skripte verlieren sofort den Zugang.`) && run(async () => { await ctx.api.del(`/me/tokens/${encodeURIComponent(t.id)}`); status('Schlüssel widerrufen'); show(); }) }, 'Widerrufen'))))
               : [h('tr', {}, h('td', { colspan: 4, class: 'muted' }, 'Noch kein Schlüssel.'))])))),
           h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { class: 'btn small primary', onclick: () => newKey(me) }, '＋ Schlüssel erzeugen')))),
