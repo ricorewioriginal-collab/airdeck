@@ -2268,3 +2268,16 @@ dialog h3 { font-size:17px; color:#f2fbff; }
   #view-handbuch main section:first-of-type { page-break-before:auto; break-before:auto; }
   #view-handbuch, #view-handbuch main, #view-handbuch main * { background:#fff !important; color:#000 !important; }
 }
+
+/* Community: Umfragen, Formulare, Auslosung (Hörer & Interaktion) */
+.poll-item { padding:10px 12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:rgba(8,20,42,.5); }
+.poll-item.active { border-color:rgba(56,189,248,.5); }
+.poll-item .tag { font-size:10px; font-weight:800; letter-spacing:.5px; padding:2px 7px; border-radius:10px; background:rgba(56,189,248,.18); color:var(--accent); }
+.poll-res { margin:6px 0; }
+.poll-row { display:grid; grid-template-columns:minmax(120px, 1fr) 2fr 90px; gap:8px; align-items:center; font-size:13px; padding:2px 0; }
+.poll-bar { height:10px; border-radius:6px; background:rgba(255,255,255,.07); overflow:hidden; }
+.poll-bar i { display:block; height:100%; background:linear-gradient(90deg, var(--accent), #818cf8); border-radius:6px; }
+.draw-grid { display:grid; grid-template-columns:minmax(240px, 1fr) minmax(0, 1.4fr); gap:14px; }
+.draw-grid textarea { width:100%; font-family:inherit; }
+.draw-winner { min-height:56px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:12px; border:1px dashed rgba(56,189,248,.5); border-radius:12px; font-size:20px; text-align:center; }
+@media (max-width: 760px) { .draw-grid { grid-template-columns:1fr; } }

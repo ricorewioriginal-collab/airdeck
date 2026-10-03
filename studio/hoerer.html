@@ -19,6 +19,13 @@ nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
 nav button { flex: 1 1 auto; min-height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
 nav button[aria-pressed="true"] { border-color: var(--accent); background: rgba(47,140,255,.18); }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+.poll-q { font-weight: 700; margin: 8px 0 10px; }
+.poll-opt { position: relative; display: block; width: 100%; text-align: left; overflow: hidden; margin-bottom: 7px; }
+.poll-opt.mine { border-color: var(--accent); }
+.poll-fill { position: absolute; inset: 0; background: rgba(56,189,248,.18); width: 0; transition: width .5s ease; }
+.poll-txt { position: relative; display: flex; justify-content: space-between; gap: 8px; }
+.poll-txt b { color: var(--accent); }
+.req { color: #f87171; }
 label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
 input, textarea { width: 100%; background: #0a1426; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; }
 textarea { min-height: 90px; resize: vertical; }

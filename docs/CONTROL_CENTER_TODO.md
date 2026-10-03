@@ -105,7 +105,7 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 
 ### Verknüpfungen / öffentliche Seiten
 25. [P2 · M] Öffentliche Sender-/Sendeplan-Seite, Netzwerk-Liste, Charts-Seite, Widget-Konfigurator (Layout/Theme/Akzent).
-26. [P3 · M] Umfragen, Formulare, Auslosung (Normal/Multi/Elimination, Gewinner-Log, CSV).
+26. ~~[P3 · M] Umfragen, Formulare, Auslosung (Normal/Multi/Elimination, Gewinner-Log, CSV)~~ - erledigt: `services/community.ts` - Umfragen (eine aktiv, eine Stimme je Teilnehmer, Ergebnis-Balken, CSV, Widget `hoerer.html?s=…&only=polls`), Formulare (Felder text/textarea/select/email, Pflicht, Einträge mit CSV, Widget `…&only=forms&form=<id>`), Auslosung (Normal/Multi/Elimination, Teilnehmer aus Formular oder Posteingang, Gewinner-Protokoll mit CSV); Hörerseite mit Tabs „Umfrage“ und „Formular“; öffentlich `/listener/poll`, `/listener/poll/vote`, `/listener/form`, `/listener/form/submit`.
 27. [P3 · M] Profilseite (Social Links, API-Keys), In-App-API-Doku mit "Live ausprobieren", Admin-Banner/Wartungsmeldung.
 28. ~~[P3 · S] Handbuch: Suchfeld, Drucken/PDF, Rezepte~~ - erledigt: Werkzeugleiste mit Suche, „Drucken / PDF“ (Druck-CSS: Seitenleiste/Inhaltsverzeichnis aus, Abschnitt je Seite, schwarz auf weiß) und Sprung zu den Rezepten; Rezepte 1–8 (24/7-Stream, laut.fm-Live, KI-Moderation, Replays & Podcast, Stundenuhr, Jingle-Paket, Spot-Mix, Senderseite einbetten).
 29. [P3 · L] Team-Hub (Feed/Chat/DM) - nur wenn Teamkommunikation gewünscht.

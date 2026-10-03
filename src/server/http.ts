@@ -804,6 +804,36 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     sendFile(c.req, c.res, f.path, f.type);
     return STREAMED;
   });
+  // Community: Umfragen, Formulare (mit Einträgen), Auslosung
+  const C = app.svc.community;
+  add('GET', '/api/v1/stations/:sid/polls', 'queue:read', (c) => C.polls(sid(c)));
+  add('POST', '/api/v1/stations/:sid/polls', 'stations:write', async (c) => C.savePoll(c.p, sid(c), null, await c.body()));
+  add('PATCH', '/api/v1/stations/:sid/polls/:id', 'stations:write', async (c) => C.savePoll(c.p, sid(c), c.params.id!, await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/polls/:id', 'stations:write', (c) => { C.deletePoll(c.p, sid(c), c.params.id!); return { ok: true }; });
+  add('GET', '/api/v1/stations/:sid/polls/:id/csv', 'queue:read', (c) => {
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="umfrage-${c.params.id}.csv"` });
+    c.res.end('\ufeff' + C.pollCsv(sid(c), c.params.id!));
+    return STREAMED;
+  });
+  add('GET', '/api/v1/stations/:sid/forms', 'queue:read', (c) => C.forms(sid(c)));
+  add('POST', '/api/v1/stations/:sid/forms', 'stations:write', async (c) => C.saveForm(c.p, sid(c), null, await c.body()));
+  add('PATCH', '/api/v1/stations/:sid/forms/:id', 'stations:write', async (c) => C.saveForm(c.p, sid(c), c.params.id!, await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/forms/:id', 'stations:write', (c) => { C.deleteForm(c.p, sid(c), c.params.id!); return { ok: true }; });
+  add('GET', '/api/v1/stations/:sid/forms/:id/entries', 'queue:read', (c) => C.entries(sid(c), c.params.id!));
+  add('GET', '/api/v1/stations/:sid/forms/:id/entries/csv', 'queue:read', (c) => {
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="formular-${c.params.id}.csv"` });
+    c.res.end('\ufeff' + C.entriesCsv(sid(c), c.params.id!));
+    return STREAMED;
+  });
+  add('DELETE', '/api/v1/stations/:sid/form-entries/:id', 'queue:write', (c) => { C.deleteEntry(c.p, sid(c), c.params.id!); return { ok: true }; });
+  add('POST', '/api/v1/stations/:sid/draw', 'queue:write', async (c) => C.draw(c.p, sid(c), await c.body()));
+  add('GET', '/api/v1/stations/:sid/draws', 'queue:read', (c) => C.draws(sid(c)));
+  add('DELETE', '/api/v1/stations/:sid/draws', 'queue:write', (c) => { C.clearDraws(c.p, sid(c)); return { ok: true }; });
+  add('GET', '/api/v1/stations/:sid/draws/csv', 'queue:read', (c) => {
+    c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="auslosung-${sid(c)}.csv"` });
+    c.res.end('\ufeff' + C.drawsCsv(sid(c)));
+    return STREAMED;
+  });
   add('GET', '/api/v1/stations/:sid/listener', 'queue:read', (c) => app.svc.listeners.config(sid(c)));
   add('PUT', '/api/v1/stations/:sid/listener', 'stations:write', async (c) => app.svc.listeners.setConfig(c.p, sid(c), await c.body()));
   // Setup-Assistent (nur Administration)
@@ -1007,7 +1037,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
       }
     }
     // Hörerbereich (öffentlich, je Sender einzeln freizuschalten): Info, Suche, Wunsch, Gruß, Stimme, Charts, Sprachnachricht
-    const lp = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/listener(?:\/(search|request|message|vote|charts|voice))?$/.exec(path);
+    const lp = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/listener(?:\/(search|request|message|vote|charts|voice|poll|poll\/vote|form|form\/submit))?$/.exec(path);
     if (lp) {
       // von der Senderseite einbettbar: jede Herkunft, aber ohne Anmeldedaten
       res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1022,6 +1052,12 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
         if (req.method === 'GET' && !action) return json(res, 200, L.publicInfo(lsid!));
         if (req.method === 'GET' && action === 'search') return json(res, 200, L.search(lsid!, url.searchParams.get('q') ?? '', ip));
         if (req.method === 'GET' && action === 'charts') return json(res, 200, L.publicCharts(lsid!));
+        if (req.method === 'GET' && action === 'poll') return json(res, 200, app.svc.community.publicPoll(lsid!));
+        if (req.method === 'GET' && action === 'form') return json(res, 200, app.svc.community.publicForm(lsid!, url.searchParams.get('id')));
+        if (req.method === 'POST' && (action === 'poll/vote' || action === 'form/submit')) {
+          const b = JSON.parse((await readRaw(req, 16 * 1024)).toString('utf8') || '{}') as Record<string, unknown>;
+          return json(res, 200, action === 'poll/vote' ? app.svc.community.votePoll(lsid!, ip, b) : app.svc.community.submitForm(lsid!, ip, b));
+        }
         if (req.method === 'POST' && action === 'voice') {
           // zu große Uploads sofort ablehnen, bevor Daten gelesen werden (sauberes 413 statt Verbindungsabbruch)
           if (Number(req.headers['content-length'] ?? 0) > MAX_VOICE_BYTES) {
