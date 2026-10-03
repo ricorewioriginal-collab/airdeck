@@ -31,3 +31,11 @@ Ohne eigene Adresse für die Oberfläche: **https://ricorewioriginal-collab.gith
 ### Erreichbarkeit aus dem Studio
 
 Im Studio (Seitenleiste, unten) öffnet **„Mobil-App (iPhone/Handy)“** direkt `mobil.html` – bereits angemeldet. Auf dem iPhone dort „Teilen → Zum Home-Bildschirm“ wählen. Die Adresse des eigenen Servers lautet `https://<server>/mobil.html`.
+
+### Download-Seite (nicht gelistet)
+
+`https://ricorewioriginal-collab.github.io/anmacha_cast/ios.html` – eigene Installationsseite mit `noindex`, ohne Menüeintrag auf der Projektseite; verlinkt in der README. Für die Website ricorewi-radio.de (Bereich „Downloads“) genügt ein Link auf diese Adresse, z. B.:
+
+```html
+<a href="https://ricorewioriginal-collab.github.io/anmacha_cast/ios.html" rel="noopener">AnMaCha Cast für iPhone &amp; iPad (Web-App)</a>
+```

@@ -48,7 +48,8 @@ jobs:
           cp studio/mobil.html studio/mobil.css studio/mobil.webmanifest studio/sw.js site/app/
           cp studio/js/mobil.js studio/js/api.js studio/js/legacy-storage.js studio/js/ui.js studio/js/pwa.js studio/js/audio.js site/app/js/
           cp studio/icons/icon-32.png studio/icons/icon-180.png studio/icons/icon-192.png studio/icons/icon-512.png studio/icons/wordmark.png site/app/icons/
-          test -f site/app/mobil.html
+          cp studio/mobil.html site/app/index.html
+          test -f site/app/mobil.html && test -f site/app/index.html
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v5
