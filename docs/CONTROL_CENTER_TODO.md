@@ -86,7 +86,7 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 18. ~~[P2 · M] Sound & Stimme~~ - erledigt: Master-Presets Neutral/Radio/Musik/Warm/Hell/Laut & dicht/Sprache/
     Klassik, Bass/Höhen (dB), Stereo-Breite (%), Auto-Gain; Mikrofon-Kette Gate → Trittschall → Sprach-EQ
     (Klar/Warm/Radio) → De-Esser → Kompressor (`mic` in der Playout-Konfiguration, ffmpeg-Filter am Eingang).
-19. [P2 · L] Verbreitung: bis zu 2 eigene Mount-Streams mit Bitrate, SFTP-Eingang, Video-Radiostream (Visualizer, RTMP).
+19. [P2 · L] Verbreitung: ~~bis zu 2 eigene Mount-Streams mit Bitrate~~ (erledigt: Karte "Eigene Streams" in Streams & Anbindungen, `/own-streams`, Profil + Ausgang in einem Schritt, Link kopieren), **offen** SFTP-Eingang (braucht einen sshd-Dienst) und Video-Radiostream (Visualizer, RTMP).
 20. [P3 · L] Decks erweitert: Loop, Tempo, Wellenform-Springen.
 
 ### Auswertung

@@ -297,6 +297,11 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('POST', '/api/v1/stations/:sid/outputs', 'outputs:write', async (c) => app.saveOutput(c.p, sid(c), null, await c.body()));
   add('PATCH', '/api/v1/stations/:sid/outputs/:id', 'outputs:write', async (c) => app.saveOutput(c.p, sid(c), c.params.id!, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/outputs/:id', 'outputs:write', (c) => app.removeOutput(c.p, sid(c), c.params.id!));
+  // Verbreitung: bis zu 2 eigene Mount-Streams mit eigener Bitrate (Profil + Ausgang in einem Schritt)
+  add('GET', '/api/v1/stations/:sid/own-streams', 'outputs:read', (c) => app.svc.distribution.list(sid(c)));
+  add('POST', '/api/v1/stations/:sid/own-streams', 'outputs:write', async (c) => app.svc.distribution.create(c.p, sid(c), await c.body()));
+  add('PATCH', '/api/v1/stations/:sid/own-streams/:id', 'outputs:write', async (c) => app.svc.distribution.update(c.p, sid(c), c.params.id!, await c.body()));
+  add('DELETE', '/api/v1/stations/:sid/own-streams/:id', 'outputs:write', (c) => { app.svc.distribution.remove(c.p, sid(c), c.params.id!); return { ok: true }; });
 
   // --- Zusatz-Streams: weitere Stream-Profile (ein Programmbus, mehrere Encoder-Ausgänge) ---
   add('GET', '/api/v1/stations/:sid/stream-profiles', 'outputs:read', (c) => app.listStreamProfiles(sid(c)));

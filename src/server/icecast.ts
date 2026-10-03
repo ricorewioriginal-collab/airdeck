@@ -30,6 +30,8 @@ export interface OutputConfig {
   profileId?: string;
   /** Zusatz-Streams-Failover: id eines anderen Ausgangs; springt nur ein, solange dieser nicht "connected" ist */
   failoverFor?: string;
+  /** Von „Verbreitung → Eigene Streams“ angelegt (zählt zum Limit von 2 je Sender) */
+  own?: boolean;
   enabled: boolean;
 }
 
