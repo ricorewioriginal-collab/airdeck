@@ -10,7 +10,7 @@ import { Readable, Transform } from 'node:stream';
 import { AnMaChaCastApp, AppError, canSee, newId, type Principal } from './app.ts';
 import { ALL_SCOPES } from './model.ts';
 import { AiError } from './ai/providers.ts';
-import { AuthError, ROLES, ROLE_LABEL, ROLE_SCOPES } from './users.ts';
+import { AuthError, ROLES, ROLE_LABEL, ROLE_SCOPES, UserStore, type Role } from './users.ts';
 import { MEDIA_CATEGORIES, parseFileName, type MediaCategory } from '../core/automation.ts';
 import { OUTPUT_CAPABILITIES } from './icecast.ts';
 import { DSP_PRESETS } from './playout.ts';
@@ -194,12 +194,15 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('POST', '/api/v1/me/tokens', null, async (c) => {
     const me = sessionUser(c);
     const b = await c.body();
-    // nie mehr Rechte als die Sitzung selbst: Scopes werden auf die eigenen gekürzt, Rollen/Sender übernommen
+    // nie mehr Rechte als die Sitzung selbst: Scopes werden auf die eigenen gekürzt; ein eingeschränkter Schlüssel
+    // bekommt nur die Rollen, deren Rechte er vollständig abdeckt (sonst „viewer“) - kein Admin-Hintertürchen
     const mine = c.p.scopes.includes('*') ? [...ALL_SCOPES] : c.p.scopes;
-    const wanted = Array.isArray(b.scopes) ? b.scopes.map(String) : mine;
-    const scopes = wanted.filter((s: string) => mine.includes(s));
+    const wanted: string[] = Array.isArray(b.scopes) ? b.scopes.map(String) : mine;
+    const scopes = wanted.includes('*') && c.p.scopes.includes('*') ? ['*'] : wanted.filter((s) => mine.includes(s) && s !== '*');
     if (!scopes.length) throw new AppError(400, 'no_scopes', 'Mindestens ein Recht wählen');
-    const r = app.svc.auth.createToken({ name: str(b.name) || 'API-Key', scopes, roles: c.p.roles, stationIds: c.p.stationIds, userId: me.id });
+    const covers = (role: Role) => scopes.includes('*') || UserStore.scopesFor([role]).every((s) => scopes.includes(s));
+    const roles = scopes.includes('*') ? c.p.roles : (c.p.roles as Role[]).filter(covers);
+    const r = app.svc.auth.createToken({ name: str(b.name) || 'API-Key', scopes, roles: roles.length ? roles : ['viewer'], stationIds: c.p.stationIds, userId: me.id });
     app.audit.write({ kind: 'auth', event: 'apikey_created', actor: c.p.id, user: me.id, token: r.info.id, scopes });
     return r;
   });

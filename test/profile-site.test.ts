@@ -44,6 +44,31 @@ test('Profil: Links, eigene API-Keys ohne Rechteausweitung; Banner und Wartung f
     assert.equal((await call('DELETE', `/me/tokens/${k.body.info.id}`, dj)).status, 200);
     assert.equal((await call('GET', '/stations/main/now-playing', k.body.token)).status, 401, 'widerrufener Schlüssel');
 
+    // Eingeschränkter Schlüssel eines Admins: keine Admin-Rolle, '*' nur bei vollem Zugriff; gesperrter Benutzer → Schlüssel tot
+    await app.users.create({ username: 'chef', name: 'Chef', password: 'Chef-Passwort1', roles: ['admin'], stationIds: ['*'], mustChangePassword: false });
+    const chef = (await call('POST', '/auth/login', undefined, { username: 'chef', password: 'Chef-Passwort1' })).body.token as string;
+    const ro = await call('POST', '/me/tokens', chef, { name: 'Overlay', scopes: ['now_playing:read', 'branding:read'] });
+    assert.deepEqual(ro.body.info.roles, ['viewer'], 'Nur-Lese-Schlüssel ist kein Admin');
+    assert.equal((await call('GET', '/users', ro.body.token)).status, 403, 'Admin-Routen bleiben zu');
+    const full = await call('POST', '/me/tokens', chef, { name: 'Alles', scopes: ['*'] });
+    assert.deepEqual(full.body.info.scopes, ['*']);
+    assert.deepEqual(full.body.info.roles, ['admin']);
+    assert.equal((await call('GET', '/users', full.body.token)).status, 200);
+    // Rolle des Benutzers schrumpft → Schlüssel schrumpft mit; Sperre → 401
+    const chefId = app.users.list().find((u) => u.username === 'chef')!.id;
+    await app.users.create({ username: 'chef2', password: 'Chef2-Passwort1', roles: ['admin'], stationIds: ['*'], mustChangePassword: false });
+    await app.users.update(chefId, { roles: ['dj'] });
+    assert.equal((await call('GET', '/users', full.body.token)).status, 403, 'Schlüssel hat nur noch DJ-Rechte');
+    assert.equal((await call('GET', '/stations/main/now-playing', full.body.token)).status, 200);
+    await app.users.update(chefId, { disabled: true });
+    assert.equal((await call('GET', '/stations/main/now-playing', full.body.token)).status, 401, 'gesperrter Benutzer');
+
+    // Links: ungültige Angabe ändert gar nichts (auch nicht den Namen); Team mit Links erscheint auf der Senderseite
+    assert.equal((await call('PATCH', '/me/profile', dj, { name: 'Anders', links: { website: 'ftp://x' } })).status, 400);
+    assert.equal((await call('GET', '/me/profile', dj)).body.name, 'Dana', 'Name blieb');
+    const page = (await (await fetch(`${base}/api/v1/public/stations/main/page`)).json()) as { team: { name: string; links: Record<string, string> }[] };
+    assert.deepEqual(page.team, [{ name: 'Dana', links: { website: 'https://dana.example', instagram: '@dana' } }]);
+
     // Banner/Wartung: setzen nur Admin, lesen alle, öffentlich ohne Login; abgelaufener Banner fällt weg
     assert.equal((await call('PUT', '/site', dj, { banner: { enabled: true, text: 'x' } })).status, 403);
     const set = await call('PUT', '/site', apiTok, { banner: { enabled: true, text: 'Heute 20 Uhr Sondersendung', kind: 'success', dismissible: false }, maintenance: { enabled: true, text: 'Umzug Freitag' } });

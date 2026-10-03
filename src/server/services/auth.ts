@@ -75,7 +75,17 @@ export class AuthService {
     const t = this.tokens.find((x) => x.hash === h);
     if (t) {
       this.app.svc.devices.seen(t);
-      return { id: t.id, tokenId: t.id, roles: t.roles, stationIds: t.stationIds, scopes: t.scopes };
+      if (!t.userId) return { id: t.id, tokenId: t.id, roles: t.roles, stationIds: t.stationIds, scopes: t.scopes };
+      // Persönlicher Schlüssel: gilt nur, solange der Benutzer existiert und nicht gesperrt ist,
+      // und nie mit mehr Rollen/Sendern/Rechten als der Benutzer HEUTE hat
+      const owner = this.app.users.get(t.userId);
+      if (!owner || owner.disabled) return null;
+      const roles = t.roles.filter((r) => owner.roles.includes(r as never));
+      const stationIds = t.stationIds.includes('*') ? owner.stationIds : owner.stationIds.includes('*') ? t.stationIds : t.stationIds.filter((s) => owner.stationIds.includes(s));
+      const allowed = UserStore.scopesFor(owner.roles);
+      const scopes = allowed.includes('*') ? t.scopes : t.scopes.includes('*') ? allowed : t.scopes.filter((s) => allowed.includes(s));
+      if (!scopes.length || !stationIds.length) return null;
+      return { id: t.id, tokenId: t.id, roles, stationIds, scopes };
     }
     const u = this.app.users.session(token);
     if (!u) return null;

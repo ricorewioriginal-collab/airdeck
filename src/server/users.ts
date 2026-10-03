@@ -168,6 +168,17 @@ export class UserStore {
     if (!u) throw new AuthError(404, 'Benutzer nicht gefunden');
     const roles = patch.roles !== undefined ? this.cleanRoles(patch.roles) : u.roles;
     const disabled = typeof patch.disabled === 'boolean' ? patch.disabled : u.disabled;
+    // Links vollständig prüfen, BEVOR irgendetwas am Benutzer geändert wird (sonst halbe Änderung bei Fehler)
+    let links: Record<string, string> | null = null;
+    if (patch.links && typeof patch.links === 'object') {
+      links = {};
+      for (const k of LINK_KEYS) {
+        const v = String((patch.links as Record<string, unknown>)[k] ?? '').trim().slice(0, 200);
+        if (!v) continue;
+        if (!/^(https?:\/\/|@)/i.test(v) || /[\s<>"]/.test(v)) throw new AuthError(400, `Ungültiger Link „${k}“ (https://… oder @name)`);
+        links[k] = v;
+      }
+    }
     if (u.roles.includes('admin') && (!roles.includes('admin') || disabled) && this.adminsLeft(u.id) === 0) throw new AuthError(409, 'Der letzte Administrator kann nicht entzogen oder gesperrt werden');
     if (typeof patch.password === 'string' && patch.password) {
       checkPassword(patch.password);
@@ -180,16 +191,7 @@ export class UserStore {
     u.disabled = disabled || undefined;
     if (disabled) this.revokeUser(u.id);
     if (typeof patch.mustChangePassword === 'boolean') u.mustChangePassword = patch.mustChangePassword || undefined;
-    if (patch.links && typeof patch.links === 'object') {
-      const links: Record<string, string> = {};
-      for (const k of LINK_KEYS) {
-        const v = String((patch.links as Record<string, unknown>)[k] ?? '').trim().slice(0, 200);
-        if (!v) continue;
-        if (/^javascript:/i.test(v)) throw new AuthError(400, 'Ungültiger Link');
-        links[k] = v;
-      }
-      u.links = Object.keys(links).length ? links : undefined;
-    }
+    if (links) u.links = Object.keys(links).length ? links : undefined;
     this.saveUsers();
     const { passwordHash: _p, ...pub } = u;
     return pub;
