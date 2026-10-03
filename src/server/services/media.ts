@@ -156,6 +156,13 @@ export class MediaService {
     this.app.changed();
   }
 
+  /** Billige Vorprüfung ohne ffmpeg: Cover kann es nur für Dateien geben und nicht, wenn zuvor „keins“ festgestellt wurde. */
+  coverPossible(stationId: string, mediaId: string): boolean {
+    const m = this.app.stations.get(stationId)?.data.library?.find((x) => x.id === mediaId);
+    if (!m || m.url || !this.app.ffmpeg) return false;
+    return !existsSync(join(this.app.dataDir, 'covers', stationId, `${m.id}.jpg.none`));
+  }
+
   /** Cover-Bild aus der Audiodatei (eingebettetes Bild), zwischengespeichert. */
   async cover(stationId: string, mediaId: string): Promise<string | null> {
     const m = this.media(stationId, mediaId);

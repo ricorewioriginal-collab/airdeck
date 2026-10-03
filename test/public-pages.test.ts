@@ -2,7 +2,7 @@
 // ohne Token erreichbar, nicht-öffentliche Sender liefern 404.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AnMaChaCastApp } from '../src/server/app.ts';
@@ -36,10 +36,22 @@ test('Öffentliche Seiten: page/schedule/charts/network ohne Login, abschaltbar,
     assert.ok(sched.days.every((d) => d.shows[0]?.label === 'Morgenshow'), 'ohne Tagesauswahl an jedem Tag');
     assert.equal(sched.days.filter((d) => d.shows[0]?.now).length, 1, 'genau heute als „jetzt“ markiert');
 
-    const charts = (await get('/api/v1/public/stations/main/charts?period=30d')).body as { period: string; items: { rank: number; title: string; plays: number }[] };
+    const charts = (await get('/api/v1/public/stations/main/charts?period=30d')).body as { period: string; items: { rank: number; title: string; plays: number; cover?: string | null }[] };
     assert.equal(charts.period, '30d');
     assert.deepEqual(charts.items.map((x) => [x.rank, x.title, x.plays]), [[1, 'Believer', 1]]);
     assert.equal(((await get('/api/v1/public/stations/main/charts?period=bogus')).body as { period: string }).period, '7d', 'unbekannter Zeitraum → 7 Tage');
+    // Chart-Cover öffentlich (ohne Login): nur für Titel aus den Charts, nur wenn ein Cover möglich ist
+    assert.equal(charts.items[0]!.cover ?? null, null, 'ohne ffmpeg gibt es keine Cover-Adresse');
+    (app as unknown as { ffmpeg: unknown }).ffmpeg = { ffmpeg: '/bin/false' };
+    mkdirSync(join(dir, 'covers', 'main'), { recursive: true });
+    writeFileSync(join(dir, 'covers', 'main', 'm1.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+    const withCover = (await get('/api/v1/public/stations/main/charts?period=30d')).body as { items: { cover: string | null }[] };
+    assert.equal(withCover.items[0]!.cover, '/api/v1/public/stations/main/cover/m1');
+    const img = await fetch(base + withCover.items[0]!.cover!);
+    assert.equal(img.status, 200, 'Cover ohne Anmeldung');
+    assert.equal(img.headers.get('content-type'), 'image/jpeg');
+    assert.equal((await fetch(base + '/api/v1/public/stations/main/cover/unbekannt')).status, 404, 'kein Chart-Titel → 404');
+    assert.equal((await fetch(base + '/api/v1/public/stations/nope/cover/m1')).status, 404, 'unbekannter Sender');
 
     const net = (await get('/api/v1/public/network')).body as { stations: { id: string; now: { title: string } | null }[] };
     assert.deepEqual(net.stations.map((s) => s.id), ['main']);
