@@ -58,7 +58,10 @@ const title = (/** @type {any} */ m) => (m ? (m.artist ? `${m.artist} – ${m.ti
 // ---------- Anmeldung ----------
 
 function loginView() {
+  // Vor der Anmeldung gibt es nichts umzuschalten: Tabs, Senderwahl und Status ausblenden
   $('tabs').hidden = true;
+  $('station').hidden = true;
+  $('pill').hidden = true;
   const server = h('input', { type: 'text', placeholder: 'https://mein-server.example (leer = dieser Server)', value: serverBase(), autocapitalize: 'off' });
   const user = h('input', { type: 'text', placeholder: 'Benutzername', autocapitalize: 'off' });
   const pass = h('input', { type: 'password', placeholder: 'Passwort' });
