@@ -209,6 +209,20 @@ export interface PodcastConfig {
   auto?: PodcastAuto;
   /** Nächste Episodennummer der Auto-Veröffentlichung (steigt monoton, auch nach Löschen) */
   nextEpisodeNumber?: number;
+  /** Öffentliche Adresse des Servers (z. B. Tunnel), die in Feed, Enclosures und Cover steht statt des Anfrage-Hosts */
+  publicBaseUrl?: string;
+  /** Externer kostenloser Podcast-Hoster, zu dem Episoden hochgeladen werden (Zugangsdaten im Secret-Store) */
+  host?: PodcastHost;
+}
+
+export interface PodcastHost {
+  kind: 'buzzsprout' | 'podbean';
+  /** Buzzsprout: numerische Podcast-ID */
+  podcastId?: string;
+  /** Öffentlicher Feed beim Hoster (Buzzsprout automatisch, Podbean zum Eintragen) */
+  feedUrl?: string;
+  /** Neue, im Feed veröffentlichte Auto-Episoden sofort hochladen */
+  autoPush?: boolean;
 }
 
 /** Platzhalter in den Vorlagen: {label} {station} {date} {time} {weekday} {duration} {n} (nächste Episodennummer) */
@@ -237,6 +251,8 @@ export interface Episode {
   episodeNumber?: number;
   /** Stabile GUID im Feed (ändert sich nie, auch wenn der Titel sich ändert) */
   guid: string;
+  /** Beim externen Hoster angelegt (Hoster, ID dort, Zeitpunkt) */
+  hosted?: { kind: 'buzzsprout' | 'podbean'; id: string; at: number; url?: string };
 }
 
 export interface PlayLogEntry {

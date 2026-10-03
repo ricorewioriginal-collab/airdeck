@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AnMaChaCastApp } from '../app.ts';
+import { normalizeBase } from './podcast-host.ts';
 import { AppError, newId, type Episode, type PodcastAuto, type PodcastConfig, type Recording } from '../model.ts';
 
 const xmlEsc = (s: unknown) => String(s ?? '').replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!);
@@ -69,7 +70,11 @@ export class PodcastService {
       explicit: Boolean(input.explicit ?? cur.explicit),
       cover: cur.cover,
       ...(auto ? { auto } : {}),
+      ...(cur.nextEpisodeNumber ? { nextEpisodeNumber: cur.nextEpisodeNumber } : {}),
+      ...(cur.host ? { host: cur.host } : {}),
     };
+    const base = 'publicBaseUrl' in input ? normalizeBase(input.publicBaseUrl) : cur.publicBaseUrl;
+    if (base) cfg.publicBaseUrl = base;
     rt.data.podcast = cfg;
     this.app.publish('podcast.changed', stationId, this.overview(stationId));
     this.app.changed();
@@ -112,8 +117,13 @@ export class PodcastService {
     return [...(this.app.rt(stationId).data.episodes ?? [])].sort((a, b) => (b.publishedAt ?? b.createdAt) - (a.publishedAt ?? a.createdAt));
   }
 
-  overview(stationId: string): { config: PodcastConfig; episodes: Episode[]; hasCover: boolean } {
-    return { config: this.config(stationId), episodes: this.episodes(stationId), hasCover: !!this.cover(stationId) };
+  overview(stationId: string): { config: PodcastConfig; episodes: Episode[]; hasCover: boolean; feedUrl: string | null; host: ReturnType<AnMaChaCastApp['svc']['podcastHost']['view']> } {
+    const cfg = this.config(stationId);
+    return {
+      config: cfg, episodes: this.episodes(stationId), hasCover: !!this.cover(stationId),
+      feedUrl: cfg.publicBaseUrl ? `${cfg.publicBaseUrl}/api/v1/public/stations/${stationId}/podcast.xml` : null,
+      host: this.app.svc.podcastHost.view(stationId),
+    };
   }
 
   /**
@@ -139,6 +149,7 @@ export class PodcastService {
     ep.episodeNumber = n;
     rt.data.podcast = { ...cfg, nextEpisodeNumber: n + 1 };
     if (auto.publish) ep.publishedAt = Date.now();
+    if (auto.publish && cfg.host?.autoPush) void this.app.svc.podcastHost.autoPush(stationId, ep.id);
     this.app.audit.write({ kind: 'podcast', event: auto.publish ? 'auto_published' : 'auto_draft', stationId, episode: ep.id, recording: rec.id });
     this.app.publish('podcast.changed', stationId, this.overview(stationId));
     this.app.changed();
@@ -192,6 +203,7 @@ export class PodcastService {
     const rt = this.app.stations.get(stationId);
     if (!rt || rt.station.publicStatus === false) throw new AppError(404, 'not_found', 'Sender nicht gefunden oder nicht öffentlich');
     const cfg = this.config(stationId);
+    baseUrl = cfg.publicBaseUrl || baseUrl;
     const published = (rt.data.episodes ?? []).filter((e) => e.publishedAt).sort((a, b) => b.publishedAt! - a.publishedAt!);
     const feedUrl = `${baseUrl}/api/v1/public/stations/${stationId}/podcast.xml`;
     const coverUrl = this.cover(stationId) ? `${baseUrl}/api/v1/public/stations/${stationId}/podcast/cover` : undefined;
