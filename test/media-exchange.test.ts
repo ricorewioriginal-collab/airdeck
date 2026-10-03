@@ -42,6 +42,7 @@ test('MusikHub: Netzwerk-Freigabe macht eine Sammlung in jedem Sender sichtbar; 
     assert.equal(logo.kind, 'image');
     assert.equal(logo.title, 'Senderlogo');
     assert.equal((await put(owner, '/music-hub/uploads?name=Virus.exe', png)).status, 415, 'unbekannte Endung');
+    assert.equal((await put(owner, '/music-hub/uploads?name=Logo.svg', png)).status, 415, 'SVG abgelehnt (aktiver Inhalt)');
     const stage = await call(owner, 'POST', `/music-hub/items/${logo.id}/stage`, { stationId: 'main' });
     assert.equal(stage.status, 415, 'Bild lässt sich nicht in die Sendung übernehmen');
     const preview = await fetch(`${base}/music-hub/items/${logo.id}/preview?station=main`, { headers: { Authorization: `Bearer ${owner}` } });
@@ -59,11 +60,17 @@ test('MusikHub: Netzwerk-Freigabe macht eine Sammlung in jedem Sender sichtbar; 
     const grant = await call(owner, 'POST', `/music-hub/collection/${col.id}/grants`, { stationId: 'main', recipient: { kind: 'station', id: '*' }, targetStationIds: ['main'], actions: ['catalog.read', 'file.download'] });
     assert.equal(grant.status, 200, JSON.stringify(grant.body));
     assert.deepEqual(grant.body.targetStationIds, ['*']);
+    assert.equal((await call(owner, 'POST', `/music-hub/collection/${col.id}/grants`, { stationId: 'main', recipient: { kind: 'station', id: 'zwei' }, targetStationIds: ['*'], actions: ['catalog.read'] })).status, 400, 'Platzhalter-Ziel nur für das Netzwerk');
     const seen = (await call(other, 'GET', '/music-hub/items?station=zwei')).body;
     assert.equal(seen.total, 1);
     assert.equal(seen.items[0].kind, 'image');
     assert.ok(seen.items[0].actions.includes('file.download'));
     assert.equal((await call(other, 'GET', '/music-hub/collections?station=zwei')).body.length, 1);
+    // Ersetzen durch eine Audiodatei: Art wird neu bestimmt
+    const rep = await fetch(`${base}/music-hub/items/${logo.id}/replace?station=main&name=Jingle.mp3`, { method: 'PUT', headers: { Authorization: `Bearer ${owner}` }, body: Buffer.alloc(900, 3) });
+    assert.equal(rep.status, 200, await rep.clone().text());
+    assert.equal(((await rep.json()) as { kind?: string }).kind, undefined, 'wieder Audio');
+    assert.equal((await call(other, 'GET', '/music-hub/items?station=zwei')).body.items[0].kind, 'audio', 'Art im Netzwerk neu bestimmt');
     // Widerruf nimmt die Sichtbarkeit sofort
     assert.ok([200, 204].includes((await call(owner, 'DELETE', `/music-hub/grants/${grant.body.id}?station=main`)).status));
     assert.equal((await call(other, 'GET', '/music-hub/items?station=zwei')).body.total, 0);

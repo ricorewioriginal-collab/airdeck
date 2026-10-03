@@ -43,8 +43,9 @@ const AUDIO_EXT: Record<string, string> = {
   '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.webm': 'audio/webm',
 };
 /** MusikHub (Media & Jingle Exchange): zusätzlich Logos, Sendungsbilder und Dokumente - nur zum Teilen, nie zum Senden */
+// kein SVG: würde als aktives Dokument mit Skripten im Senderkontext angezeigt (Token in der Vorschau-URL)
 const HUB_EXTRA_EXT: Record<string, string> = {
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif',
   '.pdf': 'application/pdf', '.txt': 'text/plain', '.md': 'text/markdown', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.zip': 'application/zip',
 };
@@ -413,7 +414,8 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     const stationId = String(c.url.searchParams.get('station') ?? '');
     const name = String(c.url.searchParams.get('name') ?? '').slice(0, 200);
     const ext = extname(name).toLowerCase();
-    if (!AUDIO_EXT[ext]) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${Object.keys(AUDIO_EXT).join(', ')})`);
+    const hubType = AUDIO_EXT[ext] ?? HUB_EXTRA_EXT[ext];
+    if (!hubType) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${[...Object.keys(AUDIO_EXT), ...Object.keys(HUB_EXTRA_EXT)].join(', ')})`);
     const len = Number(c.req.headers['content-length'] ?? 0);
     if (len > MAX_UPLOAD) throw new AppError(413, 'too_large', 'Datei zu groß');
     const { file, absolutePath, oldSizeBytes } = app.svc.musikhub.prepareReplaceUpload(c.p, c.params.id!, stationId, ext);
@@ -434,7 +436,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
       app.svc.musikhub.discardUpload(c.p.user?.id ?? c.p.id, file);
       throw new AppError(413, 'upload_failed', 'Upload abgebrochen, Kontingent überschritten oder zu groß');
     }
-    return app.svc.musikhub.replaceUpload(c.p, c.params.id!, stationId, file, AUDIO_EXT[ext]!, size, hasher.digest());
+    return app.svc.musikhub.replaceUpload(c.p, c.params.id!, stationId, file, hubType, size, hasher.digest());
   });
   // Eigene (persönliche) Nextcloud-Quelle für "Mein Archiv" - getrennt vom bestehenden globalen
   // Sender-Nextcloud-Import (/api/v1/nextcloud). Kein geteiltes Konto, keine unbegrenzten Vollscans.

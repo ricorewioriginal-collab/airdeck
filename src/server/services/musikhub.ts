@@ -376,6 +376,9 @@ export class MusicHubService {
     }
     const oldFile = item.source.file;
     item.source = { kind: 'upload', file, mimeType, sizeBytes, contentHash };
+    // Art folgt der neuen Datei (Bild → Audio oder umgekehrt), damit Vorschau und Senden-Rechte stimmen
+    const newKind = hubKind(mimeType);
+    if (newKind === 'audio') delete item.kind; else item.kind = newKind;
     item.version = String(Number(item.version ?? '1') + 1);
     item.revision++;
     await this.save();
@@ -495,7 +498,7 @@ export class MusicHubService {
     const actions = [...new Set(actionsInput as HubAction[])];
     const network = recipient.kind === 'station' && recipient.id === NETWORK;
     if (network) targetsInput = [NETWORK];
-    if (!Array.isArray(targetsInput) || !targetsInput.length || targetsInput.length > 100 || targetsInput.some((x) => typeof x !== 'string' || (x !== NETWORK && !this.app.stations.has(x)))) throw new AppError(400, 'invalid_targets', 'Zielsender fehlen oder sind ungültig');
+    if (!Array.isArray(targetsInput) || !targetsInput.length || targetsInput.length > 100 || targetsInput.some((x) => typeof x !== 'string' || (network ? x !== NETWORK : !this.app.stations.has(x)))) throw new AppError(400, 'invalid_targets', 'Zielsender fehlen oder sind ungültig');
     const targetStationIds = [...new Set(targetsInput as string[])];
     if (recipient.kind === 'station' && (targetStationIds.length !== 1 || targetStationIds[0] !== recipient.id)) throw new AppError(400, 'invalid_targets', 'Senderfreigabe muss auf genau diesen Sender begrenzt sein');
     const rec = this.resource(resource);

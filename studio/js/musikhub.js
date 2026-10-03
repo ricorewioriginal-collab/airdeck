@@ -197,17 +197,21 @@ export function mountMusicHub(root, ctx) {
   }
 
   async function createCollection() {
-    const value = await formDialog('Sender-Sammlung anlegen', [{ name: 'name', label: 'Name', required: true }], 'Anlegen');
+    const value = await formDialog('Sammlung anlegen', [
+      { name: 'name', label: 'Name', required: true },
+      { name: 'owner', label: 'Gehört zu', value: 'station', options: [['station', `Sender „${station()}“ (Senderarchiv)`], ['user', 'Mein Archiv (eigene Uploads: Audio, Logos, Dokumente)']], hint: 'Eine Sammlung nimmt nur Einträge desselben Eigentümers auf' },
+    ], 'Anlegen');
     if (!value) return;
-    const result = await run(() => ctx.api.post(url('/collections'), { owner: { kind: 'station', id: station() }, name: value.name }));
+    const result = await run(() => ctx.api.post(url('/collections'), { owner: value.owner === 'user' ? { kind: 'user', id: myId() } : { kind: 'station', id: station() }, name: value.name }));
     if (!result) return;
     status(`Sammlung „${result.name}“ angelegt`);
     await run(load);
   }
 
   async function addToCollection(item) {
-    const own = collections.filter((c) => c.owner.kind === 'station' && c.owner.id === station() && c.actions.includes('media.upload'));
-    if (!own.length) return status('Lege zuerst eine Sender-Sammlung an.', true);
+    const personal = item.owner.kind === 'user';
+    const own = collections.filter((c) => (personal ? c.owner.kind === 'user' && c.owner.id === myId() : c.owner.kind === 'station' && c.owner.id === station()) && c.actions.includes('media.upload'));
+    if (!own.length) return status(personal ? 'Lege zuerst eine Sammlung für „Mein Archiv“ an (＋ Neu → Mein Archiv).' : 'Lege zuerst eine Sender-Sammlung an.', true);
     const value = await formDialog('Titel in Sammlung aufnehmen', [
       { name: 'collection', label: 'Sammlung', options: own.map((c) => [c.id, c.name]) },
     ], 'Aufnehmen');
@@ -227,7 +231,7 @@ export function mountMusicHub(root, ctx) {
     if (!search) return;
     const found = await run(() => ctx.api.get(url(`/recipients?q=${encodeURIComponent(search.q ?? '')}`)));
     if (!found) return;
-    const options = [['station:*', '🌐 Netzwerk: alle Sender dieser Installation'], ...found.users.map((u) => [`user:${u.id}`, `${u.name} (@${u.username})`]), ...found.stations.map((s) => [`station:${s.id}`, `Sender: ${s.name}`])];
+    const options = [...found.users.map((u) => [`user:${u.id}`, `${u.name} (@${u.username})`]), ...found.stations.map((s) => [`station:${s.id}`, `Sender: ${s.name}`]), ['station:*', '🌐 Netzwerk: alle Sender dieser Installation (Katalog + Vorhören + Download)']];
     const directory = await run(() => ctx.api.get(url('/recipients')));
     if (!directory) return;
     const choice = await formDialog('Katalogfreigabe', [
@@ -236,9 +240,11 @@ export function mountMusicHub(root, ctx) {
     ], 'Freigeben');
     if (!choice) return;
     const [kind, id] = choice.recipient.split(':');
+    const network = kind === 'station' && id === '*';
     const target = kind === 'station' ? id : choice.target; // Netzwerk („*“) gilt in jedem Senderkontext
+    if (network && !confirm('Wirklich für ALLE Sender dieser Installation freigeben? Empfänger können die Dateien ansehen und herunterladen.')) return;
     const result = await run(() => ctx.api.post(url(`/collection/${encodeURIComponent(collection.id)}/grants`), {
-      stationId: station(), recipient: { kind, id }, targetStationIds: [target], actions: ['catalog.read'],
+      stationId: station(), recipient: { kind, id }, targetStationIds: [target], actions: network ? ['catalog.read', 'preview.play', 'file.download'] : ['catalog.read'],
     }));
     if (!result) return;
     status(`„${collection.name}“ für den Katalog freigegeben`);
@@ -271,7 +277,7 @@ export function mountMusicHub(root, ctx) {
   }));
   /** @type {any} */ let replaceTarget = null;
   const replaceInput = /** @type {HTMLInputElement} */ (h('input', {
-    type: 'file', accept: 'audio/*', hidden: true,
+    type: 'file', accept: 'audio/*,image/*,.pdf,.txt,.md,.docx,.xlsx,.zip', hidden: true,
     onchange: (/** @type {Event} */ e) => {
       const inp = /** @type {HTMLInputElement} */ (e.target);
       const target = replaceTarget;
@@ -284,7 +290,7 @@ export function mountMusicHub(root, ctx) {
     const mine = (/** @type {any} */ item) => item.owner.kind === 'user' && item.owner.id === myId();
     const isStationOwn = (/** @type {any} */ item) => item.owner.kind === 'station' && item.owner.id === sid;
     const visible = items.filter((item) => filter === 'all' || filter === 'station' && isStationOwn(item) || filter === 'mine' && mine(item) || filter === 'shared' && !isStationOwn(item) && !mine(item));
-    const ownCollections = collections.filter((c) => c.owner.kind === 'station' && c.owner.id === sid);
+    const ownCollections = collections.filter((c) => (c.owner.kind === 'station' && c.owner.id === sid) || (c.owner.kind === 'user' && c.owner.id === myId()));
     const unregistered = ctx.library().filter((m) => !m.url && !items.some((item) => item.source?.kind === 'station' && item.source.stationId === sid && item.source.mediaId === m.id));
     const first = total ? page * 50 + 1 : 0;
     const last = Math.min((page + 1) * 50, total);
@@ -295,7 +301,7 @@ export function mountMusicHub(root, ctx) {
       if (item.actions.includes('preview.play') && kind === 'audio') row.append(h('audio', { controls: true, preload: 'none', style: 'height:28px;vertical-align:middle', src: ctx.api.musicHubUrl(item.id, 'preview', sid) }));
       if (item.actions.includes('preview.play') && kind === 'image') row.append(h('a', { href: ctx.api.musicHubUrl(item.id, 'preview', sid), target: '_blank', rel: 'noopener' }, h('img', { class: 'mh-thumb', alt: '', loading: 'lazy', src: ctx.api.musicHubUrl(item.id, 'preview', sid) })));
       if (item.actions.includes('file.download')) row.append(h('a', { class: 'btn small', href: ctx.api.musicHubUrl(item.id, 'download', sid), download: true }, 'Herunterladen'));
-      if (isStationOwn(item) && item.actions.includes('media.upload')) row.append(h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung'));
+      if ((isStationOwn(item) || mine(item)) && item.actions.includes('media.upload')) row.append(h('button', { class: 'btn small', onclick: () => addToCollection(item) }, 'In Sammlung'));
       if (mine(item) && item.source?.kind === 'upload' && item.actions.includes('source.write')) row.append(h('button', { class: 'btn small', onclick: () => { replaceTarget = item; replaceInput.click(); } }, 'Ersetzen'));
       if (kind === 'audio' && mine(item) && item.source?.kind === 'upload' && item.actions.includes('broadcast.use')) row.append(h('button', { class: 'btn small', onclick: () => stageItem(item) }, `Für „${sid}“ bereitstellen`));
       if (kind === 'audio' && (mine(item) || isStationOwn(item)) && item.actions.includes('transfer.export')) row.append(h('button', { class: 'btn small', onclick: () => lautcastTransfer(item) }, 'An laut.fm übertragen'));
@@ -316,7 +322,7 @@ export function mountMusicHub(root, ctx) {
       h('div', { class: 'mh-grid' },
         h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Sammlungen'), h('button', { class: 'btn small', onclick: createCollection }, '＋ Neu')),
           collections.length ? h('ul', { class: 'plain-list' }, ...collections.map((c) => h('li', { class: 'mh-entry' },
-            h('strong', {}, c.name), h('span', { class: 'muted' }, ` · ${c.itemIds.length} Titel`),
+            h('strong', {}, c.name), h('span', { class: 'muted' }, ` · ${c.itemIds.length} Einträge${c.owner.kind === 'user' ? ' · Mein Archiv' : ''}`),
             ownCollections.includes(c) && c.actions.includes('shares.manage') ? h('div', { class: 'row mh-actions' },
               h('button', { class: 'btn small', onclick: () => shareCollection(c) }, 'Freigeben'),
               h('button', { class: 'btn small', onclick: () => manageGrants(c) }, 'Freigaben ansehen')) : null))) : h('p', { class: 'muted' }, 'Noch keine sichtbaren Sammlungen.')),
