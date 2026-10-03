@@ -2106,6 +2106,8 @@ function bindStatic() {
   // Update-Prüfung braucht globale Admin-Rechte (siehe /api/v1/update/settings) - für stationsbeschränkte
   // Konten (z. B. den Demo-Zugang) macht der Knopf keinen Sinn und würde nur unnötig 403 erzeugen.
   $('btn-update').hidden = !isGlobalAdmin();
+  // Kopplungscodes erzeugen darf, wer Token verwalten darf (wie POST /pairing: Scope tokens:write oder *)
+  $('btn-pair-qr').hidden = !(S.me?.scopes?.includes('*') || S.me?.scopes?.includes('tokens:write'));
   if (isGlobalAdmin()) mountUpdates(api);
   buildQuick();
   bindLiveVoice();

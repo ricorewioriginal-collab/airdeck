@@ -159,16 +159,26 @@ namespace AnMaChaCast.Pages
                 // der Server sortiert die Adressen (echte WLAN/LAN-Adressen zuerst), bei mehreren Adaptern wählt man hier
                 var listening = J.Bool(r, "listening");
                 var options = new List<(string Label, string Payload)>();
+                // Die Adresse, mit der diese App den Server gerade erreicht, steht vorn - sofern ein Handy sie erreichen kann
+                // (nicht localhost). Bei Docker/Reverse-Proxy ist das die öffentliche Adresse; die Netzwerkadapter des Servers
+                // kennen dort nur interne Adressen.
+                var origin = C.Api.Origin;
+                var viaOrigin = !origin.IsLoopback;
+                if (viaOrigin)
+                {
+                    var link = PairingLink.Build(origin.GetLeftPart(UriPartial.Authority), code);
+                    if (link != null) options.Add((origin.GetLeftPart(UriPartial.Authority) + " (verbundene Adresse)", link));
+                }
                 if (listening)
                     foreach (var a in PairingLink.Ranked(addresses))
                     {
                         var link = PairingLink.Build(a, code);
-                        if (link != null) options.Add((a, link));
+                        if (link != null && options.TrueForAll(o => o.Payload != link)) options.Add((a, link));
                     }
                 Dlg.Qr(C.Owner, "Gerät koppeln", options,
                     "Kopplungscode:  " + code + "\n\nGültig 5 Minuten, einmal einlösbar.\n\n" +
                     (options.Count > 0
-                        ? "In der Android-App „Per QR-Code koppeln“ wählen und diesen Code mit der Kamera scannen. Alternativ Adresse und Code eintippen:\n" + string.Join("\n", addresses)
+                        ? "In der Android-App „Per QR-Code koppeln“ wählen und diesen Code mit der Kamera scannen. Alternativ Adresse und Code eintippen:\n" + string.Join("\n", options.ConvertAll(o => o.Label))
                         : J.Bool(r, "lan")
                             ? "Hinweis: Der Netzwerkzugriff ist freigegeben, aber der Server lauscht noch nicht darauf – bitte den Server neu starten (System → Neustart), dann erscheint hier der QR-Code."
                             : "Hinweis: Der Zugriff im Netzwerk ist noch gesperrt – erst „Zugriff im Netzwerk erlauben“ wählen, dann erscheint hier der QR-Code."));
