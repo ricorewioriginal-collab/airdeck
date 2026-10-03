@@ -150,9 +150,10 @@ export function mountListeners(root, ctx) {
 
   /** Auslosung: Teilnehmer je Zeile, Modus, Gewinner groß, Protokoll mit CSV. @param {any[]} draws @param {any[]} forms @param {any[]} inbox */
   function drawCard(draws, forms, inbox) {
-    const ta = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: 8, placeholder: 'Ein Teilnehmer je Zeile …', oninput: () => { drawState.text = ta.value; count.textContent = `${names().length} Teilnehmer`; } }, drawState.text));
+    const ta = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: 8, placeholder: 'Ein Teilnehmer je Zeile …', oninput: () => { drawState.text = ta.value; } }, drawState.text));
     const names = () => { const seen = new Set(); return ta.value.split(/\r?\n|,|;/).map((s) => s.trim()).filter((s) => s && (!drawState.unique || !seen.has(s.toLowerCase()) && seen.add(s.toLowerCase()))); };
     const count = h('span', { class: 'muted small' }, `${names().length} Teilnehmer`);
+    ta.addEventListener('input', () => { count.textContent = `${names().length} Teilnehmer`; });
     const winner = h('div', { class: 'draw-winner' }, lastDraw ? h('b', {}, lastDraw.winners.join(' · ')) : h('span', { class: 'muted' }, 'Noch nicht gezogen'));
     const MODES = /** @type {[string,string][]} */ ([['normal', 'Normal (ein Gewinner)'], ['multi', 'Multi (mehrere Gewinner)'], ['elim', 'Elimination (der Letzte gewinnt)']]);
     const countIn = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: 1, max: 100, value: String(drawState.count), style: 'width:70px', oninput: () => { drawState.count = Number(countIn.value) || 3; } }));
@@ -186,7 +187,7 @@ export function mountListeners(root, ctx) {
     const log = h('div', {}, ...logRows(draws));
     return card('Auslosung',
       h('div', { class: 'draw-grid' },
-        h('div', {}, h('div', { class: 'row', style: 'justify-content:space-between' }, h('span', { class: 'muted small' }, 'Teilnehmer'), count), ta,
+        h('div', {}, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:4px' }, h('b', { class: 'small' }, 'Teilnehmer (eine je Zeile)'), count), ta,
           h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' },
             h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: drawState.unique, onchange: (/** @type {Event} */ e) => { drawState.unique = /** @type {HTMLInputElement} */ (e.target).checked; ta.dispatchEvent(new Event('input')); } }), 'Dubletten entfernen'),
             h('button', { class: 'btn small', onclick: importFrom }, '⇩ Aus Formular / Posteingang'))),
