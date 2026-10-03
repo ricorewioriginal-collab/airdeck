@@ -1161,6 +1161,20 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
         return json(res, e.status === 413 ? 413 : 400, { error: 'invalid', message: e.status === 413 ? 'Zu groß' : 'Ungültige Anfrage' });
       }
     }
+    // Öffentliche Chart-Cover (ohne Login), nur für Titel aus den aktuellen Charts
+    const pc = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/cover\/([A-Za-z0-9_-]{1,60})$/.exec(path);
+    if (pc && req.method === 'GET') {
+      try {
+        const file = await app.svc.status.publicCover(pc[1]!, pc[2]!);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        sendFile(req, res, file, 'image/jpeg');
+        return;
+      } catch (err) {
+        const e = err as { status?: number; code?: string; message?: string };
+        return json(res, e.status ?? 404, { error: e.code ?? 'not_found', message: e.message ?? 'Kein Cover' });
+      }
+    }
     // Öffentliche Seiten (ohne Login): Senderseite, Sendeplan, Charts, Netzwerk
     const pp = /^\/api\/v1\/public\/(?:(network)|stations\/([a-z0-9-]{1,40})\/(page|schedule|charts))$/.exec(path);
     if (pp && req.method === 'GET') {
