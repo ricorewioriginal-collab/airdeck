@@ -58,7 +58,7 @@ class RaClient(private val session: LautFmSession) {
     suspend fun patch(path: String, body: JsonElement?): JsonElement? = call("PATCH", path, body)
     suspend fun delete(path: String, body: JsonElement? = null): JsonElement? = call("DELETE", path, body)
 
-    private suspend fun call(method: String, path: String, body: JsonElement?, multipart: MultipartBody? = null): JsonElement? {
+    suspend fun call(method: String, path: String, body: JsonElement?, multipart: MultipartBody? = null): JsonElement? {
         var acc = session.account ?: throw RaException(401, "Nicht bei laut.fm angemeldet")
         var retried = false
         while (true) {

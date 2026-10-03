@@ -33,8 +33,10 @@ eingegeben). Diese Bereiche laufen bis dahin über das Web-Studio im Browser.
   - `golive/`: vier Decks (A–D) mit eigenem Puffer im Mischpult (`Decks.kt`), Titel per Menü Decks zuordnen, Dateien und Ordner
     gesammelt importieren. Push-to-Talk (Drücken öffnet das Mikro in ca. 12 ms), Mikrofonquelle, Pegel, Encoder.
   - `radioadmin/`: **Sender-Admin**, der dritte Bereich. laut.fm Radioadmin mobil: Übersicht, Playlists, Titel (suchen, hochladen,
-    bearbeiten, Tags, Vorhören), Sendeplan, Statistik inkl. Werbe-Log, Benutzer, Station, Live-Zugang. Direkt gegen die
-    Radioadmin-API (`RaClient`), mit derselben laut.fm-Anmeldung wie Go Live (`live/LautFmSession.kt`).
+    bearbeiten, Tags, Vorhören, alle Filter der API, Seitenweise nachladen, mehrere Titel auf einmal), Automation-Algorithmen,
+    Sendeplan, Statistik inkl. Werbe-Log, Tagesauswahl und Hörstunden, Benutzer, Station mit Logo/Hintergrund/Website-Bild, Live-Zugang.
+    Direkt gegen die Radioadmin-API (`RaClient`, Abgleich mit der Spezifikation `docs.api.radioadmin.laut.fm`; reine Logik in
+    `RaLogic.kt`), mit derselben laut.fm-Anmeldung wie Go Live (`live/LautFmSession.kt`).
   - `live/`: laut.fm (Anmeldung im Browser mit Rückkehr per App-Adresse `anmachacast://lautfm`, WebView als Ausweg, Token im Adress-Anker, Stationen, Live-Zugangsdaten automatisch)
     und Nextcloud (Login Flow v2, WebDAV, Titel in den Zwischenspeicher). Zugangsdaten liegen verschlüsselt (`LiveStore`).
 
