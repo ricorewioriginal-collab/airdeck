@@ -42,7 +42,7 @@ export interface DocStore {
 }
 
 /** Namen der bisherigen JSON-Dateien im Datenordner, die in die Datenbank übernommen werden. */
-export const KNOWN_DOCS = ['airdeck', 'tokens', 'users', 'sessions', 'ai', 'ai-usage', 'update', 'nextcloud', 'bridge-keys', 'musikhub'] as const;
+export const KNOWN_DOCS = ['airdeck', 'tokens', 'users', 'sessions', 'ai', 'ai-usage', 'update', 'nextcloud', 'bridge-keys', 'musikhub', 'site'] as const;
 
 const DELAY: Record<string, number> = { airdeck: 300, sessions: 1000, 'ai-usage': 2000 };
 

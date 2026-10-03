@@ -91,7 +91,8 @@ export function mountProfile(root, ctx) {
     const r = await run(() => ctx.api.post('/auth/password', { current: v.current, next: v.next }));
     if (!r) return;
     if (r.token) ctx.saveToken(r.token); // andere Sitzungen sind damit abgemeldet, diese läuft mit neuem Token weiter
-    status('Passwort geändert');
+    status('Passwort geändert - Studio wird neu geladen');
+    setTimeout(() => location.reload(), 800); // Live-Verbindung (SSE) hängt noch am alten Token
   }
 
   /** @param {any} me */
@@ -120,6 +121,7 @@ export function mountProfile(root, ctx) {
     const sel = /** @type {HTMLSelectElement} */ (h('select', {}, ...ENDPOINTS.map((e, i) => h('option', { value: String(i) }, e.path))));
     const st = /** @type {HTMLSelectElement} */ (h('select', {}, ...ctx.stations().map((s) => h('option', { value: s.id, selected: s.id === ctx.stationId() }, s.name))));
     const curl = h('code', { class: 'api-curl' });
+    const key = /** @type {HTMLInputElement} */ (h('input', { type: 'password', placeholder: 'API-Schlüssel (leer = meine Sitzung)', autocomplete: 'off', style: 'min-width:240px', title: 'So testest du, was ein frisch erzeugter Schlüssel wirklich sehen darf' }));
     const draw = () => {
       const e = ENDPOINTS[Number(sel.value)];
       const path = e.path.replace('{id}', st.value);
@@ -128,19 +130,28 @@ export function mountProfile(root, ctx) {
     };
     sel.addEventListener('change', draw); st.addEventListener('change', draw); draw();
     return card('Entwickler-API',
-      h('p', { class: 'muted small', style: 'margin:0 0 8px' }, `Alle Aufrufe gehen an ${base}/… mit dem Header „Authorization: Bearer <API-Key>“. Antworten sind JSON; 120 Anfragen pro Minute und Schlüssel. Schreibende Endpunkte (Queue, Playout, Cardwall) und Webhooks stehen in docs/BRIDGE.md.`),
+      h('p', { class: 'muted small', style: 'margin:0 0 8px' }, `Alle Aufrufe gehen an ${base}/… mit dem Header „Authorization: Bearer <API-Key>“. Antworten sind JSON; 120 Anfragen pro Minute und Schlüssel. Schreibende Endpunkte (Queue, Playout, Cardwall, Sendeplan, Hörer) stehen in docs/API.md, Webhooks in docs/BRIDGE.md.`),
       h('div', { class: 'table-wrap' }, h('table', { class: 'list api-table' },
         h('thead', {}, h('tr', {}, h('th', {}, 'GET'), h('th', {}, 'Recht'), h('th', {}, 'Liefert'))),
         h('tbody', {}, ...ENDPOINTS.map((e) => h('tr', {}, h('td', {}, h('code', {}, e.path)), h('td', { class: 'muted small' }, e.scope), h('td', { class: 'muted small' }, e.desc)))))),
       h('h3', { style: 'margin:12px 0 6px;font-size:14px' }, '🧪 Live ausprobieren'),
-      h('div', { class: 'row', style: 'flex-wrap:wrap' }, sel, st,
+      h('div', { class: 'row', style: 'flex-wrap:wrap' }, sel, st, key,
         h('button', { class: 'btn small primary', onclick: async () => {
           const e = ENDPOINTS[Number(sel.value)];
           const path = e.path.replace('{id}', st.value);
           out.textContent = '…';
           const t0 = performance.now();
-          try { const r = await ctx.api.get(path); out.textContent = `// ${Math.round(performance.now() - t0)} ms\n${JSON.stringify(r, null, 2).slice(0, 20_000)}`; }
-          catch (err) { out.textContent = `Fehler: ${err instanceof Error ? err.message : String(err)}`; }
+          try {
+            const k = key.value.trim();
+            let r;
+            if (k) {
+              // mit fremdem Schlüssel: direkter Aufruf ohne die Sitzung, damit die Antwort die Rechte DES SCHLÜSSELS zeigt
+              const res = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${k}` } });
+              r = await res.json().catch(() => ({ status: res.status }));
+              if (!res.ok) r = { status: res.status, ...r };
+            } else r = await ctx.api.get(path);
+            out.textContent = `// ${Math.round(performance.now() - t0)} ms${k ? ' · mit API-Schlüssel' : ''}\n${JSON.stringify(r, null, 2).slice(0, 20_000)}`;
+          } catch (err) { out.textContent = `Fehler: ${err instanceof Error ? err.message : String(err)}`; }
         } }, '▶ Abrufen')),
       h('div', { class: 'muted small', style: 'margin:6px 0' }, curl),
       out);

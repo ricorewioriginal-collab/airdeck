@@ -87,7 +87,17 @@ export class StatusService {
       station: this.brand(stationId), status, current: schedule.current,
       today: schedule.days[(new Date().getDay() + 6) % 7]!.shows, charts: charts.items.slice(0, 5),
       podcast: episodes ? { episodes, feed: `/api/v1/public/stations/${stationId}/podcast.xml` } : null,
+      team: this.publicTeam(stationId),
     };
+  }
+
+  /** Team: Benutzer dieses Senders, die in „Mein Profil“ Links hinterlegt haben (nur dann öffentlich, kein Benutzername). */
+  private publicTeam(stationId: string): { name: string; links: Record<string, string> }[] {
+    return this.app.users.list()
+      .filter((u) => !u.disabled && u.links && Object.keys(u.links).length && (u.stationIds.includes('*') || u.stationIds.includes(stationId)))
+      .map((u) => ({ name: u.name, links: u.links! }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+      .slice(0, 30);
   }
 
   /** Netzwerk: alle öffentlichen Sender mit Jetzt läuft, Hörern und Sendestatus. */

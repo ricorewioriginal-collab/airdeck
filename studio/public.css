@@ -62,3 +62,8 @@ a { color: var(--accent); }
 .site-bar { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 7px 14px; font-size: 13px; font-weight: 600; color: #fff; }
 .site-bar.info { background: #2563eb; } .site-bar.success { background: #16a34a; } .site-bar.warning { background: #d97706; } .site-bar.danger, .site-bar.maintenance { background: #dc2626; }
 .site-close { border: 0; background: rgba(255,255,255,.18); color: #fff; border-radius: 6px; width: 24px; height: 24px; cursor: pointer; }
+
+/* Team-Karte auf der Senderseite: Name links, Social Links rechts */
+.row.team .links { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: flex-end; }
+.row.team .links a { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.12); color: var(--accent, #38bdf8); text-decoration: none; }
+.row.team .links a:hover { background: rgba(56, 189, 248, 0.25); }
