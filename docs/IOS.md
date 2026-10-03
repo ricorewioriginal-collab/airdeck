@@ -28,6 +28,10 @@ Wichtig: Anders als die Android-App sendet die Web-App **nicht direkt** an Iceca
 
 Ohne eigene Adresse für die Oberfläche: **https://ricorewioriginal-collab.github.io/anmacha_cast/app/** öffnen, die Adresse des eigenen Servers (`https://…`) und Anmeldung eintragen, dann „Zum Home-Bildschirm“. Der Server erlaubt diese Seite automatisch (CORS). Ein fertiger Verbindungslink hat die Form `…/app/#server=https://dein-server&token=…`.
 
+### Erreichbarkeit aus dem Studio
+
+Im Studio (Seitenleiste, unten) öffnet **„Mobil-App (iPhone/Handy)“** direkt `mobil.html` – bereits angemeldet. Auf dem iPhone dort „Teilen → Zum Home-Bildschirm“ wählen. Die Adresse des eigenen Servers lautet `https://<server>/mobil.html`.
+
 ### Download-Seite (nicht gelistet)
 
 `https://ricorewioriginal-collab.github.io/anmacha_cast/ios.html` – eigene Installationsseite mit `noindex`, ohne Menüeintrag auf der Projektseite; verlinkt in der README. Für die Website ricorewi-radio.de (Bereich „Downloads“) genügt ein Link auf diese Adresse, z. B.:
