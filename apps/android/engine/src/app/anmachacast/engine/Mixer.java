@@ -52,13 +52,16 @@ public final class Mixer {
         java.util.Arrays.fill(micBuf, 0, n, (short) 0);
         java.util.Arrays.fill(musicBuf, 0, n, (short) 0);
         mic.read(micBuf, 0, n);
+        // Mikro zu: Reste im Puffer verwerfen, damit beim nächsten Drücken kein altes Audio mitläuft
+        if (!micOn && curMic <= 0.0001f) mic.clear();
         music.read(musicBuf, 0, n);
 
-        // Rampen über ca. 80 ms (Mikro) bzw. 150 ms (Ducking) – kein Knacken beim Umschalten
+        // Push-to-Talk-tauglich: Mikro öffnet in ca. 12 ms (kein Knacken, aber sofort hörbar), schließt in 60 ms;
+        // Ducking senkt in 50 ms ab und hebt in 150 ms wieder an.
         float micTarget = micOn ? micGain : 0f;
         float duckTarget = micOn ? duckGain : 1f;
-        float micStep = 1f / (RATE * 0.08f);
-        float duckStep = 1f / (RATE * 0.15f);
+        float micStep = 1f / (RATE * (micOn ? 0.012f : 0.06f));
+        float duckStep = 1f / (RATE * (micOn ? 0.05f : 0.15f));
         double sMic = 0, sMusic = 0, sOut = 0;
         int peak = 0;
         for (int f = 0; f < frames; f++) {

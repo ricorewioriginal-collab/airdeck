@@ -92,6 +92,8 @@ public final class EngineHub {
         public float musicDb;
         public float duckDb;
         public boolean monitor;
+        public int micDevice;
+        public boolean micRaw;
     }
 
     public synchronized ConfigView getConfigView() {
@@ -108,6 +110,8 @@ public final class EngineHub {
         v.musicDb = prefs.getFloat("musicDb", 0);
         v.duckDb = prefs.getFloat("duckDb", -10);
         v.monitor = prefs.getBoolean("monitor", false);
+        v.micDevice = prefs.getInt("micDevice", 0);
+        v.micRaw = prefs.getBoolean("micRaw", false);
         return v;
     }
 
@@ -157,15 +161,65 @@ public final class EngineHub {
         else ctx.startService(i);
         engine.start();
         if (withMicPermission) {
-            mic = new MicInput(engine.mixer.mic);
-            try {
-                mic.start();
-            } catch (RuntimeException e) {
-                mic = null;
-                error = e.getMessage();
-            }
+            startMic();
         }
         if (prefs.getBoolean("monitor", false)) setMonitor(true);
+    }
+
+    private void startMic() {
+        mic = new MicInput(ctx, engine.mixer.mic);
+        try {
+            mic.start(prefs.getInt("micDevice", 0), prefs.getBoolean("micRaw", false));
+        } catch (RuntimeException e) {
+            mic = null;
+            error = e.getMessage();
+        }
+    }
+
+    /** Mikrofon-Berechtigung kam nach dem Sendestart dazu: Aufnahme nachträglich starten. */
+    public synchronized void ensureMic() {
+        if (engine != null && mic == null) startMic();
+    }
+
+    /** Eingangsgerät: id 0 = automatisch. Wirkt sofort, auch während der Sendung. */
+    public synchronized void setMicDevice(int id, boolean raw) {
+        prefs.edit().putInt("micDevice", id).putBoolean("micRaw", raw).apply();
+        if (engine != null && mic != null) {
+            mic.stop();
+            startMic();
+        }
+    }
+
+    public static final class MicDevice {
+        public final int id;
+        public final String label;
+
+        MicDevice(int id, String label) {
+            this.id = id;
+            this.label = label;
+        }
+    }
+
+    /** Verfügbare Mikrofon-/Eingangsquellen (Handy-Mikro, Headset, USB, Bluetooth …). */
+    public List<MicDevice> micDevices() {
+        List<MicDevice> out = new ArrayList<>();
+        android.media.AudioManager am = (android.media.AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+        for (android.media.AudioDeviceInfo d : am.getDevices(android.media.AudioManager.GET_DEVICES_INPUTS)) {
+            String type;
+            switch (d.getType()) {
+                case android.media.AudioDeviceInfo.TYPE_BUILTIN_MIC: type = "Handy-Mikrofon"; break;
+                case android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET: type = "Headset (Kabel)"; break;
+                case android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES: type = "Kopfhörer (Kabel)"; break;
+                case android.media.AudioDeviceInfo.TYPE_USB_DEVICE:
+                case android.media.AudioDeviceInfo.TYPE_USB_HEADSET: type = "USB-Audio"; break;
+                case android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO: type = "Bluetooth-Headset"; break;
+                case android.media.AudioDeviceInfo.TYPE_TELEPHONY: continue;
+                default: type = "Eingang"; break;
+            }
+            String name = d.getProductName() == null ? "" : d.getProductName().toString().trim();
+            out.add(new MicDevice(d.getId(), name.isEmpty() || type.startsWith("Handy") ? type : type + " · " + name));
+        }
+        return out;
     }
 
     public synchronized void stop() {

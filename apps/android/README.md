@@ -27,7 +27,11 @@ eingegeben). Diese Bereiche laufen bis dahin über das Web-Studio im Browser.
 - `app/src/main/kotlin/app/anmachacast/studio/`: die native Oberfläche (Paket `app.anmachacast.studio`)
   - `data/`: REST-Client, SSE-Client (Realtime), verschlüsselte Token-Ablage
   - `connect/`, `home/`, `studio/`, `golive/`, `more/`, `common/`: Bildschirme je Bereich
-  - `nav/AppNav.kt`: Navigation (Bottom Navigation: Home, Studio, Go Live, Mehr)
+  - `nav/AppNav.kt`: Startbildschirm mit zwei Betriebsarten und dauerhaftem Umschalter oben (`nav/ModeHeader.kt`).
+    Go Live (Live, Musik, Sender) funktioniert ohne Server; Server / Studio koppelt erst, wenn man es öffnet.
+  - `golive/`: Push-to-Talk (Drücken öffnet das Mikro in ca. 12 ms), Mikrofonquelle, Pegel, Encoder.
+  - `live/`: laut.fm (Anmeldung per WebView, Token im Adress-Anker, Stationen, Live-Zugangsdaten automatisch)
+    und Nextcloud (Login Flow v2, WebDAV, Titel in den Zwischenspeicher). Zugangsdaten liegen verschlüsselt (`LiveStore`).
 
 Ein einziges Gradle-Projekt (keine generierte `android/`-Unterordner mehr wie zu Capacitor-Zeiten) -
 `engine/src` und `native/` werden direkt als zusätzliche Quellverzeichnisse eingebunden, nicht kopiert.
