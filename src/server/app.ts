@@ -798,6 +798,7 @@ export class AnMaChaCastApp {
       bitrateKbps: posInt('bitrateKbps' in input ? input.bitrateKbps : prev?.bitrateKbps),
       profileId: profileId as string | undefined,
       failoverFor: failoverFor as string | undefined,
+      ...(prev?.own || (!prev && input.own === true) ? { own: true } : {}),
       enabled: Boolean(input.enabled ?? prev?.enabled ?? true),
     };
     if (typeof input.password === 'string' && input.password) this.secrets.set(cfg.passwordRef, input.password);
