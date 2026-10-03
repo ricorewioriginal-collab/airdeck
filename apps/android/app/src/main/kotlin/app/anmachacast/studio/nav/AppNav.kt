@@ -25,6 +25,7 @@ import app.anmachacast.studio.connect.ConnectionStatusViewModel
 import app.anmachacast.studio.golive.GoLiveViewModel
 import app.anmachacast.studio.golive.LiveScreen
 import app.anmachacast.studio.golive.MusicScreen
+import app.anmachacast.studio.golive.LautFmLoginScreen
 import app.anmachacast.studio.golive.SetupScreen
 import app.anmachacast.studio.home.HomeScreen
 import app.anmachacast.studio.more.MoreScreen
@@ -36,6 +37,7 @@ private object Routes {
     const val LIVE = "live"
     const val MUSIC = "music"
     const val SETUP = "setup"
+    const val LAUTLOGIN = "lautlogin"
     const val HOME = "home"
     const val STUDIO = "studio"
     const val MORE = "more"
@@ -74,6 +76,13 @@ fun AppNav() {
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val mode = modeOf(route)
     val connected = connection != null
+
+    // Login-Bildschirm von laut.fm folgt dem Zustand im ViewModel
+    val showLogin = liveUi.lautfm.showLogin
+    LaunchedEffect(showLogin) {
+        if (showLogin && nav.currentDestination?.route != Routes.LAUTLOGIN) nav.navigate(Routes.LAUTLOGIN)
+        else if (!showLogin && nav.currentDestination?.route == Routes.LAUTLOGIN) nav.popBackStack()
+    }
 
     fun enter(m: Mode) {
         modeStore.set(m)
@@ -122,6 +131,7 @@ fun AppNav() {
             composable(Routes.LIVE) { LiveScreen(live) { nav.navigate(Routes.SETUP) { launchSingleTop = true } } }
             composable(Routes.MUSIC) { MusicScreen(live) }
             composable(Routes.SETUP) { SetupScreen(live) }
+            composable(Routes.LAUTLOGIN) { LautFmLoginScreen(onToken = live::connectLautFm, onClose = live::closeLautFmLogin) }
             composable(Routes.HOME) {
                 if (!connected) ConnectScreen(onConnected = {}) else {
                     val status: ConnectionStatusViewModel = viewModel()

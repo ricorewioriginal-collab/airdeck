@@ -18,6 +18,16 @@ class LiveParsersTest {
     }
 
     @Test
+    fun tokenAuchAusAbfrageteilUndSeitentext() {
+        val key = "lautfm_radioadmin_" + "token"
+        val fake = "d".repeat(8) + "-" + "e".repeat(4) + "-" + "f".repeat(4) + "-" + "a".repeat(4) + "-" + "b".repeat(12)
+        assertEquals(fake, LautFmClient.tokenFromRedirect("https://anmachacast.app/laut-fm/?$key=$fake"))
+        assertEquals(fake, LautFmClient.tokenFromRedirect("https://anmachacast.app/laut-fm#x=1&$key=$fake"))
+        assertEquals(fake, LautFmClient.tokenFromPageText("Dein Token:\n$fake\nBitte kopieren"))
+        assertNull(LautFmClient.tokenFromPageText("Kein Token hier"))
+    }
+
+    @Test
     fun tokenWirdGesaeubert() {
         assertEquals("abc123", LautFmClient.cleanToken("  Bearer \"abc123\" \n"))
     }

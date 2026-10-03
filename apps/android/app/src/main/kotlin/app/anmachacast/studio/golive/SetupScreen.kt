@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,8 +21,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import app.anmachacast.engine.android.EngineHub
 import app.anmachacast.studio.live.LautFmClient
 import app.anmachacast.studio.ui.theme.*
@@ -33,7 +32,6 @@ fun SetupScreen(vm: GoLiveViewModel) {
         LautFmPanel(ui, vm)
         EncoderPanel(ui, vm)
     }
-    if (ui.lautfm.showLogin) LautFmLoginDialog(onToken = vm::connectLautFm, onClose = vm::closeLautFmLogin)
 }
 
 @Composable
@@ -49,6 +47,9 @@ private fun LautFmPanel(ui: GoLiveUiState, vm: GoLiveViewModel) {
             }
             TextButton(onClick = { pasteOpen = !pasteOpen }) { Text("Stattdessen Token einfügen") }
             if (pasteOpen) {
+                val uri = androidx.compose.ui.platform.LocalUriHandler.current
+                Note("Token im Browser erzeugen, kopieren und hier einfügen.")
+                OutlinedButton(onClick = { uri.openUri("https://radioadmin.laut.fm/login?callback_url=airdeck") }, modifier = Modifier.fillMaxWidth()) { Text("Token-Seite im Browser öffnen") }
                 OutlinedTextField(value = pasted, onValueChange = { pasted = it }, label = { Text("Radioadmin-Token") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Button(onClick = { vm.connectLautFm(pasted); pasted = "" }, enabled = pasted.isNotBlank() && !l.busy, modifier = Modifier.fillMaxWidth()) { Text("Prüfen und verbinden") }
             }
@@ -151,40 +152,74 @@ private fun EncoderDialog(
     )
 }
 
-/** laut.fm-Anmeldung in einer WebView; die Rückleit-Adresse wird abgefangen und liefert das Token im Adress-Anker. */
+/**
+ * laut.fm-Anmeldung als eigener Bildschirm (kein Dialog: dort funktioniert die Tastatur in der WebView nicht
+ * zuverlässig). Das Token wird entweder aus der Rückleit-Adresse oder aus dem angezeigten Seitentext gelesen.
+ */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun LautFmLoginDialog(onToken: (String) -> Unit, onClose: () -> Unit) {
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize(), color = BrandBg) {
-            Column(Modifier.systemBarsPadding()) {
-                Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Schließen") }
-                    Text("Bei laut.fm anmelden", fontWeight = FontWeight.Bold, color = BrandText)
-                }
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { c ->
-                        WebView(c).apply {
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            val handle = { url: String ->
-                                val t = LautFmClient.tokenFromRedirect(url)
-                                if (t != null) onToken(t)
-                                t != null
-                            }
-                            webViewClient = object : WebViewClient() {
-                                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = handle(request.url.toString())
-                                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                                    if (handle(url)) view.stopLoading()
-                                }
-                            }
-                            loadUrl(LautFmClient.loginUrl())
-                        }
-                    },
-                    onRelease = { it.destroy() },
-                )
+fun LautFmLoginScreen(onToken: (String) -> Unit, onClose: () -> Unit) {
+    var hint by remember { mutableStateOf("Melde dich bei laut.fm an …") }
+    var web by remember { mutableStateOf<WebView?>(null) }
+    var done by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler {
+        val w = web
+        if (w != null && w.canGoBack()) w.goBack() else onClose()
+    }
+    Column(Modifier.fillMaxSize().background(BrandBg).systemBarsPadding().imePadding()) {
+        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Schließen") }
+            Column {
+                Text("Bei laut.fm anmelden", fontWeight = FontWeight.Bold, color = BrandText)
+                Text(hint, fontSize = 12.sp, color = BrandMuted)
             }
         }
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { c ->
+                android.webkit.CookieManager.getInstance().removeAllCookies(null)
+                WebView(c).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    val take = { token: String? ->
+                        if (token != null && !done) {
+                            done = true
+                            hint = "Angemeldet – prüfe Zugang …"
+                            onToken(token)
+                        }
+                        token != null
+                    }
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) =
+                            take(LautFmClient.tokenFromRedirect(request.url.toString()))
+
+                        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                            if (take(LautFmClient.tokenFromRedirect(url))) view.stopLoading()
+                        }
+
+                        override fun onPageFinished(view: WebView, url: String) {
+                            hint = "Melde dich bei laut.fm an …"
+                            // Zeigt laut.fm das Token nach dem Login nur als Text an, lesen wir es von der Seite
+                            val path = runCatching { android.net.Uri.parse(url).path }.getOrNull() ?: ""
+                            if (url.contains("radioadmin.laut.fm") && path != "/login" && path != "/") {
+                                view.evaluateJavascript("(function(){return document.body?document.body.innerText:''})()") { js ->
+                                    val text = runCatching { org.json.JSONTokener(js).nextValue() as? String }.getOrNull() ?: ""
+                                    take(LautFmClient.tokenFromPageText(text))
+                                }
+                            }
+                        }
+
+                        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
+                            if (request.isForMainFrame && LautFmClient.tokenFromRedirect(request.url.toString()) == null) {
+                                hint = "Seite nicht erreichbar – Internetverbindung prüfen"
+                            }
+                        }
+                    }
+                    web = this
+                    loadUrl(LautFmClient.loginUrl())
+                }
+            },
+            onRelease = { it.destroy(); web = null },
+        )
     }
 }
