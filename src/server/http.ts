@@ -18,7 +18,7 @@ import { toIcecastXml, toM3u, toXspf, type StreamStatus } from './status.ts';
 import { MAX_VOICE_BYTES } from './services/listeners.ts';
 import { STUDIO_KINDS, STUDIO_TONES } from './services/ai.ts';
 import { PUBLIC_API, RADIOADMIN, allowedPublicPath, allowedRadioadminPath, forward } from './lautfm.ts';
-import { envVar } from './legacy-branding.ts';
+import { envVar } from './env.ts';
 
 type Params = Record<string, string>;
 interface Ctx {
@@ -66,7 +66,7 @@ function hashingPassthrough(): { stream: Transform; digest: () => string } {
 
 /**
  * Erlaubte Fremd-Origins (Android-App, eigene Frontends). Standard: Capacitor-WebView.
- * Erweiterbar über ANMACHA_CAST_CORS_ORIGINS (kommagetrennt, Legacy: AIRDECK_CORS_ORIGINS) und im Studio
+ * Erweiterbar über ANMACHA_CAST_CORS_ORIGINS (kommagetrennt) und im Studio
  * unter „Web-Fernsteuerung“ (network.json).
  */
 const CORS_ORIGINS = new Set([
@@ -98,7 +98,7 @@ function applyCors(req: IncomingMessage, res: ServerResponse, extra: (origin: st
  * Betreiber ANMACHA_CAST_TRUST_PROXY=1 setzt (sonst könnte jeder Client ihn fälschen und Limits umgehen).
  */
 export function clientIp(req: IncomingMessage): string {
-  const trust = /^(1|true|yes)$/i.test(process.env.ANMACHA_CAST_TRUST_PROXY ?? process.env.AIRDECK_TRUST_PROXY ?? '');
+  const trust = /^(1|true|yes)$/i.test(process.env.ANMACHA_CAST_TRUST_PROXY ?? '');
   if (trust) {
     // Der vertrauenswürdige Proxy hängt die echte Adresse ANS ENDE an (nginx: $proxy_add_x_forwarded_for);
     // ein vom Client mitgeschickter Anfang wäre frei wählbar - daher der letzte Eintrag.
@@ -1215,8 +1215,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
       }
     }
     // Offizielle Android-App: mitgelieferte APK (Windows-Paket) oder aus dem Release – öffentlich, damit das Handy sie direkt laden kann.
-    // Legacy-Pfad /download/AirDeck-Android.apk bleibt als Alias erhalten (alte Lesezeichen/Download-Links funktionieren weiter).
-    if ((path === '/download/AnMaCha-Cast-Android.apk' || path === '/download/AirDeck-Android.apk') && req.method === 'GET') {
+    if (path === '/download/AnMaCha-Cast-Android.apk' && req.method === 'GET') {
       const local = app.svc.system.localApk();
       if (local) {
         res.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="AnMaCha-Cast-Android.apk"', 'Content-Length': statSync(local).size });

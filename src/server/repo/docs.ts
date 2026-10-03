@@ -1,7 +1,6 @@
-// Ablage der Programmdaten als benannte Dokumente („airdeck“, „users“, „tokens“ …). Der Name „airdeck“
-// bleibt bewusst der historische Schlüssel (siehe legacy-branding.ts): jede bestehende Installation hat
-// ihren Programmzustand bereits unter diesem Dokumentnamen gespeichert; eine Umbenennung ohne Migration
-// würde den Zustand beim nächsten Start als leer erscheinen lassen.
+// Ablage der Programmdaten als benannte Dokumente („anmachacast“, „users“, „tokens“ …). Das Dokument
+// „anmachacast“ ist der Programmzustand (Sender, Quellen, Ausgänge, Bibliothek …); in der Datenbank steht
+// sein Inhalt in den Tabellen aus mappings.ts, der Name selbst wird dort nicht gespeichert.
 //
 //  FileDocStore – eine JSON-Datei je Dokument (bisheriges Verhalten; für eigenständige Module und Tests)
 //  DbDocStore   – Datenbank: jedes Dokument wird auf Tabellenzeilen abgebildet (siehe mappings.ts).
@@ -42,9 +41,9 @@ export interface DocStore {
 }
 
 /** Namen der bisherigen JSON-Dateien im Datenordner, die in die Datenbank übernommen werden. */
-export const KNOWN_DOCS = ['airdeck', 'tokens', 'users', 'sessions', 'ai', 'ai-usage', 'update', 'nextcloud', 'bridge-keys', 'musikhub', 'site'] as const;
+export const KNOWN_DOCS = ['anmachacast', 'tokens', 'users', 'sessions', 'ai', 'ai-usage', 'update', 'nextcloud', 'bridge-keys', 'musikhub', 'site'] as const;
 
-const DELAY: Record<string, number> = { airdeck: 300, sessions: 1000, 'ai-usage': 2000 };
+const DELAY: Record<string, number> = { anmachacast: 300, sessions: 1000, 'ai-usage': 2000 };
 
 // ---------- Dateien ----------
 
@@ -371,7 +370,7 @@ function markImported(dir: string, store: DbDocStore, found: string[], log: (nam
 /**
  * Übernahme der bisherigen JSON-Dateien (Migration „000_import_json“): Jede vorhandene Datei ersetzt das
  * gleichnamige Dokument und wird danach in `<name>.json.imported` umbenannt. Gelöscht wird nichts.
- * Dasselbe gilt für einen vom Sync geholten Stand (sync.ts schreibt airdeck.json).
+ * Dasselbe gilt für einen vom Sync geholten Stand (sync.ts schreibt anmachacast.json).
  */
 export async function importJsonFiles(dir: string, store: DbDocStore, log: (name: string) => void = () => {}): Promise<string[]> {
   const found = readImportable(dir, store);

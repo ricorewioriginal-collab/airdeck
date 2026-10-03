@@ -2467,7 +2467,7 @@ async function editStorage() {
     { name: 'port', label: 'MySQL: Port', type: 'number', value: cur.mysql?.port ?? 3306 },
     { name: 'user', label: 'MySQL: Benutzer', value: cur.mysql?.user ?? '' },
     { name: 'password', label: `MySQL: Passwort${cur.mysql?.hasPassword ? ' (leer = unverändert)' : ''}`, type: 'password', value: '' },
-    { name: 'database', label: 'MySQL: Datenbank', value: cur.mysql?.database ?? 'airdeck' },
+    { name: 'database', label: 'MySQL: Datenbank', value: cur.mysql?.database ?? 'anmachacast' },
     { name: 'ssl', label: 'MySQL: TLS/SSL', type: 'checkbox', value: !!cur.mysql?.ssl },
     { name: 'projectId', label: 'Firebase: Projekt-ID', value: cur.firebase?.projectId ?? '' },
     { name: 'credentialsJson', label: `Firebase: Service-Account-JSON${cur.firebase?.hasCredentials ? ' (leer = unverändert)' : ''}`, type: 'textarea', value: '', hint: 'Firebase-Konsole → Projekteinstellungen → Dienstkonten → Neuen privaten Schlüssel generieren' },

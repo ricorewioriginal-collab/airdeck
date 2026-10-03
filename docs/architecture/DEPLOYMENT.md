@@ -6,7 +6,7 @@
 
 | Paket | Laufzeit | ffmpeg |
 |---|---|---|
-| Windows (Installer/portable) | Node als Einzelprogramm eingebettet (`AirDeck.exe`, heute schon so) | mitgeliefert (inkl. LAME/Opus), wahlweise System oder eigener Pfad |
+| Windows (Installer/portable) | Node als Einzelprogramm eingebettet (`anmachacast-engine.exe`, heute schon so) | mitgeliefert (inkl. LAME/Opus), wahlweise System oder eigener Pfad |
 | Linux (`.deb`) | Node als Einzelprogramm eingebettet (SEA, wie Windows), `/opt/anmachacast/anmachacast-server` | System-ffmpeg (`Recommends: ffmpeg`), Automation läuft ohne ffmpeg nicht |
 | Docker | im Image | im Image |
 | Entwicklung | Node ≥ 22.18 aus dem System | System-ffmpeg |

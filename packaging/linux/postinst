@@ -1,38 +1,27 @@
 #!/bin/sh
 # AnMaCha Cast – nach der Installation: Dienstkonto anlegen, Ordner vorbereiten, systemd-Dienst starten.
-# Dienstkonto, Pfade und Paketname bleiben bewusst "airdeck" (siehe docs/REBRANDING_ANMACHA_CAST.md
-# Phase 7) - ein Umbenennen würde bestehende Installationen bei einem Upgrade verwaisen lassen. Die
-# systemd-Diensteinheit selbst heißt seit der AirDeck→AnMaCha-Cast-Umbenennung "anmachacast-server.service"
-# (vorher "airdeck-server.service"); die Migration einer bereits laufenden alten Einheit übernimmt dieses
-# Skript automatisch (siehe unten), kein manueller Schritt für bestehende Installationen nötig.
 set -e
 
-if ! getent group airdeck >/dev/null 2>&1; then
-  addgroup --system airdeck
+if ! getent group anmachacast >/dev/null 2>&1; then
+  addgroup --system anmachacast
 fi
-if ! getent passwd airdeck >/dev/null 2>&1; then
-  adduser --system --ingroup airdeck --home /var/lib/airdeck --no-create-home \
-    --shell /usr/sbin/nologin --gecos "AnMaCha Cast Radio-Automation" airdeck
+if ! getent passwd anmachacast >/dev/null 2>&1; then
+  adduser --system --ingroup anmachacast --home /var/lib/anmachacast --no-create-home \
+    --shell /usr/sbin/nologin --gecos "AnMaCha Cast Radio-Automation" anmachacast
 fi
 
-mkdir -p /etc/airdeck /var/lib/airdeck /var/log/airdeck
-# Eine airdeck.conf muss vorhanden sein, bevor AnMaCha Cast zum ersten Mal startet – sonst würde es
-# (ohne systemweite Konfiguration) im Home-Verzeichnis des Dienstkontos statt unter /var/lib/airdeck
+mkdir -p /etc/anmachacast /var/lib/anmachacast /var/log/anmachacast
+# Eine anmachacast.conf muss vorhanden sein, bevor AnMaCha Cast zum ersten Mal startet – sonst würde es
+# (ohne systemweite Konfiguration) im Home-Verzeichnis des Dienstkontos statt unter /var/lib/anmachacast
 # ablegen (siehe resolveConfig() in src/server/config.ts). Den Rest trägt AnMaCha Cast selbst ein.
-if [ ! -e /etc/airdeck/airdeck.conf ]; then
-  printf '# AnMaCha Cast – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man anmachacast-server, oder das Handbuch im Studio.\n' > /etc/airdeck/airdeck.conf
+if [ ! -e /etc/anmachacast/anmachacast.conf ]; then
+  printf '# AnMaCha Cast – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man anmachacast-server, oder das Handbuch im Studio.\n' > /etc/anmachacast/anmachacast.conf
 fi
-chown -R airdeck:airdeck /etc/airdeck /var/lib/airdeck /var/log/airdeck
-chmod 750 /etc/airdeck /var/lib/airdeck /var/log/airdeck
+chown -R anmachacast:anmachacast /etc/anmachacast /var/lib/anmachacast /var/log/anmachacast
+chmod 750 /etc/anmachacast /var/lib/anmachacast /var/log/anmachacast
 
 if [ -d /run/systemd/system ]; then
   systemctl daemon-reload || true
-  # Migration von einem älteren Paket mit der alten Diensteinheit "airdeck-server.service" (vor der
-  # Umbenennung zu "anmachacast-server.service"): die alte Einheit zuerst beenden/deaktivieren, damit
-  # nicht zwei Einheiten desselben Dienstes parallel aktiv/enabled bleiben.
-  if systemctl is-enabled airdeck-server.service >/dev/null 2>&1 || systemctl is-active airdeck-server.service >/dev/null 2>&1; then
-    systemctl disable --now airdeck-server.service >/dev/null 2>&1 || true
-  fi
   systemctl enable anmachacast-server.service || true
   # Neuinstallation: gleich starten. Upgrade: neu starten, damit die neue Version läuft
   # ("configure" mit $2 gesetzt = vorherige Version war schon installiert).

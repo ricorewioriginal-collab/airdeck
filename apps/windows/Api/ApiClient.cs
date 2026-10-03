@@ -9,7 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AirDeck.Api
+namespace AnMaChaCast.Api
 {
     public sealed class ApiClient : IDisposable
     {

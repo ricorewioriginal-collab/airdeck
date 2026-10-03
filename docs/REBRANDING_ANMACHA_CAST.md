@@ -1,5 +1,7 @@
 # Umbenennung AirDeck → AnMaCha Cast – überprüfbarer Stand
 
+> **Hinweis:** Die Phasen 5 bis 7 beschreiben Dateinamen, Pfade und Kennungen, die dort noch „bewusst unverändert“ blieben. Das ist durch **Phase 10** (ganz unten) abgelöst.
+
 Stand: 2026-10-01. Markenkonflikt mit einem bestehenden Produkt „AirDeck Pro" erfordert eine vollständige
 Umbenennung. Neuer, ausschließlicher Produktname: **AnMaCha Cast** (nicht „AnMaChaCast", nicht „AnMaCha Deck",
 nicht „AirDeckCast"). „AirDeck" soll in der normalen Benutzeroberfläche nirgendwo mehr sichtbar sein.
@@ -566,3 +568,45 @@ der damaligen, tatsächlich auf `airdeck-demo.ricorewi-radio.de` durchgeführten
 `anmachacast-demo.ricorewi-radio.de`, TLS-Zertifikat, das neue Reverse-Proxy-Snippet einspielen,
 Cron-Job-Pfad für `reset-demo.sh` ggf. anpassen, alte Demo (`airdeck-demo`-Container, DNS,
 Zertifikat) nach erfolgreichem Umzug abbauen.
+
+## Phase 10: Apps, Pakete und technische Kennungen vollständig umbenannt
+
+Die Phasen 5 bis 7 hatten Dateinamen, Pfade, Paketnamen und Kennungen bewusst auf „AirDeck“ gelassen, damit
+Updates nicht brechen. Da bisher niemand die Apps installiert hat (das Release v0.5.0 hatte keine Dateien), gibt es
+keine Update-Pfade mehr zu schützen: Alles heißt jetzt **AnMaCha Cast**, ohne Übergangscode. Die Download-Dateinamen
+im Release (`AnMaCha-Cast-Setup.exe`, `-Windows-Portable.zip`, `-Android.apk`, `-Linux.deb`) bleiben gleich.
+
+| Bereich | vorher | jetzt |
+|---|---|---|
+| Windows-Programm / Engine | `AirDeck.exe` / `airdeck-engine.exe` | `AnMaChaCast.exe` / `anmachacast-engine.exe` |
+| Build-Ordner, Portable-ZIP | `dist/AirDeck`, Ordner `AirDeck` | `dist/AnMaChaCast`, Ordner `AnMaChaCast` |
+| Installationsordner, Startmenü | `…\Programs\AirDeck`, „AirDeck“ | `…\Programs\AnMaChaCast`, „AnMaCha Cast“ |
+| Autostart, Firewall-Regel, Aufgabe | `AirDeck` | `AnMaChaCast` |
+| Hilfsskripte | `AirDeck-Netzwerk.cmd`, `AirDeck-Headless.cmd` | `AnMaChaCast-Netzwerk.cmd`, `AnMaChaCast-Headless.cmd` |
+| C#-Projekt, Signalnamen | Namespace/Assembly `AirDeck`, `AirDeck.Studio.*` | `AnMaChaCast`, `AnMaChaCast.Studio.*` |
+| Android | `app.airdeck.studio` (+ `app.airdeck.engine`) | `app.anmachacast.studio` (+ `app.anmachacast.engine`) |
+| Debian-Paket, Konto, Pfade | `airdeck`, `/opt\|/etc\|/var/lib\|/var/log/airdeck` | `anmachacast`, `…/anmachacast` |
+| Konfigurationsdatei | `airdeck.conf` | `anmachacast.conf` |
+| Datenordner (Benutzer) | `%LOCALAPPDATA%\AirDeck`, `~/.airdeck` | `%LOCALAPPDATA%\AnMaChaCast`, `~/.anmachacast` |
+| SQLite-Datei, Zustand | `airdeck.db`, `airdeck.json`, Dokument `airdeck` | `anmachacast.db`, `anmachacast.json`, Dokument `anmachacast` |
+| MySQL-Tabelle, Standard-Datenbank, Firestore | `airdeck_state`, `airdeck`, Sammlung `airdeck` | `anmachacast_state`, `anmachacast`, Sammlung `anmachacast` |
+| Umgebungsvariablen | `AIRDECK_*` (Fallback) | nur `ANMACHA_CAST_*` |
+| Build-Globale | `__AIRDECK_*` | `__ANMACHACAST_*` |
+| LAN-Erkennung, Health-Name, APK-Pfad | zusätzlich `AIRDECK?1`, `AirDeck`, `/download/AirDeck-Android.apk` | nur noch die neuen Namen |
+
+`legacy-branding.ts` heißt jetzt `env.ts` und liest nur noch `ANMACHA_CAST_*`.
+
+### Was bleibt, und warum
+
+- **Eine alte SQLite-Datei wird übernommen:** Liegt im Datenordner eine `airdeck.db` und noch keine `anmachacast.db`,
+  benennt der Start sie um (mit `-wal`/`-shm`). Das schützt Server mit echten Sendedaten, etwa Docker-Volumes.
+- **Eine alte Konfigurationsdatei wird weiter gelesen:** Gibt es im Konfigurationsordner keine `anmachacast.conf`, aber
+  eine `airdeck.conf`, wird diese benutzt (der Setup-Assistent eines vorhandenen Servers legt dort z. B. die
+  Datenbankwahl ab).
+- **Docker-Passwort:** `docker-compose.yml` liest `ANMACHA_CAST_DB_PASSWORD` und fällt auf `AIRDECK_DB_PASSWORD` zurück.
+  Ein laufender Server mit älterer `.env` behält so sein Datenbankpasswort (PostgreSQL übernimmt ein geändertes
+  Passwort nicht für ein vorhandenes Volume).
+- **laut.fm-Origin `airdeck`:** Das Herkunftskennzeichen gegenüber laut.fm ist mit laut.fm abgestimmt und ein externer
+  Vertrag (`lautfm.ts`, auch die Callback-Adresse beim Radioadmin-Login). Eine Änderung braucht eine Abstimmung mit laut.fm.
+- **Android:** Die neue Anwendungs-ID ist für Android eine neue App. Falls doch eine AirDeck-App installiert ist:
+  deinstallieren und den Server neu koppeln.

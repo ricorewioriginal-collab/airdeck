@@ -1,7 +1,7 @@
-<Window x:Class="AirDeck.MainWindow"
+<Window x:Class="AnMaChaCast.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="clr-namespace:AirDeck.ViewModels"
+        xmlns:vm="clr-namespace:AnMaChaCast.ViewModels"
         Title="AnMaCha Cast" Height="860" Width="1320" MinHeight="620" MinWidth="980"
         Background="#0B1220" Foreground="#E6ECF5" FontFamily="Segoe UI">
     <Window.Resources>

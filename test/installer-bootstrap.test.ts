@@ -17,7 +17,7 @@ test('Installer-Bootstrap wird sofort importiert, entfernt und beim Repair nicht
   const password = 'Installer-Geheimnis9';
   const run = () => spawnSync(process.execPath, ['src/server/main.ts', '--headless', '--import-installer-bootstrap'], {
     cwd: join(import.meta.dirname, '..'),
-    env: { ...process.env, AIRDECK_DATA: dir, AIRDECK_DISCOVERY: 'off' },
+    env: { ...process.env, ANMACHA_CAST_DATA: dir, ANMACHA_CAST_DISCOVERY: 'off' },
     encoding: 'utf8',
     timeout: 60_000,
   });
@@ -28,18 +28,18 @@ test('Installer-Bootstrap wird sofort importiert, entfernt und beim Repair nicht
     assert.equal(existsSync(file), false, 'Klartext-Bootstrap muss vor Installer-Ende verschwinden');
     assert.equal(first.stdout.includes(password) || first.stderr.includes(password), false, 'Passwort darf nicht im Log erscheinen');
 
-    let db = openSqliteSync(join(dir, 'airdeck.db'));
+    let db = openSqliteSync(join(dir, 'anmachacast.db'));
     let docs = DbDocStore.openSync(db);
     let users = new UserStore(dir, docs);
     assert.equal(users.count, 1);
     assert.equal((await users.login('owner', password)).user.username, 'owner');
     await assert.rejects(users.login('owner', 'Falsches-Passwort2'));
-    const saved = docs.get<any>('airdeck', null);
+    const saved = docs.get<any>('anmachacast', null);
     assert.equal(saved?.data?.main?.playout?.hls?.enabled, true);
     assert.equal(saved?.data?.main?.playout?.autostart, true);
     assert.ok(docs.get<any>('setup', {}).installerWelcomeAt);
     await db.close();
-    assert.equal(readFileSync(join(dir, 'config', 'airdeck.conf'), 'utf8').includes(password), false);
+    assert.equal(readFileSync(join(dir, 'config', 'anmachacast.conf'), 'utf8').includes(password), false);
 
     const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
@@ -65,7 +65,7 @@ test('Installer-Bootstrap wird sofort importiert, entfernt und beim Repair nicht
     const repair = run();
     assert.notEqual(repair.status, 0, 'vorhandenen Admin nicht überschreiben');
     assert.equal(existsSync(file), false, 'auch verworfene Einmaldaten löschen');
-    db = openSqliteSync(join(dir, 'airdeck.db'));
+    db = openSqliteSync(join(dir, 'anmachacast.db'));
     docs = DbDocStore.openSync(db);
     users = new UserStore(dir, docs);
     assert.equal(users.count, 1);
@@ -84,13 +84,13 @@ test('Installer-Portprüfung erkennt einen belegten Port ohne Datenbankänderung
     const port = (server.address() as { port: number }).port;
     const result = spawnSync(process.execPath, ['src/server/main.ts', '--headless', '--check-port'], {
       cwd: join(import.meta.dirname, '..'),
-      env: { ...process.env, AIRDECK_DATA: dir, AIRDECK_HOST: '127.0.0.1', AIRDECK_PORT: String(port) },
+      env: { ...process.env, ANMACHA_CAST_DATA: dir, ANMACHA_CAST_HOST: '127.0.0.1', ANMACHA_CAST_PORT: String(port) },
       encoding: 'utf8',
       timeout: 10_000,
     });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Port .* bereits belegt/);
-    assert.equal(existsSync(join(dir, 'airdeck.db')), false);
+    assert.equal(existsSync(join(dir, 'anmachacast.db')), false);
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(dir, { recursive: true, force: true });

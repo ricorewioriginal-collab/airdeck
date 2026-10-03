@@ -76,7 +76,7 @@ test('MySQL: zwei Standorte teilen den Senderzustand, Konflikte werden gesichert
     const b2 = new AnMaChaCastApp(dirB, { ffmpeg: null, secrets: secB, sync: syncB });
     b2.svc.stations.updateStation('main', { name: 'Studio Berlin' });
     b2.persistNow();
-    // wie main.ts: der lokale Stand kommt aus der Datenbank, nicht mehr aus airdeck.json
+    // wie main.ts: der lokale Stand kommt aus der Datenbank, nicht mehr aus anmachacast.json
     const localB = b2.stateJson();
     b2.shutdown();
     await syncA.pushNow(JSON.stringify({ ...JSON.parse(appA.stateJson()), marker: 1 }));

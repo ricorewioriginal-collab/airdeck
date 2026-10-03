@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { AnMaChaCastApp } from '../src/server/app.ts';
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'airdeck-jingles-'));
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-jingles-'));
   const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
   mkdirSync(join(app.mediaDir, 'main'), { recursive: true });
   for (const f of ['j1.mp3', 'j2.mp3']) writeFileSync(join(app.mediaDir, 'main', f), ''); // nur vorhandene Dateien werden ausgelöst

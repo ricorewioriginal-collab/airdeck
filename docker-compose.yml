@@ -1,15 +1,11 @@
 # AnMaCha-Cast-Server: docker compose up -d   →   Studio: http://<server>:8750
-# Service-/Container-/Volume-Namen heißen jetzt "anmachacast" (vorher "airdeck") - für EINE bestehende
-# Installation, die noch die alten Volume-Namen (`airdeck-data`/`airdeck-pg`) nutzt, legt `docker compose up`
-# sonst neue, leere Volumes an; siehe docs/DOCKER.md für die Migration bestehender Daten. Die
-# AIRDECK_DB*-Variablennamen selbst bleiben bewusst unverändert (siehe docs/REBRANDING_ANMACHA_CAST.md
-# Phase 3/7): eine Änderung würde einen per .env gesetzten Legacy-Namen stillschweigend überstimmen.
 # Anmeldung beim ersten Start steht im Log:  docker compose logs anmachacast | grep -A1 -e Admin-Token -e Einmal-Passwort
 #
 # Datenbank: PostgreSQL (Standard für Server). Das Passwort bitte in einer Datei .env neben dieser Datei setzen:
-#   AIRDECK_DB_PASSWORD=<langes zufälliges Passwort>
+#   ANMACHA_CAST_DB_PASSWORD=<langes zufälliges Passwort>
+# (eine ältere .env mit AIRDECK_DB_PASSWORD wird weiter gelesen, damit ein laufender Server sein Passwort behält)
 # Die Datenbank ist nur im internen Netz der Container erreichbar, kein Port nach außen.
-# Ohne PostgreSQL (kleine Installation, SQLite im Datenordner): den Dienst „postgres“ und die drei AIRDECK_DB-Zeilen entfernen.
+# Ohne PostgreSQL (kleine Installation, SQLite im Datenordner): den Dienst „postgres“ und die drei ANMACHA_CAST_DB-Zeilen entfernen.
 services:
   anmachacast:
     build: .
@@ -25,11 +21,11 @@ services:
       - anmachacast-data:/data
     environment:
       TZ: Europe/Berlin
-      AIRDECK_DB: postgres
-      AIRDECK_DB_URL: postgres://anmachacast@postgres:5432/anmachacast
-      AIRDECK_DB_PASSWORD: ${AIRDECK_DB_PASSWORD:-anmachacast-bitte-aendern}
+      ANMACHA_CAST_DB: postgres
+      ANMACHA_CAST_DB_URL: postgres://anmachacast@postgres:5432/anmachacast
+      ANMACHA_CAST_DB_PASSWORD: ${ANMACHA_CAST_DB_PASSWORD:-${AIRDECK_DB_PASSWORD:-anmachacast-bitte-aendern}}
       # Optional: eigener Port
-      # AIRDECK_PORT: 8750
+      # ANMACHA_CAST_PORT: 8750
 
   postgres:
     image: postgres:17
@@ -38,7 +34,7 @@ services:
     environment:
       POSTGRES_USER: anmachacast
       POSTGRES_DB: anmachacast
-      POSTGRES_PASSWORD: ${AIRDECK_DB_PASSWORD:-anmachacast-bitte-aendern}
+      POSTGRES_PASSWORD: ${ANMACHA_CAST_DB_PASSWORD:-${AIRDECK_DB_PASSWORD:-anmachacast-bitte-aendern}}
     volumes:
       - anmachacast-pg:/var/lib/postgresql/data
     healthcheck:

@@ -1,12 +1,12 @@
 // Lokaler Secret Store: AES-256-GCM verschlüsselt auf Platte.
-// Schlüssel aus ANMACHA_CAST_SECRET_KEY (64 Hex-Zeichen, Legacy: AIRDECK_SECRET_KEY) oder lokal
+// Schlüssel aus ANMACHA_CAST_SECRET_KEY (64 Hex-Zeichen) oder lokal
 // erzeugter Schlüsseldatei (0600).
 // Secrets verlassen den Store nur für den internen Gebrauch – nie über API oder Logs.
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { envVar } from './legacy-branding.ts';
+import { envVar } from './env.ts';
 import { writeFileAtomic } from './store.ts';
 
 type Encrypted = { iv: string; tag: string; data: string };

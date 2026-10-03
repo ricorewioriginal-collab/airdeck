@@ -41,14 +41,15 @@ test('Stufen: Handy-localhost, nicht erreichbar, kein AnMaCha Cast, Version, Anm
   try {
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
     assert.equal(r.steps.at(-1).id, 'anmachacast');
-    // Legacy-Server (vor der Umbenennung) melden sich noch mit 'AirDeck' - wird weiterhin erkannt (Kompatibilitäts-Alias).
+    // ein fremder Dienst (auch ein Server unter dem alten Namen) wird nicht als AnMaCha Cast erkannt
     health = { name: 'AirDeck', version: '9.0.0', api: '2.0' };
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
-    assert.equal(r.steps.at(-1).detail, 'Diese App benötigt ein Update');
-    health = { name: 'AirDeck', version: '0.3.0' };
+    assert.equal(r.steps.at(-1).id, 'anmachacast');
+    assert.equal(r.steps.at(-1).ok, false);
+    health = { name: 'AnMaCha Cast', version: '9.0.0', api: '2.0' };
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
-    assert.equal(r.steps.at(-1).detail, 'AnMaCha Cast Server benötigt ein Update');
-    // Aktueller Server meldet sich mit dem neuen Produktnamen - ebenfalls erkannt.
+    assert.equal(r.steps.at(-1).detail, 'Diese App benötigt ein Update');
+    // Server mit passendem Namen, aber zu alter Version
     health = { name: 'AnMaCha Cast', version: '0.3.0' };
     r = await testConnection(fakeBase, { code: '1' }, { native: false });
     assert.equal(r.steps.at(-1).detail, 'AnMaCha Cast Server benötigt ein Update');

@@ -2,19 +2,13 @@
 // laufende AnMaCha-Cast-Server antworten mit Name, Version, API-Version, HTTP-Port und ob der LAN-Zugriff an ist.
 // Der Server antwortet auch, wenn die Oberfläche nur lokal freigegeben ist – dann kann der Client gezielt
 // „LAN-Zugriff ist aus“ melden statt „Server nicht erreichbar“. Es wird nichts dauerhaft gesendet.
-// Legacy-Kompatibilität (vor der Umbenennung von AirDeck zu AnMaCha Cast): der Responder beantwortet
-// weiterhin auch die alte Anfrage „AIRDECK?1“ (mit der alten Antwort „AIRDECK!“, damit ältere, noch nicht
-// aktualisierte Clients diesen Server noch finden), und discover() fragt vorsorglich mit beiden Varianten,
-// damit auch ein noch nicht aktualisierter Server im Netz gefunden wird.
 
 import { createSocket, type Socket } from 'node:dgram';
 import { networkInterfaces } from 'node:os';
 
 export const DISCOVERY_PORT = 8751;
 export const PROBE = 'ANMACHACAST?1';
-export const PROBE_LEGACY = 'AIRDECK?1';
 const REPLY = 'ANMACHACAST!';
-const REPLY_LEGACY = 'AIRDECK!';
 
 export interface DiscoveryInfo {
   /** Installations-ID (zum Zusammenfassen mehrerer Antworten desselben Servers) */
@@ -41,8 +35,7 @@ export function startResponder(info: () => DiscoveryInfo, opts: { port?: number;
     let count = 0;
     sock.on('message', (msg, rinfo) => {
       const text = msg.toString('latin1');
-      const legacy = text === PROBE_LEGACY;
-      if (!legacy && text !== PROBE) return;
+      if (text !== PROBE) return;
       // gegen Missbrauch als Verstärker: höchstens 50 Antworten pro Sekunde
       const now = Date.now();
       if (now - window > 1000) {
@@ -50,7 +43,7 @@ export function startResponder(info: () => DiscoveryInfo, opts: { port?: number;
         count = 0;
       }
       if (++count > 50) return;
-      sock.send(Buffer.from((legacy ? REPLY_LEGACY : REPLY) + JSON.stringify(info())), rinfo.port, rinfo.address);
+      sock.send(Buffer.from(REPLY + JSON.stringify(info())), rinfo.port, rinfo.address);
     });
     sock.once('error', (err) => {
       opts.log?.(`LAN-Erkennung nicht verfügbar: ${err.message}`);
@@ -93,10 +86,9 @@ export function discover(opts: { timeoutMs?: number; port?: number; targets?: st
     sock.on('error', () => {});
     sock.on('message', (msg, rinfo) => {
       const text = msg.toString('utf8');
-      const prefix = text.startsWith(REPLY) ? REPLY : text.startsWith(REPLY_LEGACY) ? REPLY_LEGACY : null;
-      if (!prefix) return;
+      if (!text.startsWith(REPLY)) return;
       try {
-        const i = JSON.parse(text.slice(prefix.length)) as DiscoveryInfo;
+        const i = JSON.parse(text.slice(REPLY.length)) as DiscoveryInfo;
         if (typeof i.id !== 'string' || typeof i.port !== 'number') return;
         const key = `${i.id}@${rinfo.address}`;
         found.set(key, { ...i, address: rinfo.address, url: i.lan || rinfo.address.startsWith('127.') ? `http://${rinfo.address}:${i.port}` : null });
@@ -108,7 +100,6 @@ export function discover(opts: { timeoutMs?: number; port?: number; targets?: st
       sock.setBroadcast(true);
       for (const t of opts.targets ?? broadcastAddresses()) {
         sock.send(PROBE, port, t, () => {});
-        sock.send(PROBE_LEGACY, port, t, () => {});
       }
     });
     setTimeout(() => {

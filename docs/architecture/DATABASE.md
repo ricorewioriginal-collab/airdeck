@@ -68,8 +68,8 @@ Die Dialektunterschiede sind klein und liegen in einer Hilfsschicht:
 - Die Migrationen stehen im Programm (`src/server/db/schema.ts`), nicht in losen SQL-Dateien. Tabellen werden einmal beschrieben, daraus entsteht die DDL je Dialekt. Das Windows-Einzelprogramm braucht so keine zusätzlichen Dateien, und es gibt keine drei Fassungen derselben Migration.
 - `meta.schema_version` hält den Stand. Ausgeführt wird beim Serverstart. Kennt das Programm ein neueres Schema nicht, startet es nicht und meldet „Bitte AnMaCha Cast aktualisieren“.
 - Jede Migration läuft in einer Transaktion (SQLite, PostgreSQL). Bei MySQL/MariaDB ist DDL nicht transaktional. Die automatische Sicherung vor jeder Migration kommt mit Backup/Restore (ARCHITECTURE §9, Schritt 9).
-- **Übernahme der bisherigen JSON-Daten:** Beim Start werden `airdeck.json`, `tokens.json`, `users.json`, `sessions.json`, `ai.json`, `ai-usage.json`, `update.json`, `nextcloud.json` und `bridge-keys.json` eingelesen und in `*.imported` umbenannt. Nichts wird gelöscht. Defekte Dateien werden gesichert (`*.corrupt-<zeit>`) und übersprungen.
-- `network.json` und `airdeck.conf` bleiben Dateien: Sie werden gebraucht, bevor die Datenbank offen ist.
+- **Übernahme der bisherigen JSON-Daten:** Beim Start werden `anmachacast.json`, `tokens.json`, `users.json`, `sessions.json`, `ai.json`, `ai-usage.json`, `update.json`, `nextcloud.json` und `bridge-keys.json` eingelesen und in `*.imported` umbenannt. Nichts wird gelöscht. Defekte Dateien werden gesichert (`*.corrupt-<zeit>`) und übersprungen.
+- `network.json` und `anmachacast.conf` bleiben Dateien: Sie werden gebraucht, bevor die Datenbank offen ist.
 
 ## Umsetzung (Stand)
 
@@ -77,7 +77,7 @@ Die Dialektunterschiede sind klein und liegen in einer Hilfsschicht:
 |---|---|
 | Schnittstelle, SQLite, PostgreSQL, MySQL/MariaDB | `src/server/db/types.ts`, `sqlite.ts`, `postgres.ts`, `mysql.ts` |
 | Schema, Migrationen, SQL-Hilfen (Upsert, Löschen je Dialekt) | `src/server/db/schema.ts` |
-| Öffnen nach `airdeck.conf` / Umgebung | `src/server/db/index.ts` |
+| Öffnen nach `anmachacast.conf` / Umgebung | `src/server/db/index.ts` |
 | Dokumente ↔ Tabellen, Schreiben nur geänderter Zeilen, Wiederholung bei Ausfall, JSON-Übernahme | `src/server/repo/docs.ts`, `mappings.ts` |
 
 Der laufende Zustand liegt weiter im Speicher (der Core sendet auch ohne Datenbank weiter). Gespeichert wird entprellt: Je Tabelle werden nur neue, geänderte und gelöschte Zeilen geschrieben (Vergleich über Prüfsummen). Die Aufteilung von `app.ts` in Dienste mit eigenen Repositories ist Schritt 3.
@@ -87,13 +87,13 @@ Tabellen der ersten Fassung: `meta`, `stations`, `sources`, `outputs`, `media`, 
 ## Einrichtung
 
 ```ini
-# airdeck.conf
+# anmachacast.conf
 [database]
 provider = postgres          # sqlite (Standard) · postgres · mysql (auch MariaDB)
 url = postgres://anmachacast@localhost:5432/anmachacast
 ```
 
-Das Passwort gehört in die Umgebungsvariable `ANMACHA_CAST_DB_PASSWORD`, nicht in die Datei (bisheriges `AIRDECK_DB_PASSWORD` funktioniert als Legacy-Fallback weiter – die mitgelieferte `docker-compose.yml` nutzt aktuell noch die bisherigen `AIRDECK_DB*`-Namen, siehe [`DOCKER.md`](../DOCKER.md)). Alternativ gehen `ANMACHA_CAST_DB` und `ANMACHA_CAST_DB_URL`. Server-Datenbanken, die beim Start noch nicht bereit sind (Container), werden bis zu einer Minute lang erneut versucht.
+Das Passwort gehört in die Umgebungsvariable `ANMACHA_CAST_DB_PASSWORD`, nicht in die Datei (siehe [`DOCKER.md`](../DOCKER.md)). Alternativ gehen `ANMACHA_CAST_DB` und `ANMACHA_CAST_DB_URL`. Server-Datenbanken, die beim Start noch nicht bereit sind (Container), werden bis zu einer Minute lang erneut versucht.
 
 ## Health
 

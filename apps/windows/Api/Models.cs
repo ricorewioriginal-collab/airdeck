@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace AirDeck.Api
+namespace AnMaChaCast.Api
 {
     public sealed class StationInfo
     {

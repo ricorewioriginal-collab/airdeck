@@ -18,7 +18,7 @@ import {
 } from './model.ts';
 import { AuditLog } from './store.ts';
 import { DbDocStore, importJsonFilesSync, type DocStore } from './repo/docs.ts';
-import { openSqliteSync } from './db/index.ts';
+import { defaultSqliteFile, openSqliteSync } from './db/index.ts';
 import { SCHEMA_VERSION } from './db/schema.ts';
 import { SecretStore } from './secrets.ts';
 import { IcecastOutput, type BroadcastOutput, type OutputConfig, type OutputState } from './icecast.ts';
@@ -71,7 +71,7 @@ export class AnMaChaCastApp {
   readonly mode: Mode;
   readonly version: string;
   readonly paths: AnMaChaCastConfig['paths'];
-  /** Vollständige Konfiguration (airdeck.conf), null in Tests/Hilfsinstanzen ohne Datei */
+  /** Vollständige Konfiguration (anmachacast.conf), null in Tests/Hilfsinstanzen ohne Datei */
   readonly config: AnMaChaCastConfig | null;
   ffmpegRetry: NodeJS.Timeout | null = null;
   tickCount = 0;
@@ -108,7 +108,7 @@ export class AnMaChaCastApp {
       this.ownDb = null;
     } else {
       // ohne Vorgabe (Tests, Hilfsinstanzen): SQLite im Datenordner, bisherige JSON-Dateien werden übernommen
-      const db = openSqliteSync(join(dataDir, 'airdeck.db'));
+      const db = openSqliteSync(defaultSqliteFile(dataDir));
       const store = DbDocStore.openSync(db);
       importJsonFilesSync(dataDir, store);
       this.docs = store;
@@ -160,14 +160,14 @@ export class AnMaChaCastApp {
     }, this.ai, (id) => this.svc.ai.aiConfig(id));
     this.notifier = new Notifier((ref) => this.secrets.get(ref), (event, data) => this.audit.write({ kind: 'notify', event, ...data }));
 
-    const state = this.docs.get<PersistedState | null>('airdeck', null);
+    const state = this.docs.get<PersistedState | null>('anmachacast', null);
     // Neustart: Quellen starten getrennt und müssen sich neu verbinden (keine konkurrierenden Aktiven).
     this.engine = SourcePriorityEngine.restore(state?.sources ?? [], {
       stableMs: opts.stableMs ?? 2000,
       cooldownMs: opts.cooldownMs ?? 0,
     });
     this.engine.on((e) => this.onEngineEvent(e));
-    this.docs.bind('airdeck', () => this.snapshot());
+    this.docs.bind('anmachacast', () => this.snapshot());
     this.sync = opts.sync ?? new SyncManager(dataDir, this.secrets, (event, data) => this.audit.write({ kind: 'sync', event, ...data }));
     this.health = new HealthManager({
       name: 'AnMaCha Cast',
@@ -197,7 +197,7 @@ export class AnMaChaCastApp {
       }),
     });
     this.docs.onWrite = (name) => {
-      if (name === 'airdeck') this.sync.schedulePush(() => this.stateJson());
+      if (name === 'anmachacast') this.sync.schedulePush(() => this.stateJson());
     };
     if (this.docs instanceof DbDocStore) this.docs.onStatus = (st) => this.publish('DATABASE_STATUS_CHANGED', undefined, { state: st.state, error: st.lastError });
 
@@ -1627,7 +1627,7 @@ export class AnMaChaCastApp {
 
   /** Zustand sofort speichern (z. B. vor manuellem Sync). */
   persistNow(): void {
-    this.docs.touch('airdeck');
+    this.docs.touch('anmachacast');
     this.docs.flushSync();
   }
 
@@ -1636,7 +1636,7 @@ export class AnMaChaCastApp {
   }
 
   changed(): void {
-    this.docs.touch('airdeck');
+    this.docs.touch('anmachacast');
   }
 
   snapshot(): PersistedState {

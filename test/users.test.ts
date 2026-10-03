@@ -81,7 +81,7 @@ test('Benutzerverwaltung: Login/Logout, Rollen, Passwortwechsel, Sperre, letzter
 
     // Sitzungen überleben einen Neustart (nur als Hash gespeichert)
     app.docs.flushSync();
-    const db = openSqliteSync(join(dir, 'airdeck.db'));
+    const db = openSqliteSync(join(dir, 'anmachacast.db'));
     const store = new UserStore(dir, DbDocStore.openSync(db));
     assert.equal(store.count, 2);
     await db.close();

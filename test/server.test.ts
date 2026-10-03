@@ -263,7 +263,7 @@ test('Pfadprüfung funktioniert mit Windows- und Linux-Pfaden', async () => {
   assert.equal(isInside('C:\\Program Files\\AnMaChaCast\\studio', 'C:\\Program Files\\AnMaChaCast\\studio\\js\\app.js', path.win32), true);
   assert.equal(isInside('C:\\Program Files\\AnMaChaCast\\studio', 'C:\\Program Files\\AnMaChaCast\\secret.txt', path.win32), false);
   assert.equal(isInside('C:\\Program Files\\AnMaChaCast\\studio', 'D:\\x.html', path.win32), false);
-  assert.equal(isInside('/opt/airdeck/studio', '/opt/airdeck/studio/index.html', path.posix), true);
-  assert.equal(isInside('/opt/airdeck/studio', '/opt/airdeck/studio-evil/x', path.posix), false);
-  assert.equal(isInside('/opt/airdeck/studio', '/opt/airdeck/studio', path.posix), false);
+  assert.equal(isInside('/opt/anmachacast/studio', '/opt/anmachacast/studio/index.html', path.posix), true);
+  assert.equal(isInside('/opt/anmachacast/studio', '/opt/anmachacast/studio-evil/x', path.posix), false);
+  assert.equal(isInside('/opt/anmachacast/studio', '/opt/anmachacast/studio', path.posix), false);
 });

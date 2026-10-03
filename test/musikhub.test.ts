@@ -71,7 +71,7 @@ test('MusikHub: private Suchresultate, Nutzer- und Sendergrant, Widerruf und per
     assert.equal((await call(tb, 'GET', '/music-hub/items?station=b')).status, 404, 'MH03: Senderaustritt entzieht neue Zugriffe sofort');
 
     await app.docs.flush();
-    const db = openSqliteSync(join(dir, 'airdeck.db'));
+    const db = openSqliteSync(join(dir, 'anmachacast.db'));
     try {
       const state = DbDocStore.openSync(db).get<{ items: { id: string }[]; collections: { id: string }[]; grants: { id: string }[] }>('musikhub', { items: [], collections: [], grants: [] });
       assert.equal(state.items[0]?.id, itemId);

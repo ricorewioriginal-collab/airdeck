@@ -8,12 +8,12 @@ using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace AirDeck
+namespace AnMaChaCast
 {
     sealed class BrowserForm : Form
     {
         static readonly Color Back = Color.FromArgb(11, 18, 32);
-        static readonly string LocalDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AirDeck");
+        static readonly string LocalDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AnMaChaCast");
 
         readonly string startUrl;
         readonly WebView2 web = new WebView2 { Dock = DockStyle.Fill, DefaultBackgroundColor = Back };
@@ -59,8 +59,7 @@ namespace AirDeck
         void Setup(CoreWebView2 core)
         {
             var s = core.Settings;
-            // ANMACHA_CAST_DEVTOOLS hat Vorrang, AIRDECK_DEVTOOLS bleibt als Legacy-Fallback (wie envVar() serverseitig)
-            s.AreDevToolsEnabled = Environment.GetEnvironmentVariable("ANMACHA_CAST_DEVTOOLS") == "1" || Environment.GetEnvironmentVariable("AIRDECK_DEVTOOLS") == "1";
+            s.AreDevToolsEnabled = Environment.GetEnvironmentVariable("ANMACHA_CAST_DEVTOOLS") == "1";
             s.IsStatusBarEnabled = false;
             s.IsGeneralAutofillEnabled = false;
             s.IsPasswordAutosaveEnabled = false;

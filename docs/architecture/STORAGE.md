@@ -11,7 +11,7 @@
 | Logs | `%ProgramData%\AnMaChaCast\logs` | `.\data\logs` | `/var/log/anmachacast` | stdout und `/data/logs` |
 | Sicherungen | `%ProgramData%\AnMaChaCast\backups` | `.\data\backups` | `/var/lib/anmachacast/backups` | `/data/backups` |
 
-Alle Pfade stehen in `airdeck.conf` (Konfigurationsverzeichnis) und lassen sich im Setup-Assistenten ändern. Die bisherige Ablage unter `%LOCALAPPDATA%\AnMaChaCast\data` wird beim ersten Start der neuen Version erkannt und übernommen.
+Alle Pfade stehen in `anmachacast.conf` (Konfigurationsverzeichnis) und lassen sich im Setup-Assistenten ändern. Die bisherige Ablage unter `%LOCALAPPDATA%\AnMaChaCast\data` wird beim ersten Start der neuen Version erkannt und übernommen.
 
 ## Medienverzeichnis
 

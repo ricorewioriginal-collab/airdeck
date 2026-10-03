@@ -30,7 +30,7 @@ const LISTS: Record<string, string> = { clockEvents: 'clock_events', plans: 'pro
 const OWN = new Set(['library', 'queue', 'clock', 'playlists', 'playLog', ...Object.keys(LISTS)]);
 const STATION_TABLES = ['media', 'queue_items', 'clock_templates', 'playlists', 'playlist_items', 'play_log', ...Object.values(LISTS)];
 
-const airdeck: DocMapping = {
+const anmachacast: DocMapping = {
   toRows(value) {
     const st = value as Obj;
     const out: RowSet = new Map([['stations', []], ['sources', []], ['outputs', []], ['settings', []], ...STATION_TABLES.map((t) => [t, []] as [string, Row[]])]);
@@ -102,7 +102,7 @@ function list(table: string, cols: (x: Obj) => Row, order?: (a: Obj, b: Obj) => 
 }
 
 const MAPPINGS: Record<string, DocMapping> = {
-  airdeck,
+  anmachacast,
   musikhub: {
     toRows: (value) => {
       const hub = value as Obj;
