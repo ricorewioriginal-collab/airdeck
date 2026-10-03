@@ -150,8 +150,8 @@ export class Updater {
   /** Windows: Setup still starten; es beendet AnMaCha Cast, ersetzt die Dateien und startet AnMaCha Cast neu. */
   runWindowsSetup(file: string, headless: boolean): void {
     const args = ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/UPDATE=1', ...(headless ? ['/HEADLESSRUN=1'] : [])];
-    // Programmfenster (AirDeck.exe) vorher schließen, damit das Setup es ersetzen kann – es startet danach neu
-    const host = join(dirname(process.execPath), 'AirDeck.exe');
+    // Programmfenster (AnMaChaCast.exe) vorher schließen, damit das Setup es ersetzen kann – es startet danach neu
+    const host = join(dirname(process.execPath), 'AnMaChaCast.exe');
     if (existsSync(host) && host !== process.execPath) spawnSync(host, ['--quit'], { timeout: 8000, windowsHide: true });
     const p = spawn(file, args, { detached: true, stdio: 'ignore', windowsHide: false });
     p.unref();

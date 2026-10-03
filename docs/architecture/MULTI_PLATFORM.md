@@ -4,7 +4,7 @@
 
 ```
 ┌──────────── Windows-PC ─────────────────────────────────────────────┐
-│ Dienst „AnMaCha Cast Server“ (Session 0)   AirDeck.exe (natives Fenster) │
+│ Dienst „AnMaCha Cast Server“ (Session 0)   AnMaChaCast.exe (natives Fenster) │
 │  Core · API · SQLite · Encoder ◄─HTTP─► WPF: Sender/On-Air/Modus,   │
 │  Ausgänge ins Internet                  Decks A–D, Cardwall         │
 │                                         Mithören/CUE (Soundkarte)    │
@@ -13,7 +13,7 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Das Windows-Programm (`apps/windows/`, Projekt `AnMaChaCast.csproj`, AssemblyName weiterhin `AirDeck`) ist **kein Browser-in-der-Box** mehr für die
+Das Windows-Programm (`apps/windows/`, Projekt `AnMaChaCast.csproj`, AssemblyName `AnMaChaCast`) ist **kein Browser-in-der-Box** mehr für die
 Kernbedienung: Das Hauptfenster (`MainWindow`) ist natives WPF – echte Windows-Bedienelemente (Buttons,
 Slider, ToggleButtons, ComboBox), kein HTML/WebView. Es deckt die primäre Sendebedienung ab:
 

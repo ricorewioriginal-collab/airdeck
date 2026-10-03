@@ -39,7 +39,7 @@ test('Installer-Bootstrap wird sofort importiert, entfernt und beim Repair nicht
     assert.equal(saved?.data?.main?.playout?.autostart, true);
     assert.ok(docs.get<any>('setup', {}).installerWelcomeAt);
     await db.close();
-    assert.equal(readFileSync(join(dir, 'config', 'airdeck.conf'), 'utf8').includes(password), false);
+    assert.equal(readFileSync(join(dir, 'config', 'anmachacast.conf'), 'utf8').includes(password), false);
 
     const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null });
     const server = createHttpServer(app, join(import.meta.dirname, '../studio'));

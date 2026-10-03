@@ -1,8 +1,9 @@
 ; AnMaCha Cast – Windows-Installer (Inno Setup 6)
-; Baut aus dist\AirDeck\ eine Setup.exe. Installation pro Benutzer, keine Administratorrechte nötig.
-; AssemblyName/Installationspfad/Verknüpfungsnamen/Registry-/Firewall-Einträge bleiben bewusst "AirDeck"
-; (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 6) - eine Änderung würde bei bestehenden Installationen
-; verwaiste Verknüpfungen/Registrierungseinträge hinterlassen bzw. den Update-Mechanismus brechen.
+; Baut aus dist\AnMaChaCast\ eine Setup.exe. Installation pro Benutzer, keine Administratorrechte nötig.
+; Die AppId bleibt unverändert, damit ein Update eine Installation aus der Zeit vor der Umbenennung (AirDeck)
+; erkennt und ersetzt: Dateien (AirDeck.exe, airdeck-engine.exe), Verknüpfungen, Autostart-Eintrag und
+; Firewall-Regel mit dem alten Namen werden dabei aufgeräumt bzw. auf den neuen Namen umgestellt
+; ([InstallDelete], [Registry], CurStepChanged). Vorhandene Daten unter %LOCALAPPDATA%\AirDeck bleiben in Gebrauch.
 ; Aufruf: iscc /DAppVersion=0.3.0 packaging\windows\installer.iss
 
 #ifndef AppVersion
@@ -19,8 +20,10 @@ AppPublisherURL=https://github.com/ricorewioriginal-collab/anmacha_cast
 AppComments=Radio-Automation & Live-Broadcast
 VersionInfoDescription=AnMaCha Cast Setup
 VersionInfoProductName=AnMaCha Cast
-DefaultDirName={autopf}\AirDeck
-DefaultGroupName=AirDeck
+DefaultDirName={autopf}\AnMaChaCast
+DefaultGroupName=AnMaCha Cast
+; die Programmgruppe der alten Installation (AirDeck) nicht weiterverwenden
+UsePreviousGroup=no
 DisableProgramGroupPage=yes
 ; Standard: nur für mich (ohne Adminrechte) – im Dialog wählbar: für alle Benutzer (mit Firewall-Freigabe)
 PrivilegesRequired=lowest
@@ -38,7 +41,7 @@ LicenseFile=installer\haftung.txt
 ShowLanguageDialog=auto
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-UninstallDisplayIcon={app}\AirDeck.exe
+UninstallDisplayIcon={app}\AnMaChaCast.exe
 UninstallDisplayName=AnMaCha Cast
 SetupIconFile=..\..\assets\icons\anmachacast-windows.ico
 CloseApplications=yes
@@ -69,15 +72,12 @@ de.TypeCompact=Nur Studio (ohne Audio-Engine, z. B. als Fernbedienung)
 en.TypeCompact=Studio only (no audio engine, e.g. as remote control)
 de.TypeCustom=Benutzerdefiniert
 en.TypeCustom=Custom
-; IconStop/IconServer/IconManual bleiben bewusst "AirDeck": sie sind zugleich der Dateiname der
-; Start-Menü-Verknüpfung ([Icons] unten) - eine Änderung würde bei einem Update neben der neuen eine
-; verwaiste alte Verknüpfung hinterlassen (Inno Setup löscht umbenannte Verknüpfungen nicht automatisch).
-de.IconStop=AirDeck beenden
-en.IconStop=Quit AirDeck
-de.IconServer=AirDeck im Hintergrund (24/7, ohne Fenster)
-en.IconServer=AirDeck in the background (24/7, no window)
-de.IconManual=AirDeck Handbuch
-en.IconManual=AirDeck manual
+de.IconStop=AnMaCha Cast beenden
+en.IconStop=Quit AnMaCha Cast
+de.IconServer=AnMaCha Cast im Hintergrund (24/7, ohne Fenster)
+en.IconServer=AnMaCha Cast in the background (24/7, no window)
+de.IconManual=AnMaCha Cast Handbuch
+en.IconManual=AnMaCha Cast manual
 de.RunManual=Handbuch öffnen
 en.RunManual=Open the manual
 de.RunNow=AnMaCha Cast jetzt starten
@@ -99,39 +99,51 @@ Name: "autostart"; Description: "{cm:TaskAutostart}"; GroupDescription: "{cm:Tas
 Name: "lan"; Description: "{cm:TaskLan}"; GroupDescription: "{cm:TasksExtra}"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\AirDeck\*"; DestDir: "{app}"; Excludes: "\ffmpeg\*,\android\*"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
-Source: "..\..\dist\AirDeck\ffmpeg\*"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: ffmpeg
-Source: "..\..\dist\AirDeck\android\*"; DestDir: "{app}\android"; Flags: ignoreversion skipifsourcedoesntexist; Components: android
+Source: "..\..\dist\AnMaChaCast\*"; DestDir: "{app}"; Excludes: "\ffmpeg\*,\android\*"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+Source: "..\..\dist\AnMaChaCast\ffmpeg\*"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: ffmpeg
+Source: "..\..\dist\AnMaChaCast\android\*"; DestDir: "{app}\android"; Flags: ignoreversion skipifsourcedoesntexist; Components: android
 Source: "installer\haftung.txt"; DestDir: "{app}"; DestName: "HAFTUNGSAUSSCHLUSS.txt"; Flags: ignoreversion; Components: core
 
+[InstallDelete]
+; Reste der Version vor der Umbenennung (AirDeck) beim Update entfernen
+Type: files; Name: "{app}\AirDeck.exe"
+Type: files; Name: "{app}\airdeck-engine.exe"
+Type: files; Name: "{app}\AirDeck-Netzwerk.cmd"
+Type: files; Name: "{app}\AirDeck-Headless.cmd"
+Type: filesandordirs; Name: "{autoprograms}\AirDeck"
+Type: files; Name: "{autodesktop}\AirDeck.lnk"
+
 [Icons]
-Name: "{group}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}"
-Name: "{group}\{cm:IconServer}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--headless"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmachacast-server.ico"
-Name: "{group}\{cm:IconStop}"; Filename: "{app}\airdeck-engine.exe"; Parameters: "--stop"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmachacast-server.ico"
+Name: "{group}\AnMaCha Cast"; Filename: "{app}\AnMaChaCast.exe"; WorkingDir: "{app}"
+Name: "{group}\{cm:IconServer}"; Filename: "{app}\anmachacast-engine.exe"; Parameters: "--headless"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmachacast-server.ico"
+Name: "{group}\{cm:IconStop}"; Filename: "{app}\anmachacast-engine.exe"; Parameters: "--stop"; WorkingDir: "{app}"; IconFilename: "{app}\icons\anmachacast-server.ico"
 Name: "{group}\{cm:IconManual}"; Filename: "{app}\studio\handbuch.html"
-Name: "{group}\{cm:UninstallProgram,AirDeck}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\AirDeck"; Filename: "{app}\AirDeck.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\{cm:UninstallProgram,AnMaCha Cast}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\AnMaCha Cast"; Filename: "{app}\AnMaChaCast.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AirDeck"; ValueData: """{app}\AirDeck.exe"" --minimized"; Flags: uninsdeletevalue; Tasks: autostart
+; der Autostart-Eintrag der Version vor der Umbenennung wird abgelöst
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "AirDeck"; Flags: deletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AnMaChaCast"; ValueData: """{app}\AnMaChaCast.exe"" --minimized"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
 ; Nur bei bewusst gewähltem LAN-Zugriff mit Adminrechten, auf den tatsächlichen AnMaCha-Cast-Port begrenzt.
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""AirDeck"" dir=in action=allow protocol=TCP localport={code:InstallerPort} program=""{app}\airdeck-engine.exe"" profile=private enable=yes"; Flags: runhidden; Tasks: lan; Check: ShouldAddLanFirewall
-Filename: "{app}\AirDeck.exe"; Description: "{cm:RunNow}"; Flags: nowait postinstall skipifsilent
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""AnMaChaCast"" dir=in action=allow protocol=TCP localport={code:InstallerPort} program=""{app}\anmachacast-engine.exe"" profile=private enable=yes"; Flags: runhidden; Tasks: lan; Check: ShouldAddLanFirewall
+Filename: "{app}\AnMaChaCast.exe"; Description: "{cm:RunNow}"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\studio\handbuch.html"; Description: "{cm:RunManual}"; Flags: shellexec postinstall skipifsilent unchecked nowait
 
 ; Nach einem automatischen Update (Aufruf mit /UPDATE=1) AnMaCha Cast wieder starten
 Filename: "{app}\{code:RelaunchExe}"; Parameters: "{code:RelaunchParams}"; Flags: nowait; Check: IsUpdate
 
 [UninstallRun]
-Filename: "{app}\airdeck-engine.exe"; Parameters: "--stop"; Flags: runhidden waituntilterminated; RunOnceId: "QuitAirDeck"
-Filename: "{cmd}"; Parameters: "/c taskkill /IM AirDeck.exe /F & taskkill /IM airdeck-engine.exe /F"; Flags: runhidden; RunOnceId: "StopAirDeck"
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""AirDeck"""; Flags: runhidden; RunOnceId: "FirewallAirDeck"; Check: IsAdminInstallMode
+Filename: "{app}\anmachacast-engine.exe"; Parameters: "--stop"; Flags: runhidden waituntilterminated; RunOnceId: "QuitAnMaChaCast"
+Filename: "{cmd}"; Parameters: "/c taskkill /IM AnMaChaCast.exe /F & taskkill /IM anmachacast-engine.exe /F & taskkill /IM AirDeck.exe /F & taskkill /IM airdeck-engine.exe /F"; Flags: runhidden; RunOnceId: "StopAnMaChaCast"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""AnMaChaCast"""; Flags: runhidden; RunOnceId: "FirewallAnMaChaCast"; Check: IsAdminInstallMode
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""AirDeck"""; Flags: runhidden; RunOnceId: "FirewallAirDeckLegacy"; Check: IsAdminInstallMode
 
 [Messages]
-de.WelcomeLabel2=AnMaCha Cast wird auf diesem Computer installiert.%n%nAnMaCha Cast läuft komplett lokal im Hintergrund (Symbol im Infobereich) – kein eigener Server nötig. Deine Daten (Musik, Einstellungen, verschlüsselte Passwörter) liegen unter %LOCALAPPDATA%\AirDeck und bleiben bei einer Deinstallation erhalten.%n%nAnMaCha Cast ist ein Hobbyprojekt – bitte den Haftungsausschluss auf der nächsten Seite lesen.
-en.WelcomeLabel2=This will install AnMaCha Cast on your computer.%n%nAnMaCha Cast runs fully locally in the background (tray icon) – no server required. Your data stays in %LOCALAPPDATA%\AirDeck and is kept when uninstalling.%n%nAnMaCha Cast is a hobby project – please read the disclaimer on the next page.
+de.WelcomeLabel2=AnMaCha Cast wird auf diesem Computer installiert.%n%nAnMaCha Cast läuft komplett lokal im Hintergrund (Symbol im Infobereich) – kein eigener Server nötig. Deine Daten (Musik, Einstellungen, verschlüsselte Passwörter) liegen unter %LOCALAPPDATA%\AnMaChaCast und bleiben bei einer Deinstallation erhalten.%n%nAnMaCha Cast ist ein Hobbyprojekt – bitte den Haftungsausschluss auf der nächsten Seite lesen.
+en.WelcomeLabel2=This will install AnMaCha Cast on your computer.%n%nAnMaCha Cast runs fully locally in the background (tray icon) – no server required. Your data stays in %LOCALAPPDATA%\AnMaChaCast and is kept when uninstalling.%n%nAnMaCha Cast is a hobby project – please read the disclaimer on the next page.
 
 [Code]
 { Moderner Einrichtungsdialog: Betriebsart/Port/LAN, eigener Admin, Komponentenuebersicht,
@@ -156,7 +168,11 @@ var
 
 function InitializeSetup: Boolean;
 begin
+  { vorhandene Installation: Daten im neuen Ordner (AnMaChaCast) oder noch unter dem Namen vor der Umbenennung (AirDeck) }
   ExistingAtStart :=
+    FileExists(ExpandConstant('{localappdata}\AnMaChaCast\data\airdeck.db')) or
+    FileExists(ExpandConstant('{localappdata}\AnMaChaCast\data\config\anmachacast.conf')) or
+    FileExists(ExpandConstant('{localappdata}\AnMaChaCast\data\config\airdeck.conf')) or
     FileExists(ExpandConstant('{localappdata}\AirDeck\data\airdeck.db')) or
     FileExists(ExpandConstant('{localappdata}\AirDeck\data\config\airdeck.conf'));
   Result := True;
@@ -180,7 +196,7 @@ end;
 { Nach dem Update: lief nur die Engine (24/7 ohne Fenster), wieder nur die Engine starten, sonst das Programm }
 function RelaunchExe(Param: String): String;
 begin
-  if ExpandConstant('{param:HEADLESSRUN|0}') = '1' then Result := 'airdeck-engine.exe' else Result := 'AirDeck.exe';
+  if ExpandConstant('{param:HEADLESSRUN|0}') = '1' then Result := 'anmachacast-engine.exe' else Result := 'AnMaChaCast.exe';
 end;
 
 function RelaunchParams(Param: String): String;
@@ -498,6 +514,52 @@ begin
   end;
 end;
 
+{ Port aus der vorhandenen Konfiguration (anmachacast.conf, bisher airdeck.conf); Standard 8750 }
+function ConfiguredPort: String;
+var
+  Files: array[0..2] of String;
+  Lines: TArrayOfString;
+  I, J, P: Integer;
+  L: String;
+begin
+  Result := '8750';
+  Files[0] := ExpandConstant('{localappdata}\AnMaChaCast\data\config\anmachacast.conf');
+  Files[1] := ExpandConstant('{localappdata}\AnMaChaCast\data\config\airdeck.conf');
+  Files[2] := ExpandConstant('{localappdata}\AirDeck\data\config\airdeck.conf');
+  for I := 0 to 2 do
+  begin
+    if LoadStringsFromFile(Files[I], Lines) then
+    begin
+      for J := 0 to GetArrayLength(Lines) - 1 do
+      begin
+        L := Trim(Lines[J]);
+        P := Pos('=', L);
+        if (Pos('port', LowerCase(L)) = 1) and (P > 0) and (StrToIntDef(Trim(Copy(L, P + 1, 10)), 0) > 0) and (StrToIntDef(Trim(Copy(L, P + 1, 10)), 0) < 65536) then
+        begin
+          Result := Trim(Copy(L, P + 1, 10));
+          Exit;
+        end;
+      end;
+    end;
+  end;
+end;
+
+{ Update von einer Installation vor der Umbenennung: die Firewall-Regel "AirDeck" (zeigt auf das nicht mehr vorhandene
+  airdeck-engine.exe) durch "AnMaChaCast" für anmachacast-engine.exe ersetzen - gleicher Port, gleiches Profil. }
+procedure MigrateFirewallRule;
+var
+  ResultCode: Integer;
+begin
+  if not IsAdminInstallMode then Exit;
+  ResultCode := 1;
+  if (not Exec(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall show rule name="AirDeck"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then Exit;
+  Exec(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name="AirDeck"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\netsh.exe'),
+    'advfirewall firewall add rule name="AnMaChaCast" dir=in action=allow protocol=TCP localport=' + ConfiguredPort +
+    ' program="' + ExpandConstant('{app}\anmachacast-engine.exe') + '" profile=private enable=yes',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   DataDir, ConfigDir, Json, FirstSync, ModeName, BindName, AdminJson, BootstrapFile: String;
@@ -505,9 +567,10 @@ var
   ResultCode: Integer;
 begin
   if CurStep <> ssPostInstall then Exit;
+  MigrateFirewallRule;
   if IsUpdate then Exit;
 
-  DataDir := ExpandConstant('{localappdata}\AirDeck\data');
+  DataDir := ExpandConstant('{localappdata}\AnMaChaCast\data');
   ConfigDir := DataDir + '\config';
   ForceDirectories(DataDir);
   ForceDirectories(ConfigDir);
@@ -525,7 +588,7 @@ begin
   Lines[3] := '[network]';
   Lines[4] := 'port = ' + Trim(NetworkPage.Values[0]);
   Lines[5] := 'bind = ' + BindName;
-  if not SaveStringsToUTF8File(ConfigDir + '\airdeck.conf', Lines, False) then
+  if not SaveStringsToUTF8File(ConfigDir + '\anmachacast.conf', Lines, False) then
     RaiseException('AnMaCha-Cast-Grundeinstellungen konnten nicht geschrieben werden.');
 
   SetArrayLength(Lines, 1);
@@ -537,7 +600,7 @@ begin
   if (not Exec(ExpandConstant('{app}\anmachacast-engine.exe'), '--headless --check-port',
     ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
   begin
-    DeleteFile(ConfigDir + '\airdeck.conf');
+    DeleteFile(ConfigDir + '\anmachacast.conf');
     DeleteFile(DataDir + '\network.json');
     RaiseException('Der gewählte AnMaCha-Cast-Port ist belegt oder konnte nicht geprüft werden. Bitte einen anderen Port wählen.');
   end;

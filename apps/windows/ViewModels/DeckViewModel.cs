@@ -4,7 +4,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace AirDeck.ViewModels
+namespace AnMaChaCast.ViewModels
 {
     public sealed class DeckViewModel : INotifyPropertyChanged
     {

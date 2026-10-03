@@ -5,7 +5,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
 
-namespace AirDeck.ViewModels
+namespace AnMaChaCast.ViewModels
 {
     public sealed class CartViewModel : INotifyPropertyChanged
     {

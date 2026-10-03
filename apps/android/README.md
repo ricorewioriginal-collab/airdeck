@@ -24,7 +24,7 @@ eingegeben). Diese Bereiche laufen bis dahin über das Web-Studio im Browser.
   `engine/test.sh` gegen einen echten Icecast getestet.
 - `native/`: Android-Audio-Schicht (Mikrofon, Decoder, Vordergrund-Dienst `EngineService`,
   `EngineHub` als Fassade für die Oberfläche)
-- `app/src/main/kotlin/app/airdeck/studio/`: die native Oberfläche (Paketname bewusst unverändert, siehe `app/build.gradle.kts`)
+- `app/src/main/kotlin/app/anmachacast/studio/`: die native Oberfläche (Paket `app.anmachacast.studio`; die frühere Kennung `app.airdeck.studio` wurde ersetzt, siehe `app/build.gradle.kts`)
   - `data/`: REST-Client, SSE-Client (Realtime), verschlüsselte Token-Ablage
   - `connect/`, `home/`, `studio/`, `golive/`, `more/`, `common/`: Bildschirme je Bereich
   - `nav/AppNav.kt`: Navigation (Bottom Navigation: Home, Studio, Go Live, Mehr)

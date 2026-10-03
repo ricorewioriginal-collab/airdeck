@@ -61,7 +61,7 @@ A) LOCAL                         B) SELF-HOSTED                    C) HYBRID
    Icecast / SHOUTcast / laut.fm    Icecast / SHOUTcast / laut.fm          ▼ sendet lokal weiter, auch offline
 ```
 
-Die Betriebsart wird im Setup-Assistenten gewählt und steht in `airdeck.conf` (`mode = local | server | hybrid`).
+Die Betriebsart wird im Setup-Assistenten gewählt und steht in `anmachacast.conf` (`mode = local | server | hybrid`).
 
 ## 3. Audiopfad (für **alle** Quellen)
 

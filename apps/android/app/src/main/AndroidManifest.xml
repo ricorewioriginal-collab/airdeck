@@ -37,7 +37,7 @@
         </activity>
 
         <service
-            android:name="app.airdeck.engine.android.EngineService"
+            android:name="app.anmachacast.engine.android.EngineService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback|microphone" />
     </application>

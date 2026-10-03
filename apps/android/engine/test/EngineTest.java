@@ -1,11 +1,11 @@
 // Tests der Handy-Engine ohne Android: Encoder, Resampler, Mixer und echte Sendung an Icecast.
 // Aufruf über apps/android/engine/test.sh (lädt jump3r, startet Icecast, prüft mit ffprobe).
-import app.airdeck.engine.IcecastSource;
-import app.airdeck.engine.LiveEngine;
-import app.airdeck.engine.Mixer;
-import app.airdeck.engine.Mp3Encoder;
-import app.airdeck.engine.PcmRing;
-import app.airdeck.engine.Resampler;
+import app.anmachacast.engine.IcecastSource;
+import app.anmachacast.engine.LiveEngine;
+import app.anmachacast.engine.Mixer;
+import app.anmachacast.engine.Mp3Encoder;
+import app.anmachacast.engine.PcmRing;
+import app.anmachacast.engine.Resampler;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;

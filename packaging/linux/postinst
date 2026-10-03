@@ -1,38 +1,66 @@
 #!/bin/sh
 # AnMaCha Cast – nach der Installation: Dienstkonto anlegen, Ordner vorbereiten, systemd-Dienst starten.
-# Dienstkonto, Pfade und Paketname bleiben bewusst "airdeck" (siehe docs/REBRANDING_ANMACHA_CAST.md
-# Phase 7) - ein Umbenennen würde bestehende Installationen bei einem Upgrade verwaisen lassen. Die
-# systemd-Diensteinheit selbst heißt seit der AirDeck→AnMaCha-Cast-Umbenennung "anmachacast-server.service"
-# (vorher "airdeck-server.service"); die Migration einer bereits laufenden alten Einheit übernimmt dieses
-# Skript automatisch (siehe unten), kein manueller Schritt für bestehende Installationen nötig.
+# Ein früher installiertes Paket "airdeck" (so hieß das Produkt vor der Umbenennung) wird vom Paketmanager ersetzt;
+# hier werden dessen Dienstkonto, Konfiguration, Sendedaten und Protokolle übernommen (siehe unten), damit
+# nach dem Update nichts verloren geht und nichts neu eingerichtet werden muss.
 set -e
 
-if ! getent group airdeck >/dev/null 2>&1; then
-  addgroup --system airdeck
-fi
-if ! getent passwd airdeck >/dev/null 2>&1; then
-  adduser --system --ingroup airdeck --home /var/lib/airdeck --no-create-home \
-    --shell /usr/sbin/nologin --gecos "AnMaCha Cast Radio-Automation" airdeck
-fi
+OLD=airdeck
+NEW=anmachacast
 
-mkdir -p /etc/airdeck /var/lib/airdeck /var/log/airdeck
-# Eine airdeck.conf muss vorhanden sein, bevor AnMaCha Cast zum ersten Mal startet – sonst würde es
-# (ohne systemweite Konfiguration) im Home-Verzeichnis des Dienstkontos statt unter /var/lib/airdeck
-# ablegen (siehe resolveConfig() in src/server/config.ts). Den Rest trägt AnMaCha Cast selbst ein.
-if [ ! -e /etc/airdeck/airdeck.conf ]; then
-  printf '# AnMaCha Cast – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man anmachacast-server, oder das Handbuch im Studio.\n' > /etc/airdeck/airdeck.conf
-fi
-chown -R airdeck:airdeck /etc/airdeck /var/lib/airdeck /var/log/airdeck
-chmod 750 /etc/airdeck /var/lib/airdeck /var/log/airdeck
-
+# --- Übernahme aus dem früheren Paket "airdeck" -----------------------------------------------------------------
 if [ -d /run/systemd/system ]; then
-  systemctl daemon-reload || true
-  # Migration von einem älteren Paket mit der alten Diensteinheit "airdeck-server.service" (vor der
-  # Umbenennung zu "anmachacast-server.service"): die alte Einheit zuerst beenden/deaktivieren, damit
-  # nicht zwei Einheiten desselben Dienstes parallel aktiv/enabled bleiben.
+  # Dienst anhalten, bevor Konto und Ordner umbenannt werden (ein laufender Prozess blockiert usermod)
+  systemctl stop anmachacast-server.service >/dev/null 2>&1 || true
+  # Uralte Diensteinheit "airdeck-server.service" nicht parallel weiterlaufen lassen
   if systemctl is-enabled airdeck-server.service >/dev/null 2>&1 || systemctl is-active airdeck-server.service >/dev/null 2>&1; then
     systemctl disable --now airdeck-server.service >/dev/null 2>&1 || true
   fi
+fi
+# Dienstkonto umbenennen (Gruppe zuerst); schlägt das fehl, legt der Abschnitt darunter ein neues Konto an
+# und übernimmt die Ordner per chown - die Daten bleiben in jedem Fall erhalten.
+if getent group "$OLD" >/dev/null 2>&1 && ! getent group "$NEW" >/dev/null 2>&1; then
+  groupmod -n "$NEW" "$OLD" >/dev/null 2>&1 || true
+fi
+if getent passwd "$OLD" >/dev/null 2>&1 && ! getent passwd "$NEW" >/dev/null 2>&1; then
+  usermod -l "$NEW" -d "/var/lib/$NEW" "$OLD" >/dev/null 2>&1 || true
+fi
+# Ordner verschieben (derselbe Datenträger: ein Umbenennen, keine Kopie); nur wenn das Ziel noch nicht existiert
+moved=0
+for base in /etc /var/lib /var/log; do
+  if [ -d "$base/$OLD" ] && [ ! -e "$base/$NEW" ]; then
+    mv "$base/$OLD" "$base/$NEW" && moved=1
+  fi
+done
+if [ -f "/etc/$NEW/$OLD.conf" ] && [ ! -e "/etc/$NEW/$NEW.conf" ]; then
+  mv "/etc/$NEW/$OLD.conf" "/etc/$NEW/$NEW.conf"
+fi
+# Absolute Pfade in der Konfiguration auf die neuen Ordner umstellen
+if [ "$moved" = "1" ] && [ -f "/etc/$NEW/$NEW.conf" ]; then
+  sed -i -e "s#/var/lib/$OLD#/var/lib/$NEW#g" -e "s#/var/log/$OLD#/var/log/$NEW#g" -e "s#/etc/$OLD#/etc/$NEW#g" "/etc/$NEW/$NEW.conf"
+fi
+
+# --- Dienstkonto, Ordner, Konfiguration -----------------------------------------------------------------------------
+if ! getent group "$NEW" >/dev/null 2>&1; then
+  addgroup --system "$NEW"
+fi
+if ! getent passwd "$NEW" >/dev/null 2>&1; then
+  adduser --system --ingroup "$NEW" --home "/var/lib/$NEW" --no-create-home \
+    --shell /usr/sbin/nologin --gecos "AnMaCha Cast Radio-Automation" "$NEW"
+fi
+
+mkdir -p "/etc/$NEW" "/var/lib/$NEW" "/var/log/$NEW"
+# Eine Konfigurationsdatei muss vorhanden sein, bevor AnMaCha Cast zum ersten Mal startet – sonst würde es
+# (ohne systemweite Konfiguration) im Home-Verzeichnis des Dienstkontos statt unter /var/lib/anmachacast
+# ablegen (siehe resolveConfig() in src/server/config.ts). Den Rest trägt AnMaCha Cast selbst ein.
+if [ ! -e "/etc/$NEW/$NEW.conf" ] && [ ! -e "/etc/$NEW/$OLD.conf" ]; then
+  printf '# AnMaCha Cast – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man anmachacast-server, oder das Handbuch im Studio.\n' > "/etc/$NEW/$NEW.conf"
+fi
+chown -R "$NEW:$NEW" "/etc/$NEW" "/var/lib/$NEW" "/var/log/$NEW"
+chmod 750 "/etc/$NEW" "/var/lib/$NEW" "/var/log/$NEW"
+
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
   systemctl enable anmachacast-server.service || true
   # Neuinstallation: gleich starten. Upgrade: neu starten, damit die neue Version läuft
   # ("configure" mit $2 gesetzt = vorherige Version war schon installiert).

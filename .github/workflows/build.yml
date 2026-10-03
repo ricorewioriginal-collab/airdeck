@@ -101,18 +101,18 @@ jobs:
           $pfx = "$env:RUNNER_TEMP/cert.pfx"
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_B64))
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match 'x64' } | Select-Object -Last 1
-          foreach ($f in @('dist/AirDeck/AirDeck.exe', 'dist/AirDeck/airdeck-engine.exe')) {
+          foreach ($f in @('dist/AnMaChaCast/AnMaChaCast.exe', 'dist/AnMaChaCast/anmachacast-engine.exe')) {
             & $signtool.FullName sign /f $pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "AnMaCha Cast" $f
             if ($LASTEXITCODE -ne 0) { throw "Signieren fehlgeschlagen: $f" }
           }
           Remove-Item $pfx
       - name: Android-App beilegen (Download direkt aus AnMaCha Cast)
         uses: actions/download-artifact@v4
-        with: { name: AnMaCha-Cast-Android, path: dist/AirDeck/android }
+        with: { name: AnMaCha-Cast-Android, path: dist/AnMaChaCast/android }
       - name: ffmpeg beilegen
         shell: pwsh
         run: |
-          $dest = "dist/AirDeck/ffmpeg"
+          $dest = "dist/AnMaChaCast/ffmpeg"
           foreach ($variant in @('lgpl', 'gpl')) {
             $zip = "$env:RUNNER_TEMP/ffmpeg-$variant.zip"
             Invoke-WebRequest "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-$variant.zip" -OutFile $zip
@@ -131,16 +131,16 @@ jobs:
       - name: Smoke-Test
         shell: pwsh
         run: |
-          $env:AIRDECK_DATA = "$env:RUNNER_TEMP/airdeck-data"
-          $env:AIRDECK_PORT = '8753'
-          $engine = 'dist/AirDeck/airdeck-engine.exe'
-          if (-not (Test-Path dist/AirDeck/AirDeck.exe)) { throw 'Windows-Programm AirDeck.exe fehlt' }
+          $env:ANMACHA_CAST_DATA = "$env:RUNNER_TEMP/anmachacast-data"
+          $env:ANMACHA_CAST_PORT = '8753'
+          $engine = 'dist/AnMaChaCast/anmachacast-engine.exe'
+          if (-not (Test-Path dist/AnMaChaCast/AnMaChaCast.exe)) { throw 'Windows-Programm AnMaChaCast.exe fehlt' }
           # Engine ohne Konsole: Ausgabe über Umleitung prüfen
           Start-Process -FilePath $engine -ArgumentList '--new-admin-token' -Wait -NoNewWindow -RedirectStandardOutput "$env:RUNNER_TEMP/out.txt"
           $out = Get-Content "$env:RUNNER_TEMP/out.txt"
           $out
           if (-not ($out | Select-String 'ffmpeg version')) { throw 'ffmpeg wurde nicht erkannt' }
-          if (-not (Test-Path "$env:AIRDECK_DATA/logs/anmachacast.log")) { throw 'Logdatei fehlt' }
+          if (-not (Test-Path "$env:ANMACHA_CAST_DATA/logs/anmachacast.log")) { throw 'Logdatei fehlt' }
           $p = Start-Process -FilePath $engine -ArgumentList '--headless', '--no-tray' -PassThru
           Start-Sleep -Seconds 5
           $r = Invoke-RestMethod http://127.0.0.1:8753/api/v1/health
@@ -154,20 +154,20 @@ jobs:
           # sauber beenden wie über das Tray-Symbol
           Start-Process -FilePath $engine -ArgumentList '--stop' -Wait -NoNewWindow
           $p.WaitForExit(8000) | Out-Null
-          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force; throw 'AirDeck --stop hat die Instanz nicht beendet' }
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force; throw 'AnMaChaCast --stop hat die Instanz nicht beendet' }
           if (-not $r.ok) { throw 'Health-Check fehlgeschlagen' }
           if ($page.StatusCode -ne 200 -or -not ($page.Content -match 'AnMaCha Cast')) { throw 'Studio-Startseite wird nicht ausgeliefert' }
           if ($js.StatusCode -ne 200) { throw 'Studio-Skripte werden nicht ausgeliefert' }
           Write-Host 'Engine startet und antwortet.'
           # Windows-Programm: startet die Engine selbst (nur Infobereich, ohne Fenster)
-          $env:AIRDECK_PORT = '8756'
-          $w = Start-Process -FilePath dist/AirDeck/AirDeck.exe -ArgumentList '--minimized' -PassThru
+          $env:ANMACHA_CAST_PORT = '8756'
+          $w = Start-Process -FilePath dist/AnMaChaCast/AnMaChaCast.exe -ArgumentList '--minimized' -PassThru
           $ok = $false
           for ($i = 0; $i -lt 60 -and -not $ok; $i++) { Start-Sleep -Seconds 1; try { $ok = (Invoke-RestMethod http://127.0.0.1:8756/api/v1/health).ok } catch {} }
           Start-Process -FilePath $engine -ArgumentList '--stop' -Wait -NoNewWindow
           if (-not $w.HasExited) { Stop-Process -Id $w.Id -Force }
-          if (-not $ok) { throw 'AirDeck.exe hat die Engine nicht gestartet' }
-          Write-Host 'AirDeck.exe startet die Engine.'
+          if (-not $ok) { throw 'AnMaChaCast.exe hat die Engine nicht gestartet' }
+          Write-Host 'AnMaChaCast.exe startet die Engine.'
       - name: Installer bauen (Inno Setup)
         shell: pwsh
         run: |
@@ -204,12 +204,12 @@ jobs:
           $setup = Get-ChildItem dist/AnMaCha-Cast-Setup-*.exe | Select-Object -First 1
           $install = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/SP-', '/TASKS=""' -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer fehlgeschlagen: $($install.ExitCode)" }
-          if (Test-Path "$env:LOCALAPPDATA/AirDeck/data/installer-bootstrap.json") { throw 'Silent-Setup darf keine leeren Admin-Zugangsdaten anlegen' }
-          if (-not (Test-Path "$env:LOCALAPPDATA/Programs/AirDeck/AirDeck.exe")) { throw 'AirDeck.exe nach Installation nicht gefunden' }
-          $exe = "$env:LOCALAPPDATA/Programs/AirDeck/airdeck-engine.exe"
-          if (-not (Test-Path $exe)) { throw 'airdeck-engine.exe nach Installation nicht gefunden' }
-          $env:AIRDECK_DATA = "$env:RUNNER_TEMP/airdeck-inst"
-          $env:AIRDECK_PORT = '8755'
+          if (Test-Path "$env:LOCALAPPDATA/AnMaChaCast/data/installer-bootstrap.json") { throw 'Silent-Setup darf keine leeren Admin-Zugangsdaten anlegen' }
+          if (-not (Test-Path "$env:LOCALAPPDATA/Programs/AnMaChaCast/AnMaChaCast.exe")) { throw 'AnMaChaCast.exe nach Installation nicht gefunden' }
+          $exe = "$env:LOCALAPPDATA/Programs/AnMaChaCast/anmachacast-engine.exe"
+          if (-not (Test-Path $exe)) { throw 'anmachacast-engine.exe nach Installation nicht gefunden' }
+          $env:ANMACHA_CAST_DATA = "$env:RUNNER_TEMP/anmachacast-inst"
+          $env:ANMACHA_CAST_PORT = '8755'
           $p = Start-Process $exe -ArgumentList '--headless', '--no-tray' -PassThru
           Start-Sleep -Seconds 5
           $r = Invoke-RestMethod http://127.0.0.1:8755/api/v1/health
@@ -217,7 +217,7 @@ jobs:
           Stop-Process -Id $p.Id -Force
           if (-not $r.ok) { throw 'Installierte Version antwortet nicht' }
           if ($page.StatusCode -ne 200) { throw 'Installierte Version liefert das Studio nicht aus' }
-          $uninstall = Start-Process "$env:LOCALAPPDATA/Programs/AirDeck/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          $uninstall = Start-Process "$env:LOCALAPPDATA/Programs/AnMaChaCast/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
           if ($uninstall.ExitCode -ne 0) { throw "Deinstallation fehlgeschlagen: $($uninstall.ExitCode)" }
           if (Test-Path $exe) { throw 'Engine nach Deinstallation noch vorhanden' }
           Write-Host 'Installer: Installation, Start und Deinstallation OK'
@@ -229,7 +229,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: AnMaCha-Cast-Windows
-          path: dist/AirDeck
+          path: dist/AnMaChaCast
           retention-days: 1
 
   docker:
@@ -414,8 +414,8 @@ jobs:
           docker stop -t 10 anmachacast-arm64
           test "$(docker inspect -f '{{.State.ExitCode}}' anmachacast-arm64)" = "0" || (echo "Container wurde nicht sauber beendet" && exit 1)
 
-  # Linux-Paket: .deb (Paketname/Benutzer/Pfade bleiben bewusst "airdeck") mit systemd-Dienst
-  # „anmachacast-server.service“, Daten unter /var/lib/airdeck. Läuft auf einem echten ubuntu-latest-Runner (VM mit systemd als PID 1).
+  # Linux-Paket: .deb "anmachacast" mit systemd-Dienst „anmachacast-server.service“, Daten unter
+  # /var/lib/anmachacast; ersetzt ein früher installiertes Paket "airdeck" und übernimmt dessen Daten. Läuft auf einem echten ubuntu-latest-Runner (VM mit systemd als PID 1).
   linux:
     needs: test
     runs-on: ubuntu-latest
@@ -433,7 +433,34 @@ jobs:
           sudo apt-get update -q
           # Abhängigkeiten müssen aus dem .deb selbst kommen. --no-install-recommends verhindert,
           # dass ein versehentliches Recommends den fehlenden Encoder kaschiert.
-          sudo apt-get install -y -q --no-install-recommends "./dist/airdeck_${VER}_amd64.deb"
+          # Update vom Paket der Zeit vor der Umbenennung ("airdeck") simulieren: Dienstkonto, Konfiguration und
+          # Sendedaten müssen übernommen werden, das alte Paket wird ersetzt.
+          mkdir -p old/DEBIAN
+          printf 'Package: airdeck\nVersion: 0.0.1\nArchitecture: amd64\nMaintainer: ci <ci@example.invalid>\nDescription: alte Version vor der Umbenennung\n' > old/DEBIAN/control
+          cat > old/DEBIAN/postinst <<'OLDPOSTINST'
+          #!/bin/sh
+          set -e
+          addgroup --system airdeck
+          adduser --system --ingroup airdeck --home /var/lib/airdeck --no-create-home --shell /usr/sbin/nologin airdeck
+          mkdir -p /etc/airdeck /var/lib/airdeck/media /var/log/airdeck
+          printf '[paths]\ndata = /var/lib/airdeck\n' > /etc/airdeck/airdeck.conf
+          echo sendedaten > /var/lib/airdeck/media/lied.txt
+          chown -R airdeck:airdeck /etc/airdeck /var/lib/airdeck /var/log/airdeck
+          OLDPOSTINST
+          sed -i 's/^          //' old/DEBIAN/postinst
+          chmod 755 old/DEBIAN/postinst
+          dpkg-deb --root-owner-group --build old old.deb
+          sudo dpkg -i old.deb
+          sudo test -f /var/lib/airdeck/media/lied.txt
+          sudo apt-get install -y -q --no-install-recommends "./dist/anmachacast_${VER}_amd64.deb"
+          # Übernahme prüfen
+          if dpkg -s airdeck >/dev/null 2>&1; then echo "altes Paket airdeck wurde nicht ersetzt"; exit 1; fi
+          sudo test "$(cat /var/lib/anmachacast/media/lied.txt 2>/dev/null || sudo cat /var/lib/anmachacast/media/lied.txt)" = "sendedaten" || (echo "Sendedaten wurden nicht übernommen" && exit 1)
+          test ! -e /var/lib/airdeck && test ! -e /etc/airdeck || (echo "alte Ordner sind noch da" && exit 1)
+          sudo grep -q '/var/lib/anmachacast' /etc/anmachacast/anmachacast.conf || (echo "Pfade in der Konfiguration nicht angepasst" && sudo cat /etc/anmachacast/anmachacast.conf && exit 1)
+          getent passwd anmachacast >/dev/null && ! getent passwd airdeck >/dev/null || (echo "Dienstkonto nicht umbenannt" && exit 1)
+          test "$(sudo stat -c %U /var/lib/anmachacast/media/lied.txt)" = "anmachacast" || (echo "Besitzer der Sendedaten falsch" && exit 1)
+          echo "Übernahme aus dem Paket airdeck OK"
           command -v ffmpeg >/dev/null || (echo "ffmpeg wurde nicht als Paket-Abhängigkeit installiert" && exit 1)
           ffmpeg -version | head -1
           sudo systemctl is-active anmachacast-server.service
@@ -462,21 +489,21 @@ jobs:
           curl -fs http://127.0.0.1:8750/api/v1/health | grep -q '"ok":true'
           echo "Neustart über systemd (Exit-Code 75) OK: PID $PID1 -> $PID2"
           # Entfernen (purge): Programmdateien und Konfiguration weg, Daten (Datenbank, Medien) bleiben.
-          # /var/lib/airdeck gehört dem Dienstkonto „airdeck“ und ist nur für dieses (und root) lesbar (750) –
+          # /var/lib/anmachacast gehört dem Dienstkonto „anmachacast“ und ist nur für dieses (und root) lesbar (750) –
           # der Runner-Benutzer selbst darf ohne sudo gar nicht hineinschauen. Genau das war die eigentliche
           # Ursache des bisherigen Fehlschlags: „test -f“ ohne sudo meldete „nicht gefunden“, obwohl die
           # Datenbank die ganze Zeit da war (siehe Diagnose: „Permission denied“ statt einer leeren Liste).
-          sudo test -f /var/lib/airdeck/airdeck.db || (echo "Diagnose: airdeck.db fehlt schon vor dem Stopp/Purge" && sudo ls -la /var/lib/airdeck && sudo journalctl -u anmachacast-server --no-pager -n 100 && exit 1)
+          sudo test -f /var/lib/anmachacast/airdeck.db || (echo "Diagnose: Datenbank fehlt schon vor dem Stopp/Purge" && sudo ls -la /var/lib/anmachacast && sudo journalctl -u anmachacast-server --no-pager -n 100 && exit 1)
           sudo systemctl stop anmachacast-server.service
-          sudo dpkg -P airdeck
-          test ! -e /opt/airdeck
-          test ! -e /etc/airdeck/airdeck.conf
-          sudo test -f /var/lib/airdeck/airdeck.db || (echo "Daten wurden beim Entfernen gelöscht" && sudo ls -la /var/lib/airdeck && exit 1)
+          sudo dpkg -P anmachacast
+          test ! -e /opt/anmachacast
+          test ! -e /etc/anmachacast/anmachacast.conf
+          sudo test -f /var/lib/anmachacast/airdeck.db || (echo "Daten wurden beim Entfernen gelöscht" && sudo ls -la /var/lib/anmachacast && exit 1)
           echo "Linux-Paket: Installation, Dienst, Neustart, Health-Check und Purge OK"
       - uses: actions/upload-artifact@v4
         with:
           name: AnMaCha-Cast-Linux-Deb
-          path: dist/airdeck_*.deb
+          path: dist/anmachacast_*.deb
           retention-days: 1
 
   android:
@@ -541,10 +568,10 @@ jobs:
         run: |
           mkdir -p out
           cp artifacts/AnMaCha-Cast-Windows-Installer/*.exe out/AnMaCha-Cast-Setup.exe
-          mv artifacts/AnMaCha-Cast-Windows artifacts/AirDeck && (cd artifacts && zip -qr ../out/AnMaCha-Cast-Windows-Portable.zip AirDeck)
+          mv artifacts/AnMaCha-Cast-Windows artifacts/AnMaChaCast && (cd artifacts && zip -qr ../out/AnMaCha-Cast-Windows-Portable.zip AnMaChaCast)
           cp artifacts/AnMaCha-Cast-Android/AnMaCha-Cast-Android.apk out/AnMaCha-Cast-Android.apk
-          # stabiler Dateiname für den "latest"-Downloadlink; der Paketname (im Innern, für apt) bleibt "anmachacast"
-          cp artifacts/AnMaCha-Cast-Linux-Deb/airdeck_*.deb out/AnMaCha-Cast-Linux.deb
+          # stabiler Dateiname für den "latest"-Downloadlink (das Paket selbst heißt "anmachacast")
+          cp artifacts/AnMaCha-Cast-Linux-Deb/anmachacast_*.deb out/AnMaCha-Cast-Linux.deb
           ls -la out
       - name: Release-Tag bestimmen (Tag-Push oder Version aus package.json)
         id: rel

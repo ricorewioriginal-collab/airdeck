@@ -36,7 +36,7 @@ Deinstallieren geht über *Einstellungen → Apps*. Deine Daten bleiben erhalten
 
 #### Warnung von Windows (SmartScreen)
 Windows warnt bei Programmen, die nicht mit einem gekauften Code-Signing-Zertifikat signiert sind, und bei Downloads, die noch wenige Nutzer haben. Für ein Hobbyprojekt ohne Zertifikat lässt sich das nicht abschalten. Klicke auf **„Weitere Informationen“ → „Trotzdem ausführen“**.
-Die Build-Pipeline signiert AirDeck.exe und das Setup automatisch, sobald ein Zertifikat hinterlegt ist: GitHub-Secrets `WINDOWS_CERT_PFX_B64` (PFX als Base64) und `WINDOWS_CERT_PASSWORD`. Günstige Wege dazu sind Microsoft *Trusted Signing* (Azure) oder ein Open-Source-Zertifikat, zum Beispiel von Certum.
+Die Build-Pipeline signiert AnMaChaCast.exe und das Setup automatisch, sobald ein Zertifikat hinterlegt ist: GitHub-Secrets `WINDOWS_CERT_PFX_B64` (PFX als Base64) und `WINDOWS_CERT_PASSWORD`. Günstige Wege dazu sind Microsoft *Trusted Signing* (Azure) oder ein Open-Source-Zertifikat, zum Beispiel von Certum.
 
 ### Datenspeicher (im Installer oder später unter „Datenspeicher & Sync“)
 - **Nur lokal** (Standard): keine Einrichtung, läuft offline.
@@ -50,12 +50,17 @@ Ist die Datenbank nicht erreichbar, startet AnMaCha Cast trotzdem lokal und zeig
 
 ### B) Ohne Installation (portable)
 1. `AnMaCha-Cast-Windows-Portable.zip` entpacken, z. B. nach `D:\AnMaChaCast`.
-2. `AirDeck.exe` doppelklicken. AnMaCha Cast öffnet sein eigenes Fenster und startet die Audio-Engine (`airdeck-engine.exe`). Schließt du das Fenster, laufen Automation und Streams im Hintergrund weiter (Symbol im Infobereich). Beenden über das Symbol.
-3. `AirDeck-Headless.cmd` startet nur die Engine, ohne Fenster (24/7 auf einem Sende-PC).
+2. `AnMaChaCast.exe` doppelklicken. AnMaCha Cast öffnet sein eigenes Fenster und startet die Audio-Engine (`anmachacast-engine.exe`). Schließt du das Fenster, laufen Automation und Streams im Hintergrund weiter (Symbol im Infobereich). Beenden über das Symbol.
+3. `AnMaChaCast-Headless.cmd` startet nur die Engine, ohne Fenster (24/7 auf einem Sende-PC).
 
 In beiden Fällen liegen Musik, Einstellungen und die verschlüsselten Passwörter unter `%LOCALAPPDATA%\AnMaChaCast\data`.
 Soll alles im Programmordner bleiben (z. B. USB-Stick), vorher `set ANMACHA_CAST_DATA=.\data` setzen
 (das bisherige `AIRDECK_DATA` funktioniert als Legacy-Fallback weiter).
+
+**Update von der Version vor der Umbenennung (AirDeck):** Das neue Setup erkennt die vorhandene Installation und ersetzt sie.
+`AirDeck.exe` und `airdeck-engine.exe` werden durch `AnMaChaCast.exe` und `anmachacast-engine.exe` ersetzt, alte Startmenü-/Desktop-Verknüpfungen,
+der Autostart-Eintrag und die Firewall-Regel werden auf den neuen Namen umgestellt. Deine Daten bleiben, wo sie sind: lagen sie unter
+`%LOCALAPPDATA%\AirDeck\data`, wird dieser Ordner weiterverwendet (nichts wird kopiert oder verschoben).
 
 ### Erster Test (5 Minuten)
 1. Unter **Playlist / Archiv → „＋ Ordner“** einen Musikordner hochladen oder Dateien einfach ins Fenster ziehen.
@@ -74,31 +79,32 @@ Für einen eigenen Linux-Server ohne Docker: `AnMaCha-Cast-Linux.deb` herunterla
 sudo apt install ./AnMaCha-Cast-Linux.deb   # oder: sudo dpkg -i AnMaCha-Cast-Linux.deb
 ```
 
-Das Paket richtet einen eigenen Systembenutzer `airdeck` ein und startet den Dienst `anmachacast-server` sofort
+Das Paket richtet einen eigenen Systembenutzer `anmachacast` ein und startet den Dienst `anmachacast-server` sofort
 (automatisch bei jedem Systemstart). Das Einmal-Passwort bzw. Admin-Token steht im Protokoll:
 
 ```sh
 sudo journalctl -u anmachacast-server -n 50
 ```
 
-Konfiguration unter `/etc/airdeck/airdeck.conf`, Daten (Musik, Datenbank, verschlüsselte Passwörter) unter
-`/var/lib/airdeck`, Protokoll unter `/var/log/airdeck`. Ohne installiertes `ffmpeg` läuft der Dienst weiter,
+Konfiguration unter `/etc/anmachacast/anmachacast.conf`, Daten (Musik, Datenbank, verschlüsselte Passwörter) unter
+`/var/lib/anmachacast`, Protokoll unter `/var/log/anmachacast`. Ohne installiertes `ffmpeg` läuft der Dienst weiter,
 nur ohne 24/7-Automation/Encoder – `sudo apt install ffmpeg` und `sudo systemctl restart anmachacast-server` reicht nach.
 Standardmäßig ist AnMaCha Cast nur von diesem Server aus erreichbar (`127.0.0.1`); Netzwerkfreigabe wie bei den anderen
-Plattformen über den Setup-Assistenten im Studio oder `bind = lan` in `airdeck.conf`.
+Plattformen über den Setup-Assistenten im Studio oder `bind = lan` in `anmachacast.conf`.
 
 ```sh
 sudo systemctl status anmachacast-server     # Zustand
 sudo systemctl restart anmachacast-server    # Neu starten
-sudo apt remove airdeck                      # Entfernen (Daten bleiben erhalten)
-sudo apt purge airdeck                       # Entfernen inkl. Konfiguration (Daten bleiben trotzdem erhalten)
+sudo apt remove anmachacast                  # Entfernen (Daten bleiben erhalten)
+sudo apt purge anmachacast                   # Entfernen inkl. Konfiguration (Daten bleiben trotzdem erhalten)
 ```
 
-Der Paketname, Systembenutzer und die Pfade (`airdeck`, `/etc/airdeck`, `/var/lib/airdeck`, `/var/log/airdeck`)
-bleiben bewusst unverändert (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 7) – eine Änderung würde apt-Metadaten
-und bestehende Installationen brechen. Nur die systemd-Diensteinheit selbst heißt seit der Umbenennung
-`anmachacast-server.service` (vorher `airdeck-server.service`); ein bestehender systemd-basierter Dienst wird
-beim nächsten `apt upgrade` automatisch auf den neuen Einheitennamen migriert (siehe `postinst`).
+**Update vom früheren Paket `airdeck`:** `apt install ./AnMaCha-Cast-Linux.deb` ersetzt es (das Paket `anmachacast` ersetzt und
+verdrängt `airdeck`). Dabei übernimmt `postinst` das Dienstkonto (`airdeck` → `anmachacast`), verschiebt `/etc/airdeck`,
+`/var/lib/airdeck` und `/var/log/airdeck` nach `/etc/anmachacast`, `/var/lib/anmachacast` und `/var/log/anmachacast`
+und stellt absolute Pfade in der Konfiguration um. Sendedaten und Datenbank bleiben dabei erhalten; die Datei
+`airdeck.db` im Datenordner behält ihren Namen (interner Dateiname). Der Diensteinheiten-Name ist
+`anmachacast-server.service` (früher `airdeck-server.service`).
 
 ## Android
 

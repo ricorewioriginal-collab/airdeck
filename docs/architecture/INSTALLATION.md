@@ -61,7 +61,7 @@ Jeder Schritt lässt sich überspringen und später unter **Administration** än
 
 **Stand der Umsetzung** (`src/server/services/setup.ts`, `studio/js/setup.js`):
 - Der Assistent öffnet sich beim ersten Start automatisch für die Administration. Bestehende Installationen mit Titeln, Ausgängen oder Konten bleiben unberührt. Erneut starten geht über „Einrichtung (Assistent)“ im Menü.
-- Betriebsart, Datenbank, Netzwerk und Medienordner werden in `airdeck.conf` geschrieben, Kommentare bleiben erhalten. Sie gelten nach einem Neustart, den der Assistent selbst auslöst. Unter Docker/systemd beendet sich AnMaChaCast dafür mit Code 75 und der Dienst-Manager startet neu.
+- Betriebsart, Datenbank, Netzwerk und Medienordner werden in `anmachacast.conf` geschrieben, Kommentare bleiben erhalten. Sie gelten nach einem Neustart, den der Assistent selbst auslöst. Unter Docker/systemd beendet sich AnMaChaCast dafür mit Code 75 und der Dienst-Manager startet neu.
 - Datenbank-Wechsel: Die Verbindung wird getestet, der bisherige Stand in die neue Datenbank übernommen und das Passwort verschlüsselt im Secret-Store abgelegt (nicht in der Datei).
 - Speicher: **Vorhandene Musikordner einbinden**. Die Titel bleiben, wo sie sind. AnMaCha Cast indiziert sie, gleicht jede Minute ab und löscht nie eine Originaldatei. Ein nicht erreichbares Laufwerk entfernt nichts aus der Bibliothek.
 - KI lokal: Ollama wird unter `http://127.0.0.1:11434` gesucht und als Text-Anbieter eingetragen.

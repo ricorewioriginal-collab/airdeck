@@ -13,19 +13,19 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using AirDeck.Api;
-using AirDeck.ViewModels;
+using AnMaChaCast.Api;
+using AnMaChaCast.ViewModels;
 
-namespace AirDeck
+namespace AnMaChaCast
 {
     public partial class MainWindow : Window
     {
-        static readonly string LocalDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AirDeck");
+        static readonly string LocalDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AnMaChaCast");
         static readonly string BoundsFile = Path.Combine(LocalDir, "fenster.txt");
         static readonly string[] DeckIds = { "A", "B", "C", "D" };
 
         readonly EventWaitHandle showSignal;
-        readonly EventWaitHandle quitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "AirDeck.Studio.Quit");
+        readonly EventWaitHandle quitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "AnMaChaCast.Studio.Quit");
         readonly bool startHidden;
         readonly System.Windows.Forms.NotifyIcon tray = new System.Windows.Forms.NotifyIcon();
         readonly DispatcherTimer watch = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -91,14 +91,14 @@ namespace AirDeck
                     showSignal.WaitOne();
                     try { Dispatcher.Invoke(ShowStudio); } catch { return; }
                 }
-            }) { IsBackground = true, Name = "AirDeck.Show" };
+            }) { IsBackground = true, Name = "AnMaChaCast.Show" };
             t.Start();
-            // AirDeck.exe --quit (Update): nur das Fenster schließen, die Engine läuft weiter
+            // AnMaChaCast.exe --quit (Update): nur das Fenster schließen, die Engine läuft weiter
             new Thread(() =>
             {
                 quitSignal.WaitOne();
                 try { Dispatcher.Invoke(CloseWindowOnly); } catch { }
-            }) { IsBackground = true, Name = "AirDeck.Quit" }.Start();
+            }) { IsBackground = true, Name = "AnMaChaCast.Quit" }.Start();
         }
 
         // ---------- Engine verbinden ----------

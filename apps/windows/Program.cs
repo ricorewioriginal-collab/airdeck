@@ -1,26 +1,28 @@
 // AnMaCha Cast für Windows: ein Programm, ein Fenster. Ein zweiter Start holt nur das vorhandene Fenster nach vorn.
-//   AirDeck.exe              Studio öffnen (startet die Engine bei Bedarf)
-//   AirDeck.exe --minimized  nur im Infobereich starten (Autostart bei der Anmeldung)
+//   AnMaChaCast.exe              Studio öffnen (startet die Engine bei Bedarf)
+//   AnMaChaCast.exe --minimized  nur im Infobereich starten (Autostart bei der Anmeldung)
 // Das Hauptfenster (MainWindow) ist natives WPF; nur noch für Ansichten, die dort nicht nachgebaut sind,
 // öffnet sich bei Bedarf ein eingebettetes WebView2-Fenster (BrowserForm).
 using System;
 using System.Threading;
 
-namespace AirDeck
+namespace AnMaChaCast
 {
     static class Program
     {
         [STAThread]
         static void Main(string[] args)
         {
-            // AirDeck.exe --quit: laufendes Fenster schließen, Engine weiterlaufen lassen (z. B. vor einem Update)
+            // AnMaChaCast.exe --quit: laufendes Fenster schließen, Engine weiterlaufen lassen (z. B. vor einem Update)
             if (Array.Exists(args, a => a.Equals("--quit", StringComparison.OrdinalIgnoreCase)))
             {
-                if (EventWaitHandle.TryOpenExisting("AirDeck.Studio.Quit", out var quit)) using (quit) quit.Set();
+                // auch ein noch laufendes Fenster der Version vor der Umbenennung (AnMaChaCast.exe) schließen, damit ein Update es ersetzen kann
+                foreach (var name in new[] { "AnMaChaCast.Studio.Quit", "AirDeck.Studio.Quit" })
+                    if (EventWaitHandle.TryOpenExisting(name, out var quit)) using (quit) quit.Set();
                 return;
             }
-            using (var mutex = new Mutex(true, "AirDeck.Studio.Window", out var first))
-            using (var show = new EventWaitHandle(false, EventResetMode.AutoReset, "AirDeck.Studio.Show"))
+            using (var mutex = new Mutex(true, "AnMaChaCast.Studio.Window", out var first))
+            using (var show = new EventWaitHandle(false, EventResetMode.AutoReset, "AnMaChaCast.Studio.Show"))
             {
                 if (!first)
                 {
@@ -33,7 +35,7 @@ namespace AirDeck
                 System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
                 if (!Engine.Installed)
                 {
-                    System.Windows.Forms.MessageBox.Show("Die AnMaCha-Cast-Engine (airdeck-engine.exe) fehlt im Programmordner. Bitte AnMaCha Cast neu installieren.", "AnMaCha Cast", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                    System.Windows.Forms.MessageBox.Show("Die AnMaCha-Cast-Engine (anmachacast-engine.exe) fehlt im Programmordner. Bitte AnMaCha Cast neu installieren.", "AnMaCha Cast", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
                     return;
                 }
                 var minimized = Array.Exists(args, a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));

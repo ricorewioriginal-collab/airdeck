@@ -29,15 +29,14 @@ val appVersionName = file("../../../package.json").let { pkg ->
 }
 
 android {
-    // namespace/applicationId bleiben bewusst "app.airdeck.studio" (siehe docs/REBRANDING_ANMACHA_CAST.md
-    // Phase 5): sie müssen exakt zu den Kotlin-"package"-Deklarationen passen (scoped aus dieser
-    // Umbenennung ausgenommen, siehe apps/android/app/src/main/kotlin/app/airdeck/) und applicationId ist
-    // zusätzlich Androids Signatur-/Update-Kennung bestehender Installationen.
-    namespace = "app.airdeck.studio"
+    // Kennung "app.anmachacast.studio" (seit der Umbenennung AirDeck → AnMaCha Cast; vorher "app.airdeck.studio").
+    // Android behandelt sie als neue App: eine noch installierte alte AirDeck-App bitte deinstallieren und die
+    // Verbindung zum Server neu koppeln (siehe docs/REBRANDING_ANMACHA_CAST.md).
+    namespace = "app.anmachacast.studio"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "app.airdeck.studio"
+        applicationId = "app.anmachacast.studio"
         minSdk = 26
         targetSdk = 35
         // Steigt mit jedem CI-Lauf, damit Updates über die installierte App als neuere Version gelten

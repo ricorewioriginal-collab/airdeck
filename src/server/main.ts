@@ -1,10 +1,9 @@
 // AnMaCha Cast Server – Einstiegspunkt.
 //   node src/server/main.ts               Server (Entwicklung, Node >= 22.18)
-//   airdeck-engine.exe                     Windows: Engine + Studio-Fenster (öffnet AirDeck.exe, das eigentliche Programm;
-//                                           Programmname bleibt bewusst "AirDeck", siehe apps/windows/AnMaChaCast.csproj)
-//   airdeck-engine.exe --headless          nur Engine, z. B. für Autostart/24/7 ohne Fenster
-//   airdeck-engine.exe --shell             vom Windows-Programm gestartet: kein eigenes Fenster, kein eigenes Tray-Symbol
-//   airdeck-engine.exe --print-url         Adresse fürs Studio-Fenster ausgeben (für AirDeck.exe), Exit 0 = läuft
+//   anmachacast-engine.exe                 Windows: Engine + Studio-Fenster (öffnet AnMaChaCast.exe, das eigentliche Programm)
+//   anmachacast-engine.exe --headless          nur Engine, z. B. für Autostart/24/7 ohne Fenster
+//   anmachacast-engine.exe --shell             vom Windows-Programm gestartet: kein eigenes Fenster, kein eigenes Tray-Symbol
+//   anmachacast-engine.exe --print-url         Adresse fürs Studio-Fenster ausgeben (für AnMaChaCast.exe), Exit 0 = läuft
 //   … --new-admin-token                   neues Admin-Token ausgeben
 //   … --import-installer-bootstrap        einmalige, lokale Installer-Daten übernehmen und beenden
 
@@ -28,21 +27,21 @@ import { createHttpServer } from './http.ts';
 
 declare global {
   // wird im gebündelten Windows-/Desktop-Build per Banner gesetzt (scripts/build.mjs)
-  var __AIRDECK_ROOT: string | undefined;
-  var __AIRDECK_PACKAGED: boolean | undefined;
-  var __AIRDECK_BUILD: string | undefined;
+  var __ANMACHACAST_ROOT: string | undefined;
+  var __ANMACHACAST_PACKAGED: boolean | undefined;
+  var __ANMACHACAST_BUILD: string | undefined;
 }
 
 const argv = process.argv.slice(2);
-const packaged = globalThis.__AIRDECK_PACKAGED === true;
-const root = envVar(process.env, 'ROOT') ?? globalThis.__AIRDECK_ROOT ?? resolve(fileURLToPath(import.meta.url), '../../..');
+const packaged = globalThis.__ANMACHACAST_PACKAGED === true;
+const root = envVar(process.env, 'ROOT') ?? globalThis.__ANMACHACAST_ROOT ?? resolve(fileURLToPath(import.meta.url), '../../..');
 const desktop = !argv.includes('--headless') && (argv.includes('--desktop') || packaged);
-/** vom Windows-Programm (AirDeck.exe) gestartet: das Programm hat Fenster und Tray-Symbol */
+/** vom Windows-Programm (AnMaChaCast.exe) gestartet: das Programm hat Fenster und Tray-Symbol */
 const shell = argv.includes('--shell');
 /** eigentliches Windows-Programm neben der Engine (Fenster, Tray), sofern installiert */
-const windowsApp = process.platform === 'win32' && packaged && basename(process.execPath).toLowerCase() !== 'airdeck.exe' ? join(dirname(process.execPath), 'AirDeck.exe') : '';
+const windowsApp = process.platform === 'win32' && packaged && basename(process.execPath).toLowerCase() !== 'anmachacast.exe' ? join(dirname(process.execPath), 'AnMaChaCast.exe') : '';
 const hasWindowsApp = !!windowsApp && existsSync(windowsApp);
-// Betriebsart, Port, Adresse und Pfade aus airdeck.conf (docs/architecture/STORAGE.md)
+// Betriebsart, Port, Adresse und Pfade aus anmachacast.conf (docs/architecture/STORAGE.md)
 const config = resolveConfig({ env: process.env, root, packaged, desktop });
 const { port, host } = config;
 const dataDir = config.paths.data;
@@ -59,7 +58,7 @@ function openStudio(url: string): void {
   if (process.platform === 'win32') {
     // '' wird von Node als "" übergeben = leerer Fenstertitel für "start"
     // Eigenes Profil: App-Fenster startet unabhängig vom normalen Edge, darf ohne Klick mithören (Autoplay)
-    const profile = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'AirDeck', 'browser');
+    const profile = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'AnMaChaCast', 'browser');
     const edge = spawn('cmd', ['/c', 'start', '', 'msedge', `--app=${url}`, `--user-data-dir=${profile}`, '--no-first-run', '--autoplay-policy=no-user-gesture-required'], detached);
     edge.on('exit', (code) => {
       if (code) spawn('cmd', ['/c', 'start', '', url], detached).unref();
@@ -160,14 +159,14 @@ async function main(): Promise<void> {
   const secrets = new SecretStore(dataDir);
   const runningToken = () => secrets.get('desktop:token') ?? '';
 
-  // AirDeck.exe --stop: laufende Instanz sauber beenden (Tray, Startmenü „AirDeck beenden“)
+  // AnMaChaCast.exe --stop: laufende Instanz sauber beenden (Tray, Startmenü „AnMaCha Cast beenden“)
   if (argv.includes('--stop')) {
     const r = await fetch(`http://${localHost}:${port}/api/v1/system/shutdown`, { method: 'POST', headers: { Authorization: `Bearer ${runningToken()}` }, signal: AbortSignal.timeout(5000) }).catch(() => null);
     console.log(r?.ok ? 'AnMaCha Cast wird beendet.' : 'Keine laufende AnMaCha-Cast-Instanz gefunden.');
     process.exit(r?.ok ? 0 : 1);
   }
 
-  // Für AirDeck.exe: Adresse mit dem Zugang dieses PCs (nur an die aufrufende Anwendung, nicht ins Protokoll)
+  // Für AnMaChaCast.exe: Adresse mit dem Zugang dieses PCs (nur an die aufrufende Anwendung, nicht ins Protokoll)
   if (argv.includes('--print-url')) {
     const running = await portInUse(port, host);
     process.stdout.write(`${JSON.stringify({
@@ -205,7 +204,7 @@ async function main(): Promise<void> {
     console.log(`Datenspeicher: ${sync.config.backend} – Abgleich: ${decision ?? 'nicht möglich'}${sync.status.lastError ? ` (${sync.status.lastError})` : ''}`);
   }
   if (writeDefaultConf(config)) console.log(`Grundeinstellungen angelegt: ${config.configFile}`);
-  const app = new AnMaChaCastApp(dataDir, { appRoot: root, secrets, sync, build: globalThis.__AIRDECK_BUILD ?? 'dev', packaged, headless: !desktop, config, docs });
+  const app = new AnMaChaCastApp(dataDir, { appRoot: root, secrets, sync, build: globalThis.__ANMACHACAST_BUILD ?? 'dev', packaged, headless: !desktop, config, docs });
   app.listenHost = host;
   app.listenPort = port;
   console.log(`AnMaCha Cast ${app.version} · Betriebsart: ${config.mode} · Konfiguration: ${config.configFile}`);
@@ -302,7 +301,7 @@ async function main(): Promise<void> {
     console.log(`AnMaCha Cast läuft auf http://${host}:${port}  (Daten: ${dataDir})`);
     // nach einem Neustart aus dem Programm heraus ist das Studio-Fenster schon offen
     if (desktop && !shell && !process.env.ANMACHA_CAST_RESTARTED) openStudio(`http://${localHost}:${port}/#token=${app.svc.auth.desktopToken()}`);
-    // Tray-Symbol hat das Windows-Programm; das PowerShell-Symbol nur ohne AirDeck.exe (ältere portable Fassung)
+    // Tray-Symbol hat das Windows-Programm; das PowerShell-Symbol nur ohne AnMaChaCast.exe (ältere portable Fassung)
     if (packaged && process.platform === 'win32' && !shell && !hasWindowsApp && !argv.includes('--no-tray')) startTray(logFile);
   });
 

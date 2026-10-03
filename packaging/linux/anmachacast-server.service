@@ -1,9 +1,4 @@
 [Unit]
-# Diese Diensteinheit heißt seit der AirDeck→AnMaCha-Cast-Umbenennung "anmachacast-server.service"
-# (vorher "airdeck-server.service"); Dienstkonto, Pfade (/etc/airdeck, /var/lib/airdeck, /var/log/airdeck)
-# und der Debian-Paketname "airdeck" bleiben bewusst unverändert "airdeck" (siehe control, postinst) -
-# ein Umbenennen würde aus einem "apt upgrade" eine komplette Neuinstallation machen. postinst migriert
-# eine zuvor aktive alte Einheit automatisch auf diesen neuen Namen.
 Description=AnMaCha Cast Radio-Automation & Live-Broadcast (Server)
 Documentation=https://github.com/ricorewioriginal-collab/anmacha_cast
 After=network-online.target
@@ -11,10 +6,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=airdeck
-Group=airdeck
-ExecStart=/opt/airdeck/airdeck-server --headless
-WorkingDirectory=/var/lib/airdeck
+User=anmachacast
+Group=anmachacast
+ExecStart=/opt/anmachacast/anmachacast-server --headless
+WorkingDirectory=/var/lib/anmachacast
 Restart=on-failure
 RestartSec=3
 # Neustart aus dem Programm (Setup-Assistent, Datenbank-Wechsel, Update): AnMaCha Cast erkennt den
@@ -28,7 +23,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/etc/airdeck /var/lib/airdeck /var/log/airdeck
+ReadWritePaths=/etc/anmachacast /var/lib/anmachacast /var/log/anmachacast
 UMask=0027
 LimitNOFILE=65536
 
