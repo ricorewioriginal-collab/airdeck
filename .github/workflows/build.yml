@@ -555,6 +555,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+      # Release zur Version gibt es schon (jeder main-Push trägt dieselbe Version): Dateien auf den aktuellen Stand
+      # bringen statt sie zu überspringen - sonst bleibt das Release ohne Installer/APK/DEB. Schlägt das fehl
+      # (z. B. unveränderliches Release), nur warnen: ein roter Build würde auch das Demo-Deploy blockieren.
+      - name: Dateien im vorhandenen Release aktualisieren
+        if: steps.rel.outputs.exists == 'true'
+        continue-on-error: true
+        run: |
+          if ! gh release upload "${{ steps.rel.outputs.tag }}" out/* --clobber; then
+            echo "::warning::Dateien konnten dem vorhandenen Release ${{ steps.rel.outputs.tag }} nicht hinzugefügt werden (unveränderlich?). Neue Version in package.json anlegen oder v*-Tag pushen."
+            exit 1
+          fi
+          gh release edit "${{ steps.rel.outputs.tag }}" --latest --notes "Aktueller Stand von main (${GITHUB_SHA::7}): Windows-Installer und portable Version, Android-APK, Linux-DEB. Server: docker compose up -d (siehe docs/DOCKER.md)." || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - uses: softprops/action-gh-release@v2
         if: steps.rel.outputs.exists != 'true'
         with:
