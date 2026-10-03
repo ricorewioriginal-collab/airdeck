@@ -33,4 +33,6 @@ test('PWA: Service Worker wird als JavaScript ausgeliefert, nutzt keinen API-Cac
   assert.match(html, /apple-mobile-web-app-capable/);
   assert.match(html, /id="btn-mobil"/);
   assert.match(readFileSync(join(studio, 'js/app.js'), 'utf8'), /registerWorker\(\)/);
+  // [hidden] muss gegen display:flex gewinnen (sonst bleibt die Tableiste vor der Anmeldung sichtbar, aber tot)
+  assert.match(readFileSync(join(studio, 'mobil.css'), 'utf8'), /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 });
