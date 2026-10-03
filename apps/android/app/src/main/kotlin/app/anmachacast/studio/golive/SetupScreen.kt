@@ -162,6 +162,7 @@ fun LautFmLoginScreen(onToken: (String) -> Unit, onClose: () -> Unit) {
     var hint by remember { mutableStateOf("Melde dich bei laut.fm an …") }
     var web by remember { mutableStateOf<WebView?>(null) }
     var done by remember { mutableStateOf(false) }
+    var loadFailed by remember { mutableStateOf(false) }
     androidx.activity.compose.BackHandler {
         val w = web
         if (w != null && w.canGoBack()) w.goBack() else onClose()
@@ -177,7 +178,6 @@ fun LautFmLoginScreen(onToken: (String) -> Unit, onClose: () -> Unit) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
-                android.webkit.CookieManager.getInstance().removeAllCookies(null)
                 WebView(c).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
@@ -194,11 +194,12 @@ fun LautFmLoginScreen(onToken: (String) -> Unit, onClose: () -> Unit) {
                             take(LautFmClient.tokenFromRedirect(request.url.toString()))
 
                         override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                            loadFailed = false
                             if (take(LautFmClient.tokenFromRedirect(url))) view.stopLoading()
                         }
 
                         override fun onPageFinished(view: WebView, url: String) {
-                            hint = "Melde dich bei laut.fm an …"
+                            if (!loadFailed) hint = "Melde dich bei laut.fm an …"
                             // Zeigt laut.fm das Token nach dem Login nur als Text an, lesen wir es von der Seite
                             val path = runCatching { android.net.Uri.parse(url).path }.getOrNull() ?: ""
                             if (url.contains("radioadmin.laut.fm") && path != "/login" && path != "/") {
@@ -211,12 +212,14 @@ fun LautFmLoginScreen(onToken: (String) -> Unit, onClose: () -> Unit) {
 
                         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
                             if (request.isForMainFrame && LautFmClient.tokenFromRedirect(request.url.toString()) == null) {
+                                loadFailed = true
                                 hint = "Seite nicht erreichbar – Internetverbindung prüfen"
                             }
                         }
                     }
                     web = this
-                    loadUrl(LautFmClient.loginUrl())
+                    // erst nach dem Löschen alter Cookies laden, sonst kann das Löschen die neue Anmeldung treffen
+                    android.webkit.CookieManager.getInstance().removeAllCookies { loadUrl(LautFmClient.loginUrl()) }
                 }
             },
             onRelease = { it.destroy(); web = null },

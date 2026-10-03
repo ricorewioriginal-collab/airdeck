@@ -25,6 +25,9 @@ class LiveParsersTest {
         assertEquals(fake, LautFmClient.tokenFromRedirect("https://anmachacast.app/laut-fm#x=1&$key=$fake"))
         assertEquals(fake, LautFmClient.tokenFromPageText("Dein Token:\n$fake\nBitte kopieren"))
         assertNull(LautFmClient.tokenFromPageText("Kein Token hier"))
+        // fremde Adressen dürfen kein Token unterschieben
+        assertNull(LautFmClient.tokenFromRedirect("https://example.test/#$key=$fake"))
+        assertNull(LautFmClient.tokenFromRedirect("https://anmachacast.app/anderer-pfad#$key=$fake"))
     }
 
     @Test
