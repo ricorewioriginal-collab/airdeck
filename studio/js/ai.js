@@ -11,7 +11,7 @@ const KIND_LABEL = /** @type {Record<string,string>} */ ({
 });
 const DECISION = /** @type {Record<string,string>} */ ({ break: 'Moderation', news: 'Nachrichten', music: 'Musikplanung', approved: 'Freigegeben', rejected: 'Verworfen', source: 'Quelle' });
 
-/** @typedef {{ api: import('./api.js').Api, url: (p: string) => string, mediaUrl: (id: string) => string, library?: () => any[] }} Ctx */
+/** @typedef {{ api: import('./api.js').Api, url: (p: string) => string, mediaUrl: (id: string) => string, library?: () => any[], me?: () => any }} Ctx */
 
 /** @param {HTMLElement} root @param {Ctx} ctx */
 export function mountAi(root, ctx) {
@@ -32,7 +32,9 @@ export function mountAi(root, ctx) {
 
   async function load() {
     // Einstellungen sind nur für globale Admins sichtbar; Sender-Ansicht auch für Redakteure
-    settings = await ctx.api.get('/ai/settings').catch(() => null);
+    const m = ctx.me?.();
+    const globalAdmin = !m || ((m.roles ?? []).includes('admin') && (m.stationIds ?? []).includes('*'));
+    settings = globalAdmin ? await ctx.api.get('/ai/settings').catch(() => null) : null;
     station = await ctx.api.get(ctx.url('/ai'));
     health = settings ? await ctx.api.get('/ai/health').catch(() => []) : [];
   }

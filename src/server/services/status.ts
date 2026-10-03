@@ -72,8 +72,18 @@ export class StatusService {
     const rt = this.publicRt(stationId);
     const p = period === '30d' ? '30d' : period === 'today' ? 'today' : '7d';
     const st = this.app.svc.stats.stats(stationId, p);
-    const covers = new Set((rt.data.library ?? []).map((m) => m.id));
-    return { station: this.brand(stationId), period: p, items: st.topSongs.slice(0, 20).map((t, i) => ({ rank: i + 1, title: t.title, artist: t.artist, plays: t.plays, cover: covers.has(t.mediaId) ? `/api/v1/stations/${stationId}/media/${t.mediaId}/cover` : null })) };
+    const lib = new Set((rt.data.library ?? []).map((m) => m.id));
+    // Öffentliche Cover-Adresse (ohne Login); nur für Titel, bei denen ein Cover möglich ist
+    return { station: this.brand(stationId), period: p, items: st.topSongs.slice(0, 20).map((t, i) => ({ rank: i + 1, title: t.title, artist: t.artist, plays: t.plays, cover: lib.has(t.mediaId) && this.app.svc.media.coverPossible(stationId, t.mediaId) ? `/api/v1/public/stations/${stationId}/cover/${t.mediaId}` : null })) };
+  }
+
+  /** Cover eines Titels aus den Charts (7 oder 30 Tage) - nur dafür, damit niemand die ganze Bibliothek abgreifen oder ffmpeg anstoßen kann. */
+  async publicCover(stationId: string, mediaId: string): Promise<string> {
+    this.publicRt(stationId);
+    const inCharts = ['7d', '30d'].some((p) => this.app.svc.stats.stats(stationId, p as '7d' | '30d').topSongs.slice(0, 20).some((t) => t.mediaId === mediaId));
+    const file = inCharts ? await this.app.svc.media.cover(stationId, mediaId).catch(() => null) : null;
+    if (!file) throw new AppError(404, 'no_cover', 'Kein Cover');
+    return file;
   }
 
   /** Senderseite: Marke, Stream-Status (Jetzt läuft, Hörer, Stream-Adresse), aktuelle Sendung, Top 5, Podcast-Feed. */
