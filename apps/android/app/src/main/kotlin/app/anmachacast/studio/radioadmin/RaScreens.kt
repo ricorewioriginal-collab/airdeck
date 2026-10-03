@@ -5,7 +5,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,7 +22,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,8 +72,9 @@ fun RaProgramScreen(vm: RadioadminViewModel) {
         TabRow(selectedTabIndex = tab, containerColor = Color.Transparent, contentColor = BrandBlue) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Playlists") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Titel") })
+            Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Automation") })
         }
-        if (tab == 0) RaPlaylists(vm) else RaTracks(vm)
+        when (tab) { 0 -> RaPlaylists(vm); 1 -> RaTracks(vm); else -> RaAutomation(vm) }
     }
     if (ui.playingTrack != null) { /* Vorhören läuft: Anzeige in der Titelzeile */ }
 }
@@ -91,7 +97,7 @@ private fun RaPlaylists(vm: RadioadminViewModel) {
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(p.title, color = BrandText, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("${p.size} Titel · ${fmtSec(p.durationSec)}" + if (p.shuffled) " · gemischt" else "", fontSize = 12.sp, color = BrandMuted)
+                            Text("${p.size} Titel · ${fmtSec(p.durationSec)}" + (if (p.shuffled) " · gemischt" else "") + (if (p.algorithm.isNotBlank()) " · ${p.algorithm}" else ""), fontSize = 12.sp, color = BrandMuted)
                         }
                         Icon(Icons.Filled.ChevronRight, null, tint = BrandMuted)
                     }
@@ -114,6 +120,7 @@ private fun RaPlaylists(vm: RadioadminViewModel) {
                     DropdownMenuItem(text = { Text("Aus Playlist entfernen") }, onClick = { it(); vm.removeFromPlaylist(open, t) })
                 })
             }
+            if (ui.playlistNext != null) OutlinedButton(onClick = vm::morePlaylistTracks, enabled = !ui.loading, modifier = Modifier.fillMaxWidth()) { Text("Mehr laden (${ui.playlistTracks.size} geladen)") }
         }
     }
     if (creating) PlaylistDialog(null, { creating = false }) { t, c, d, s -> creating = false; vm.savePlaylist(null, t, c, d, s) }
@@ -135,10 +142,11 @@ private fun PlaylistDialog(p: RaPlaylist?, onDismiss: () -> Unit, onOk: (String,
 }
 
 @Composable
-private fun TrackRow(t: RaTrack, playing: Boolean, onPlay: () -> Unit, menu: @Composable ColumnScope.(close: () -> Unit) -> Unit) {
+private fun TrackRow(t: RaTrack, playing: Boolean, onPlay: () -> Unit, check: Boolean? = null, onCheck: (Boolean) -> Unit = {}, menu: @Composable ColumnScope.(close: () -> Unit) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Surface(shape = RoundedCornerShape(12.dp), color = BrandPanel, border = androidx.compose.foundation.BorderStroke(1.dp, BrandLine)) {
         Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (check != null) Checkbox(check, onCheck)
             IconButton(onClick = onPlay) { Icon(if (playing) Icons.Filled.Stop else Icons.Filled.PlayArrow, if (playing) "Stoppen" else "Vorhören", tint = if (playing) BrandBad else BrandBlue) }
             Column(Modifier.weight(1f)) {
                 Text(t.title.ifBlank { "Titel ${t.id}" }, color = BrandText, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -154,64 +162,159 @@ private fun TrackRow(t: RaTrack, playing: Boolean, onPlay: () -> Unit, menu: @Co
 }
 
 @Composable
+private fun NumField(label: String, value: String, modifier: Modifier, onChange: (String) -> Unit) =
+    OutlinedTextField(value, { onChange(it.filter(Char::isDigit).take(4)) }, label = { Text(label) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = modifier)
+
+@Composable
 private fun RaTracks(vm: RadioadminViewModel) {
     val ui by vm.ui.collectAsState()
-    var artist by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("") }
-    var genre by remember { mutableStateOf("") }
-    var own by remember { mutableStateOf(false) }
+    var f by remember { mutableStateOf(ui.lastFilter) }
+    var advanced by remember { mutableStateOf(f.active && (f.album.isNotBlank() || f.type.isNotBlank() || f.playlist.isNotBlank() || f.minYear.isNotBlank() || f.maxYear.isNotBlank() || f.minMinutes.isNotBlank() || f.maxMinutes.isNotBlank() || f.privateOnly)) }
     var showProcessing by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<RaTrack?>(null) }
     var tagging by remember { mutableStateOf<RaTrack?>(null) }
     var deleting by remember { mutableStateOf<RaTrack?>(null) }
     var privateUpload by remember { mutableStateOf(false) }
-    val refresh = { if (showProcessing) vm.loadProcessing() else vm.searchTracks(artist, title, genre, own) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) vm.upload(uris, privateUpload) }
+    var uploadType by remember { mutableStateOf("song") }
+    var uploadPlaylist by remember { mutableStateOf<RaPlaylist?>(null) }
+    var uploadTags by remember { mutableStateOf("") }
+    var uploadMenu by remember { mutableStateOf(false) }
+    var selectMode by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf(setOf<Long>()) }
+    var bulkTags by remember { mutableStateOf(false) }
+    var bulkDelete by remember { mutableStateOf(false) }
+    var bulkMenu by remember { mutableStateOf(false) }
+    val refresh = { selected = emptySet(); if (showProcessing) vm.loadProcessing() else vm.searchTracks(f) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) vm.upload(uris, RaUploadOpts(privateUpload, uploadType, uploadPlaylist?.id, uploadTags.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct())) }
     RaFrame(vm, onReload = { vm.loadPlaylists(); vm.loadTagSuggestions() }) {
         Panel(title = "Titel suchen") {
-            OutlinedTextField(artist, { artist = it }, label = { Text("Interpret") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(title, { title = it }, label = { Text("Titel") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(genre, { genre = it }, label = { Text("Genre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Row(Modifier.clickable { own = !own }, verticalAlignment = Alignment.CenterVertically) { Checkbox(own, { own = it }); Text("nur eigene Titel") }
-            Button(onClick = { showProcessing = false; vm.searchTracks(artist, title, genre, own) }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Filled.Search, null); Spacer(Modifier.width(8.dp)); Text("Suchen") }
+            OutlinedTextField(f.artist, { f = f.copy(artist = it) }, label = { Text("Interpret") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(f.title, { f = f.copy(title = it) }, label = { Text("Titel") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(f.genre, { f = f.copy(genre = it) }, label = { Text("Genre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            if (advanced) {
+                OutlinedTextField(f.album, { f = f.copy(album = it) }, label = { Text("Album") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(f.playlist, { f = f.copy(playlist = it) }, label = { Text("In Playlist (Name)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumField("Jahr ab", f.minYear, Modifier.weight(1f)) { f = f.copy(minYear = it) }
+                    NumField("Jahr bis", f.maxYear, Modifier.weight(1f)) { f = f.copy(maxYear = it) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumField("Minuten ab", f.minMinutes, Modifier.weight(1f)) { f = f.copy(minMinutes = it) }
+                    NumField("Minuten bis", f.maxMinutes, Modifier.weight(1f)) { f = f.copy(maxMinutes = it) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = f.type == "", onClick = { f = f.copy(type = "") }, label = { Text("Alle Arten") })
+                    FilterChip(selected = f.type == "song", onClick = { f = f.copy(type = "song") }, label = { Text("Songs") })
+                    FilterChip(selected = f.type == "jingle", onClick = { f = f.copy(type = "jingle") }, label = { Text("Jingles") })
+                }
+                Row(Modifier.clickable { f = f.copy(privateOnly = !f.privateOnly) }, verticalAlignment = Alignment.CenterVertically) { Checkbox(f.privateOnly, { f = f.copy(privateOnly = it) }); Text("nur private Titel") }
+            }
+            Row(Modifier.clickable { f = f.copy(own = !f.own) }, verticalAlignment = Alignment.CenterVertically) { Checkbox(f.own, { f = f.copy(own = it) }); Text("nur eigene Titel") }
+            Button(onClick = { showProcessing = false; selected = emptySet(); vm.searchTracks(f) }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Filled.Search, null); Spacer(Modifier.width(8.dp)); Text("Suchen") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "Weniger Filter" else "Mehr Filter") }
+                if (f.active) TextButton(onClick = { f = RaFilter() }) { Text("Zurücksetzen") }
+            }
         }
         Panel(title = "Hochladen") {
             Row(Modifier.clickable { privateUpload = !privateUpload }, verticalAlignment = Alignment.CenterVertically) { Checkbox(privateUpload, { privateUpload = it }); Text("Privat (nicht in der öffentlichen Songdatenbank)") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Art", color = BrandMuted, fontSize = 13.sp)
+                FilterChip(selected = uploadType == "song", onClick = { uploadType = "song" }, label = { Text("Song") })
+                FilterChip(selected = uploadType == "jingle", onClick = { uploadType = "jingle" }, label = { Text("Jingle") })
+            }
+            Box {
+                OutlinedButton(onClick = { uploadMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Playlist: " + (uploadPlaylist?.title ?: "keine zuordnen"), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis); Icon(Icons.Filled.ArrowDropDown, null)
+                }
+                DropdownMenu(expanded = uploadMenu, onDismissRequest = { uploadMenu = false }) {
+                    DropdownMenuItem(text = { Text("– keine –") }, onClick = { uploadMenu = false; uploadPlaylist = null })
+                    ui.playlists.forEach { p -> DropdownMenuItem(text = { Text(p.title) }, onClick = { uploadMenu = false; uploadPlaylist = p }) }
+                }
+            }
+            OutlinedTextField(uploadTags, { uploadTags = it }, label = { Text("Tags für alle (mit Komma, optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            if (uploadPlaylist != null || uploadTags.isNotBlank()) Note("Playlist und Tags werden gesetzt, sobald laut.fm die Datei verarbeitet hat (bis ca. 3 Minuten) – die App dafür geöffnet lassen.")
             OutlinedButton(onClick = { picker.launch(arrayOf("audio/mpeg", "audio/*")) }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Filled.Upload, null); Spacer(Modifier.width(8.dp)); Text("MP3 zu laut.fm hochladen") }
             TextButton(onClick = { showProcessing = true; vm.loadProcessing() }) { Text("In Verarbeitung anzeigen") }
         }
         val list = if (showProcessing) ui.processing else ui.tracks
         if (showProcessing && list.isEmpty() && !ui.loading) Note("Nichts in Verarbeitung.")
         if (!showProcessing && ui.tracksSearched && list.isEmpty() && !ui.loading) Note("Keine Titel gefunden.")
-        list.forEach { t ->
-            TrackRow(t, playing = ui.playingTrack == t.id, onPlay = { vm.prelisten(t) }, menu = { close ->
-                if (ui.playlists.isNotEmpty()) {
-                    Text("Zu Playlist hinzufügen", fontSize = 11.sp, color = BrandMuted, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                    ui.playlists.forEach { p -> DropdownMenuItem(text = { Text(p.title) }, onClick = { close(); vm.addToPlaylist(p.id, t) }) }
-                    HorizontalDivider()
-                }
-                DropdownMenuItem(text = { Text("Bearbeiten") }, onClick = { close(); editing = t })
-                DropdownMenuItem(text = { Text("Tags") }, onClick = { close(); tagging = t })
-                DropdownMenuItem(text = { Text("Löschen", color = BrandBad) }, onClick = { close(); deleting = t })
-            })
+        if (list.isNotEmpty() && !showProcessing) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${list.size} Titel" + if (ui.tracksNext != null) " (weitere vorhanden)" else "", color = BrandMuted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                FilterChip(selected = selectMode, onClick = { selectMode = !selectMode; if (!selectMode) selected = emptySet() }, label = { Text("Auswählen") })
+            }
         }
+        if (selectMode && selected.isNotEmpty()) {
+            Panel(title = "${selected.size} ausgewählt") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box {
+                        OutlinedButton(onClick = { bulkMenu = true }, enabled = ui.playlists.isNotEmpty()) { Text("Zur Playlist") }
+                        DropdownMenu(expanded = bulkMenu, onDismissRequest = { bulkMenu = false }) {
+                            ui.playlists.forEach { p -> DropdownMenuItem(text = { Text(p.title) }, onClick = { bulkMenu = false; vm.bulkToPlaylist(selected, p.id); selected = emptySet() }) }
+                        }
+                    }
+                    OutlinedButton(onClick = { bulkTags = true }) { Text("Tags") }
+                    OutlinedButton(onClick = { bulkDelete = true }) { Text("Löschen", color = BrandBad) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { selected = list.map { it.id }.toSet() }) { Text("Alle ${list.size}") }
+                    TextButton(onClick = { selected = emptySet() }) { Text("Keine") }
+                }
+            }
+        }
+        list.forEach { t ->
+            TrackRow(t, playing = ui.playingTrack == t.id, onPlay = { vm.prelisten(t) },
+                check = if (selectMode && !showProcessing) t.id in selected else null,
+                onCheck = { on -> selected = if (on) selected + t.id else selected - t.id },
+                menu = { close ->
+                    if (ui.playlists.isNotEmpty()) {
+                        Text("Zu Playlist hinzufügen", fontSize = 11.sp, color = BrandMuted, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                        ui.playlists.forEach { p -> DropdownMenuItem(text = { Text(p.title) }, onClick = { close(); vm.addToPlaylist(p.id, t) }) }
+                        HorizontalDivider()
+                    }
+                    DropdownMenuItem(text = { Text("Bearbeiten") }, onClick = { close(); editing = t })
+                    DropdownMenuItem(text = { Text("Tags") }, onClick = { close(); tagging = t })
+                    if (t.deletable) DropdownMenuItem(text = { Text("Löschen", color = BrandBad) }, onClick = { close(); deleting = t })
+                })
+        }
+        if (!showProcessing && ui.tracksNext != null) OutlinedButton(onClick = { vm.searchTracks(ui.lastFilter, more = true) }, enabled = !ui.loading, modifier = Modifier.fillMaxWidth()) { Text("Mehr laden") }
     }
-    editing?.let { t -> TrackDialog(t, { editing = null }) { a, ti, g, y, ty, pr -> editing = null; vm.saveTrack(t, a, ti, g, y, ty, pr) { refresh() } } }
+    editing?.let { t -> TrackDialog(t, { editing = null }) { a, ti, g, al, y, mo, d, ty, pr -> editing = null; vm.saveTrack(t, a, ti, g, al, y, mo, d, ty, pr) { refresh() } } }
     tagging?.let { t ->
         FormDialog("Tags: ${t.title}", listOf(Triple("tags", "Tags (mit Komma getrennt)", t.tags.joinToString(", "))), onDismiss = { tagging = null }, onOk = { v -> tagging = null; vm.saveTags(t, v["tags"].orEmpty()) { refresh() } },
             extra = { if (ui.tagSuggestions.isNotEmpty()) Note("Vorhanden: " + ui.tagSuggestions.take(30).joinToString(", ")) })
     }
     deleting?.let { t -> ConfirmDialog("Titel löschen?", "„${t.title}“ wird bei laut.fm endgültig gelöscht.", "Löschen", { deleting = null }) { vm.deleteTrack(t) { refresh() } } }
+    if (bulkTags) {
+        FormDialog(
+            "Tags für ${selected.size} Titel", listOf(Triple("add", "Hinzufügen (mit Komma getrennt)", ""), Triple("del", "Entfernen (mit Komma getrennt)", "")),
+            onDismiss = { bulkTags = false },
+            onOk = { v ->
+                bulkTags = false
+                fun parse(k: String) = v[k].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+                val add = parse("add"); val del = parse("del")
+                if (add.isNotEmpty() || del.isNotEmpty()) vm.bulkTags(selected, add, del) { refresh() }
+            },
+            extra = { if (ui.tagSuggestions.isNotEmpty()) Note("Vorhanden: " + ui.tagSuggestions.take(30).joinToString(", ")) },
+        )
+    }
+    if (bulkDelete) ConfirmDialog("${selected.size} Titel löschen?", "Eigene Titel werden bei laut.fm endgültig gelöscht; fremde lassen sich nicht löschen und werden übersprungen.", "Löschen", { bulkDelete = false }) { bulkDelete = false; vm.bulkDelete(selected) { refresh() } }
 }
 
 @Composable
-private fun TrackDialog(t: RaTrack, onDismiss: () -> Unit, onOk: (String, String, String, String, String, Boolean) -> Unit) {
+private fun TrackDialog(t: RaTrack, onDismiss: () -> Unit, onOk: (String, String, String, String, String, String, String, String, Boolean) -> Unit) {
     var type by remember { mutableStateOf(t.type) }
     var priv by remember { mutableStateOf(t.private) }
     FormDialog(
         "Titel bearbeiten",
-        listOf(Triple("artist", "Interpret", t.artist), Triple("title", "Titel", t.title), Triple("genre", "Genre", t.genre), Triple("year", "Jahr", t.year?.toString().orEmpty())),
-        onDismiss = onDismiss, onOk = { v -> onOk(v["artist"].orEmpty(), v["title"].orEmpty(), v["genre"].orEmpty(), v["year"].orEmpty(), type, priv) },
+        listOf(
+            Triple("artist", "Interpret", t.artist), Triple("title", "Titel", t.title), Triple("genre", "Genre", t.genre), Triple("album", "Album", t.album),
+            Triple("year", "Jahr", t.year?.toString().orEmpty()), Triple("month", "Monat (1–12)", t.month?.toString().orEmpty()), Triple("day", "Tag (1–31)", t.day?.toString().orEmpty()),
+        ),
+        onDismiss = onDismiss,
+        onOk = { v -> onOk(v["artist"].orEmpty(), v["title"].orEmpty(), v["genre"].orEmpty(), v["album"].orEmpty(), v["year"].orEmpty(), v["month"].orEmpty(), v["day"].orEmpty(), type, priv) },
         extra = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = type == "song", onClick = { type = "song" }, label = { Text("Song") })
@@ -220,6 +323,40 @@ private fun TrackDialog(t: RaTrack, onDismiss: () -> Unit, onOk: (String, String
             Row(Modifier.clickable { priv = !priv }, verticalAlignment = Alignment.CenterVertically) { Checkbox(priv, { priv = it }); Text("Privat") }
         },
     )
+}
+
+// ---------- Automation-Algorithmen ----------
+
+@Composable
+private fun RaAutomation(vm: RadioadminViewModel) {
+    val ui by vm.ui.collectAsState()
+    var name by remember { mutableStateOf(ui.algorithm?.name.orEmpty()) }
+    var body by remember(ui.algorithm) { mutableStateOf(ui.algorithm?.body.orEmpty()) }
+    var confirmDel by remember { mutableStateOf(false) }
+    RaFrame(vm, onReload = { vm.loadPlaylists() }) {
+        Panel(title = "Automation-Algorithmen") {
+            Note("Ein Algorithmus ist eine kleine JavaScript-Funktion: Sie bekommt die Titelliste einer Playlist (tracks) und gibt sie in neuer Reihenfolge zurück. Er gilt für den ganzen laut.fm-Account.")
+            OutlinedTextField(name, { name = it.filter { c -> c.isLetterOrDigit() || c == '-' || c == '_' }.take(64) }, label = { Text("Name des Algorithmus") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Button(onClick = { vm.loadAlgorithm(name) }, enabled = name.isNotBlank() && !ui.loading, modifier = Modifier.fillMaxWidth()) { Text("Laden oder neu anlegen") }
+        }
+        ui.algorithm?.let { a ->
+            Panel(title = a.name + if (a.exists) "" else " (neu)") {
+                Text("Vorlage einsetzen", fontSize = 12.sp, color = BrandMuted)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ALGORITHM_TEMPLATES.forEach { (label, code) -> AssistChip(onClick = { body = code }, label = { Text(label) }) }
+                }
+                OutlinedTextField(body, { body = it }, label = { Text("JavaScript") }, minLines = 6, textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp), modifier = Modifier.fillMaxWidth())
+                Button(onClick = { vm.saveAlgorithm(a.name, body) }, enabled = !ui.loading, modifier = Modifier.fillMaxWidth()) { Text("Speichern") }
+                if (a.exists) TextButton(onClick = { confirmDel = true }) { Text("Löschen", color = BrandBad) }
+            }
+        }
+        val used = ui.playlists.filter { it.algorithm.isNotBlank() }
+        if (used.isNotEmpty()) Panel(title = "In Playlists verwendet") {
+            used.forEach { p -> Row { Text(p.title, color = BrandText, fontSize = 13.sp, modifier = Modifier.weight(1f)); Text(p.algorithm, color = BrandMuted, fontSize = 13.sp) } }
+        }
+        Note("Welche Playlist welchen Algorithmus nutzt, legt laut.fm fest; die API beschreibt das Zuweisen nicht. Zugewiesene Algorithmen erscheinen hier.")
+    }
+    if (confirmDel) ConfirmDialog("Algorithmus löschen?", "„${ui.algorithm?.name.orEmpty()}“ wird bei laut.fm gelöscht.", "Löschen", { confirmDel = false }) { confirmDel = false; ui.algorithm?.let { vm.deleteAlgorithm(it.name) } }
 }
 
 // ---------- Sendeplan ----------
@@ -292,29 +429,30 @@ fun RaScheduleScreen(vm: RadioadminViewModel) {
 fun RaStatsScreen(vm: RadioadminViewModel) {
     val ui by vm.ui.collectAsState()
     var adsOnly by remember { mutableStateOf(false) }
-    RaFrame(vm, onReload = vm::loadStats) {
+    var day by remember(ui.statsDay) { mutableStateOf(ui.statsDay.orEmpty()) }
+    RaFrame(vm, onReload = { vm.loadStats(ui.statsDay) }) {
         val s = ui.stats ?: return@RaFrame
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatTile("Hörer jetzt", s.listenersNow?.toString() ?: "–", Modifier.weight(1f))
             StatTile("Position", s.position?.toString() ?: "–", Modifier.weight(1f))
         }
-        if (s.log.isNotEmpty()) Panel(title = "Einschaltungen pro Tag") {
-            val max = (s.log.maxOf { it.second }).coerceAtLeast(1)
-            Row(Modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
-                s.log.takeLast(30).forEach { (d, v) ->
-                    Box(Modifier.weight(1f).fillMaxHeight((v.toFloat() / max).coerceIn(0.03f, 1f)).clip(RoundedCornerShape(3.dp)).background(BrandBlue))
-                }
+        if (s.log.isNotEmpty()) Panel(title = "Einschaltungen pro Tag") { BarChart(s.log, "") }
+        if (s.hours.isNotEmpty()) Panel(title = "Hörstunden pro Tag") { BarChart(s.hours, " h") }
+        Panel(title = "Tag wählen") {
+            OutlinedTextField(day, { day = it.filter { c -> c.isDigit() || c == '-' }.take(10) }, label = { Text("Datum (JJJJ-MM-TT)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { vm.loadStats(day) }, enabled = day.isNotBlank() && !ui.loading) { Text("Anzeigen") }
+                OutlinedButton(onClick = { day = ""; vm.loadStats(null) }, enabled = ui.statsDay != null && !ui.loading) { Text("Letzte 24 h") }
             }
-            Note("${s.log.last().first.takeLast(5)}: ${s.log.last().second}  ·  Spitze: $max")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Gespielte Titel (24 h)", color = BrandText, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("Gespielte Titel (${ui.statsDay ?: "24 h"})", color = BrandText, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             FilterChip(selected = adsOnly, onClick = { adsOnly = !adsOnly }, label = { Text("Nur Werbung") })
         }
         val isAd = Regex("^(ad|ads|advert|advertisement|commercial|werbung)$", RegexOption.IGNORE_CASE)
         val list = s.played.filter { !adsOnly || isAd.matches(it.type) }
         if (adsOnly) Note("Werbe-Trigger: ${list.size} · Hörer bei Werbung: ${list.sumOf { it.listeners }}")
-        if (list.isEmpty()) Note(if (adsOnly) "Keine Werbe-Trigger in den letzten 24 Stunden." else "Keine Daten.")
+        if (list.isEmpty()) Note(if (adsOnly) "Keine Werbe-Trigger in diesem Zeitraum." else "Keine Daten.")
         list.take(200).forEach { t ->
             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(t.start.substringAfter('T').take(5), color = BrandMuted, fontSize = 12.sp, modifier = Modifier.width(46.dp))
@@ -324,6 +462,17 @@ fun RaStatsScreen(vm: RadioadminViewModel) {
             }
         }
     }
+}
+
+@Composable
+private fun BarChart(log: List<Pair<String, Int>>, unit: String) {
+    val max = (log.maxOf { it.second }).coerceAtLeast(1)
+    Row(Modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
+        log.takeLast(30).forEach { (_, v) ->
+            Box(Modifier.weight(1f).fillMaxHeight((v.toFloat() / max).coerceIn(0.03f, 1f)).clip(RoundedCornerShape(3.dp)).background(BrandBlue))
+        }
+    }
+    Note("${log.last().first.takeLast(5)}: ${log.last().second}$unit  ·  Spitze: $max$unit")
 }
 
 @Composable
@@ -361,7 +510,8 @@ private val STATION_FIELDS = listOf(
 @Composable
 private fun RaStation(vm: RadioadminViewModel) {
     val ui by vm.ui.collectAsState()
-    val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) vm.uploadLogo(u) }
+    var imageType by remember { mutableStateOf("logo") }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) vm.uploadImage(imageType, u) }
     RaFrame(vm, onReload = vm::loadStation) {
         val s = ui.station ?: return@RaFrame
         val values = remember(s) { STATION_FIELDS.associate { (k, _) -> k to mutableStateOf(s.s(k)) } }
@@ -375,9 +525,14 @@ private fun RaStation(vm: RadioadminViewModel) {
             Text(if (ui.stationActive == true) "Streaming-Server aktiv" else "Streaming-Server inaktiv", color = BrandText)
             if (ui.stationActive != true) Button(onClick = vm::activateStation) { Text("Station aktivieren") }
         }
-        Panel(title = "Logo") {
-            Note("JPG, PNG oder GIF")
-            OutlinedButton(onClick = { logoPicker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Filled.Image, null); Spacer(Modifier.width(8.dp)); Text("Logo hochladen") }
+        Panel(title = "Bilder") {
+            Note("JPG oder PNG")
+            listOf("logo" to "Logo", "background" to "Hintergrund", "website" to "Website-Bild").forEach { (type, label) ->
+                val has = s.s("${type}_image_url").isNotBlank()
+                OutlinedButton(onClick = { imageType = type; imagePicker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Image, null); Spacer(Modifier.width(8.dp)); Text(if (has) "$label ersetzen" else "$label hochladen")
+                }
+            }
         }
     }
 }

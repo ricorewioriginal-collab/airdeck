@@ -17,6 +17,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -32,12 +33,18 @@ import kotlinx.serialization.json.put
 import java.io.File
 import java.io.IOException
 
-data class RaPlaylist(val id: Long, val title: String, val color: String, val size: Int, val durationSec: Long, val description: String, val shuffled: Boolean)
+data class RaPlaylist(val id: Long, val title: String, val color: String, val size: Int, val durationSec: Long, val description: String, val shuffled: Boolean, val algorithm: String = "")
 
 data class RaTrack(
     val id: Long, val artist: String, val title: String, val genre: String, val durationSec: Long,
     val tags: List<String>, val year: Int?, val type: String, val private: Boolean,
+    val album: String = "", val month: Int? = null, val day: Int? = null, val deletable: Boolean = true,
 )
+
+/** Wahl beim Hochladen: privat, Art (song/jingle), optional gleich einer Playlist zuordnen und mit Tags versehen. */
+data class RaUploadOpts(val private: Boolean = false, val type: String = "song", val playlistId: Long? = null, val tags: List<String> = emptyList()) {
+    val followUp: Boolean get() = playlistId != null || tags.isNotEmpty()
+}
 
 data class RaUser(val id: Long, val name: String, val email: String, val role: String)
 data class RaEntry(val playlistId: Long, val slot: Int, val duration: Int)
@@ -50,7 +57,10 @@ data class RaOverview(
     val upcoming: List<String>, val last: List<String>, val apiRunning: Boolean?,
 )
 
-data class RaStats(val listenersNow: Long?, val position: Long?, val log: List<Pair<String, Int>>, val played: List<RaPlayed>)
+data class RaStats(val listenersNow: Long?, val position: Long?, val log: List<Pair<String, Int>>, val played: List<RaPlayed>, val hours: List<Pair<String, Int>> = emptyList())
+
+/** Automation-Algorithmus (JavaScript-Funktion, die die Reihenfolge einer Playlist bestimmt); `exists` = bei laut.fm vorhanden. */
+data class RaAlgorithm(val name: String, val body: String, val exists: Boolean)
 data class RaLive(val server: String, val port: Int, val mount: String, val user: String, val format: String, val password: String, val active: Boolean)
 
 data class RaUi(
@@ -63,6 +73,11 @@ data class RaUi(
     val playlistTracks: List<RaTrack> = emptyList(),
     val tracks: List<RaTrack> = emptyList(),
     val tracksSearched: Boolean = false,
+    val tracksNext: Int? = null,
+    val lastFilter: RaFilter = RaFilter(),
+    val playlistNext: Int? = null,
+    val algorithm: RaAlgorithm? = null,
+    val statsDay: String? = null,
     val processing: List<RaTrack> = emptyList(),
     val schedule: RaSchedule? = null,
     val stats: RaStats? = null,
@@ -93,6 +108,8 @@ fun applySlots(current: List<RaEntry>, slot: Int, hours: Int, playlistId: Long?)
     }
     return entries
 }
+
+val IMAGE_TYPES = listOf("logo", "background", "website")
 
 class RadioadminViewModel(application: Application) : AndroidViewModel(application) {
     val session = (application as AnMaChaCastApp).lautSession
@@ -194,6 +211,7 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun parsePlaylist(o: JsonObject) = RaPlaylist(
         o.l("id"), o.s("title"), o.s("color"), (o["size"].lng() ?: 0).toInt(), o["duration"].lng() ?: 0, o.s("description"), o["shuffled"].bool() ?: false,
+        o.s("automation_algorithm_name"),
     )
 
     private fun parseTrack(o: JsonObject) = RaTrack(
@@ -203,6 +221,7 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
         durationSec = o["duration"].lng() ?: o["length"].lng() ?: 0,
         tags = o["tags"].arr()?.mapNotNull { it.str() }.orEmpty(),
         year = o["release_year"].lng()?.toInt(), type = o.s("type").ifBlank { "song" }, private = o["private"].bool() ?: false,
+        album = o.s("album"), month = o["release_month"].lng()?.toInt(), day = o["release_day"].lng()?.toInt(), deletable = o["deletable"].bool() ?: o["own"].bool() ?: true,
     )
 
     private suspend fun fetchPlaylists(): List<RaPlaylist> =
@@ -211,13 +230,21 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
     fun loadPlaylists() = op { _ui.update { it.copy(playlists = fetchPlaylists()) } }
 
     fun openPlaylist(p: RaPlaylist?) {
-        _ui.update { it.copy(openPlaylist = p, playlistTracks = emptyList()) }
+        _ui.update { it.copy(openPlaylist = p, playlistTracks = emptyList(), playlistNext = null) }
         if (p != null) op { reloadPlaylistTracks(p) }
     }
 
-    private suspend fun reloadPlaylistTracks(p: RaPlaylist) {
-        val t = ra.get(ra.st("/playlists/${p.id}/tracks")).obj()?.get("tracks").arr()?.mapNotNull { it.obj()?.let(::parseTrack) }.orEmpty()
-        _ui.update { it.copy(playlistTracks = t) }
+    private suspend fun reloadPlaylistTracks(p: RaPlaylist, page: Int = 1) {
+        val o = ra.get(ra.st("/playlists/${p.id}/tracks" + if (page > 1) "?page=$page" else "")).obj()
+        val t = o?.get("tracks").arr()?.mapNotNull { it.obj()?.let(::parseTrack) }.orEmpty()
+        _ui.update { it.copy(playlistTracks = if (page > 1) (it.playlistTracks + t).distinctBy { x -> x.id } else t, playlistNext = nextPage(o)) }
+    }
+
+    /** Nächste Seite der Titel einer langen Playlist. */
+    fun morePlaylistTracks() {
+        val p = _ui.value.openPlaylist ?: return
+        val page = _ui.value.playlistNext ?: return
+        op { reloadPlaylistTracks(p, page) }
     }
 
     fun savePlaylist(existing: RaPlaylist?, title: String, color: String, description: String, shuffled: Boolean) = op(if (existing == null) "Playlist angelegt" else "Playlist gespeichert") {
@@ -246,15 +273,13 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
 
     // ---------- Titel ----------
 
-    fun searchTracks(artist: String, title: String, genre: String, own: Boolean) = op {
-        val q = buildList {
-            if (artist.isNotBlank()) add("artist=" + java.net.URLEncoder.encode(artist.trim(), "UTF-8"))
-            if (title.isNotBlank()) add("title=" + java.net.URLEncoder.encode(title.trim(), "UTF-8"))
-            if (genre.isNotBlank()) add("genre=" + java.net.URLEncoder.encode(genre.trim(), "UTF-8"))
-            if (own) add("own=true")
-        }.joinToString("&")
-        val t = ra.get(ra.st("/tracks" + if (q.isEmpty()) "" else "?$q")).obj()?.get("tracks").arr()?.mapNotNull { it.obj()?.let(::parseTrack) }.orEmpty()
-        _ui.update { it.copy(tracks = t, tracksSearched = true) }
+    /** Titel suchen; `more` holt die nächste Seite zur letzten Suche dazu. */
+    fun searchTracks(f: RaFilter, more: Boolean = false) = op {
+        val page = if (more) (_ui.value.tracksNext ?: return@op) else 1
+        val q = trackQuery(f, page)
+        val o = ra.get(ra.st("/tracks" + if (q.isEmpty()) "" else "?$q")).obj()
+        val t = o?.get("tracks").arr()?.mapNotNull { it.obj()?.let(::parseTrack) }.orEmpty()
+        _ui.update { it.copy(tracks = if (more) (it.tracks + t).distinctBy { x -> x.id } else t, tracksSearched = true, tracksNext = nextPage(o), lastFilter = f) }
     }
 
     fun loadProcessing() = op {
@@ -267,10 +292,12 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
         _ui.update { it.copy(processing = all) }
     }
 
-    fun saveTrack(t: RaTrack, artist: String, title: String, genre: String, year: String, type: String, private: Boolean, refresh: () -> Unit) = op("Titel gespeichert") {
+    fun saveTrack(t: RaTrack, artist: String, title: String, genre: String, album: String, year: String, month: String, day: String, type: String, private: Boolean, refresh: () -> Unit) = op("Titel gespeichert") {
         ra.patch(ra.st("/tracks/${t.id}"), buildJsonObject {
-            put("artist", artist); put("title", title); put("genre", genre)
+            put("artist", artist); put("title", title); put("genre", genre); put("album", album)
             year.toIntOrNull()?.let { put("release_year", it) } ?: put("release_year", JsonNull)
+            month.toIntOrNull()?.takeIf { it in 1..12 }?.let { put("release_month", it) } ?: put("release_month", JsonNull)
+            day.toIntOrNull()?.takeIf { it in 1..31 }?.let { put("release_day", it) } ?: put("release_day", JsonNull)
             put("type", type); put("private", private)
         })
         refresh()
@@ -319,20 +346,52 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
         _ui.update { it.copy(playingTrack = null) }
     }
 
-    /** MP3-Dateien hochladen; laut.fm verarbeitet sie danach (siehe „In Verarbeitung“). */
-    fun upload(uris: List<Uri>, private: Boolean) = op {
+    /**
+     * MP3-Dateien hochladen; laut.fm verarbeitet sie danach (siehe „In Verarbeitung“). Playlist und Tags werden gesetzt,
+     * sobald die Datei fertig verarbeitet ist (die Upload-Id ist bis dahin negativ).
+     */
+    fun upload(uris: List<Uri>, opts: RaUploadOpts) = op {
         val cr = getApplication<Application>().contentResolver
         var done = 0
+        val ids = ArrayList<Long>()
         for (u in uris) {
             val (name, size) = cr.query(u, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
                 if (c.moveToFirst()) (c.getString(0) ?: "titel.mp3") to (if (c.isNull(1)) -1L else c.getLong(1)) else null
             } ?: ("titel.mp3" to -1L)
             _ui.update { it.copy(message = "Lade hoch: $name (${done + 1}/${uris.size}) …") }
-            ra.upload("POST", ra.st("/tracks"), "track", name, "audio/mpeg", size, { cr.openInputStream(u) ?: throw IOException("$name nicht lesbar") }, mapOf("private" to private.toString()))
+            val r = ra.upload("POST", ra.st("/tracks"), "track", name, "audio/mpeg", size, { cr.openInputStream(u) ?: throw IOException("$name nicht lesbar") }, mapOf("private" to opts.private.toString(), "type" to opts.type))
+            r.obj()?.l("id")?.takeIf { it != 0L }?.let { ids += it }
             done++
         }
-        _ui.update { it.copy(message = "$done Datei(en) hochgeladen – laut.fm verarbeitet sie jetzt") }
+        val follow = if (opts.followUp && ids.isNotEmpty()) " – Zuordnung folgt nach der Verarbeitung" else ""
+        _ui.update { it.copy(message = "$done Datei(en) hochgeladen – laut.fm verarbeitet sie jetzt$follow") }
         loadProcessingInline()
+        if (opts.followUp && ids.isNotEmpty()) viewModelScope.launch(ops) { finishUploads(ids, opts) }
+    }
+
+    /** Wartet (bis ca. 3 Minuten) auf die fertigen Titel und ordnet sie der Playlist zu bzw. versieht sie mit Tags. */
+    private suspend fun finishUploads(ids: List<Long>, opts: RaUploadOpts) {
+        val pending = ids.toMutableList()
+        var ok = 0
+        var failed = 0
+        val deadline = System.currentTimeMillis() + 180_000
+        while (pending.isNotEmpty() && System.currentTimeMillis() < deadline) {
+            delay(5_000)
+            for (id in pending.toList()) {
+                val final = try { finalTrackId(ra.get(ra.st("/tracks/$id")).obj()) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: IOException) { null } catch (e: RuntimeException) { null }
+                if (final == null) continue
+                pending.remove(id)
+                try {
+                    opts.playlistId?.let { ra.post(ra.st("/playlists/$it"), buildJsonObject { put("track_id", final) }) }
+                    if (opts.tags.isNotEmpty()) ra.post(ra.st("/tracks/$final/tags"), buildJsonObject { put("tags", buildJsonArray { opts.tags.forEach { add(JsonPrimitive(it)) } }) })
+                    ok++
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: IOException) { failed++ } catch (e: RuntimeException) { failed++ }
+            }
+        }
+        failed += pending.size
+        _ui.update { it.copy(message = if (failed == 0) "$ok Titel zugeordnet" else "$ok von ${ids.size} Titeln zugeordnet – den Rest unter „Titel“ von Hand zuordnen") }
+        loadProcessingInline()
+        _ui.value.openPlaylist?.let { reloadPlaylistTracks(it) }
     }
 
     private suspend fun loadProcessingInline() {
@@ -384,16 +443,78 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
         _ui.update { it.copy(schedule = RaSchedule(baseId, entries)) }
     }
 
+    // ---------- Mehrere Titel auf einmal ----------
+
+    /** Führt `block` je Titel aus und zählt Fehlschläge, statt bei dem ersten abzubrechen. */
+    private suspend fun each(ids: Collection<Long>, block: suspend (Long) -> Unit): Int {
+        var failed = 0
+        for (id in ids) {
+            try { block(id) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: IOException) { failed++ } catch (e: RuntimeException) { failed++ }
+        }
+        return failed
+    }
+
+    private fun summary(ok: String, total: Int, failed: Int) = if (failed == 0) "$total $ok" else "${total - failed} von $total $ok, $failed fehlgeschlagen"
+
+    fun bulkTags(ids: Set<Long>, add: List<String>, remove: List<String>, refresh: () -> Unit) = op {
+        fun body(l: List<String>) = buildJsonObject { put("tags", buildJsonArray { l.forEach { add(JsonPrimitive(it)) } }) }
+        for (chunk in idChunks(ids)) {
+            if (add.isNotEmpty()) ra.post(ra.st("/tracks/$chunk/tags"), body(add))
+            if (remove.isNotEmpty()) ra.delete(ra.st("/tracks/$chunk/tags"), body(remove))
+        }
+        _ui.update { it.copy(message = "Tags bei ${ids.size} Titeln geändert") }
+        refresh()
+    }
+
+    fun bulkToPlaylist(ids: Set<Long>, playlistId: Long) = op {
+        val failed = each(ids) { ra.post(ra.st("/playlists/$playlistId"), buildJsonObject { put("track_id", it) }) }
+        _ui.update { it.copy(message = summary("Titel zur Playlist hinzugefügt", ids.size, failed)) }
+    }
+
+    fun bulkDelete(ids: Set<Long>, refresh: () -> Unit) = op {
+        val failed = each(ids) { ra.delete(ra.st("/tracks/$it")) }
+        _ui.update { it.copy(message = summary("Titel gelöscht", ids.size, failed)) }
+        refresh()
+    }
+
+    // ---------- Automation-Algorithmen ----------
+
+    /** Algorithmus nach Namen holen; gibt es ihn noch nicht, beginnt ein neuer. */
+    fun loadAlgorithm(name: String) = op {
+        val n = name.trim()
+        if (!ALGORITHM_NAME.matches(n)) throw IOException(algorithmError(n, "function") ?: "Ungültiger Name")
+        val found = try { ra.get("/automation_algorithms/$n").obj() } catch (e: RaException) { if (e.status == 404) null else throw e }
+        _ui.update { it.copy(algorithm = RaAlgorithm(n, found?.s("body").orEmpty(), found != null), message = if (found == null) "„$n“ gibt es noch nicht – neuen Algorithmus anlegen" else it.message) }
+    }
+
+    fun saveAlgorithm(name: String, body: String) = op("Algorithmus gespeichert") {
+        val n = name.trim()
+        algorithmError(n, body)?.let { throw IOException(it) }
+        val exists = _ui.value.algorithm?.takeIf { it.name == n }?.exists == true
+        val json = buildJsonObject { put("body", body.trim()) }
+        if (exists) ra.patch("/automation_algorithms/$n", json) else ra.call("PUT", "/automation_algorithms/$n", json)
+        _ui.update { it.copy(algorithm = RaAlgorithm(n, body.trim(), true)) }
+    }
+
+    fun deleteAlgorithm(name: String) = op("Algorithmus gelöscht") {
+        ra.delete("/automation_algorithms/${name.trim()}")
+        _ui.update { it.copy(algorithm = null) }
+    }
+
     // ---------- Statistik ----------
 
-    fun loadStats() = op {
+    /** Statistik; `dayText` leer = letzte 24 Stunden, sonst ein Tag als JJJJ-MM-TT. */
+    fun loadStats(dayText: String? = null) = op {
+        val wanted = dayText?.trim()?.takeIf { it.isNotEmpty() }
+        if (wanted != null && !validDay(wanted)) throw IOException("Datum bitte als JJJJ-MM-TT eingeben, z. B. 2026-10-03")
         val (s, day) = coroutineScope {
             val a = async { ra.get(ra.st("/stats")).obj() }
-            val b = async { runCatching { ra.get(ra.st("/tracks/stats/24h")).arr() }.getOrNull() }
+            val b = async { runCatching { ra.get(ra.st("/tracks/stats/${wanted ?: "24h"}")).arr() }.getOrNull() }
             a.await() to b.await()
         }
         _ui.update {
             it.copy(
+                statsDay = wanted,
                 stats = RaStats(
                     s?.get("listeners_now").lng(), s?.get("position_now").lng(),
                     s?.get("switchons_log").obj()?.entries?.map { (k, v) -> k to (v.lng() ?: 0).toInt() }?.sortedBy { p -> p.first }.orEmpty(),
@@ -405,6 +526,7 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
                             )
                         }
                     }.orEmpty(),
+                    s?.get("tlh_log").obj()?.entries?.map { (k, v) -> k to (v.lng() ?: 0).toInt() }?.sortedBy { p -> p.first }.orEmpty(),
                 ),
             )
         }
@@ -456,11 +578,13 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
         _ui.update { it.copy(station = ra.get(ra.st()).obj()) }
     }
 
-    fun uploadLogo(uri: Uri) = op("Logo hochgeladen") {
+    /** Stationsbild hochladen: `type` ist logo, background oder website. */
+    fun uploadImage(type: String, uri: Uri) = op("Bild hochgeladen") {
+        require(type in IMAGE_TYPES) { "Unbekannter Bildtyp" }
         val cr = getApplication<Application>().contentResolver
         val mime = cr.getType(uri) ?: "image/png"
         val size = cr.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else -1L } ?: -1L
-        ra.upload("PUT", ra.st("/images/logo"), "image", "logo." + mime.substringAfter('/', "png"), mime, size, { cr.openInputStream(uri) ?: throw IOException("Bild nicht lesbar") })
+        ra.upload("PUT", ra.st("/images/$type"), "image", "$type." + mime.substringAfter('/', "png"), mime, size, { cr.openInputStream(uri) ?: throw IOException("Bild nicht lesbar") })
         _ui.update { it.copy(station = ra.get(ra.st()).obj()) }
     }
 
