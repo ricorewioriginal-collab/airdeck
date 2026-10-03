@@ -1123,7 +1123,7 @@ export class AnMaChaCastApp {
    */
   deckAction(p: Principal, stationId: string, deckId: string, action: string, body: Record<string, unknown>): unknown {
     if (!(DECK_IDS as readonly string[]).includes(deckId)) throw new AppError(404, 'not_found', 'Deck nicht gefunden');
-    if (!['load', 'play', 'pause', 'stop', 'eject', 'seek', 'advance'].includes(action)) throw new AppError(404, 'not_found', 'Unbekannte Deck-Aktion');
+    if (!['load', 'play', 'pause', 'stop', 'eject', 'seek', 'advance', 'tempo', 'loop'].includes(action)) throw new AppError(404, 'not_found', 'Unbekannte Deck-Aktion');
     if (action === 'advance') {
       // Motion-Cart im Deck: Loop verlassen → Drop/Outro
       const po = this.playouts.get(stationId);
@@ -1147,6 +1147,8 @@ export class AnMaChaCastApp {
       } else if (action === 'pause') e.deckPause(deckId);
       else if (action === 'stop') e.deckStop(deckId);
       else if (action === 'eject') e.deckEject(deckId);
+      else if (action === 'tempo') e.deckTempo(deckId, Number(body.tempo));
+      else if (action === 'loop') e.deckLoop(deckId, Number(body.ms) || 0);
       else e.deckSeek(deckId, Number(body.ms) || 0);
     } catch (err) {
       if (err instanceof DeckError) throw new AppError(409, 'deck', err.message);

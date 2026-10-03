@@ -1057,6 +1057,39 @@ const deckEls = {};
 
 const DECK_ROLE = /** @type {Record<string, [string, string]>} */ ({ A: ['Musik', 'music'], B: ['Musik', 'music'], C: ['Jingle', 'jingle'], D: ['Spezial', 'star'] });
 
+/** @param {number} pct Tempo in Prozent der Originalgeschwindigkeit */
+const tempoLabel = (pct) => (pct === 100 ? '±0 %' : `${pct > 100 ? '+' : '−'}${Math.abs(pct - 100)} %`);
+
+/** @type {Map<string, Promise<number[]|null>>} Wellenformen je Titel (ein Abruf, auch wenn mehrere Decks denselben Titel zeigen) */
+const waveCache = new Map();
+
+/** Wellenform zeichnen; Spitzenwerte 0–100. @param {HTMLCanvasElement} cv @param {number[]|null} peaks */
+function drawWave(cv, peaks) {
+  const g = cv.getContext('2d');
+  if (!g) return;
+  g.clearRect(0, 0, cv.width, cv.height);
+  if (!peaks?.length) return;
+  const css = getComputedStyle(cv.closest('.deck') ?? cv);
+  g.fillStyle = css.getPropertyValue('--c').trim() || '#2f8cff';
+  const w = cv.width / peaks.length;
+  const mid = cv.height / 2;
+  peaks.forEach((p, i) => {
+    const hgt = Math.max(1, (p / 100) * cv.height);
+    g.fillRect(i * w, mid - hgt / 2, Math.max(1, w - 0.5), hgt);
+  });
+}
+
+/** Wellenform des geladenen Titels holen (einmal je Titel) und zeichnen. @param {string} id @param {string|null} mediaId */
+async function paintWave(id, mediaId) {
+  const cv = /** @type {HTMLCanvasElement} */ (deckEls[id]?.wave);
+  if (!cv) return;
+  cv.dataset.media = mediaId ?? '';
+  if (!mediaId) return drawWave(cv, null);
+  if (!waveCache.has(mediaId)) waveCache.set(mediaId, api.get(url(`/media/${encodeURIComponent(mediaId)}/waveform`)).then((r) => r?.peaks ?? null).catch(() => null));
+  const peaks = await waveCache.get(mediaId);
+  if (cv.dataset.media === mediaId) drawWave(cv, peaks ?? null);
+}
+
 /** Deck in der Engine bedienen und den neuen Stand sofort anzeigen. @param {string} id @param {string} action @param {any} [body] */
 async function deckCmd(id, action, body = {}) {
   const r = await run(() => api.post(url(`/decks/${id}/${action}`), body));
@@ -1092,7 +1125,19 @@ function buildDecks() {
       play: h('button', { class: 'deck-btn play', title: `Play/Pause (F${DECKS.indexOf(id) + 1})`, 'aria-pressed': 'false', onclick: () => togglePlay(id) }, icon('play', 16)),
       cue: h('button', { class: 'deck-btn cue', title: 'CUE: vorhören (PFL, nicht auf Sendung)', 'aria-pressed': 'false', onclick: () => togglePfl(id) }, 'CUE'),
     };
-    const progress = h('div', { class: 'progress', title: 'Klicken zum Springen', onclick: (/** @type {MouseEvent} */ e) => seek(id, e) }, els.bar);
+    // Wellenform (nur Engine) hinter dem Fortschritt: Klick springt, markierter Bereich = aktive Schleife
+    els.wave = h('canvas', { class: 'wave-canvas', width: '600', height: '40' });
+    els.loopBox = h('i', { class: 'loop-box', hidden: true });
+    const progress = h('div', { class: 'progress', title: 'Klicken zum Springen', onclick: (/** @type {MouseEvent} */ e) => seek(id, e) }, els.wave, els.loopBox, els.bar);
+    els.tempoVal = h('span', { class: 'tempo-val' }, '±0 %');
+    els.tempo = h('input', { type: 'range', class: 'deck-tempo', min: '80', max: '125', step: '1', value: '100', 'aria-label': `Deck ${id} Tempo`, title: 'Tempo (Tonhöhe bleibt)',
+      oninput: (/** @type {Event} */ e) => { els.tempoVal.textContent = tempoLabel(Number(/** @type {HTMLInputElement} */ (e.target).value)); els.tempo.dataset.drag = '1'; },
+      onchange: (/** @type {Event} */ e) => { delete els.tempo.dataset.drag; void deckCmd(id, 'tempo', { tempo: Number(/** @type {HTMLInputElement} */ (e.target).value) / 100 }); } });
+    els.adv = h('div', { class: 'deck-adv', hidden: true },
+      h('span', { class: 'muted', title: 'Schleife ab der aktuellen Stelle' }, '⟳'),
+      ...[1, 2, 4, 8].map((sec) => h('button', { class: 'deck-btn small', title: `Ab hier ${sec} s nahtlos wiederholen`, onclick: () => void deckCmd(id, 'loop', { ms: sec * 1000 }) }, `${sec}s`)),
+      els.tempo, els.tempoVal,
+      h('button', { class: 'deck-btn small', title: 'Originaltempo', onclick: () => { els.tempo.value = '100'; els.tempoVal.textContent = tempoLabel(100); void deckCmd(id, 'tempo', { tempo: 1 }); } }, '1:1'));
     const vol = h('input', { type: 'range', class: 'deck-vol', min: '0', max: '1', step: '0.01', value: '1', 'aria-label': `Deck ${id} Lautstärke`, oninput: (/** @type {Event} */ e) => ensureAudio().decks[id].setVolume(Number(/** @type {HTMLInputElement} */ (e.target).value)) });
     const card = h('div', { class: 'deck', 'data-deck': id, 'data-status': 'empty' },
       h('div', { class: 'deck-head' }, icon(ico, 16), h('span', {}, `Deck ${id}`), h('span', { class: 'role' }, `– ${role}`), els.status),
@@ -1111,6 +1156,7 @@ function buildDecks() {
         h('button', { class: 'deck-btn', title: 'Stop', onclick: () => { if (eng()) return void deckCmd(id, 'stop'); ensureAudio().decks[id].stop(); run(() => api.put(url(`/decks/${id}`), { status: 'cued' })); renderDeck(id); } }, icon('stop', 14)),
         h('button', { class: 'deck-btn', title: 'Auswerfen', onclick: () => { stopPfl(id); if (eng()) return void deckCmd(id, 'eject'); ensureAudio().decks[id].eject(); run(() => api.put(url(`/decks/${id}`), { mediaId: null, status: 'empty' })); renderDeck(id); } }, icon('eject', 14)),
         vol),
+      els.adv,
       h('div', { class: 'deck-stats' }, h('div', {}, h('span', {}, 'BPM'), els.bpm), h('div', {}, h('span', {}, 'Gain'), els.gain), h('div', {}, h('span', {}, 'Länge'), els.total)),
     );
     dropTarget(card, async (dt) => {
@@ -1229,7 +1275,7 @@ function stopPfl(id) {
  * renderEngineDecks()/liveProgress() für die normale Deck-Anzeige.
  * @param {any} ed
  */
-const engDeckPositionMs = (ed) => (ed?.positionMs ?? 0) + (ed?.state === 'playing' ? Date.now() - (S.playoutAt || Date.now()) : 0);
+const engDeckPositionMs = (ed) => (ed?.positionMs ?? 0) + (ed?.state === 'playing' ? (Date.now() - (S.playoutAt || Date.now())) * (ed.tempo ?? 1) : 0);
 
 /** CUE: Titel des Decks separat vorhören (nicht auf Sendung), optional auf eigenem Ausgabegerät. @param {string} id */
 async function togglePfl(id) {
@@ -2615,16 +2661,29 @@ function renderEngineDecks(force = false) {
       els.total.textContent = fmt(d?.durationMs ?? m?.durationMs);
       els.cover.replaceWith((els.cover = coverEl(m, 'cover', id)));
     }
+    if ((els.wave.dataset.media ?? '') !== (d?.mediaId ?? '')) void paintWave(id, d?.mediaId ?? null);
+    els.adv.hidden = !d?.mediaId;
+    if (d && !els.tempo.dataset.drag) {
+      const pct = Math.round((d.tempo ?? 1) * 100);
+      /** @type {HTMLInputElement} */ (els.tempo).value = String(pct);
+      els.tempoVal.textContent = tempoLabel(pct);
+    }
+    els.card.classList.toggle('has-wave', !!d?.mediaId);
     const loop = st?.loops?.find((/** @type {any} */ l) => l.deck === id);
     if (els.advance) { els.advance.hidden = !loop; els.advance.classList.toggle('active', !!loop?.inLoop); }
     const dur = d?.durationMs ?? null;
-    const pos = d ? (loop?.inLoop ? d.positionMs : d.positionMs + (state === 'playing' ? elapsed : 0)) : 0;
+    const pos = d ? (loop?.inLoop ? d.positionMs : d.positionMs + (state === 'playing' ? elapsed * (d.tempo ?? 1) : 0)) : 0;
     const rem = dur != null ? Math.max(0, dur - pos) : null;
     els.elapsed.textContent = d?.mediaId ? fmt(pos) : '0:00';
     els.remain.textContent = rem != null && d?.mediaId ? `-${fmt(rem)}` : '--:--';
     els.remain.classList.toggle('warn', state === 'playing' && rem != null && rem < 20_000 && rem >= 10_000);
     els.remain.classList.toggle('end', state === 'playing' && rem != null && rem < 10_000);
     els.bar.style.width = dur ? `${Math.min(100, (pos / dur) * 100)}%` : '0';
+    els.loopBox.hidden = !(d?.loop && dur);
+    if (d?.loop && dur) {
+      els.loopBox.style.left = `${(d.loop.inMs / dur) * 100}%`;
+      els.loopBox.style.width = `${Math.max(0.4, ((d.loop.outMs - d.loop.inMs) / dur) * 100)}%`;
+    }
     els.meter.style.height = state === 'playing' && lv?.decks ? dbHeight(lv.decks[id] ?? -90) : '0';
   }
 }
