@@ -47,13 +47,26 @@ class LautFmClient(private val http: OkHttpClient = defaultHttp()) {
 
         fun loginUrl(): String = "https://radioadmin.laut.fm/login?callback_url=" + URLEncoder.encode(CALLBACK, "UTF-8")
 
-        /** Token aus der Rückleit-Adresse (…#lautfm_radioadmin_token=…) oder null. */
+        /**
+         * Token aus der Rückleit-Adresse (…#lautfm_radioadmin_token=… oder ?lautfm_radioadmin_token=…).
+         * Bewusst tolerant: egal wie laut.fm die Adresse zusammensetzt, solange der Parameter drinsteht
+         * und es nicht die Login-Seite selbst ist.
+         */
         fun tokenFromRedirect(url: String): String? {
-            if (!url.startsWith(CALLBACK)) return null
-            val frag = url.substringAfter('#', "")
-            val raw = frag.split('&').firstOrNull { it.startsWith("lautfm_radioadmin_token=") }?.substringAfter('=') ?: return null
-            return java.net.URLDecoder.decode(raw, "UTF-8").let(::cleanToken).takeIf { it.length >= 16 }
+            if (!url.contains(TOKEN_PARAM)) return null
+            val host = runCatching { java.net.URI(url).host }.getOrNull() ?: ""
+            if (host.endsWith("laut.fm") && !url.startsWith("https://anmachacast.app")) return null
+            val raw = url.substringAfter(TOKEN_PARAM).substringBefore('&').substringBefore('#')
+            return runCatching { java.net.URLDecoder.decode(raw, "UTF-8") }.getOrNull()?.let(::cleanToken)?.takeIf { TOKEN_RE.matches(it) }
         }
+
+        /** Token aus dem sichtbaren Text einer laut.fm-Seite (Skript-Token-Anzeige), sonst null. */
+        fun tokenFromPageText(text: String): String? =
+            UUID_RE.find(text.lowercase())?.value
+
+        private const val TOKEN_PARAM = "lautfm_radioadmin_token="
+        private val TOKEN_RE = Regex("[A-Za-z0-9._~+/=-]{16,400}")
+        private val UUID_RE = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
         /** „Bearer “, Anführungszeichen und Leerraum aus eingefügten Tokens entfernen. */
         fun cleanToken(v: String): String =
@@ -95,6 +108,7 @@ class LautFmClient(private val http: OkHttpClient = defaultHttp()) {
         val candidates = listOfNotNull(extraOrigin?.takeIf { it.isNotBlank() }, CALLBACK, "https://anmachacast.app", "airdeck").distinct()
         var reached = false
         var unauthorized = false
+        val tried = ArrayList<String>()
         for ((i, origin) in candidates.withIndex()) {
             repeat(if (i == 0) 3 else 1) { attempt ->
                 try {
@@ -102,13 +116,14 @@ class LautFmClient(private val http: OkHttpClient = defaultHttp()) {
                     reached = true
                     if (code == 200) parseStations(body)?.let { return@withContext origin to it }
                     if (code == 401) unauthorized = true
+                    if (attempt == 0) tried += "$code"
                 } catch (_: IOException) {
                 }
                 if (i == 0 && attempt < 2) delay(400)
             }
         }
         throw LautFmException(
-            if (!reached) "laut.fm ist nicht erreichbar" else "laut.fm hat die Anmeldung nicht akzeptiert",
+            if (!reached) "laut.fm ist nicht erreichbar" else "laut.fm hat das Token nicht akzeptiert (Antworten: ${tried.joinToString(", ")}). Bitte neu anmelden.",
             unauthorized,
         )
     }
