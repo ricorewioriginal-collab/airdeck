@@ -87,7 +87,7 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     Klassik, Bass/Höhen (dB), Stereo-Breite (%), Auto-Gain; Mikrofon-Kette Gate → Trittschall → Sprach-EQ
     (Klar/Warm/Radio) → De-Esser → Kompressor (`mic` in der Playout-Konfiguration, ffmpeg-Filter am Eingang).
 19. [P2 · L] Verbreitung: ~~bis zu 2 eigene Mount-Streams mit Bitrate~~ (erledigt: Karte "Eigene Streams" in Streams & Anbindungen, `/own-streams`, Profil + Ausgang in einem Schritt, Link kopieren), **offen** SFTP-Eingang (braucht einen sshd-Dienst) und Video-Radiostream (Visualizer, RTMP).
-20. [P3 · L] Decks erweitert: Loop, Tempo, Wellenform-Springen.
+20. ~~[P3 · L] Decks erweitert~~ - erledigt: Wellenform je Deck (600 Spitzenwerte, Klick springt), Handschleife 1/2/4/8 s ab der aktuellen Stelle (nahtlos, „Weiter“ verlässt sie), Tempo 80–125 % per ffmpeg `atempo` (Tonhöhe bleibt, Änderung mitten im Titel und in der Schleife möglich). Nur für von Hand gestartete Titel, die Automation läuft im Originaltempo.
 
 ### Auswertung
 21. ~~[P1 · L] Hörerstatistik~~ - erledigt: Ansicht `studio/js/stats.js` + `services/stats.ts` (GET `/stats?period=`):

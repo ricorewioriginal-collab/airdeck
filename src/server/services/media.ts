@@ -3,7 +3,7 @@
 
 import type { AnMaChaCastApp } from '../app.ts';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { MEDIA_CATEGORIES, parseFileName, type MediaCategory, type MediaItem } from '../../core/automation.ts';
@@ -14,6 +14,44 @@ import { AUDIO_FILE_RE, AppError, newId, type LinkedFolder } from '../model.ts';
 const MAX_LINKED_FILES = 20_000;
 const MAX_DEPTH = 8;
 import { writeFileAtomic } from '../store.ts';
+
+export const WAVE_BINS = 600;
+const WAVE_RATE = 4000;
+
+/** Datei dekodieren und in WAVE_BINS Spitzenwerte (0–100, wahrnehmungsnah gestaucht) einteilen. */
+export function computePeaks(ffmpeg: string, file: string): Promise<number[]> {
+  return new Promise((resolve, reject) => {
+    const p = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-nostdin', '-i', file, '-vn', '-ac', '1', '-ar', String(WAVE_RATE), '-f', 's16le', 'pipe:1'], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    const chunks: Buffer[] = [];
+    let total = 0;
+    p.stdout.on('data', (d: Buffer) => {
+      chunks.push(d);
+      total += d.length;
+      // Schutz: mehr als 6 Stunden Audio ergeben keine sinnvollere Wellenform
+      if (total > WAVE_RATE * 2 * 6 * 3600) p.kill();
+    });
+    const timer = setTimeout(() => p.kill(), 120_000);
+    p.on('error', (e) => { clearTimeout(timer); reject(e); });
+    p.on('close', () => {
+      clearTimeout(timer);
+      const buf = Buffer.concat(chunks);
+      const n = buf.length >> 1;
+      if (n === 0) return reject(new AppError(422, 'no_audio', 'Keine Audiodaten'));
+      const peaks = new Array<number>(WAVE_BINS).fill(0);
+      for (let b = 0; b < WAVE_BINS; b++) {
+        const from = Math.floor((b * n) / WAVE_BINS);
+        const to = Math.max(from + 1, Math.floor(((b + 1) * n) / WAVE_BINS));
+        let max = 0;
+        for (let i = from; i < to && i < n; i++) {
+          const v = Math.abs(buf.readInt16LE(i * 2));
+          if (v > max) max = v;
+        }
+        peaks[b] = Math.round(Math.pow(max / 32768, 0.6) * 100);
+      }
+      resolve(peaks);
+    });
+  });
+}
 
 export class MediaService {
   private readonly app: AnMaChaCastApp;
@@ -185,6 +223,41 @@ export class MediaService {
       return null;
     }
     return file;
+  }
+
+  private readonly waveJobs = new Map<string, Promise<number[]>>();
+
+  /**
+   * Wellenform für die Decks: WAVE_BINS Spitzenwerte (0–100) über die ganze Datei. Aus einer grob
+   * heruntergerechneten Dekodierung (4 kHz mono), danach als kleine Datei zwischengespeichert.
+   */
+  async waveform(stationId: string, mediaId: string): Promise<number[]> {
+    const m = this.media(stationId, mediaId);
+    if (m.url) throw new AppError(400, 'stream', 'Streams haben keine Wellenform');
+    if (!this.app.ffmpeg) throw new AppError(501, 'unsupported', 'Wellenform benötigt ffmpeg');
+    const dir = join(this.app.dataDir, 'waveforms', stationId);
+    const file = join(dir, `${m.id}.json`);
+    if (existsSync(file)) {
+      try {
+        const cached = JSON.parse(readFileSync(file, 'utf8')) as number[];
+        if (Array.isArray(cached) && cached.length === WAVE_BINS) return cached;
+      } catch {
+        // kaputte Zwischenspeicher-Datei: neu berechnen
+      }
+    }
+    const key = `${stationId}/${m.id}`;
+    let job = this.waveJobs.get(key);
+    if (!job) {
+      const ffmpeg = this.app.ffmpeg.ffmpeg;
+      const path = this.mediaPath(stationId, m);
+      job = computePeaks(ffmpeg, path).then((peaks) => {
+        mkdirSync(dir, { recursive: true });
+        writeFileAtomic(file, JSON.stringify(peaks));
+        return peaks;
+      }).finally(() => this.waveJobs.delete(key));
+      this.waveJobs.set(key, job);
+    }
+    return job;
   }
 
   /** Test-/Austauschpunkt für die Online-Suche */

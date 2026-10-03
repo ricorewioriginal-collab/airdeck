@@ -314,6 +314,8 @@ class Voice {
   auto = false;
   /** Startposition in der Datei (ms) */
   readonly startMs: number;
+  /** Wiedergabetempo (1 = Original); ffmpeg atempo, Tonhöhe bleibt. Positionen in der Datei rechnen das ein. */
+  readonly tempo: number;
   lvSum = 0;
   lvN = 0;
   lvPeak = 0;
@@ -331,16 +333,17 @@ class Voice {
   private loopPcm: Int16Array | null = null;
   private loopOff = 0;
 
-  constructor(media: MediaItem, kind: 'track' | 'cart', duck: boolean, gainDb = media.gainDb ?? 0, startMs = media.cueInMs ?? 0, loop = false) {
+  constructor(media: MediaItem, kind: 'track' | 'cart', duck: boolean, gainDb = media.gainDb ?? 0, startMs = media.cueInMs ?? 0, loop = false, tempo = 1) {
     this.media = media;
     this.kind = kind;
     this.duck = duck;
     this.gain = dbToGain(gainDb);
     this.startMs = Math.max(0, startMs);
+    this.tempo = tempo > 0 ? tempo : 1;
     const end = media.cueOutMs ?? media.durationMs;
-    this.totalFrames = end != null ? Math.max(0, msToFrames(end - this.startMs)) : null;
+    this.totalFrames = end != null ? Math.max(0, msToFrames((end - this.startMs) / this.tempo)) : null;
     const loopMs = media.loopEndMs != null ? media.loopEndMs - this.startMs : 0;
-    this.loopEndFrame = loop && loopMs >= 100 && loopMs <= MAX_LOOP_MS && (end == null || media.loopEndMs! < end) ? msToFrames(loopMs) : null;
+    this.loopEndFrame = loop && loopMs >= 100 && loopMs <= MAX_LOOP_MS && (end == null || media.loopEndMs! < end) ? msToFrames(loopMs / this.tempo) : null;
     this.looping = this.loopEndFrame != null;
   }
 
@@ -396,7 +399,13 @@ class Voice {
 
   /** aktuelle Position in der Datei (ms) */
   get positionMs(): number {
-    return this.startMs + framesToMs(this.played);
+    return this.startMs + framesToMs(this.played) * this.tempo;
+  }
+
+  /** Aktiver Loop-Bereich in Dateizeit (ms), sonst null. */
+  get loopRange(): { inMs: number; outMs: number } | null {
+    if (!this.looping || this.loopEndFrame == null) return null;
+    return { inMs: this.startMs, outMs: this.startMs + framesToMs(this.loopEndFrame) * this.tempo };
   }
 
   get remainingFrames(): number | null {
@@ -442,6 +451,10 @@ export interface EngineDeckView {
   durationMs: number | null;
   /** von der Automation belegt */
   auto: boolean;
+  /** Tempo-Faktor (1 = Original) */
+  tempo: number;
+  /** aktive Handschleife (Dateizeit in ms) */
+  loop: { inMs: number; outMs: number } | null;
 }
 
 interface EngineDeck {
@@ -452,6 +465,8 @@ interface EngineDeck {
   posMs: number;
   voice: Voice | null;
   auto: boolean;
+  /** Tempo für von Hand gestartete Titel */
+  tempo: number;
 }
 
 export class DeckError extends Error {}
@@ -508,10 +523,10 @@ export class Playout {
   private micOn = false;
   private micGain = 0;
   private readonly decks: Record<DeckId, EngineDeck> = {
-    A: { id: 'A', media: null, state: 'empty', posMs: 0, voice: null, auto: false },
-    B: { id: 'B', media: null, state: 'empty', posMs: 0, voice: null, auto: false },
-    C: { id: 'C', media: null, state: 'empty', posMs: 0, voice: null, auto: false },
-    D: { id: 'D', media: null, state: 'empty', posMs: 0, voice: null, auto: false },
+    A: { id: 'A', media: null, state: 'empty', posMs: 0, voice: null, auto: false, tempo: 1 },
+    B: { id: 'B', media: null, state: 'empty', posMs: 0, voice: null, auto: false, tempo: 1 },
+    C: { id: 'C', media: null, state: 'empty', posMs: 0, voice: null, auto: false, tempo: 1 },
+    D: { id: 'D', media: null, state: 'empty', posMs: 0, voice: null, auto: false, tempo: 1 },
   };
   private lastAutoDeck: 'A' | 'B' = 'B';
   private levelPeak = 0;
@@ -672,6 +687,7 @@ export class Playout {
     d.state = 'empty';
     d.posMs = 0;
     d.auto = false;
+    d.tempo = 1;
   }
 
   /** Springen (ms in der Datei). */
@@ -689,10 +705,43 @@ export class Playout {
     }
   }
 
-  private startDeckVoice(d: EngineDeck, fromMs: number, auto: boolean): Voice {
-    const m = d.media!;
+  /** Tempo des Decks setzen (0,8–1,25). Läuft ein Handtitel, geht er an derselben Stelle mit neuem Tempo weiter. */
+  deckTempo(id: string, tempo: number): void {
+    const d = this.deck(id);
+    if (!Number.isFinite(tempo)) throw new DeckError('Tempo ungültig');
+    const t = Math.round(Math.max(0.8, Math.min(1.25, tempo)) * 1000) / 1000;
+    if (d.state === 'playing' && d.auto) throw new DeckError('Von der Automation gestartete Titel laufen im Originaltempo');
+    d.tempo = t;
+    if (d.state === 'playing' && d.voice) {
+      // Eine laufende Handschleife bleibt erhalten: neu ab Schleifenanfang mit dem neuen Tempo
+      const lr = d.voice.loopRange;
+      const pos = lr ? lr.inMs : d.voice.positionMs;
+      this.releaseVoice(d, 20);
+      this.startDeckVoice(d, pos, false, lr ? { ...d.media!, loopEndMs: lr.outMs } : undefined);
+    }
+  }
+
+  /** Handschleife ab der aktuellen Stelle über `lengthMs` (nahtlos wiederholt); 0 = Schleife verlassen. */
+  deckLoop(id: string, lengthMs: number): void {
+    const d = this.deck(id);
+    if (!d.media || d.state !== 'playing' || !d.voice) throw new DeckError(`Deck ${id} spielt nicht`);
+    if (d.auto) throw new DeckError('Von der Automation gestartete Titel loopen nie');
+    if (!(lengthMs > 0)) {
+      d.voice.advance();
+      return;
+    }
+    const len = Math.max(250, Math.min(MAX_LOOP_MS, Math.round(lengthMs)));
+    const pos = d.voice.positionMs;
+    const end = d.media.cueOutMs ?? d.media.durationMs;
+    if (end != null && pos + len >= end) throw new DeckError('Zu nah am Titelende für diese Schleifenlänge');
+    this.releaseVoice(d, 20);
+    this.startDeckVoice(d, pos, false, { ...d.media, loopEndMs: pos + len });
+  }
+
+  private startDeckVoice(d: EngineDeck, fromMs: number, auto: boolean, mediaOverride?: MediaItem): Voice {
+    const m = mediaOverride ?? d.media!;
     // Loop nur von Hand gestartete Decks: die Automation darf nie in einer Endlosschleife hängen bleiben.
-    const v = new Voice(m, 'track', false, trackGainDb(m, this.opts.loudness, this.opts.dsp.limiter), fromMs, !auto);
+    const v = new Voice(m, 'track', false, trackGainDb(m, this.opts.loudness, this.opts.dsp.limiter), fromMs, !auto, auto ? 1 : d.tempo);
     v.deck = d.id;
     v.auto = auto;
     d.voice = v;
@@ -932,7 +981,7 @@ export class Playout {
         ? {
             mediaId: cur.media.id, title: cur.media.title, artist: cur.media.artist,
             positionMs: cur.positionMs,
-            durationMs: cur.totalFrames == null ? null : framesToMs(cur.totalFrames) + cur.startMs - (cur.media.cueInMs ?? 0),
+            durationMs: cur.totalFrames == null ? null : framesToMs(cur.totalFrames) * cur.tempo + cur.startMs - (cur.media.cueInMs ?? 0),
             deck: cur.deck ?? 'A',
           }
         : null,
@@ -945,6 +994,8 @@ export class Playout {
         positionMs: d.voice ? d.voice.positionMs : d.posMs,
         durationMs: d.media ? (d.media.cueOutMs ?? d.media.durationMs ?? null) : null,
         auto: d.auto,
+        tempo: d.tempo,
+        loop: d.voice?.loopRange ?? null,
       })),
       carts: this.voices.filter((v) => v.kind === 'cart').length,
       loops: this.loops(),
@@ -1148,7 +1199,9 @@ export class Playout {
   private startVoice(v: Voice): void {
     const args = ['-hide_banner', '-loglevel', 'error', '-nostdin'];
     if (v.startMs > 0) args.push('-ss', (v.startMs / 1000).toFixed(3));
-    args.push('-i', this.hooks.mediaPath(v.media), '-vn', '-f', 's16le', '-ar', String(SAMPLE_RATE), '-ac', String(CHANNELS), 'pipe:1');
+    args.push('-i', this.hooks.mediaPath(v.media), '-vn');
+    if (v.tempo !== 1) args.push('-af', `atempo=${v.tempo}`);
+    args.push('-f', 's16le', '-ar', String(SAMPLE_RATE), '-ac', String(CHANNELS), 'pipe:1');
     const p = spawn(this.ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     v.proc = p;
     p.stdout!.on('data', (d: Buffer) => {

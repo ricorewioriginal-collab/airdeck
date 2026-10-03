@@ -204,6 +204,16 @@ button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none !important
 .vu-deck i { display: block; width: 100%; height: 0; background: linear-gradient(0deg, var(--green) 0 65%, var(--amber) 65% 85%, var(--red) 85%); box-shadow: 0 0 10px 2px rgba(34, 197, 94, .6); transition: height .08s linear; }
 .progress { height: 6px; margin: 0 12px; background: rgba(255, 255, 255, .08); border-radius: 3px; overflow: hidden; cursor: pointer; }
 .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--c), color-mix(in srgb, var(--c) 30%, #fff)); box-shadow: 0 0 10px var(--c); }
+.progress { position: relative; }
+.deck.has-wave .progress { height: 40px; background: rgba(255, 255, 255, .05); border-radius: 6px; }
+.deck:not(.has-wave) .wave-canvas, .deck:not(.has-wave) .progress .loop-box { display: none; }
+.wave-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .55; }
+.deck.has-wave .progress i:not(.loop-box) { position: absolute; left: 0; top: 0; bottom: 0; height: auto; background: color-mix(in srgb, var(--c) 28%, transparent); border-right: 2px solid #fff; box-shadow: none; }
+.progress .loop-box { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--amber) 35%, transparent); border: 1px solid var(--amber); border-radius: 3px; z-index: 1; pointer-events: none; }
+.deck-adv { display: flex; align-items: center; gap: 4px; padding: 0 10px 6px; font-size: 12px; }
+.deck-adv .deck-btn.small { padding: 3px 6px; }
+.deck-tempo { flex: 1; min-width: 50px; accent-color: var(--c); }
+.tempo-val { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
 .deck-ctrl { display: flex; gap: 5px; align-items: center; padding: 9px 10px 6px; }
 .deck-btn { padding: 5px 8px; border-radius: 8px; }
 .deck-btn.play { width: 40px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--c) 30%, #0d182e); border-color: var(--c); }

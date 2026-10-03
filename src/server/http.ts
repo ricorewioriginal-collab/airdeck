@@ -547,6 +547,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     sendFile(c.req, c.res, file, 'image/jpeg');
     return STREAMED;
   });
+  add('GET', '/api/v1/stations/:sid/media/:id/waveform', 'media:read', async (c) => ({ peaks: await app.svc.media.waveform(sid(c), c.params.id!) }));
   add('GET', '/api/v1/audio-devices', 'automation:read', () => app.inputDevices());
   add('POST', '/api/v1/stations/:sid/queue/shuffle', 'queue:write', (c) => app.shuffleQueue(sid(c)));
   add('POST', '/api/v1/stations/:sid/playout/skip', 'automation:write', (c) => app.skipPlayout(sid(c)));
