@@ -303,6 +303,8 @@ export interface ApiToken {
   createdAt: string;
   /** Gekoppeltes Gerät (Handy, weiterer PC) statt frei erzeugtem API-Token */
   device?: { platform: string; pairedAt: string; lastSeenAt?: string; ip?: string };
+  /** Vom Benutzer selbst erzeugter API-Schlüssel (Profil → Meine API-Keys) */
+  userId?: string;
 }
 
 export interface Principal extends Actor {

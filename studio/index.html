@@ -99,6 +99,7 @@
           <button id="btn-handy" hidden><i data-icon="mic"></i><span>Handy-Sender</span></button>
           <button data-view="handbuch" aria-pressed="false"><i data-icon="list"></i><span>Handbuch</span><kbd>9</kbd></button>
           <button class="nav-help" data-view="handbuch" data-sub="help" aria-pressed="false"><i data-icon="bell"></i><span>Hilfe</span></button>
+          <button data-view="profile" aria-pressed="false" id="nav-profile" hidden><i data-icon="user"></i><span>Mein Profil &amp; API</span></button>
           <button id="btn-logout" hidden><i data-icon="user"></i><span>Abmelden</span></button>
           <button id="btn-quit" hidden><i data-icon="stop"></i><span>AnMaCha Cast beenden</span></button>
         </div>
@@ -111,6 +112,7 @@
   </aside>
 
   <div class="main">
+    <div id="site-banner" hidden></div>
     <!-- Kopfzeile -->
     <header class="top">
       <button class="icon-btn mobile-only" id="btn-menu" title="Menü"><i data-icon="menu"></i></button>
@@ -165,6 +167,7 @@
     <main class="view-page" id="view-listeners" hidden></main>
     <main class="view-page" id="view-stats" hidden></main>
     <main class="view-page" id="view-users" hidden></main>
+    <main class="view-page" id="view-profile" hidden></main>
 
     <!-- Studio-Arbeitsbereich (Decks, Cardwall, Queue, Live) - nicht das Dashboard -->
     <main class="dash" id="view-studio" hidden>

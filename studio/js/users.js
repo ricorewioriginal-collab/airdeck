@@ -84,9 +84,40 @@ export function mountUsers(root, ctx) {
             h('td', {}, u.stationIds.map(stationName).join(', ')),
             h('td', { class: 'num muted' }, u.lastLoginAt ? `${new Date(u.lastLoginAt).toLocaleDateString('de-DE')} ${clockTime(Date.parse(u.lastLoginAt))}` : '–'),
             h('td', { class: 'act' }, h('button', { class: 'btn small', onclick: () => edit(u) }, 'Bearbeiten')))))))),
+      siteCard(await ctx.api.get('/site')),
       logCard(),
     );
     run(loadLog);
+  }
+
+  /** Ankündigungs-Banner (alle Studio-Nutzer + öffentliche Seiten) und Wartungsmeldung. @param {any} site */
+  function siteCard(site) {
+    const s = site.settings ?? { banner: {}, maintenance: {} };
+    const KIND = /** @type {Record<string,string>} */ ({ info: 'Info (blau)', success: 'Erfolg (grün)', warning: 'Hinweis (orange)', danger: 'Wichtig (rot)' });
+    const toLocal = (/** @type {string|undefined} */ iso) => { if (!iso) return ''; const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16); };
+    return h('section', { class: 'panel' },
+      h('div', { class: 'panel-head' }, h('h2', {}, 'Ankündigung & Wartung'),
+        h('button', { class: 'btn small', onclick: async () => {
+          const v = await formDialog('Ankündigung & Wartung', [
+            { type: 'section', label: 'Ankündigungs-Banner', hint: 'Oben im Studio für alle Angemeldeten und auf den öffentlichen Seiten' },
+            { name: 'bEnabled', label: 'Banner anzeigen', type: 'checkbox', value: !!s.banner.enabled },
+            { name: 'bText', label: 'Text', value: s.banner.text ?? '', hint: 'bis 300 Zeichen' },
+            { name: 'bKind', label: 'Art', value: s.banner.kind ?? 'info', options: Object.entries(KIND).map(([k, l]) => /** @type {[string,string]} */ ([k, l])) },
+            { name: 'bUntil', label: 'Ablaufdatum (optional)', type: 'datetime-local', value: toLocal(s.banner.until), hint: 'Danach verschwindet der Banner von selbst' },
+            { name: 'bDismiss', label: 'Besucher können den Banner schließen (bis zur nächsten Sitzung)', type: 'checkbox', value: s.banner.dismissible !== false },
+            { type: 'section', label: 'Wartungsmeldung', hint: 'Roter Balken, nicht schließbar - z. B. vor einem Server-Umzug' },
+            { name: 'mEnabled', label: 'Wartungshinweis anzeigen', type: 'checkbox', value: !!s.maintenance.enabled },
+            { name: 'mText', label: 'Text', value: s.maintenance.text ?? '' },
+          ], 'Speichern');
+          if (!v) return;
+          await run(async () => {
+            await ctx.api.put('/site', { banner: { enabled: v.bEnabled, text: v.bText, kind: v.bKind, until: v.bUntil ? new Date(v.bUntil).toISOString() : '', dismissible: v.bDismiss }, maintenance: { enabled: v.mEnabled, text: v.mText } });
+            status('Gespeichert - gilt sofort für alle');
+            show();
+          });
+        } }, '✎ Bearbeiten')),
+      h('div', { class: 'kv' }, h('span', { class: 'muted' }, 'Banner'), h('span', {}, s.banner.enabled && s.banner.text ? `${KIND[s.banner.kind] ?? s.banner.kind}: „${s.banner.text}“${s.banner.until ? ` · bis ${new Date(s.banner.until).toLocaleString('de-DE')}` : ''}` : 'aus')),
+      h('div', { class: 'kv' }, h('span', { class: 'muted' }, 'Wartung'), h('span', {}, s.maintenance.enabled && s.maintenance.text ? `an: „${s.maintenance.text}“` : 'aus')));
   }
 
   /** @param {any} u */

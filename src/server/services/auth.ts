@@ -27,7 +27,7 @@ export class AuthService {
     return this.tokens.length > 0;
   }
 
-  createToken(input: { name: string; scopes: string[]; roles: string[]; stationIds: string[] }): { token: string; info: Omit<ApiToken, 'hash'> } {
+  createToken(input: { name: string; scopes: string[]; roles: string[]; stationIds: string[]; userId?: string }): { token: string; info: Omit<ApiToken, 'hash'> } {
     const scopes = input.scopes.includes('*') ? ['*'] : input.scopes.filter((s) => (ALL_SCOPES as readonly string[]).includes(s));
     const token = `ad_${randomBytes(24).toString('base64url')}`;
     const rec: ApiToken = {
@@ -38,6 +38,7 @@ export class AuthService {
       roles: input.roles.slice(0, 10),
       stationIds: input.stationIds.length ? input.stationIds : ['*'],
       createdAt: new Date().toISOString(),
+      ...(input.userId ? { userId: input.userId } : {}),
     };
     this.tokens.push(rec);
     this.app.docs.set('tokens', this.tokens);
