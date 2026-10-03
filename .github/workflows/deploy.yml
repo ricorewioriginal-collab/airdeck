@@ -121,8 +121,20 @@ jobs:
             docker compose ps </dev/null
             docker compose -f packaging/demo/docker-compose.demo.yml build </dev/null
             sh packaging/demo/reset-demo.sh </dev/null
-            curl -fs http://127.0.0.1:8751/api/v1/health > /dev/null
-            test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8751/api/v1/music-hub/items)" = 401
+            # Direkt nach dem Reset kann der frische Container noch Verbindungen abbrechen (curl 56): bis zu 60 s wiederholen
+            ok=0
+            for i in $(seq 1 30); do
+              if curl -fs http://127.0.0.1:8751/api/v1/health > /dev/null 2>&1; then ok=1; break; fi
+              sleep 2
+            done
+            test "$ok" = 1
+            code=000
+            for i in $(seq 1 15); do
+              code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8751/api/v1/music-hub/items || true)"
+              [ "$code" = 401 ] && break
+              sleep 2
+            done
+            test "$code" = 401
             echo "MusikHub auf Demo erreichbar; Rollout abgeschlossen"
           REMOTE
       - name: Health-Check
