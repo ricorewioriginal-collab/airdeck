@@ -38,8 +38,9 @@ fun LiveScreen(vm: GoLiveViewModel, onOpenSetup: () -> Unit) {
     val target = ui.lautfm.account?.takeIf { it.stationId > 0 }?.let { "laut.fm · ${it.stationName}" }
         ?: ui.config?.takeIf { it.host.isNotBlank() }?.let { "${it.host}${it.mount}" }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        OnAirPanel(ui, target)
+    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item(key = "onair") { OnAirPanel(ui, target) }
+        item(key = "body") { Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
 
         if (ui.error != null) {
             Surface(shape = RoundedCornerShape(12.dp), color = BrandBad.copy(alpha = 0.14f)) {
@@ -80,7 +81,9 @@ fun LiveScreen(vm: GoLiveViewModel, onOpenSetup: () -> Unit) {
         PttPanel(ui, vm, onAskPermission = { permission.launch(Manifest.permission.RECORD_AUDIO) })
         MicSourcePanel(ui, vm, onAskPermission = { permission.launch(Manifest.permission.RECORD_AUDIO) })
         MixPanel(ui, vm)
-        NowPlayingPanel(ui, vm)
+        DecksPanel(ui, vm)
+        } }
+        libraryItems(ui, vm)
     }
 
     if (confirmStop) {
@@ -252,22 +255,5 @@ private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRan
         Text(label, modifier = Modifier.width(76.dp), fontSize = 13.sp, color = BrandMuted)
         Slider(value = value, onValueChange = onChange, valueRange = range, modifier = Modifier.weight(1f))
         Text(fmt.format(value), modifier = Modifier.width(56.dp), fontSize = 12.sp, color = BrandMuted, textAlign = TextAlign.End)
-    }
-}
-
-@Composable
-private fun NowPlayingPanel(ui: GoLiveUiState, vm: GoLiveViewModel) {
-    if (ui.currentIndex < 0) return
-    Panel(title = "Läuft gerade") {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.GraphicEq, null, tint = BrandBlue)
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(ui.playlist.getOrNull(ui.currentIndex) ?: "", color = BrandText, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Note("${fmtDuration(ui.positionMs)}" + if (ui.durationMs > 0) " / ${fmtDuration(ui.durationMs)}" else "")
-            }
-            IconButton(onClick = vm::stopTrack) { Icon(Icons.Filled.Stop, "Titel stoppen") }
-        }
-        if (ui.durationMs > 0) LinearProgressIndicator(progress = { (ui.positionMs.toFloat() / ui.durationMs).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
     }
 }

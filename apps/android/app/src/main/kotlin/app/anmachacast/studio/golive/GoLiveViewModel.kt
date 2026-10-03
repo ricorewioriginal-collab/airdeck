@@ -21,6 +21,7 @@ import app.anmachacast.studio.live.NcLoginStart
 import app.anmachacast.studio.live.NextcloudAccount
 import app.anmachacast.studio.live.NextcloudClient
 import app.anmachacast.studio.live.NextcloudException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class MicSource(val id: Int, val label: String)
 
@@ -39,6 +41,16 @@ data class NextcloudUi(
     val message: String? = null,
     val loginUrl: String? = null,
     val adding: String? = null,
+)
+
+data class DeckUi(
+    val state: String = "empty",
+    val title: String? = null,
+    val trackIndex: Int = -1,
+    val positionMs: Long = 0,
+    val durationMs: Long = -1,
+    val volume: Float = 1f,
+    val levelDb: Float = -90f,
 )
 
 data class GoLiveUiState(
@@ -56,9 +68,8 @@ data class GoLiveUiState(
     val bytesSent: Long = 0,
     val dropped: Long = 0,
     val startedAt: Long = 0,
-    val currentIndex: Int = -1,
-    val positionMs: Long = 0,
-    val durationMs: Long = -1,
+    val decks: List<DeckUi> = List(4) { DeckUi() },
+    val notice: String? = null,
     val playlist: List<String> = emptyList(),
     val hasMicPermission: Boolean = false,
     val config: EngineHub.ConfigView? = null,
@@ -141,9 +152,7 @@ class GoLiveViewModel(application: Application) : AndroidViewModel(application) 
                 bytesSent = s.bytesSent,
                 dropped = s.dropped,
                 startedAt = s.startedAt,
-                currentIndex = s.current,
-                positionMs = s.positionMs,
-                durationMs = s.durationMs,
+                decks = s.decks?.map { d -> DeckUi(d.state, d.title, d.trackIndex, d.positionMs, d.durationMs, d.volume, d.levelDb) } ?: it.decks,
                 playlist = s.playlist?.map { t -> t.title } ?: emptyList(),
             )
         }
@@ -235,22 +244,92 @@ class GoLiveViewModel(application: Application) : AndroidViewModel(application) 
         hub.setAutoNext(!_ui.value.autoNext)
     }
 
-    // ---------- Playlist ----------
+    // ---------- Titel und Decks ----------
+
+    private var noticeJob: Job? = null
+
+    private fun notice(text: String) {
+        _ui.update { it.copy(notice = text) }
+        noticeJob?.cancel()
+        noticeJob = viewModelScope.launch { delay(4000); _ui.update { it.copy(notice = null) } }
+    }
 
     fun addTracks(uris: List<Uri>, titles: List<String>) {
         hub.addTracks(uris.indices.map { EngineHub.Track(uris[it].toString(), titles[it]) })
+        notice("${uris.size} Titel hinzugefügt")
         pullStatus()
     }
 
-    fun play(index: Int) {
-        runCatching { hub.play(index) }.onFailure { fail(it.message) }
+    /** Alle Audiodateien eines Ordners (bis drei Ebenen tief) in die Bibliothek legen. */
+    fun addFolder(tree: Uri) {
+        val app = getApplication<Application>()
+        runCatching { app.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        viewModelScope.launch {
+            val found = try {
+                withContext(Dispatchers.IO) { scanTree(app, tree) }
+            } catch (e: Exception) {
+                // Anbieter nicht erreichbar, Zugriff entzogen o. Ä.: melden statt abstürzen
+                notice("Ordner konnte nicht gelesen werden: ${e.message ?: e.javaClass.simpleName}")
+                return@launch
+            }
+            if (found.isEmpty()) notice("Keine Audiodateien im Ordner gefunden")
+            else {
+                hub.addTracks(found.map { EngineHub.Track(it.first.toString(), it.second) })
+                notice("${found.size} Titel aus dem Ordner hinzugefügt")
+            }
+            pullStatus()
+        }
+    }
+
+    private fun scanTree(app: Application, tree: Uri): List<Pair<Uri, String>> {
+        val out = ArrayList<Pair<Uri, String>>()
+        fun walk(docId: String, depth: Int) {
+            if (out.size >= 1000) return
+            val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId)
+            app.contentResolver.query(
+                children,
+                arrayOf(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID, android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME, android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE),
+                null, null, null,
+            )?.use { c ->
+                val entries = ArrayList<Triple<String, String, String>>()
+                while (c.moveToNext()) entries += Triple(c.getString(0), c.getString(1) ?: "", c.getString(2) ?: "")
+                entries.sortedBy { it.second.lowercase() }.forEach { (id, name, mime) ->
+                    if (mime == android.provider.DocumentsContract.Document.MIME_TYPE_DIR) { if (depth < 3) walk(id, depth + 1) }
+                    else if (mime.startsWith("audio/") || name.substringAfterLast('.', "").lowercase() in setOf("mp3", "m4a", "aac", "ogg", "opus", "flac", "wav")) {
+                        out += android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, id) to name.substringBeforeLast('.')
+                    }
+                }
+            }
+        }
+        walk(android.provider.DocumentsContract.getTreeDocumentId(tree), 0)
+        return out
+    }
+
+    private fun deckAction(block: () -> Unit) {
+        runCatching(block).onFailure { fail(it.message) }
         pullStatus()
     }
 
-    fun stopTrack() {
-        hub.stopTrack()
+    fun loadDeck(deck: Int, trackIndex: Int) = viewModelScope.launch {
+        // Dauer ermitteln kann kurz dauern: nicht im Oberflächen-Thread
+        withContext(Dispatchers.IO) { runCatching { hub.loadDeck(deck, trackIndex) }.onFailure { fail(it.message) } }
         pullStatus()
     }
+
+    /** Titel in ein Deck laden und sofort starten. */
+    fun loadAndPlay(deck: Int, trackIndex: Int) = viewModelScope.launch {
+        withContext(Dispatchers.IO) {
+            runCatching { hub.loadDeck(deck, trackIndex); hub.playDeck(deck) }.onFailure { fail(it.message) }
+        }
+        pullStatus()
+    }
+
+    fun playDeck(deck: Int) = deckAction { hub.playDeck(deck) }
+    fun pauseDeck(deck: Int) = deckAction { hub.pauseDeck(deck) }
+    fun stopDeck(deck: Int) = deckAction { hub.stopDeck(deck) }
+    fun ejectDeck(deck: Int) = deckAction { hub.ejectDeck(deck) }
+    fun seekDeck(deck: Int, ms: Long) = deckAction { hub.seekDeck(deck, ms) }
+    fun setDeckVolume(deck: Int, volume: Float) = deckAction { hub.setDeckVolume(deck, volume) }
 
     fun removeTrack(index: Int) {
         hub.removeTrack(index)
@@ -267,6 +346,7 @@ class GoLiveViewModel(application: Application) : AndroidViewModel(application) 
     fun openLautFmLogin() = session.openLogin()
     fun closeLautFmLogin() = session.closeLogin()
     fun connectLautFm(token: String) = session.connect(token)
+    fun beginBrowserLogin() = session.beginBrowserLogin()
     fun loadStations() = session.loadStations()
     fun selectLautFmStation(s: LautStation) = session.select(s)
     fun disconnectLautFm() = session.disconnect()

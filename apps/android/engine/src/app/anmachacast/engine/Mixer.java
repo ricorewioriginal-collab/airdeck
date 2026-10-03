@@ -7,8 +7,24 @@ public final class Mixer {
 
     /** Mikrofon: höchstens 0,3 s Vorlauf – lieber verwerfen als verzögern */
     public final PcmRing mic = new PcmRing(RATE * CHANNELS * 3 / 10);
-    /** Musik: Decoder füllt bis zu 4 s vor */
-    public final PcmRing music = new PcmRing(RATE * CHANNELS * 4);
+    /** Anzahl Musik-Decks (A–D) */
+    public static final int DECKS = 4;
+    /** Je Deck ein Puffer: der Decoder füllt bis zu 4 s vor */
+    public final PcmRing[] decks = new PcmRing[DECKS];
+    /** Deck A (Abkürzung für Einfachbetrieb und Tests) */
+    public final PcmRing music;
+    // Von Oberfläche (Regler) und Mischthread (Pegel) gleichzeitig benutzt: als Bits in atomaren Feldern, damit Änderungen sofort sichtbar sind
+    private final java.util.concurrent.atomic.AtomicIntegerArray deckGain = new java.util.concurrent.atomic.AtomicIntegerArray(DECKS);
+    private final java.util.concurrent.atomic.AtomicIntegerArray deckDb = new java.util.concurrent.atomic.AtomicIntegerArray(DECKS);
+
+    public Mixer() {
+        for (int i = 0; i < DECKS; i++) {
+            decks[i] = new PcmRing(RATE * CHANNELS * 4);
+            deckGain.set(i, Float.floatToIntBits(1f));
+            deckDb.set(i, Float.floatToIntBits(-90f));
+        }
+        music = decks[0];
+    }
 
     private volatile boolean micOn;
     private volatile float micGain = 1f;
@@ -19,7 +35,8 @@ public final class Mixer {
     private float curMic;
     private float curDuck = 1f;
     private short[] micBuf = new short[0];
-    private short[] musicBuf = new short[0];
+    private short[] deckBuf = new short[0];
+    private float[] musicBuf = new float[0];
 
     // Pegel (werden vom Mischthread geschrieben, von der Oberfläche gelesen)
     private volatile float micDb = -90;
@@ -36,6 +53,10 @@ public final class Mixer {
     public void setMicGainDb(double db) { micGain = dbToGain(Math.max(-30, Math.min(20, db))); }
     public void setMusicGainDb(double db) { musicGain = dbToGain(Math.max(-60, Math.min(12, db))); }
     public void setDuckDb(double db) { duckGain = dbToGain(Math.max(-40, Math.min(0, db))); }
+    /** Lautstärke eines Decks 0–1,5 (linear) */
+    public void setDeckGain(int deck, float gain) { deckGain.set(deck, Float.floatToIntBits(Math.max(0f, Math.min(1.5f, gain)))); }
+    public float deckGain(int deck) { return Float.intBitsToFloat(deckGain.get(deck)); }
+    public float deckDb(int deck) { return Float.intBitsToFloat(deckDb.get(deck)); }
 
     public float micDb() { return micDb; }
     public float musicDb() { return musicDb; }
@@ -47,14 +68,28 @@ public final class Mixer {
         int n = frames * CHANNELS;
         if (micBuf.length < n) {
             micBuf = new short[n];
-            musicBuf = new short[n];
+            deckBuf = new short[n];
+            musicBuf = new float[n];
         }
         java.util.Arrays.fill(micBuf, 0, n, (short) 0);
-        java.util.Arrays.fill(musicBuf, 0, n, (short) 0);
+        java.util.Arrays.fill(musicBuf, 0, n, 0f);
         mic.read(micBuf, 0, n);
         // Mikro zu: Reste im Puffer verwerfen, damit beim nächsten Drücken kein altes Audio mitläuft
         if (!micOn && curMic <= 0.0001f) mic.clear();
-        music.read(musicBuf, 0, n);
+        // Alle Decks zusammenmischen (jedes mit eigener Lautstärke), Pegel je Deck für die Anzeige
+        for (int d = 0; d < DECKS; d++) {
+            java.util.Arrays.fill(deckBuf, 0, n, (short) 0);
+            int got = decks[d].read(deckBuf, 0, n);
+            if (got <= 0) { deckDb.set(d, Float.floatToIntBits(-90f)); continue; }
+            float g = deckGain(d);
+            double sq = 0;
+            for (int i = 0; i < got; i++) {
+                float v = deckBuf[i] * g;
+                musicBuf[i] += v;
+                sq += (double) v * v;
+            }
+            deckDb.set(d, Float.floatToIntBits(toDb(Math.sqrt(sq / n))));
+        }
 
         // Push-to-Talk-tauglich: Mikro öffnet in ca. 12 ms (kein Knacken, aber sofort hörbar), schließt in 60 ms;
         // Ducking senkt in 50 ms ab und hebt in 150 ms wieder an.

@@ -8,6 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -32,20 +34,6 @@ import app.anmachacast.studio.ui.theme.*
 fun MusicScreen(vm: GoLiveViewModel) {
     val ui by vm.ui.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
-    val ctx = LocalContext.current
-
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isEmpty()) return@rememberLauncherForActivityResult
-        val titles = uris.map { u ->
-            runCatching { ctx.contentResolver.takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            runCatching {
-                ctx.contentResolver.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                    if (c.moveToFirst()) c.getString(0).substringBeforeLast('.') else null
-                }
-            }.getOrNull() ?: u.lastPathSegment.orEmpty()
-        }
-        vm.addTracks(uris, titles)
-    }
 
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = tab, containerColor = Color.Transparent, contentColor = BrandBlue) {
@@ -57,10 +45,9 @@ fun MusicScreen(vm: GoLiveViewModel) {
             0 -> PlaylistTab(ui, vm)
             1 -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Panel(title = "Titel vom Handy") {
-                    Note("Wähle Audiodateien (MP3, AAC, FLAC, OGG, WAV …) aus dem Speicher oder von einem Cloud-Anbieter, der im Dateiauswahldialog angeboten wird.")
-                    Button(onClick = { picker.launch(arrayOf("audio/*")) }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.AddCircle, null); Spacer(Modifier.width(8.dp)); Text("Dateien wählen")
-                    }
+                    Note("Wähle mehrere Audiodateien auf einmal (MP3, AAC, FLAC, OGG, WAV …) oder einen ganzen Ordner. Danach ordnest du sie auf der Live-Seite den Decks zu.")
+                    AddTracksRow(vm)
+                    ui.notice?.let { Note(it) }
                 }
             }
             else -> NextcloudTab(ui, vm)
@@ -70,38 +57,17 @@ fun MusicScreen(vm: GoLiveViewModel) {
 
 @Composable
 private fun PlaylistTab(ui: GoLiveUiState, vm: GoLiveViewModel) {
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Automatisch weiter", color = BrandText, fontSize = 14.sp)
-                Note("Nächster Titel startet von selbst")
-            }
-            Switch(checked = ui.autoNext, onCheckedChange = { vm.toggleAutoNext() })
-            TextButton(onClick = vm::clearPlaylist, enabled = ui.playlist.isNotEmpty()) { Text("Leeren") }
-        }
-        if (!ui.running && ui.playlist.isNotEmpty()) Box(Modifier.padding(horizontal = 16.dp)) { Note("Zum Abspielen zuerst den Sender starten.") }
-        if (ui.playlist.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                Note("Noch keine Titel. Füge welche vom Handy oder aus Nextcloud hinzu.")
-            }
-        } else LazyColumn(Modifier.fillMaxSize()) {
-            itemsIndexed(ui.playlist) { i, title ->
-                val current = i == ui.currentIndex
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(title, fontWeight = if (current) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
-                    leadingContent = { Icon(if (current) Icons.Filled.GraphicEq else Icons.Filled.MusicNote, null, tint = if (current) BrandBlue else BrandMuted) },
-                    trailingContent = {
-                        Row {
-                            IconButton(onClick = { if (current) vm.stopTrack() else vm.play(i) }, enabled = ui.running) {
-                                Icon(if (current) Icons.Filled.Stop else Icons.Filled.PlayArrow, if (current) "Stoppen" else "Abspielen")
-                            }
-                            IconButton(onClick = { vm.removeTrack(i) }) { Icon(Icons.Filled.Delete, "Entfernen") }
-                        }
-                    },
-                )
+    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item(key = "auto") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Deck A spielt automatisch weiter", color = BrandText, fontSize = 14.sp)
+                    Note("Nach dem Ende startet der nächste Titel der Liste")
+                }
+                Switch(checked = ui.autoNext, onCheckedChange = { vm.toggleAutoNext() })
             }
         }
+        libraryItems(ui, vm, "Titelliste")
     }
 }
 
