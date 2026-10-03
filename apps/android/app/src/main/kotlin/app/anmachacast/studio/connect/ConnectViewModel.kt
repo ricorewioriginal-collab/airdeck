@@ -1,6 +1,5 @@
 // Kopplung an einen AnMaCha-Cast-Server per 6-stelligem Code (POST /api/v1/pair, siehe services/devices.ts).
-// Kein QR-Scan in diesem Schritt (CameraX/MLKit bewusst zurückgestellt) - manuelle Eingabe ist ehrlich
-// vollständig, ein Scanner kommt als eigener Schritt dazu statt hier als Attrappe zu stehen.
+// Der Code lässt sich eintippen oder per QR-Code scannen (ConnectScreen, ZXing); der QR-Inhalt trägt Adresse und Code.
 package app.anmachacast.studio.connect
 
 import android.app.Application
@@ -38,6 +37,18 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
     fun setDeviceName(v: String) {
         _ui.value = _ui.value.copy(deviceName = v)
+    }
+
+    /** Ergebnis des QR-Scanners: Adresse und Code übernehmen und gleich koppeln. */
+    fun onScanned(raw: String) {
+        val p = parsePairingPayload(raw)
+        if (p == null) {
+            _ui.value = _ui.value.copy(error = "Das ist kein AnMaCha-Cast-Kopplungscode. Am Server oder in der Windows-App einen neuen QR-Code erzeugen.")
+            return
+        }
+        _ui.value = _ui.value.copy(serverUrl = p.serverUrl ?: _ui.value.serverUrl, code = p.code, error = null)
+        // Ohne Adresse im QR-Code (nur Code) muss sie noch eingetragen werden
+        if (p.serverUrl != null) pair()
     }
 
     fun pair() {

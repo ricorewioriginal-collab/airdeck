@@ -94,6 +94,6 @@ Ein AnMaCha Cast hinter einem Router (Studio-PC) ist von außen nicht erreichbar
 | Verbindungstest in Stufen mit Hinweisen, Versionsprüfung, Serverprofile | umgesetzt (`studio/js/connect.js`, Dialog „Mit AnMaCha Cast verbinden“, „Server wechseln“) |
 | Web-Fernsteuerung (freigegebene Webseiten, CORS + Private Network Access) | umgesetzt: `GET`/`PUT /api/v1/app/origins`, Studio → Tools → Web-Fernsteuerung |
 | Fernzugriff über Vermittler (ausgehende Verbindung, eigenes Geräte-Token, gesperrte Admin-Pfade) | umgesetzt: `src/server/services/remote-link.ts`, `GET`/`PUT`/`DELETE /api/v1/app/remote-link`, Studio → Tools → Fernzugriff |
-| QR-Code | folgt mit dem nativen Kamera-Scanner der App (Schritt 8) |
+| QR-Code | umgesetzt: Inhalt `<Server-Adresse>/#pair=<6 Ziffern>`. Erzeugt vom Studio (Seitenleiste „Gerät per QR koppeln“, auch hinter Reverse-Proxy/Docker) und von der Windows-App (Server & Geräte → Neues Gerät koppeln, QR nur bei freigegebenem Netzwerkzugriff). Gescannt von der Android-App („Per QR-Code koppeln“, ZXing, ohne Google-Dienste); die Handy-Kamera öffnet den Link im Browser und koppelt dort. |
 | Token im Android Keystore | folgt mit Schritt 8, bis dahin Speicher der WebView |
 

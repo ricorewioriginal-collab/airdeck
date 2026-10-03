@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace AnMaChaCast.Ui
 {
@@ -109,6 +110,25 @@ namespace AnMaChaCast.Ui
 
         public static void Info(Window owner, string text, string title = "AnMaCha Cast") =>
             MessageBox.Show(owner != null && owner.IsVisible ? owner : null, text, title, MessageBoxButton.OK, MessageBoxImage.Information);
+
+        /// <summary>Fenster mit QR-Code (Kamera des Handys) und erklärendem Text; null/leerer Link zeigt nur den Text.</summary>
+        public static void Qr(Window owner, string title, string payload, string text)
+        {
+            var w = Make(owner, title, 440);
+            var stack = new StackPanel { Margin = new Thickness(18) };
+            if (!string.IsNullOrEmpty(payload))
+            {
+                var img = new System.Windows.Controls.Image { Source = QrImage.Render(payload), Width = 280, Height = 280, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor);
+                stack.Children.Add(img);
+            }
+            stack.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
+            var ok = new Button { Content = "Fertig", IsDefault = true, IsCancel = true, MinWidth = 90, Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 14, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+            ok.Click += (s, e) => w.Close();
+            stack.Children.Add(ok);
+            w.Content = stack;
+            w.ShowDialog();
+        }
 
         /// <summary>Auswahl aus einer Liste mit Suchfeld; liefert die Id oder null.</summary>
         public static string Pick(Window owner, string title, IList<(string Id, string Label)> items, string searchHint = "Suchen …")

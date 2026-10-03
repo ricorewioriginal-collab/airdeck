@@ -2137,6 +2137,7 @@ function bindStatic() {
   $('btn-listen').addEventListener('click', () => toggleListen());
   $('btn-audio').addEventListener('click', editAudio);
   $('btn-android').addEventListener('click', androidApp);
+  $('btn-pair-qr').addEventListener('click', () => void pairViaQr());
   $('btn-webremote').addEventListener('click', webRemote);
   $('btn-remotelink').addEventListener('click', remoteLink);
   // Benutzer: Abmelden/Passwort nur mit Sitzung, Benutzerverwaltung nur für Administratoren
@@ -2449,33 +2450,55 @@ async function androidApp() {
     const r = await run(() => api.put('/app/network', { lan: v.lan }));
     if (r?.restartNeeded) status('Netzwerk-Einstellung gespeichert – bitte AnMaCha Cast neu starten (Tray/Fenster schließen und neu öffnen)');
   }
-  if (v.pair) {
-    const p = await run(() => api.post('/pairing', { role: v.role, stationIds: [S.station.id] }));
-    if (!p) return;
-    const until = new Date(p.expiresAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    const addr = p.listening ? (p.addresses[0] ?? base) : null;
-    const dlg = /** @type {HTMLDialogElement} */ ($('dialog'));
-    const form = /** @type {HTMLFormElement} */ ($('dialog-form'));
-    form.onsubmit = null;
-    form.replaceChildren(
-      h('h3', {}, 'Gerät koppeln'),
-      ...(addr ? [
-        h('img', { src: qrDataUrl(`${addr}/#pair=${p.code}`), alt: 'QR-Code zum Koppeln', style: 'display:block;margin:0 auto 10px;image-rendering:pixelated;width:200px;height:200px' }),
-        h('p', { class: 'muted', style: 'text-align:center;margin:0 0 12px' }, 'Mit der Handy-Kamera scannen – öffnet AnMaCha Cast und koppelt automatisch.'),
-      ] : []),
-      h('div', { class: 'field' }, h('label', {}, 'Kopplungscode'), h('output', {}, `${p.code.slice(0, 3)} ${p.code.slice(3)}`)),
-      h('div', { class: 'field' }, h('label', {}, 'Server-Adresse in der App'), h('output', {}, p.listening ? (p.addresses.join(' · ') || base) : 'Erst „Im Netzwerk erreichbar“ einschalten und AnMaCha Cast neu starten')),
-      h('div', { class: 'field' }, h('label', {}, 'Gültig'), h('output', {}, `einmalig, bis ${until} Uhr · Sender „${S.station.name}“`)),
-      h('div', { class: 'dialog-actions' }, h('button', { class: 'btn primary', value: 'ok', formnovalidate: true }, 'Fertig')),
-    );
-    dlg.returnValue = '';
-    dlg.showModal();
-    await new Promise((resolve) => { dlg.onclose = () => resolve(null); });
-  }
+  if (v.pair) await showPairing(v.role, base);
   if (v.devices) await manageDevices();
 }
 
 /** Gekoppelte Geräte anzeigen und einzeln widerrufen. */
+/**
+ * Kopplungscode erzeugen und als QR-Code samt Ziffern anzeigen; die Android-App scannt ihn mit „Per QR-Code koppeln“.
+ * @param {string} role Rolle des Geräts
+ * @param {string} base Adresse dieses Servers, falls der Server keine eigene meldet
+ */
+async function showPairing(role, base) {
+  const p = await run(() => api.post('/pairing', { role, stationIds: [S.station.id] }));
+  if (!p) return;
+  const until = new Date(p.expiresAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  // Hinter einem Reverse-Proxy/Docker meldet der Server keine LAN-Adresse; dann ist die Adresse, unter der dieses Studio geöffnet wurde, die richtige
+  const viaProxy = !/^https?:\/\/(localhost|127\.|\[::1\])/.test(location.origin);
+  const addr = p.listening ? (p.addresses[0] ?? base) : viaProxy ? location.origin : null;
+  const dlg = /** @type {HTMLDialogElement} */ ($('dialog'));
+  const form = /** @type {HTMLFormElement} */ ($('dialog-form'));
+  form.onsubmit = null;
+  form.replaceChildren(
+    h('h3', {}, 'Gerät koppeln'),
+    ...(addr ? [
+      h('img', { src: qrDataUrl(`${addr}/#pair=${p.code}`), alt: 'QR-Code zum Koppeln', style: 'display:block;margin:0 auto 10px;image-rendering:pixelated;width:200px;height:200px' }),
+      h('p', { class: 'muted', style: 'text-align:center;margin:0 0 12px' }, 'In der Android-App „Per QR-Code koppeln“ wählen und scannen – oder mit der Handy-Kamera: öffnet AnMaCha Cast im Browser und koppelt automatisch.'),
+    ] : []),
+    h('div', { class: 'field' }, h('label', {}, 'Kopplungscode'), h('output', {}, `${p.code.slice(0, 3)} ${p.code.slice(3)}`)),
+    h('div', { class: 'field' }, h('label', {}, 'Server-Adresse in der App'), h('output', {}, addr ? (p.listening ? (p.addresses.join(' · ') || base) : addr) : 'Erst „Im Netzwerk erreichbar“ einschalten und AnMaCha Cast neu starten')),
+    h('div', { class: 'field' }, h('label', {}, 'Gültig'), h('output', {}, `einmalig, bis ${until} Uhr · Sender „${S.station.name}“`)),
+    h('div', { class: 'dialog-actions' }, h('button', { class: 'btn primary', value: 'ok', formnovalidate: true }, 'Fertig')),
+  );
+  dlg.returnValue = '';
+  dlg.showModal();
+  await new Promise((resolve) => { dlg.onclose = () => resolve(null); });
+}
+
+/** Eigener Einstieg „Gerät per QR koppeln“ (Seitenleiste): Rolle wählen, QR-Code anzeigen. */
+async function pairViaQr() {
+  if (isNativeApp()) return status('Zum Koppeln weiterer Geräte den QR-Code am Server oder in der Windows-App erzeugen.');
+  const c = await run(() => api.get('/app/connect'));
+  if (!c) return;
+  const v = await formDialog('Gerät per QR-Code koppeln', [
+    { name: 'info', label: 'So geht’s', type: 'info', value: 'In der Android-App „Per QR-Code koppeln“ wählen und den Code mit der Kamera scannen. Der Code gilt 5 Minuten und nur einmal.' },
+    { name: 'role', label: 'Rechte des Geräts', value: 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
+  ], 'QR-Code anzeigen');
+  if (!v) return;
+  await showPairing(v.role, c.addresses[0] ?? location.origin);
+}
+
 async function manageDevices() {
   const list = await run(() => api.get('/devices'));
   if (!list) return;

@@ -153,8 +153,15 @@ namespace AnMaChaCast.Pages
             {
                 var r = await C.Api.PostJ("/pairing", new { role = v["role"], stationIds = v["all"] == "true" ? new[] { "*" } : new[] { C.StationId } });
                 var addresses = J.Strings(r, "addresses");
-                Dlg.Info(C.Owner, "Kopplungscode:  " + J.Str(r, "code") + "\n\nGültig 5 Minuten, einmal einlösbar.\n\nAm Gerät in der App „Server hinzufügen“ wählen und Adresse sowie Code eingeben:\n" +
-                    (addresses.Count > 0 ? string.Join("\n", addresses) : "(Adresse dieses Servers)") + (J.Bool(r, "lan") ? "" : "\n\nHinweis: Der Zugriff im Netzwerk ist noch gesperrt – erst „Zugriff im Netzwerk erlauben“ wählen."), "Gerät koppeln");
+                var code = J.Str(r, "code");
+                var lan = J.Bool(r, "lan");
+                // Adresse nur mit Netzwerkzugriff sinnvoll: sonst kann das Handy den Server nicht erreichen
+                var link = lan ? PairingLink.Build(PairingLink.BestAddress(addresses), code) : null;
+                Dlg.Qr(C.Owner, "Gerät koppeln", link,
+                    "Kopplungscode:  " + code + "\n\nGültig 5 Minuten, einmal einlösbar.\n\n" +
+                    (link != null
+                        ? "In der Android-App „Per QR-Code koppeln“ wählen und diesen Code mit der Kamera scannen. Alternativ Adresse und Code eintippen:\n" + string.Join("\n", addresses)
+                        : "Hinweis: Der Zugriff im Netzwerk ist noch gesperrt – erst „Zugriff im Netzwerk erlauben“ wählen, dann erscheint hier der QR-Code."));
             }, "Kopplung");
         }
 
