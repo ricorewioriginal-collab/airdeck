@@ -42,7 +42,12 @@ export interface User {
   mustChangePassword?: boolean;
   createdAt: string;
   lastLoginAt?: string;
+  /** Social Links / Webseite (Profil), Schlüssel → URL oder Handle */
+  links?: Record<string, string>;
 }
+
+/** Erlaubte Social-Link-Felder im Profil */
+export const LINK_KEYS = ['website', 'instagram', 'facebook', 'youtube', 'tiktok', 'x', 'mastodon', 'threads'] as const;
 
 interface Session {
   hash: string;
@@ -158,7 +163,7 @@ export class UserStore {
     return pub;
   }
 
-  async update(id: string, patch: { name?: unknown; roles?: unknown; stationIds?: unknown; disabled?: unknown; password?: unknown; mustChangePassword?: unknown }): Promise<PublicUser> {
+  async update(id: string, patch: { name?: unknown; roles?: unknown; stationIds?: unknown; disabled?: unknown; password?: unknown; mustChangePassword?: unknown; links?: unknown }): Promise<PublicUser> {
     const u = this.get(id);
     if (!u) throw new AuthError(404, 'Benutzer nicht gefunden');
     const roles = patch.roles !== undefined ? this.cleanRoles(patch.roles) : u.roles;
@@ -175,6 +180,16 @@ export class UserStore {
     u.disabled = disabled || undefined;
     if (disabled) this.revokeUser(u.id);
     if (typeof patch.mustChangePassword === 'boolean') u.mustChangePassword = patch.mustChangePassword || undefined;
+    if (patch.links && typeof patch.links === 'object') {
+      const links: Record<string, string> = {};
+      for (const k of LINK_KEYS) {
+        const v = String((patch.links as Record<string, unknown>)[k] ?? '').trim().slice(0, 200);
+        if (!v) continue;
+        if (/^javascript:/i.test(v)) throw new AuthError(400, 'Ungültiger Link');
+        links[k] = v;
+      }
+      u.links = Object.keys(links).length ? links : undefined;
+    }
     this.saveUsers();
     const { passwordHash: _p, ...pub } = u;
     return pub;
