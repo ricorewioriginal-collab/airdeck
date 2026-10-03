@@ -25,6 +25,8 @@ let renderToken = 0;
 
 const url = (/** @type {string} */ p) => `/stations/${encodeURIComponent(sid)}${p}`;
 const media = () => $('main');
+/** Link ins vollständige Studio des verbundenen Servers (Anmeldung per #token). */
+const studioHref = () => (serverBase() ? `${serverBase()}/index.html#token=${encodeURIComponent(api?.token ?? '')}` : 'index.html');
 
 /** @param {string} msg @param {boolean} [bad] */
 function toast(msg, bad = false) {
@@ -67,6 +69,8 @@ function loginView() {
     const base = serverBase();
     msg.textContent = '';
     try {
+      if (!base && location.hostname.endsWith('.github.io')) throw new Error('Bitte die Adresse deines AnMaCha-Cast-Servers eintragen (https://…).');
+      if (base.startsWith('http://') && location.protocol === 'https:') throw new Error('Diese Seite läuft über HTTPS – der Server muss ebenfalls mit https:// erreichbar sein.');
       let t = /** @type {HTMLInputElement} */ (token).value.trim();
       if (!t) {
         const r = await fetch(`${base}/api/v1/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: /** @type {HTMLInputElement} */ (user).value.trim(), password: /** @type {HTMLInputElement} */ (pass).value }) });
@@ -225,7 +229,7 @@ async function studioView(/** @type {number} */ token) {
 async function radioView(/** @type {number} */ token) {
   const st = stations.find((s) => s.id === sid);
   if (!st?.lautfmConnected) {
-    media().replaceChildren(card('Radioadmin', h('p', { class: 'muted' }, 'Für diesen Sender ist laut.fm nicht verbunden. Das geht einmalig im vollständigen Studio (Menü „Mehr“ → laut.fm).'), h('a', { class: 'btn primary', href: 'index.html', style: 'display:inline-flex;align-items:center;text-decoration:none' }, 'Vollständiges Studio öffnen')));
+    media().replaceChildren(card('Radioadmin', h('p', { class: 'muted' }, 'Für diesen Sender ist laut.fm nicht verbunden. Das geht einmalig im vollständigen Studio (Menü „Mehr“ → laut.fm).'), h('a', { class: 'btn primary', href: studioHref(), style: 'display:inline-flex;align-items:center;text-decoration:none' }, 'Vollständiges Studio öffnen')));
     return;
   }
   const cfg = await api.get(url('/lautfm'));
@@ -250,7 +254,7 @@ async function radioView(/** @type {number} */ token) {
     card('Jetzt', h('div', {}, `Hörer: ${stats?.listeners_now ?? '–'}`), h('div', { class: 'muted' }, stats?.position_now ? `Position: ${stats.position_now}` : '')),
     card('Titel suchen', f.artist, h('div', { style: 'height:8px' }), f.title, h('div', { style: 'height:8px' }), f.genre, h('div', { style: 'height:8px' }), h('button', { class: 'btn primary', onclick: () => void search() }, 'Suchen'), results),
     card(`Playlisten (${pls.length})`, ...pls.map((p) => h('div', { class: 'item' }, h('span', {}, p.title), h('span', { class: 'muted' }, `${p.size ?? 0} Titel`)))),
-    card('Mehr', h('p', { class: 'muted' }, 'Hochladen mit Optionen, Tags, Automations-Algorithmen, Sendeplan und Statistik: im vollständigen Studio.'), h('a', { class: 'btn', href: 'index.html', style: 'display:inline-flex;align-items:center;text-decoration:none' }, 'Vollständiges Studio')));
+    card('Mehr', h('p', { class: 'muted' }, 'Hochladen mit Optionen, Tags, Automations-Algorithmen, Sendeplan und Statistik: im vollständigen Studio.'), h('a', { class: 'btn', href: studioHref(), style: 'display:inline-flex;align-items:center;text-decoration:none' }, 'Vollständiges Studio')));
 }
 
 // ---------- Rahmen ----------

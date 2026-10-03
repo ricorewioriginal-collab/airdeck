@@ -23,3 +23,7 @@ Die Android-Betriebsarten als Web-App – auf dem iPhone `https://<server>/mobil
 | **Radioadmin** | laut.fm: Hörer jetzt, Titelsuche → Playlist, Playlisten; alles Weitere (Upload mit Optionen, Tags, Algorithmen, Sendeplan, Statistik) im vollständigen Studio |
 
 Wichtig: Anders als die Android-App sendet die Web-App **nicht direkt** an Icecast/laut.fm (Browser können keine Icecast-Verbindung aufbauen). Das Mikrofon geht an einen AnMaCha-Cast-Server (z. B. die Windows-App oder Docker), der dann weitersendet. Dieser Server muss per HTTPS erreichbar sein.
+
+### Direkt von GitHub
+
+Ohne eigene Adresse für die Oberfläche: **https://ricorewioriginal-collab.github.io/anmacha_cast/app/** öffnen, die Adresse des eigenen Servers (`https://…`) und Anmeldung eintragen, dann „Zum Home-Bildschirm“. Der Server erlaubt diese Seite automatisch (CORS). Ein fertiger Verbindungslink hat die Form `…/app/#server=https://dein-server&token=…`.

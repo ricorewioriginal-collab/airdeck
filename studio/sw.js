@@ -4,7 +4,7 @@ const CACHE = 'anmacha-shell-v2';
 const SHELL = ['./', 'index.html', 'styles.css', 'js/app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'mobil.html', 'mobil.css', 'mobil.webmanifest', 'js/mobil.js'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => Promise.allSettled(SHELL.map((u) => c.add(u)))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

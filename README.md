@@ -16,7 +16,7 @@
 <a href="https://anmachacast-demo.ricorewi-radio.de/demo-login.html"><img src="assets/readme/actions/live-demo.svg" width="300" alt="Live Demo"></a>
 <a href="https://github.com/ricorewioriginal-collab/anmacha_cast/releases/latest"><img src="assets/readme/actions/downloads.svg" width="300" alt="Downloads"></a>
 </p>
-<p align="center"><a href="https://ricorewioriginal-collab.github.io/anmacha_cast/"><strong>🌐 AnMaCha-Cast-Projektseite</strong></a> · <a href="CHANGELOG.md"><strong>📝 Was ist neu?</strong></a></p>
+<p align="center"><a href="https://ricorewioriginal-collab.github.io/anmacha_cast/"><strong>🌐 AnMaCha-Cast-Projektseite</strong></a> · <a href="CHANGELOG.md"><strong>📝 Was ist neu?</strong></a> · <a href="https://ricorewioriginal-collab.github.io/anmacha_cast/app/"><strong>📱 Mobil-App (iPhone/Android im Browser)</strong></a></p>
 
 <p align="center"><a href="#-anmacha-cast">Über AnMaCha Cast</a> · <a href="#-oberfläche--screenshots">Screenshots</a> · <a href="#-live-demo">Demo</a> · <a href="#️-anmacha-cast-herunterladen">Downloads</a> · <a href="#-versionshistorie--änderungen">Versionen</a> · <a href="#-projektstand">Projektstand</a> · <a href="#-entwickeln--mitwirken">Entwickeln</a> · <a href="#-dokumentation">Dokumentation</a> · <a href="#️-lizenz--kommerzielle-nutzung">Lizenz</a></p>
 

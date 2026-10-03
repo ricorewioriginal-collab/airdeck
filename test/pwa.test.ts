@@ -22,6 +22,10 @@ test('PWA: Service Worker wird als JavaScript ausgeliefert, nutzt keinen API-Cac
     const pwa = await fetch(`${base}/js/pwa.js`);
     assert.equal(pwa.status, 200);
     for (const f of ['mobil.html', 'mobil.css', 'mobil.webmanifest', 'js/mobil.js']) assert.equal((await fetch(`${base}/${f}`)).status, 200, f);
+    // Mobil-Web-App der Projektseite (GitHub Pages) darf den Server erreichen
+    const pre = await fetch(`${base}/api/v1/stations`, { method: 'OPTIONS', headers: { Origin: 'https://ricorewioriginal-collab.github.io', 'Access-Control-Request-Method': 'GET' } });
+    assert.equal(pre.status, 204);
+    assert.equal(pre.headers.get('access-control-allow-origin'), 'https://ricorewioriginal-collab.github.io');
   } finally {
     server.close();
   }
