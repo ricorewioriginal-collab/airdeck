@@ -526,6 +526,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # package.json wird für den Release-Tag gebraucht (Version) - ohne Checkout fehlte die Datei und jeder
+      # main-Build endete rot, wodurch auch das Deploy der Demo nie anlief.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: package.json
+          sparse-checkout-cone-mode: false
       # Nur die eigenen Artefakte laden - "docker-arm64" (docker/build-push-action) legt daneben ein
       # internes Buildx-Cache-Artefakt ab ("<owner>~<repo>~....dockerbuild"), dessen Download
       # gelegentlich fehlschlägt und ohne dieses Muster den ganzen Release-Job unnötig scheitern lässt.
