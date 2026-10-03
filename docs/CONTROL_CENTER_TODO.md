@@ -71,9 +71,9 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
 12. ~~[P2 · M] Podcasts: Auto-Veröffentlichung nach Aufnahme mit Titel-/Beschreibungs-Vorlagen~~ - erledigt: Podcast-Einstellungen
     → „Automatisch veröffentlichen“ (Vorlagen mit {label} {date} {time} {weekday} {duration} {station} {n}, Mindestdauer,
     nur Zeitfenster, sofort/Entwurf, fortlaufende Nummer); offen: [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
-13. [P3 · M] Media & Jingle Exchange: Netzwerk-Sichtbarkeit, Dokumente/Logos (an MusikHub andocken).
+13. ~~[P3 · M] Media & Jingle Exchange: Netzwerk-Sichtbarkeit, Dokumente/Logos (an MusikHub andocken)~~ - erledigt im MusikHub: Freigabe-Empfänger „🌐 Netzwerk: alle Sender“ (Grant an `station:*`, gilt in jedem Senderkontext für ausdrücklich zugeordnete Nutzer, nur durch den Eigentümer), Uploads auch für Logos/Bilder (png, jpg, webp, gif, svg) und Dokumente (pdf, txt, md, docx, xlsx, zip) mit Art-Badge und Bildvorschau - Bilder/Dokumente lassen sich teilen und herunterladen, aber nie bereitstellen oder senden.
 14. [P3 · L] Voice Studio: Wellenform-Schnitt, Musikbett-Mischer, Rauschentfernung; Stimm-Klonen nur mit lokaler Engine.
-15. [P3 · L] Transkription (Whisper lokal, Export TXT/SRT/VTT/JSON); Musik-Studio (Suno) nur mit gewünschtem Anbieter.
+15. ~~[P3 · L] Transkription (Whisper lokal, Export TXT/SRT/VTT/JSON)~~ - erledigt: KI-Werkstatt → Transkription (lokales whisper hat Vorrang, sonst OpenAI-kompatibler Provider), Export TXT/SRT/VTT/JSON, Zusammenfassung per KI. Musik-Studio (Suno) bewusst nicht enthalten (siehe 32).
 
 ### Sender & Ausspielung
 16. ~~[P1 · M] Sendereinstellungen: Überblend-Profile, Kurve, Fade-Out beim Stoppen, Sendungsende-Fade~~ - erledigt:

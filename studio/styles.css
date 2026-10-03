@@ -2281,6 +2281,10 @@ dialog h3 { font-size:17px; color:#f2fbff; }
   #view-handbuch, #view-handbuch main, #view-handbuch main * { background:#fff !important; color:#000 !important; }
 }
 
+/* MusikHub: Bilder/Dokumente (Media & Jingle Exchange) */
+.mh-thumb { height:44px; max-width:90px; border-radius:6px; vertical-align:middle; border:1px solid var(--line); background:#060e1e; }
+.mh-kind { display:inline-block; margin-right:6px; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:700; background:rgba(129,140,248,.18); color:#a5b4fc; }
+
 /* Community: Umfragen, Formulare, Auslosung (Hörer & Interaktion) */
 .poll-item { padding:10px 12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:rgba(8,20,42,.5); }
 .poll-item.active { border-color:rgba(56,189,248,.5); }

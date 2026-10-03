@@ -304,6 +304,11 @@ export function mountAi(root, ctx) {
   /** @type {string} */ let spotText = '';
   /** @type {any|null} */ let spotVoice = null;
   /** @type {any|null} */ let transcript = null;
+  /** WebVTT aus Segmenten (Sekunden) - Punkt statt Komma, Kopfzeile, keine Nummern nötig. @param {{start:number,end:number,text:string}[]} segs */
+  const toVtt = (segs) => {
+    const ts = (/** @type {number} */ t) => { const ms = Math.max(0, Math.round(t * 1000)); const p = (/** @type {number} */ n, w = 2) => String(n).padStart(w, '0'); return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms % 3600000 / 60000))}:${p(Math.floor(ms % 60000 / 1000))}.${p(ms % 1000, 3)}`; };
+    return `WEBVTT\n\n${segs.map((s, i) => `${i + 1}\n${ts(s.start)} --> ${ts(s.end)}\n${s.text}\n`).join('\n')}`;
+  };
   /** @type {string} */ let studioKind = 'mod';
   /** @type {string} */ let studioTopic = '';
   /** @type {string} */ let studioText = '';
@@ -493,6 +498,7 @@ export function mountAi(root, ctx) {
       h('div', { class: 'kt-row' },
         h('button', { class: 'btn small', onclick: () => dl(trOut.value, 'transkript.txt', 'text/plain') }, '⬇ TXT'),
         h('button', { class: 'btn small', onclick: () => dl(transcript?.srt ?? '', 'transkript.srt', 'text/plain') }, '⬇ SRT'),
+        h('button', { class: 'btn small', title: 'WebVTT für Web-Player, YouTube und Podcast-Kapitel', onclick: () => dl(toVtt(transcript?.segments ?? []), 'transkript.vtt', 'text/vtt') }, '⬇ VTT'),
         h('button', { class: 'btn small', onclick: () => dl(JSON.stringify(transcript?.segments ?? [], null, 2), 'transkript.json', 'application/json') }, '⬇ JSON'),
         h('button', { class: 'btn small', onclick: async () => { const r = await run(() => ctx.api.post(ctx.url('/ai/text'), { prompt: `Fasse dieses Transkript zusammen (5 Stichpunkte), dann Kapitelmarken und 2 Social-Media-Posts:\n\n${trOut.value.slice(0, 12000)}` })); if (r) { chatIn.value = r.text; document.getElementById('kt-assistant')?.scrollIntoView({ behavior: 'smooth' }); } } }, '✨ Zusammenfassung & Show-Notes')));
 
