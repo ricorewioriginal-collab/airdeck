@@ -30,6 +30,18 @@
     h('a', { href: link('sender.html') }, 'Sender'), '·', h('a', { href: link('sendeplan.html') }, 'Sendeplan'), '·', h('a', { href: link('charts.html') }, 'Charts'), '·', h('a', { href: 'netzwerk.html' }, 'Netzwerk'), '·', h('a', { href: 'status.html' }, 'Stream-Status'),
     h('div', {}, 'Powered by AnMaCha Cast'));
   const fail = (/** @type {string} */ m) => root.replaceChildren(h('div', { class: 'wrap' }, h('div', { class: 'card empty' }, m), foot()));
+  // Ankündigungs-Banner / Wartungsmeldung (Admin → Ankündigung & Wartung) oben auf jeder öffentlichen Seite
+  fetch('api/v1/public/site').then((r) => r.json()).then((site) => {
+    const bars = [];
+    if (site?.maintenance) bars.push(h('div', { class: 'site-bar maintenance', role: 'alert' }, `🛠 ${site.maintenance.text}`));
+    const b = site?.banner;
+    const key = b ? `site-banner:${b.text}` : '';
+    if (b && !(b.dismissible && sessionStorage.getItem(key))) {
+      const bar = h('div', { class: `site-bar ${b.kind}` }, h('span', {}, b.text), b.dismissible ? h('button', { class: 'site-close', title: 'Schließen', onclick: () => { sessionStorage.setItem(key, '1'); bar.remove(); } }, '✕') : null);
+      bars.push(bar);
+    }
+    if (bars.length) document.body.prepend(...bars);
+  }).catch(() => {});
   /** @type {HTMLAudioElement|null} */ let audio = null;
   function playBtn(/** @type {string|null} */ url) {
     const b = /** @type {HTMLButtonElement} */ (h('button', { class: 'play', title: 'Abspielen', disabled: !url }, '▶'));

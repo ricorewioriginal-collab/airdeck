@@ -8,6 +8,7 @@ import path, { extname, join, normalize, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Readable, Transform } from 'node:stream';
 import { AnMaChaCastApp, AppError, canSee, newId, type Principal } from './app.ts';
+import { ALL_SCOPES } from './model.ts';
 import { AiError } from './ai/providers.ts';
 import { AuthError, ROLES, ROLE_LABEL, ROLE_SCOPES } from './users.ts';
 import { MEDIA_CATEGORIES, parseFileName, type MediaCategory } from '../core/automation.ts';
@@ -173,6 +174,46 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
       .filter((e) => (!kind || e.kind === kind) && (!station || e.stationId === station) && (!text || JSON.stringify(e).toLowerCase().includes(text)));
     return rows.slice(-limit).reverse();
   });
+  // Mein Profil (nur mit Benutzersitzung): Name, Social Links, eigene API-Schlüssel
+  const sessionUser = (c: Ctx) => {
+    if (!c.p.user) throw new AppError(404, 'no_session', 'Nur mit Benutzeranmeldung (nicht per API-Token)');
+    return c.p.user;
+  };
+  add('GET', '/api/v1/me/profile', null, (c) => {
+    const u = app.users.get(sessionUser(c).id);
+    if (!u) throw new AppError(404, 'not_found', 'Benutzer nicht gefunden');
+    const { passwordHash: _p, ...pub } = u;
+    return pub;
+  });
+  add('PATCH', '/api/v1/me/profile', null, async (c) => {
+    const me = sessionUser(c);
+    const b = await c.body();
+    return authCall(() => app.users.update(me.id, { name: b.name, links: b.links }));
+  });
+  add('GET', '/api/v1/me/tokens', null, (c) => { const me = sessionUser(c); return app.svc.auth.listTokens().filter((t) => t.userId === me.id); });
+  add('POST', '/api/v1/me/tokens', null, async (c) => {
+    const me = sessionUser(c);
+    const b = await c.body();
+    // nie mehr Rechte als die Sitzung selbst: Scopes werden auf die eigenen gekürzt, Rollen/Sender übernommen
+    const mine = c.p.scopes.includes('*') ? [...ALL_SCOPES] : c.p.scopes;
+    const wanted = Array.isArray(b.scopes) ? b.scopes.map(String) : mine;
+    const scopes = wanted.filter((s: string) => mine.includes(s));
+    if (!scopes.length) throw new AppError(400, 'no_scopes', 'Mindestens ein Recht wählen');
+    const r = app.svc.auth.createToken({ name: str(b.name) || 'API-Key', scopes, roles: c.p.roles, stationIds: c.p.stationIds, userId: me.id });
+    app.audit.write({ kind: 'auth', event: 'apikey_created', actor: c.p.id, user: me.id, token: r.info.id, scopes });
+    return r;
+  });
+  add('DELETE', '/api/v1/me/tokens/:id', null, (c) => {
+    const me = sessionUser(c);
+    const t = app.svc.auth.listTokens().find((x) => x.id === c.params.id && x.userId === me.id);
+    if (!t) throw new AppError(404, 'not_found', 'Schlüssel nicht gefunden');
+    app.svc.auth.revokeToken(t.id);
+    app.audit.write({ kind: 'auth', event: 'apikey_revoked', actor: c.p.id, user: me.id, token: t.id });
+    return { ok: true };
+  });
+  // Ankündigung & Wartung: lesen darf jeder Angemeldete, setzen nur Administratoren
+  add('GET', '/api/v1/site', null, (c) => (c.p.roles.includes('admin') && c.p.stationIds.includes('*') ? { ...app.svc.system.siteView(), settings: app.svc.system.siteSettings() } : app.svc.system.siteView()));
+  add('PUT', '/api/v1/site', null, async (c) => (globalAdmin(c), app.svc.system.setSiteSettings(await c.body())));
   add('GET', '/api/v1/tokens', 'tokens:write', () => app.svc.auth.listTokens());
   add('POST', '/api/v1/tokens', 'tokens:write', async (c) => {
     const b = await c.body();
@@ -1005,6 +1046,11 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
         }
         return json(res, 400, { error: 'invalid', message: 'Ungültige Anfrage' });
       }
+    }
+    // Ankündigungs-Banner / Wartungsmeldung für öffentliche Seiten (ohne Login, CORS offen)
+    if (path === '/api/v1/public/site' && req.method === 'GET') {
+      res.writeHead(200, { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache', 'Content-Type': 'application/json; charset=utf-8' });
+      return void res.end(JSON.stringify(app.svc.system.siteView()));
     }
     // Hörerbereich (öffentlich, je Sender einzeln freizuschalten): Info, Suche, Wunsch, Gruß, Stimme, Charts, Sprachnachricht
     const lp = /^\/api\/v1\/public\/stations\/([a-z0-9-]{1,40})\/listener(?:\/(search|request|message|vote|charts|voice))?$/.exec(path);

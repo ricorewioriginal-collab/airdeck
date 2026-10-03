@@ -116,7 +116,7 @@ export class Api {
     const es = new EventSource(`${this.base}/api/v1/events?station=${encodeURIComponent(stationId)}&token=${encodeURIComponent(this.token)}`);
     const types = [
       'sources.changed', 'queue.changed', 'now_playing.changed', 'deck.state_changed', 'library.changed',
-      'cardwall.changed', 'cardwall.triggered', 'stream.state_changed', 'station.changed', 'automation.state_changed',
+      'cardwall.changed', 'cardwall.triggered', 'stream.state_changed', 'station.changed', 'site.changed', 'automation.state_changed',
       'playout.state', 'playout.level', 'playout.log', 'planning.changed', 'playlists.changed', 'recorder.changed', 'podcast.changed', 'schedule.fired',
       'automation.command', 'metadata.sent', 'ai.decision', 'ai.pending', 'source.takeover_completed', 'source.takeover_rejected', 'source.off_air', 'source.fallback_completed', 'source.source_failed',
     ];
