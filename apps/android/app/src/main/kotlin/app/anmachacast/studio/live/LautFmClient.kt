@@ -49,13 +49,15 @@ class LautFmClient(private val http: OkHttpClient = defaultHttp()) {
 
         /**
          * Token aus der Rückleit-Adresse (…#lautfm_radioadmin_token=… oder ?lautfm_radioadmin_token=…).
-         * Bewusst tolerant: egal wie laut.fm die Adresse zusammensetzt, solange der Parameter drinsteht
-         * und es nicht die Login-Seite selbst ist.
+         * Nur von unserer eigenen Callback-Adresse, damit kein fremder Link ein Token unterschieben kann.
          */
         fun tokenFromRedirect(url: String): String? {
             if (!url.contains(TOKEN_PARAM)) return null
-            val host = runCatching { java.net.URI(url).host }.getOrNull() ?: ""
-            if (host.endsWith("laut.fm") && !url.startsWith("https://anmachacast.app")) return null
+            // nur die eigene Rückleit-Adresse (Host und Pfad), egal ob Anker, Abfrageteil oder Schrägstrich am Ende
+            val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return null
+            val cb = java.net.URI(CALLBACK)
+            if (uri.scheme != cb.scheme || uri.host != cb.host) return null
+            if (uri.path.orEmpty().trimEnd('/') != cb.path.trimEnd('/')) return null
             val raw = url.substringAfter(TOKEN_PARAM).substringBefore('&').substringBefore('#')
             return runCatching { java.net.URLDecoder.decode(raw, "UTF-8") }.getOrNull()?.let(::cleanToken)?.takeIf { TOKEN_RE.matches(it) }
         }

@@ -9,11 +9,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.SettingsInputAntenna
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,7 +47,7 @@ fun StartScreen(last: Mode?, connectedTo: String?, onPick: (Mode) -> Unit) {
         Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(BrandBg, Color(0xFF061B33), BrandBg))),
     ) {
         Column(
-            Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
+            Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -59,7 +62,7 @@ fun StartScreen(last: Mode?, connectedTo: String?, onPick: (Mode) -> Unit) {
                     Text("Dein Radio. Überall.", color = BrandBlue, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(28.dp))
             AnimatedVisibility(shown, enter = fadeIn(tween(700, 200)) + slideInVertically(tween(700, 200)) { it / 4 }) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     ModeCard(
@@ -76,11 +79,18 @@ fun StartScreen(last: Mode?, connectedTo: String?, onPick: (Mode) -> Unit) {
                         last = last == Mode.STUDIO,
                         accent = BrandBlue,
                     ) { onPick(Mode.STUDIO) }
+                    ModeCard(
+                        icon = Icons.Filled.Radio,
+                        title = "Sender-Admin",
+                        text = "Deine laut.fm-Station verwalten: Playlists, Titel, Sendeplan, Statistik und Benutzer – auch wenn nicht dein eigener Icecast sendet.",
+                        last = last == Mode.RADIOADMIN,
+                        accent = BrandPurple,
+                    ) { onPick(Mode.RADIOADMIN) }
                 }
             }
             Spacer(Modifier.height(20.dp))
             Text(
-                "Du kannst jederzeit oben zwischen beiden wechseln.",
+                "Du kannst jederzeit oben zwischen den Bereichen wechseln.",
                 color = BrandMuted, fontSize = 12.sp, textAlign = TextAlign.Center,
             )
         }

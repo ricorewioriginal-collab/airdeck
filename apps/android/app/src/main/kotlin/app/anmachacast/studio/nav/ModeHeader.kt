@@ -5,9 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.SettingsInputAntenna
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -46,15 +43,16 @@ fun ModeHeader(mode: Mode, onAir: Boolean, onSwitch: (Mode) -> Unit) {
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(BrandPanelSolid).padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                ModeButton("Go Live", Icons.Filled.Podcasts, mode == Mode.GOLIVE, Modifier.weight(1f)) { onSwitch(Mode.GOLIVE) }
-                ModeButton("Server / Studio", Icons.Filled.SettingsInputAntenna, mode == Mode.STUDIO, Modifier.weight(1f)) { onSwitch(Mode.STUDIO) }
+                ModeButton("Go Live", mode == Mode.GOLIVE, Modifier.weight(1f)) { onSwitch(Mode.GOLIVE) }
+                ModeButton("Studio", mode == Mode.STUDIO, Modifier.weight(1f)) { onSwitch(Mode.STUDIO) }
+                ModeButton("Sender-Admin", mode == Mode.RADIOADMIN, Modifier.weight(1.25f)) { onSwitch(Mode.RADIOADMIN) }
             }
         }
     }
 }
 
 @Composable
-private fun ModeButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun ModeButton(label: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(11.dp)
     Surface(
         onClick = onClick,
@@ -64,9 +62,7 @@ private fun ModeButton(label: String, icon: androidx.compose.ui.graphics.vector.
         modifier = modifier.height(42.dp),
     ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(label, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
         }
     }
 }

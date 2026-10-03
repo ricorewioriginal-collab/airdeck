@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-data class LautFmAccount(val token: String, val origin: String, val stationId: Long = 0, val stationName: String = "")
+data class LautFmAccount(val token: String, val origin: String, val stationId: Long = 0, val stationName: String = "", val stationSlug: String = "")
 data class NextcloudAccount(val server: String, val user: String, val appPassword: String)
 
 class LiveStore(context: Context) {
@@ -22,16 +22,16 @@ class LiveStore(context: Context) {
 
     fun loadLautFm(): LautFmAccount? {
         val token = prefs.getString("laut_token", null) ?: return null
-        return LautFmAccount(token, prefs.getString("laut_origin", "") ?: "", prefs.getLong("laut_station", 0), prefs.getString("laut_station_name", "") ?: "")
+        return LautFmAccount(token, prefs.getString("laut_origin", "") ?: "", prefs.getLong("laut_station", 0), prefs.getString("laut_station_name", "") ?: "", prefs.getString("laut_slug", "") ?: "")
     }
 
     fun saveLautFm(a: LautFmAccount) {
         prefs.edit().putString("laut_token", a.token).putString("laut_origin", a.origin)
-            .putLong("laut_station", a.stationId).putString("laut_station_name", a.stationName).apply()
+            .putLong("laut_station", a.stationId).putString("laut_station_name", a.stationName).putString("laut_slug", a.stationSlug).apply()
     }
 
     fun clearLautFm() {
-        prefs.edit().remove("laut_token").remove("laut_origin").remove("laut_station").remove("laut_station_name").apply()
+        prefs.edit().remove("laut_token").remove("laut_origin").remove("laut_station").remove("laut_station_name").remove("laut_slug").apply()
     }
 
     fun loadNextcloud(): NextcloudAccount? {

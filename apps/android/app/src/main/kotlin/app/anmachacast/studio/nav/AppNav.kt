@@ -29,6 +29,12 @@ import app.anmachacast.studio.golive.LautFmLoginScreen
 import app.anmachacast.studio.golive.SetupScreen
 import app.anmachacast.studio.home.HomeScreen
 import app.anmachacast.studio.more.MoreScreen
+import app.anmachacast.studio.radioadmin.RaManageScreen
+import app.anmachacast.studio.radioadmin.RaOverviewScreen
+import app.anmachacast.studio.radioadmin.RaProgramScreen
+import app.anmachacast.studio.radioadmin.RaScheduleScreen
+import app.anmachacast.studio.radioadmin.RaStatsScreen
+import app.anmachacast.studio.radioadmin.RadioadminViewModel
 import app.anmachacast.studio.start.StartScreen
 import app.anmachacast.studio.studio.StudioScreen
 
@@ -38,6 +44,11 @@ private object Routes {
     const val MUSIC = "music"
     const val SETUP = "setup"
     const val LAUTLOGIN = "lautlogin"
+    const val RA_OVERVIEW = "ra_overview"
+    const val RA_PROGRAM = "ra_program"
+    const val RA_SCHEDULE = "ra_schedule"
+    const val RA_STATS = "ra_stats"
+    const val RA_MANAGE = "ra_manage"
     const val HOME = "home"
     const val STUDIO = "studio"
     const val MORE = "more"
@@ -57,9 +68,18 @@ private val studioTabs = listOf(
     Tab(Routes.MORE, "Mehr", Icons.Filled.MoreHoriz),
 )
 
+private val adminTabs = listOf(
+    Tab(Routes.RA_OVERVIEW, "Übersicht", Icons.Filled.Dashboard),
+    Tab(Routes.RA_PROGRAM, "Programm", Icons.Filled.LibraryMusic),
+    Tab(Routes.RA_SCHEDULE, "Sendeplan", Icons.Filled.CalendarMonth),
+    Tab(Routes.RA_STATS, "Statistik", Icons.Filled.BarChart),
+    Tab(Routes.RA_MANAGE, "Verwalten", Icons.Filled.Tune),
+)
+
 private fun modeOf(route: String?): Mode? = when (route) {
     Routes.LIVE, Routes.MUSIC, Routes.SETUP -> Mode.GOLIVE
     Routes.HOME, Routes.STUDIO, Routes.MORE, Routes.PLACEHOLDER -> Mode.STUDIO
+    Routes.RA_OVERVIEW, Routes.RA_PROGRAM, Routes.RA_SCHEDULE, Routes.RA_STATS, Routes.RA_MANAGE -> Mode.RADIOADMIN
     else -> null
 }
 
@@ -72,6 +92,7 @@ fun AppNav() {
     var lastMode by remember { mutableStateOf(modeStore.get()) }
     val nav = rememberNavController()
     val live: GoLiveViewModel = viewModel()
+    val admin: RadioadminViewModel = viewModel()
     val liveUi by live.ui.collectAsState()
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val mode = modeOf(route)
@@ -87,7 +108,7 @@ fun AppNav() {
     fun enter(m: Mode) {
         modeStore.set(m)
         lastMode = m
-        nav.navigate(if (m == Mode.GOLIVE) Routes.LIVE else Routes.HOME) {
+        nav.navigate(when (m) { Mode.GOLIVE -> Routes.LIVE; Mode.STUDIO -> Routes.HOME; Mode.RADIOADMIN -> Routes.RA_OVERVIEW }) {
             popUpTo(nav.graph.findStartDestination().id) { inclusive = true }
             launchSingleTop = true
         }
@@ -101,6 +122,7 @@ fun AppNav() {
             val tabs = when (mode) {
                 Mode.GOLIVE -> liveTabs
                 Mode.STUDIO -> if (connected) studioTabs else emptyList()
+                Mode.RADIOADMIN -> adminTabs
                 null -> emptyList()
             }
             if (tabs.isNotEmpty()) {
@@ -131,6 +153,11 @@ fun AppNav() {
             composable(Routes.LIVE) { LiveScreen(live) { nav.navigate(Routes.SETUP) { launchSingleTop = true } } }
             composable(Routes.MUSIC) { MusicScreen(live) }
             composable(Routes.SETUP) { SetupScreen(live) }
+            composable(Routes.RA_OVERVIEW) { RaOverviewScreen(admin) { enter(Mode.GOLIVE) } }
+            composable(Routes.RA_PROGRAM) { RaProgramScreen(admin) }
+            composable(Routes.RA_SCHEDULE) { RaScheduleScreen(admin) }
+            composable(Routes.RA_STATS) { RaStatsScreen(admin) }
+            composable(Routes.RA_MANAGE) { RaManageScreen(admin) { enter(Mode.GOLIVE) } }
             composable(Routes.LAUTLOGIN) { LautFmLoginScreen(onToken = live::connectLautFm, onClose = live::closeLautFmLogin) }
             composable(Routes.HOME) {
                 if (!connected) ConnectScreen(onConnected = {}) else {
