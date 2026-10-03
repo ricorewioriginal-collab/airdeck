@@ -54,7 +54,7 @@ export function pickWinners(pool: string[], count: number): string[] {
 
 /** Teilnehmerliste: eine je Zeile, optional ohne Dubletten (Groß/Klein egal). */
 export function parseNames(text: string, unique: boolean): string[] {
-  const names = text.split(/\r?\n|,|;/).map((n) => clean(n, 80)).filter(Boolean);
+  const names = text.split(/\r?\n/).map((n) => clean(n, 80)).filter(Boolean);
   if (!unique) return names.slice(0, 5000);
   const seen = new Set<string>();
   return names.filter((n) => { const k = n.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 5000);
@@ -114,6 +114,7 @@ export class CommunityService {
     poll.active = active;
     this.app.audit.write({ kind: 'community', event: cur ? 'poll_updated' : 'poll_created', actor: p.id, stationId: sid, poll: poll.id, active });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
     const { voters, salt: _s, ...view } = poll;
     return { ...view, votes: voters.length } as Omit<Poll, 'voters' | 'salt'>;
   }
@@ -125,6 +126,7 @@ export class CommunityService {
     if ((rt.data.polls.length) === before) throw new AppError(404, 'not_found', 'Umfrage nicht gefunden');
     this.app.audit.write({ kind: 'community', event: 'poll_deleted', actor: p.id, stationId: sid, poll: id });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
   }
 
   pollCsv(sid: string, id: string): string {
@@ -155,6 +157,7 @@ export class CommunityService {
     p.results[idx] = (p.results[idx] ?? 0) + 1;
     this.app.publish('community.changed', sid, { kind: 'poll', id: p.id });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
     return { ok: true, results: p.results, total: p.results.reduce((a, b) => a + b, 0) };
   }
 
@@ -180,7 +183,7 @@ export class CommunityService {
         const label = clean(f.label, 80) || `Feld ${i + 1}`;
         // Schlüssel bleiben stabil, damit vorhandene Einträge beim Umbenennen nicht ihre Werte verlieren:
         // explizit mitgegeben → gleicher Text → gleiche Position, sonst neu aus dem Label
-        const prev = old.find((x) => x.key === clean(f.key, 40)) ?? old.find((x) => x.label.toLowerCase() === label.toLowerCase()) ?? (old.length === (input.fields as unknown[]).length ? old[i] : undefined);
+        const prev = old.find((x) => x.key === clean(f.key, 40)) ?? old.find((x) => x.label.toLowerCase() === label.toLowerCase());
         let key = prev?.key ?? (clean(f.key, 40).toLowerCase().replace(/[^a-z0-9_-]+/g, '_') || label.toLowerCase().replace(/[^a-z0-9äöüß]+/g, '_').slice(0, 40));
         while (keys.has(key)) key += '_';
         keys.add(key);
@@ -189,6 +192,16 @@ export class CommunityService {
         if (type === 'select' && !options?.length) throw new AppError(400, 'no_options', `Auswahlfeld „${label}“ braucht Optionen`);
         return { key, label, type, required: f.required === true, ...(options ? { options } : {}) };
       }).slice(0, 20);
+      // Umbenannte Felder ohne Treffer: der Reihe nach die noch freien alten Schlüssel gleichen Typs übernehmen,
+      // damit vorhandene Einträge auch bei „umbenennen + Feld hinzufügen“ ihre Werte behalten
+      const usedKeys = new Set(fields.map((f) => f.key));
+      const free = old.filter((x) => !usedKeys.has(x.key));
+      for (const f of fields) {
+        if (old.some((x) => x.key === f.key)) continue;
+        const idx = free.findIndex((x) => x.type === f.type);
+        if (idx < 0) continue;
+        f.key = free.splice(idx, 1)[0]!.key;
+      }
       if (!fields.length) throw new AppError(400, 'no_fields', 'Mindestens ein Feld');
     }
     const form: FormDef = cur ?? { id: newId('form'), title, description: '', fields, active: true, createdAt: Date.now(), thanks: 'Danke, dein Eintrag ist angekommen!' };
@@ -203,6 +216,7 @@ export class CommunityService {
     if (typeof input.active === 'boolean') form.active = input.active;
     this.app.audit.write({ kind: 'community', event: cur ? 'form_updated' : 'form_created', actor: p.id, stationId: sid, form: form.id });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
     return form;
   }
 
@@ -214,6 +228,7 @@ export class CommunityService {
     rt.data.formEntries = (rt.data.formEntries ?? []).filter((e) => e.formId !== id);
     this.app.audit.write({ kind: 'community', event: 'form_deleted', actor: p.id, stationId: sid, form: id });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
   }
 
   entries(sid: string, formId: string): FormEntry[] {
@@ -227,6 +242,7 @@ export class CommunityService {
     if (rt.data.formEntries.length === before) throw new AppError(404, 'not_found', 'Eintrag nicht gefunden');
     this.app.audit.write({ kind: 'community', event: 'entry_deleted', actor: p.id, stationId: sid, entry: id });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
   }
 
   entriesCsv(sid: string, formId: string): string {
@@ -264,6 +280,7 @@ export class CommunityService {
     if (list.length > MAX_ENTRIES) list.splice(0, list.length - MAX_ENTRIES);
     this.app.publish('community.changed', sid, { kind: 'form', id: form.id });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
     return { ok: true, thanks: form.thanks };
   }
 
@@ -277,7 +294,7 @@ export class CommunityService {
     const names = Array.isArray(input.names) ? input.names.map((n) => clean(n, 80)).filter(Boolean) : parseNames(String(input.text ?? ''), input.unique !== false);
     if (names.length < 2) throw new AppError(400, 'few_names', 'Mindestens zwei Teilnehmer');
     const mode: DrawMode = input.mode === 'multi' ? 'multi' : input.mode === 'elim' ? 'elim' : 'normal';
-    const count = mode === 'multi' ? Math.max(1, Math.min(names.length - 1, Math.floor(Number(input.count)) || 3)) : 1;
+    const count = mode === 'multi' ? Math.max(1, Math.min(names.length, Math.floor(Number(input.count)) || 3)) : 1;
     let winners: string[];
     let remaining: string[];
     if (mode === 'elim') {
@@ -295,6 +312,7 @@ export class CommunityService {
     if (rt.data.draws.length > MAX_DRAWS) rt.data.draws.splice(0, rt.data.draws.length - MAX_DRAWS);
     this.app.audit.write({ kind: 'community', event: 'draw', actor: p.id, stationId: sid, mode, pool: names.length, winners: winners.length });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
     return { winners, mode, pool: names.length, remaining, entry };
   }
 
@@ -306,6 +324,7 @@ export class CommunityService {
     this.app.rt(sid).data.draws = [];
     this.app.audit.write({ kind: 'community', event: 'draws_cleared', actor: p.id, stationId: sid });
     this.app.changed();
+    this.app.publish('community.changed', sid, { kind: 'operator' });
   }
 
   drawsCsv(sid: string): string {

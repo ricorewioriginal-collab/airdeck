@@ -15,7 +15,7 @@ test('Auslosung: faire Auswahl ohne Zurücklegen, Namensliste ohne Dubletten', (
   assert.equal(new Set(w).size, 3, 'keine Doppelten');
   assert.ok(w.every((x) => pool.includes(x)));
   assert.equal(pickWinners(pool, 10).length, 4, 'nie mehr als vorhanden');
-  assert.deepEqual(parseNames('Anna\nben, Anna; Cem\n\n  Ben ', true), ['Anna', 'ben', 'Cem']);
+  assert.deepEqual(parseNames('Anna\nben\nDoe, Jane\nAnna\n\n  Ben ', true), ['Anna', 'ben', 'Doe, Jane'], 'nur Zeilenumbrüche trennen - Kommas bleiben im Namen');
   assert.deepEqual(parseNames('Anna\nanna', false), ['Anna', 'anna']);
   assert.equal(csvCell('=HYPERLINK("x")'), '"\'=HYPERLINK(""x"")"', 'Formel-Zellen werden entschärft');
   assert.equal(csvCell('Anna'), '"Anna"');
@@ -85,8 +85,9 @@ test('Umfragen, Formulare, Auslosung: Studio-API und öffentliche Hörer-Endpunk
     assert.match(fcsv, /"Name";"E-Mail";"Genre";"Nachricht"/);
     assert.match(fcsv, /"Anna";"a@b.de";"Pop";"Hi"/);
     // Feld umbenennen: Schlüssel bleibt, Einträge behalten ihre Werte
-    const renamed = (await api('PATCH', `/forms/${f.id}`, { fields: [{ label: 'Vorname', type: 'text', required: true }, { label: 'E-Mail', type: 'email', required: true }, { label: 'Genre', type: 'select', options: ['Pop', 'Rock'] }, { label: 'Nachricht', type: 'textarea' }] })).body;
-    assert.equal(renamed.fields[0].key, 'name', 'Schlüssel per Position erhalten');
+    const renamed = (await api('PATCH', `/forms/${f.id}`, { fields: [{ label: 'Vorname', type: 'text', required: true }, { label: 'E-Mail', type: 'email', required: true }, { label: 'Genre', type: 'select', options: ['Pop', 'Rock'] }, { label: 'Nachricht', type: 'textarea' }, { label: 'Telefon', type: 'text' }] })).body;
+    assert.equal(renamed.fields[0].key, 'name', 'Schlüssel bei Umbenennen + neuem Feld erhalten');
+    assert.equal(renamed.fields[4].key, 'telefon');
     assert.equal((await api('GET', `/forms/${f.id}/entries`)).body[1].values.name, 'Anna');
     assert.equal((await api('DELETE', `/form-entries/${entries[0]!.id}`)).status, 200);
     await api('PATCH', `/forms/${f.id}`, { active: false });
@@ -100,12 +101,13 @@ test('Umfragen, Formulare, Auslosung: Studio-API und öffentliche Hörer-Endpunk
     assert.equal(d1.remaining.length, 3);
     const d2 = (await api('POST', '/draw', { names: ['Anna', 'Ben', 'Cem', 'Dana'], mode: 'multi', count: 2 })).body;
     assert.equal(d2.winners.length, 2);
+    assert.equal((await api('POST', '/draw', { names: ['Anna', 'Ben'], mode: 'multi', count: 2 })).body.winners.length, 2, 'alle Teilnehmer dürfen gewinnen');
     const d3 = (await api('POST', '/draw', { names: ['Anna', 'Ben', 'Cem'], mode: 'elim' })).body;
     assert.equal(d3.winners.length, 1);
     assert.equal(d3.remaining.length, 2, 'Ausgeschiedene in Reihenfolge');
     const draws = (await api('GET', '/draws')).body as { mode: string; label?: string }[];
-    assert.deepEqual(draws.map((d) => d.mode), ['elim', 'multi', 'normal']);
-    assert.equal(draws[2]!.label, 'Karten');
+    assert.deepEqual(draws.map((d) => d.mode), ['elim', 'multi', 'multi', 'normal']);
+    assert.equal(draws[3]!.label, 'Karten');
     const dcsv = await (await fetch(`${root}/api/v1/stations/main/draws/csv`, { headers: { Authorization: `Bearer ${token}` } })).text();
     assert.match(dcsv, /"normal";"[^"]+";"4";"Karten"/);
     assert.equal((await api('DELETE', '/draws')).status, 200);
@@ -114,5 +116,19 @@ test('Umfragen, Formulare, Auslosung: Studio-API und öffentliche Hörer-Endpunk
     app.shutdown();
     server.close();
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clientIp: hinter vertrauenswürdigem Proxy zählt der zuletzt angehängte Eintrag', async () => {
+  const { clientIp } = await import('../src/server/http.ts');
+  const req = (xff: string) => ({ headers: { 'x-forwarded-for': xff }, socket: { remoteAddress: '127.0.0.1' } }) as never;
+  const prev = process.env.ANMACHA_CAST_TRUST_PROXY;
+  try {
+    delete process.env.ANMACHA_CAST_TRUST_PROXY;
+    assert.equal(clientIp(req('1.2.3.4')), '127.0.0.1', 'ohne Vertrauen zählt der Socket');
+    process.env.ANMACHA_CAST_TRUST_PROXY = '1';
+    assert.equal(clientIp(req('9.9.9.9, 1.2.3.4')), '1.2.3.4', 'frei wählbarer Anfang wird ignoriert');
+  } finally {
+    if (prev === undefined) delete process.env.ANMACHA_CAST_TRUST_PROXY; else process.env.ANMACHA_CAST_TRUST_PROXY = prev;
   }
 });

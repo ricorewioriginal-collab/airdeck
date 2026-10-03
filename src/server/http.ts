@@ -93,7 +93,9 @@ function applyCors(req: IncomingMessage, res: ServerResponse, extra: (origin: st
 export function clientIp(req: IncomingMessage): string {
   const trust = /^(1|true|yes)$/i.test(process.env.ANMACHA_CAST_TRUST_PROXY ?? process.env.AIRDECK_TRUST_PROXY ?? '');
   if (trust) {
-    const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',')[0]?.trim();
+    // Der vertrauenswürdige Proxy hängt die echte Adresse ANS ENDE an (nginx: $proxy_add_x_forwarded_for);
+    // ein vom Client mitgeschickter Anfang wäre frei wählbar - daher der letzte Eintrag.
+    const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',').map((x) => x.trim()).filter(Boolean).pop();
     if (fwd) return fwd;
   }
   return String(req.socket.remoteAddress ?? '');
@@ -866,8 +868,9 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('PATCH', '/api/v1/stations/:sid/polls/:id', 'stations:write', async (c) => C.savePoll(c.p, sid(c), c.params.id!, await c.body()));
   add('DELETE', '/api/v1/stations/:sid/polls/:id', 'stations:write', (c) => { C.deletePoll(c.p, sid(c), c.params.id!); return { ok: true }; });
   add('GET', '/api/v1/stations/:sid/polls/:id/csv', 'queue:read', (c) => {
+    const csv = C.pollCsv(sid(c), c.params.id!); // erst rechnen (404 bei unbekannter ID), dann Kopf senden
     c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="umfrage-${c.params.id}.csv"` });
-    c.res.end('\ufeff' + C.pollCsv(sid(c), c.params.id!));
+    c.res.end('\ufeff' + csv);
     return STREAMED;
   });
   add('GET', '/api/v1/stations/:sid/forms', 'queue:read', (c) => C.forms(sid(c)));
@@ -876,8 +879,9 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('DELETE', '/api/v1/stations/:sid/forms/:id', 'stations:write', (c) => { C.deleteForm(c.p, sid(c), c.params.id!); return { ok: true }; });
   add('GET', '/api/v1/stations/:sid/forms/:id/entries', 'queue:read', (c) => C.entries(sid(c), c.params.id!));
   add('GET', '/api/v1/stations/:sid/forms/:id/entries/csv', 'queue:read', (c) => {
+    const csv = C.entriesCsv(sid(c), c.params.id!);
     c.res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="formular-${c.params.id}.csv"` });
-    c.res.end('\ufeff' + C.entriesCsv(sid(c), c.params.id!));
+    c.res.end('\ufeff' + csv);
     return STREAMED;
   });
   add('DELETE', '/api/v1/stations/:sid/form-entries/:id', 'queue:write', (c) => { C.deleteEntry(c.p, sid(c), c.params.id!); return { ok: true }; });
@@ -1116,7 +1120,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
         if (req.method === 'GET' && action === 'form') return json(res, 200, app.svc.community.publicForm(lsid!, url.searchParams.get('id')));
         if (req.method === 'POST' && (action === 'poll/vote' || action === 'form/submit')) {
           // 20 Felder × 2000 Zeichen plus JSON-Hülle passen in 96 KiB
-          const b = JSON.parse((await readRaw(req, 96 * 1024)).toString('utf8') || '{}') as Record<string, unknown>;
+          const b = JSON.parse((await readRaw(req, 192 * 1024)).toString('utf8') || '{}') as Record<string, unknown>;
           return json(res, 200, action === 'poll/vote' ? app.svc.community.votePoll(lsid!, ip, b) : app.svc.community.submitForm(lsid!, ip, b));
         }
         if (req.method === 'POST' && action === 'voice') {

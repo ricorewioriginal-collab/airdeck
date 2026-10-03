@@ -109,7 +109,11 @@ export function mountListeners(root, ctx) {
   }
 
   /** Felder als Textzeilen: Label | text|textarea|select|email | pflicht | Option1;Option2 */
-  const fieldsToText = (/** @type {any[]} */ fields) => fields.map((f) => [f.label, f.type, f.required ? 'pflicht' : '', (f.options ?? []).join(';')].filter((x, i) => i < 2 || x).join(' | ')).join('\n');
+  const fieldsToText = (/** @type {any[]} */ fields) => fields.map((f) => {
+    const cols = [f.label, f.type, f.required ? 'pflicht' : '', (f.options ?? []).join(';')];
+    while (cols.length > 2 && !cols[cols.length - 1]) cols.pop(); // nur leere Spalten am Ende weglassen, Spaltenlage bleibt
+    return cols.join(' | ');
+  }).join('\n');
   const textToFields = (/** @type {string} */ text) => text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
     const [label, type = 'text', req = '', opts = ''] = l.split('|').map((x) => x.trim());
     return { label, type, required: /^(pflicht|ja|x|\*|required)$/i.test(req), options: opts ? opts.split(';').map((o) => o.trim()).filter(Boolean) : undefined };
@@ -152,7 +156,7 @@ export function mountListeners(root, ctx) {
   /** Auslosung: Teilnehmer je Zeile, Modus, Gewinner groß, Protokoll mit CSV. @param {any[]} draws @param {any[]} forms @param {any[]} inbox */
   function drawCard(draws, forms, inbox) {
     const ta = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: 8, placeholder: 'Ein Teilnehmer je Zeile …', oninput: () => { drawState.text = ta.value; } }, drawState.text));
-    const names = () => { const seen = new Set(); return ta.value.split(/\r?\n|,|;/).map((s) => s.trim()).filter((s) => s && (!drawState.unique || !seen.has(s.toLowerCase()) && seen.add(s.toLowerCase()))); };
+    const names = () => { const seen = new Set(); return ta.value.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && (!drawState.unique || !seen.has(s.toLowerCase()) && seen.add(s.toLowerCase()))); };
     const count = h('span', { class: 'muted small' }, `${names().length} Teilnehmer`);
     ta.addEventListener('input', () => { count.textContent = `${names().length} Teilnehmer`; });
     const winner = h('div', { class: 'draw-winner' }, lastDraw ? h('b', {}, lastDraw.winners.join(' · ')) : h('span', { class: 'muted' }, 'Noch nicht gezogen'));
