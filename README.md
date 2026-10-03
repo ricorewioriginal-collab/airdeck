@@ -2,7 +2,7 @@
 
 <h1 align="center">AnMaCha Cast</h1>
 <h3 align="center">Dein Radio. Dein Studio. AnMaCha Cast.</h3>
-<p align="center">Automation · Live Studio · Musikverwaltung · Sendeplanung · Streaming · MusicHub</p>
+<p align="center">Automation · Live Studio · Decks · Voice Studio · Podcast · Streaming · MusicHub · Apps · offene API</p>
 <p align="center">Automatisieren, live senden und mehrere Stationen verwalten – mit einer Oberfläche für den echten Radiobetrieb.</p>
 
 <p align="center">
@@ -32,10 +32,32 @@ AnMaCha Cast ist eine eigenständige Radio-Automation und Live-Broadcast-Plattfo
 
 | 🎚️ Studio & Playout | 🎵 Medien & Planung | 📡 Betrieb & Integration |
 |---|---|---|
-| Live Studio, Queue, Decks & Cardwall | Mediathek, Playlists & Sendeplanung | Streaming & externe Provider |
-| 24/7 Automation & Playout | MusicHub & Medienfreigaben | Zusatz-Streams & Ausspielwege |
-| Recorder & Live-Steuerung | Nextcloud-/Storage-Anbindungen | Benutzer, Rollen & Rechte |
-| Mehrere Sender | Senderbezogene Berechtigungen | Windows, Android, Linux/Server & Docker |
+| Live Studio, Queue & Cardwall | Mediathek, Playlists, Smart-Blöcke & Sendeplanung | Streaming & externe Provider (laut.fm, Icecast …) |
+| Vier Decks mit Wellenform, Loop und Tempo | Voice Studio: schneiden, entrauschen, aufbereiten | Zusatz-Streams & Ausspielwege |
+| 24/7 Automation & Playout | MusicHub & Medienfreigaben | Benutzer, Rollen & Rechte, mehrere Sender |
+| Recorder, Mitschnitte & Live-Steuerung | Nextcloud-/Storage-Anbindungen | **Offene REST-API** mit OpenAPI-Spezifikation |
+| KI-Werkstatt: Texte, Sprache, Spots, Transkription | Nachrichten, Wetter & Sendungsvorbereitung | Windows, Android, Linux/Server & Docker |
+
+### 📱 Apps
+
+| App | Was sie kann |
+|---|---|
+| **Android** | **Go Live** (Push-to-Talk, Mikrofonquelle, vier Decks mit Titelzuordnung, laut.fm-Anmeldung, Nextcloud-Musikpool), **Studio** (Fernsteuerung des Servers) und **Sender-Admin** (laut.fm Radioadmin mobil: Playlists, Titel hochladen und verwalten, Sendeplan, Statistik, Benutzer, Automation) |
+| **Windows** | Eigenständiges Studio mit eingebauter Engine, Installer oder portabel |
+| **Browser** | Das komplette Studio unter jeder Server-Adresse, auch als installierbare Web-App |
+
+### 🎙️ Podcast mit echtem öffentlichem Link
+
+Mitschnitte werden zu Episoden mit eigenem RSS-Feed. Damit Apple Podcasts, Spotify & Co. den Feed abrufen können, gibt es zwei kostenlose Wege:
+eine **öffentliche Adresse** für den eigenen Server (z. B. per Tailscale Funnel oder Cloudflare Tunnel, mit Erreichbarkeitsprüfung) oder der
+**Upload zu Buzzsprout bzw. Podbean**. Details: [docs/PODCAST_HOSTING.md](docs/PODCAST_HOSTING.md).
+
+### 🔌 Offene API
+
+Alles, was Studio und Apps können, steht auch per **REST-API** zur Verfügung – über 330 Endpunkte in 20 Bereichen, mit Rechten je Schlüssel.
+Die [**API-Referenz**](docs/API-REFERENCE.md) und die [**OpenAPI-Spezifikation**](docs/openapi.json) werden aus dem Code erzeugt und von Tests geprüft;
+auf jedem Server gibt es zusätzlich die interaktive Dokumentation unter `/api-docs.html` und die Spezifikation unter `/api/v1/openapi.json`.
+Einstieg, Anmeldung, Rechte, App-Kopplung und Beispiele: [docs/API.md](docs/API.md) · [Interaktive API-Doku auf der Projektseite](https://ricorewioriginal-collab.github.io/anmacha_cast/api.html).
 
 ---
 
@@ -118,6 +140,9 @@ Bitte vor Beiträgen **[CONTRIBUTING.md](CONTRIBUTING.md)** lesen. Für KI-unter
 - **[AnMaCha-Cast-Projektdokumentation](https://ricorewioriginal-collab.github.io/anmacha_cast/docs.html)** – README, Changelog, Wiki und Lizenz direkt auf der Projektseite
 - **[CHANGELOG.md](CHANGELOG.md)** – Versionshistorie und Vergleich veröffentlichter Versionen
 - **[GitHub Wiki](https://github.com/ricorewioriginal-collab/anmacha_cast/wiki)** – ausführliche Projekt- und Entwicklerdokumentation
+- **[API-Einstieg](docs/API.md)** · **[API-Referenz](docs/API-REFERENCE.md)** · **[OpenAPI](docs/openapi.json)** – REST-API für eigene Werkzeuge und Apps
+- **[Podcast veröffentlichen](docs/PODCAST_HOSTING.md)** – öffentliche Adresse oder kostenloser Hoster
+- **[Brücken & Webhooks](docs/BRIDGE.md)** – Icecast, AzuraCast, laut.fm
 - **[Installation](docs/INSTALLATION.md)** – Installation und Plattformhinweise
 - **[Docker](docs/DOCKER.md)** – Server-/Containerbetrieb
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** – Regeln für Beiträge und Freigaben

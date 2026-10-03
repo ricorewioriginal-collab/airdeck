@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'site/**'
+      - 'docs/openapi.json'
+      - 'studio/api-docs.html'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -30,6 +32,12 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      - name: API-Dokumentation einbinden
+        run: |
+          cp docs/openapi.json site/openapi.json
+          sed "s#const STATIC_DOCS = false;#const STATIC_DOCS = true;#" studio/api-docs.html > site/api.html
+          grep -q "STATIC_DOCS = true" site/api.html
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v5
