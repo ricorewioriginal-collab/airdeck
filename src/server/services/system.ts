@@ -4,7 +4,7 @@ import type { AnMaChaCastApp } from '../app.ts';
 import { existsSync } from 'node:fs';
 import { cpus, freemem, networkInterfaces, totalmem, uptime as osUptime } from 'node:os';
 import { join } from 'node:path';
-import { envVar } from '../legacy-branding.ts';
+import { envVar } from '../env.ts';
 import { AppError } from '../model.ts';
 import { readJson, writeFileAtomic } from '../store.ts';
 import { DEFAULT_SOURCE, type UpdateSource } from '../update.ts';
@@ -157,7 +157,7 @@ export class SystemService {
 
   /** Mitgelieferte APK (Windows-Paket) oder null. Legacy-Dateiname (vor der Umbenennung zu AnMaCha Cast gebaute Pakete) bleibt als Fallback erkannt. */
   localApk(): string | null {
-    for (const name of ['AnMaCha-Cast-Android.apk', 'AirDeck-Android.apk']) {
+    for (const name of ['AnMaCha-Cast-Android.apk']) {
       const f = join(this.app.appRoot, 'android', name);
       if (existsSync(f)) return f;
     }

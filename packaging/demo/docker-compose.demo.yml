@@ -21,7 +21,7 @@ services:
       - anmachacast-demo-data:/data
     environment:
       TZ: Europe/Berlin
-      AIRDECK_DB: sqlite
+      ANMACHA_CAST_DB: sqlite
       ANMACHA_CAST_DEMO_PUBLIC_STREAM_URL: https://anmachacast-demo.ricorewi-radio.de/stream/anmachacast-demo.mp3
     # Begrenzt, wie lange das einmalige Admin-Einmalpasswort/-Token (siehe docker-compose.yml) nach
     # einem Neustart/Reset im Container-Log wiederauffindbar bleibt.

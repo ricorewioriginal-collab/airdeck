@@ -569,52 +569,44 @@ der damaligen, tatsächlich auf `airdeck-demo.ricorewi-radio.de` durchgeführten
 Cron-Job-Pfad für `reset-demo.sh` ggf. anpassen, alte Demo (`airdeck-demo`-Container, DNS,
 Zertifikat) nach erfolgreichem Umzug abbauen.
 
-## Phase 10: Apps und Pakete vollständig umbenannt (Windows, Android, Linux)
+## Phase 10: Apps, Pakete und technische Kennungen vollständig umbenannt
 
 Die Phasen 5 bis 7 hatten Dateinamen, Pfade, Paketnamen und Kennungen bewusst auf „AirDeck“ gelassen, damit
-Updates nicht brechen. Das ist mit dieser Phase abgelöst: Die Apps und Pakete heißen jetzt durchgehend
-**AnMaCha Cast**, und alles, was Nutzerdaten berührt, wird beim Update übernommen. Die Download-Dateinamen im
-Release (`AnMaCha-Cast-Setup.exe`, `-Windows-Portable.zip`, `-Android.apk`, `-Linux.deb`) bleiben gleich.
+Updates nicht brechen. Da bisher niemand die Apps installiert hat (das Release v0.5.0 hatte keine Dateien), gibt es
+keine Update-Pfade mehr zu schützen: Alles heißt jetzt **AnMaCha Cast**, ohne Übergangscode. Die Download-Dateinamen
+im Release (`AnMaCha-Cast-Setup.exe`, `-Windows-Portable.zip`, `-Android.apk`, `-Linux.deb`) bleiben gleich.
 
 | Bereich | vorher | jetzt |
 |---|---|---|
-| Windows-Programm | `AirDeck.exe` | `AnMaChaCast.exe` |
-| Windows-Engine | `airdeck-engine.exe` | `anmachacast-engine.exe` |
-| Build-Ordner / Portable-ZIP | `dist/AirDeck`, Ordner `AirDeck` | `dist/AnMaChaCast`, Ordner `AnMaChaCast` |
-| Installationsordner (neu) | `…\Programs\AirDeck` | `…\Programs\AnMaChaCast` |
-| Startmenü / Desktop / Autostart | „AirDeck“ | „AnMaCha Cast“ / `AnMaChaCast` |
-| Firewall-Regel | `AirDeck` | `AnMaChaCast` |
-| Geplante Aufgabe (Autostart-Skript) | `AirDeck` | `AnMaChaCast` |
+| Windows-Programm / Engine | `AirDeck.exe` / `airdeck-engine.exe` | `AnMaChaCast.exe` / `anmachacast-engine.exe` |
+| Build-Ordner, Portable-ZIP | `dist/AirDeck`, Ordner `AirDeck` | `dist/AnMaChaCast`, Ordner `AnMaChaCast` |
+| Installationsordner, Startmenü | `…\Programs\AirDeck`, „AirDeck“ | `…\Programs\AnMaChaCast`, „AnMaCha Cast“ |
+| Autostart, Firewall-Regel, Aufgabe | `AirDeck` | `AnMaChaCast` |
 | Hilfsskripte | `AirDeck-Netzwerk.cmd`, `AirDeck-Headless.cmd` | `AnMaChaCast-Netzwerk.cmd`, `AnMaChaCast-Headless.cmd` |
-| C#-Projekt | Namespace/Assembly `AirDeck` | `AnMaChaCast` |
-| Android-Paket | `app.airdeck.studio` (+ `app.airdeck.engine`) | `app.anmachacast.studio` (+ `app.anmachacast.engine`) |
-| Debian-Paket | `airdeck` | `anmachacast` (`Replaces`/`Conflicts: airdeck`) |
-| Linux-Konto und Pfade | `airdeck`, `/opt|/etc|/var/lib|/var/log/airdeck` | `anmachacast` und `…/anmachacast` |
-| Konfigurationsdatei | `airdeck.conf` | `anmachacast.conf` (die alte wird weiter gelesen) |
-| Benutzer-Datenordner (neu) | `%LOCALAPPDATA%\AirDeck`, `~/.airdeck` | `%LOCALAPPDATA%\AnMaChaCast`, `~/.anmachacast` |
+| C#-Projekt, Signalnamen | Namespace/Assembly `AirDeck`, `AirDeck.Studio.*` | `AnMaChaCast`, `AnMaChaCast.Studio.*` |
+| Android | `app.airdeck.studio` (+ `app.airdeck.engine`) | `app.anmachacast.studio` (+ `app.anmachacast.engine`) |
+| Debian-Paket, Konto, Pfade | `airdeck`, `/opt\|/etc\|/var/lib\|/var/log/airdeck` | `anmachacast`, `…/anmachacast` |
+| Konfigurationsdatei | `airdeck.conf` | `anmachacast.conf` |
+| Datenordner (Benutzer) | `%LOCALAPPDATA%\AirDeck`, `~/.airdeck` | `%LOCALAPPDATA%\AnMaChaCast`, `~/.anmachacast` |
+| SQLite-Datei, Zustand | `airdeck.db`, `airdeck.json`, Dokument `airdeck` | `anmachacast.db`, `anmachacast.json`, Dokument `anmachacast` |
+| MySQL-Tabelle, Standard-Datenbank, Firestore | `airdeck_state`, `airdeck`, Sammlung `airdeck` | `anmachacast_state`, `anmachacast`, Sammlung `anmachacast` |
+| Umgebungsvariablen | `AIRDECK_*` (Fallback) | nur `ANMACHA_CAST_*` |
 | Build-Globale | `__AIRDECK_*` | `__ANMACHACAST_*` |
+| LAN-Erkennung, Health-Name, APK-Pfad | zusätzlich `AIRDECK?1`, `AirDeck`, `/download/AirDeck-Android.apk` | nur noch die neuen Namen |
 
-### Update-Verhalten (nichts geht verloren)
+`legacy-branding.ts` heißt jetzt `env.ts` und liest nur noch `ANMACHA_CAST_*`.
 
-- **Windows:** gleiche Installer-`AppId`, daher ersetzt das Setup die alte Installation. `[InstallDelete]` entfernt
-  `AirDeck.exe`, `airdeck-engine.exe`, die alten `.cmd`-Skripte und die alten Verknüpfungen, der Autostart-Eintrag
-  `AirDeck` wird durch `AnMaChaCast` ersetzt, die Firewall-Regel `AirDeck` durch `AnMaChaCast` (Port aus der Konfiguration,
-  gleiches Profil). Liegt der Datenordner noch unter `%LOCALAPPDATA%\AirDeck\data`, bleibt er in Gebrauch.
-  `config.ts` wählt den neuen Ordner nur, wenn der alte nicht existiert. Ein laufendes altes Fenster wird über beide
-  Signalnamen geschlossen.
-- **Linux:** `postinst` stoppt den Dienst, benennt Gruppe und Konto um (Fallback: neues Konto, `chown`), verschiebt
-  `/etc`, `/var/lib` und `/var/log` per Umbenennen auf den neuen Namen (nur wenn das Ziel nicht existiert), benennt
-  `airdeck.conf` um und stellt absolute Pfade in der Datei um. Die CI prüft das mit einem simulierten alten Paket
-  (Übernahme von Sendedaten, Konto, Pfaden).
-- **Android:** Die neue Kennung ist für Android eine neue App. Eine noch installierte AirDeck-App bitte deinstallieren und
-  den Server neu koppeln. Das Release `v0.5.0` hatte bis zu dieser Phase keine Dateien, deshalb gibt es kaum installierte
-  Stände.
+### Was bleibt, und warum
 
-### Bewusst unverändert (interne Formate, kein Nutzerwert)
-
-- Dateiname der Datenbank `airdeck.db` und `airdeck.json` im Datenordner, SQLite-Tabelle/MySQL-Tabelle `airdeck_state`,
-  Firestore-Sammlung und das interne Dokument `airdeck` (bestehende Daten würden sonst ohne Migration verwaisen).
-- Docker: Volumes, Datenbankname und `AIRDECK_*`-Umgebungsvariablen (das Live-System der Demo hängt daran). Die
-  `ANMACHA_CAST_*`-Namen haben überall Vorrang.
-- Das Herkunftskennzeichen `airdeck` gegenüber laut.fm (abgestimmt mit laut.fm, siehe `lautfm.ts`).
-- Das Legacy-Antwortprotokoll der LAN-Erkennung (`AIRDECK?1`).
+- **Eine alte SQLite-Datei wird übernommen:** Liegt im Datenordner eine `airdeck.db` und noch keine `anmachacast.db`,
+  benennt der Start sie um (mit `-wal`/`-shm`). Das schützt Server mit echten Sendedaten, etwa Docker-Volumes.
+- **Eine alte Konfigurationsdatei wird weiter gelesen:** Gibt es im Konfigurationsordner keine `anmachacast.conf`, aber
+  eine `airdeck.conf`, wird diese benutzt (der Setup-Assistent eines vorhandenen Servers legt dort z. B. die
+  Datenbankwahl ab).
+- **Docker-Passwort:** `docker-compose.yml` liest `ANMACHA_CAST_DB_PASSWORD` und fällt auf `AIRDECK_DB_PASSWORD` zurück.
+  Ein laufender Server mit älterer `.env` behält so sein Datenbankpasswort (PostgreSQL übernimmt ein geändertes
+  Passwort nicht für ein vorhandenes Volume).
+- **laut.fm-Origin `airdeck`:** Das Herkunftskennzeichen gegenüber laut.fm ist mit laut.fm abgestimmt und ein externer
+  Vertrag (`lautfm.ts`, auch die Callback-Adresse beim Radioadmin-Login). Eine Änderung braucht eine Abstimmung mit laut.fm.
+- **Android:** Die neue Anwendungs-ID ist für Android eine neue App. Falls doch eine AirDeck-App installiert ist:
+  deinstallieren und den Server neu koppeln.

@@ -6,7 +6,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
-import { envVar } from './legacy-branding.ts';
+import { envVar } from './env.ts';
 
 // Umgebungsvariablen nur für Tests/Staging (z. B. lokaler Mock); Standard sind die echten laut.fm-Server
 export const RADIOADMIN = envVar(process.env, 'RADIOADMIN_URL') || 'https://api.radioadmin.laut.fm';

@@ -54,13 +54,7 @@ Ist die Datenbank nicht erreichbar, startet AnMaCha Cast trotzdem lokal und zeig
 3. `AnMaChaCast-Headless.cmd` startet nur die Engine, ohne Fenster (24/7 auf einem Sende-PC).
 
 In beiden Fällen liegen Musik, Einstellungen und die verschlüsselten Passwörter unter `%LOCALAPPDATA%\AnMaChaCast\data`.
-Soll alles im Programmordner bleiben (z. B. USB-Stick), vorher `set ANMACHA_CAST_DATA=.\data` setzen
-(das bisherige `AIRDECK_DATA` funktioniert als Legacy-Fallback weiter).
-
-**Update von der Version vor der Umbenennung (AirDeck):** Das neue Setup erkennt die vorhandene Installation und ersetzt sie.
-`AirDeck.exe` und `airdeck-engine.exe` werden durch `AnMaChaCast.exe` und `anmachacast-engine.exe` ersetzt, alte Startmenü-/Desktop-Verknüpfungen,
-der Autostart-Eintrag und die Firewall-Regel werden auf den neuen Namen umgestellt. Deine Daten bleiben, wo sie sind: lagen sie unter
-`%LOCALAPPDATA%\AirDeck\data`, wird dieser Ordner weiterverwendet (nichts wird kopiert oder verschoben).
+Soll alles im Programmordner bleiben (z. B. USB-Stick), vorher `set ANMACHA_CAST_DATA=.\data` setzen.
 
 ### Erster Test (5 Minuten)
 1. Unter **Playlist / Archiv → „＋ Ordner“** einen Musikordner hochladen oder Dateien einfach ins Fenster ziehen.
@@ -99,12 +93,7 @@ sudo apt remove anmachacast                  # Entfernen (Daten bleiben erhalten
 sudo apt purge anmachacast                   # Entfernen inkl. Konfiguration (Daten bleiben trotzdem erhalten)
 ```
 
-**Update vom früheren Paket `airdeck`:** `apt install ./AnMaCha-Cast-Linux.deb` ersetzt es (das Paket `anmachacast` ersetzt und
-verdrängt `airdeck`). Dabei übernimmt `postinst` das Dienstkonto (`airdeck` → `anmachacast`), verschiebt `/etc/airdeck`,
-`/var/lib/airdeck` und `/var/log/airdeck` nach `/etc/anmachacast`, `/var/lib/anmachacast` und `/var/log/anmachacast`
-und stellt absolute Pfade in der Konfiguration um. Sendedaten und Datenbank bleiben dabei erhalten; die Datei
-`airdeck.db` im Datenordner behält ihren Namen (interner Dateiname). Der Diensteinheiten-Name ist
-`anmachacast-server.service` (früher `airdeck-server.service`).
+Programm unter `/opt/anmachacast`, Dienstkonto `anmachacast`, Dienst `anmachacast-server.service`.
 
 ## Android
 

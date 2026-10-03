@@ -1,13 +1,12 @@
 // Konfigurations- und Pfadmodell (docs/architecture/STORAGE.md, ARCHITECTURE.md §2).
-// Eine Datei anmachacast.conf (bisher airdeck.conf, wird weiter gelesen) (Schlüssel = Wert, Abschnitte in [eckigen Klammern]) beschreibt Betriebsart,
-// Netzwerk und Pfade. Umgebungsvariablen haben Vorrang, fehlende Werte fallen auf die bisherigen
-// Standardorte zurück – bestehende Installationen laufen unverändert weiter.
+// Eine Datei anmachacast.conf (Schlüssel = Wert, Abschnitte in [eckigen Klammern]) beschreibt Betriebsart,
+// Netzwerk und Pfade. Umgebungsvariablen (ANMACHA_CAST_*) haben Vorrang, fehlende Werte fallen auf die Standardorte zurück.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { databaseConfig, type DatabaseConfig } from './db/index.ts';
-import { envVar } from './legacy-branding.ts';
+import { envVar } from './env.ts';
 
 export type Mode = 'local' | 'server' | 'hybrid';
 export const MODES: readonly Mode[] = ['local', 'server', 'hybrid'];
@@ -59,42 +58,26 @@ export function parseConf(text: string): Record<string, string> {
   return out;
 }
 
-/** Konfigurationsdatei: neuer Name zuerst, der bisherige Name bleibt als Fallback lesbar. */
+/** Name der Konfigurationsdatei. */
 export const CONF_NAME = 'anmachacast.conf';
-export const LEGACY_CONF_NAME = 'airdeck.conf';
-
-/** Vorhandene Konfigurationsdatei in einem Ordner (neuer Name vor altem), sonst null. */
-function confIn(dir: string, exists: (p: string) => boolean): string | null {
-  for (const n of [CONF_NAME, LEGACY_CONF_NAME]) if (exists(join(dir, n))) return join(dir, n);
-  return null;
-}
 
 /**
- * Datenordner der Benutzerinstallation. Neue Installationen nutzen "AnMaChaCast" (Windows) bzw. ".anmachacast";
- * liegt dort noch nichts, aber unter dem bisherigen Namen ("AirDeck"/".airdeck") schon ein Datenordner, wird dieser
- * weiterverwendet - bestehende Senderdaten (Musik, Datenbank, verschlüsselte Passwörter) bleiben so ohne
- * Verschieben erhalten (siehe docs/REBRANDING_ANMACHA_CAST.md).
+ * Datenordner der Benutzerinstallation: "AnMaChaCast" (Windows, unter %LOCALAPPDATA%) bzw. ".anmachacast" (Home).
+ * Aus dem Quellbaum (nicht gepackt) liegen die Daten in <Projekt>/data.
  */
-export function legacyDataDir(root: string, packaged: boolean, platform: NodeJS.Platform, env: NodeJS.ProcessEnv, home: string, exists: (p: string) => boolean = existsSync): string {
+export function defaultDataDir(root: string, packaged: boolean, platform: NodeJS.Platform, env: NodeJS.ProcessEnv, home: string): string {
   if (!packaged) return join(root, 'data');
-  const pick = (fresh: string, old: string) => (!exists(fresh) && exists(old) ? old : fresh);
-  if (platform === 'win32') {
-    const local = env.LOCALAPPDATA ?? join(home, 'AppData', 'Local');
-    return pick(join(local, 'AnMaChaCast', 'data'), join(local, 'AirDeck', 'data'));
-  }
-  return pick(join(home, '.anmachacast', 'data'), join(home, '.airdeck', 'data'));
+  if (platform === 'win32') return join(env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'AnMaChaCast', 'data');
+  return join(home, '.anmachacast', 'data');
 }
 
-/** Systemweite Orte (Dienst/Paket): neues Layout "anmachacast", das bisherige "airdeck" für noch nicht migrierte Installationen. */
-function systemLayouts(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): AnMaChaCastConfig['paths'][] {
+/** Systemweite Orte (Dienst/Paket): Linux /etc|/var/lib|/var/log/anmachacast, Windows %ProgramData%\AnMaChaCast. */
+function systemLayout(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): AnMaChaCastConfig['paths'] {
   if (platform === 'win32') {
-    const pd = env.ProgramData ?? env.PROGRAMDATA ?? 'C:\\ProgramData';
-    return ['AnMaChaCast', 'AirDeck'].map((n) => {
-      const base = join(pd, n);
-      return { config: join(base, 'config'), data: join(base, 'data'), media: join(base, 'media'), logs: join(base, 'logs'), backups: join(base, 'backups') };
-    });
+    const base = join(env.ProgramData ?? env.PROGRAMDATA ?? 'C:\\ProgramData', 'AnMaChaCast');
+    return { config: join(base, 'config'), data: join(base, 'data'), media: join(base, 'media'), logs: join(base, 'logs'), backups: join(base, 'backups') };
   }
-  return ['anmachacast', 'airdeck'].map((n) => ({ config: `/etc/${n}`, data: `/var/lib/${n}`, media: `/var/lib/${n}/media`, logs: `/var/log/${n}`, backups: `/var/lib/${n}/backups` }));
+  return { config: '/etc/anmachacast', data: '/var/lib/anmachacast', media: '/var/lib/anmachacast/media', logs: '/var/log/anmachacast', backups: '/var/lib/anmachacast/backups' };
 }
 
 export function resolveConfig(input: ResolveInput): AnMaChaCastConfig {
@@ -104,26 +87,20 @@ export function resolveConfig(input: ResolveInput): AnMaChaCastConfig {
   const exists = input.exists ?? existsSync;
   const read = input.read ?? ((p: string) => readFileSync(p, 'utf8'));
 
-  // Systemweite Installation: das Layout, in dem eine Konfigurationsdatei liegt (neues zuerst)
-  let sys = systemLayouts(platform, env)[0]!;
-  let sysFile: string | null = null;
-  for (const layout of systemLayouts(platform, env)) {
-    const f = confIn(layout.config, exists);
-    if (f) {
-      sys = layout;
-      sysFile = f;
-      break;
-    }
-  }
+  const sys = systemLayout(platform, env);
+  const sysFile = join(sys.config, CONF_NAME);
   // Reihenfolge: ausdrücklich angegeben → systemweite Installation → Datenordner der Benutzerinstallation
-  const legacyData = resolve(envVar(env, 'DATA') ?? legacyDataDir(root, packaged, platform, env, home, exists));
+  const dataDefault = resolve(envVar(env, 'DATA') ?? defaultDataDir(root, packaged, platform, env, home));
   let configFile: string;
   let system = false;
   if (envVar(env, 'CONFIG')) configFile = resolve(envVar(env, 'CONFIG')!);
-  else if (!envVar(env, 'DATA') && sysFile) {
+  else if (!envVar(env, 'DATA') && exists(sysFile)) {
     configFile = sysFile;
     system = true;
-  } else configFile = confIn(join(legacyData, 'config'), exists) ?? join(legacyData, 'config', CONF_NAME);
+  } else configFile = join(dataDefault, 'config', CONF_NAME);
+  // Eine Konfigurationsdatei unter dem früheren Namen (airdeck.conf) im selben Ordner weiterverwenden, solange es die neue nicht gibt:
+  // der Setup-Assistent eines vorhandenen Servers hat dort z. B. die Datenbankwahl abgelegt.
+  if (!envVar(env, 'CONFIG') && !exists(configFile) && exists(join(dirname(configFile), 'airdeck.conf'))) configFile = join(dirname(configFile), 'airdeck.conf');
 
   let conf: Record<string, string> = {};
   try {
@@ -134,7 +111,7 @@ export function resolveConfig(input: ResolveInput): AnMaChaCastConfig {
   const confDir = dirname(configFile);
   const pathOf = (v: string | undefined) => (v ? (isAbsolute(v) ? v : resolve(confDir, v)) : undefined);
 
-  const data = resolve(envVar(env, 'DATA') ?? pathOf(conf['paths.data']) ?? (system ? sys.data : legacyData));
+  const data = resolve(envVar(env, 'DATA') ?? pathOf(conf['paths.data']) ?? (system ? sys.data : dataDefault));
   const paths = {
     config: confDir,
     data,
@@ -144,7 +121,7 @@ export function resolveConfig(input: ResolveInput): AnMaChaCastConfig {
     backups: resolve(pathOf(conf['paths.backups']) ?? (system ? sys.backups : join(data, 'backups'))),
   };
 
-  const modeRaw = String(envVar(env, 'MODE') ?? conf.mode ?? conf['anmachacast.mode'] ?? conf['airdeck.mode'] ?? '').toLowerCase();
+  const modeRaw = String(envVar(env, 'MODE') ?? conf.mode ?? '').toLowerCase();
   // Ohne Angabe wie bisher: Desktop-Programm = Local, ohne Fenster (Dienst/Docker) = Server
   const mode: Mode = (MODES as readonly string[]).includes(modeRaw) ? (modeRaw as Mode) : desktop ? 'local' : 'server';
 
@@ -180,7 +157,7 @@ export function writeDefaultConf(cfg: AnMaChaCastConfig): boolean {
     writeFileSync(cfg.configFile, [
       '# AnMaCha Cast – Grundeinstellungen. Änderungen wirken nach einem Neustart.',
       '# Umgebungsvariablen (ANMACHA_CAST_MODE, ANMACHA_CAST_PORT, ANMACHA_CAST_HOST, ANMACHA_CAST_DATA,',
-      '# ANMACHA_CAST_MEDIA; bisherige AIRDECK_*-Namen funktionieren als Legacy-Fallback weiter) haben Vorrang.',
+      '# ANMACHA_CAST_MEDIA; ANMACHA_CAST_DB …) haben Vorrang.',
       '',
       '# local = alles auf diesem PC · server = Self-Hosted · hybrid = lokal senden, mit Server abgleichen',
       '# Ohne Angabe: Programm mit Fenster = local, ohne Fenster (Dienst, Docker, --headless) = server',
@@ -203,7 +180,7 @@ export function writeDefaultConf(cfg: AnMaChaCastConfig): boolean {
       '# sqlite (Standard, Datei im Datenordner) · postgres · mysql (auch MariaDB)',
       '# Passwort besser nicht hier, sondern in der Umgebungsvariablen ANMACHA_CAST_DB_PASSWORD.',
       `# provider = ${cfg.database.provider}`,
-      '# url = postgres://airdeck@localhost:5432/airdeck',
+      '# url = postgres://anmachacast@localhost:5432/anmachacast',
       '',
     ].join('\n'), 'utf8');
     return true;

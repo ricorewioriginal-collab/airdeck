@@ -6,10 +6,9 @@ Server und führt dort nach einer Sicherung `git fetch/checkout` + `docker compo
 Ein Push auf den AnMaCha-Cast-Branch löst den Rollout erst nach einem erfolgreichen **Build**-Workflow aus;
 „Run workflow“ erlaubt weiterhin einen manuellen Start.
 
-Kontonamen, Pfade (`airdeck-deploy`, `/opt/airdeck-demo`) und GitHub-Secret-Namen beschreiben die
-tatsächlich eingerichtete Umgebung des bestehenden Deploy-Servers und bleiben deshalb unverändert
-(siehe docs/REBRANDING_ANMACHA_CAST.md Phase 7). Die **öffentliche** Demo-Adresse ist davon unabhängig
-auf `anmachacast-demo.ricorewi-radio.de` umgezogen (siehe [packaging/demo/README.md](../packaging/demo/README.md))
+Die Beispiele unten nutzen das Konto `anmachacast-deploy` und den Checkout-Pfad `/opt/anmachacast-demo`; der
+GitHub-Secret `DEPLOY_PATH` muss auf den tatsächlichen Pfad zeigen. Die **öffentliche** Demo-Adresse ist
+`anmachacast-demo.ricorewi-radio.de` (siehe [packaging/demo/README.md](../packaging/demo/README.md))
 – dafür reicht ein neuer DNS-Eintrag + TLS-Zertifikat auf dem bestehenden Server, Kontoname und
 Checkout-Pfad bleiben unverändert.
 
@@ -25,20 +24,20 @@ Auf dem Server (per SSH mit deinem bestehenden Zugang):
 curl -fsSL https://get.docker.com | sh
 
 # Eigenes, eingeschränktes Deploy-Konto statt root (empfohlen)
-adduser --disabled-password --gecos "" airdeck-deploy
-usermod -aG docker airdeck-deploy
+adduser --disabled-password --gecos "" anmachacast-deploy
+usermod -aG docker anmachacast-deploy
 
 # Repository einmalig klonen
-mkdir -p /opt/airdeck-demo
-chown airdeck-deploy:airdeck-deploy /opt/airdeck-demo
-su - airdeck-deploy -c '
-  git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git /opt/airdeck-demo
-  cd /opt/airdeck-demo && git checkout "main"
-  echo "AIRDECK_DB_PASSWORD=$(openssl rand -hex 24)" > .env
+mkdir -p /opt/anmachacast-demo
+chown anmachacast-deploy:anmachacast-deploy /opt/anmachacast-demo
+su - anmachacast-deploy -c '
+  git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git /opt/anmachacast-demo
+  cd /opt/anmachacast-demo && git checkout "main"
+  echo "ANMACHA_CAST_DB_PASSWORD=$(openssl rand -hex 24)" > .env
 '
 ```
 
-Reicht dir root als Deploy-Konto (einfacher, aber mehr Rechte als nötig), einfach `airdeck-deploy` durch
+Reicht dir root als Deploy-Konto (einfacher, aber mehr Rechte als nötig), einfach `anmachacast-deploy` durch
 `root` ersetzen und `usermod`/`adduser` weglassen.
 
 **Öffentlich erreichbar?** Vor AnMaCha Cast einen Reverse Proxy (Caddy/Traefik/nginx) mit HTTPS schalten – siehe
@@ -51,19 +50,19 @@ der Actions-Runner ihn automatisiert nutzen kann). Den privaten Teil bekommst du
 
 1. Den **öffentlichen** Schlüssel auf dem Server für das Deploy-Konto eintragen:
    ```bash
-   su - airdeck-deploy -c 'mkdir -p ~/.ssh && chmod 700 ~/.ssh'
-   echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILhZ9h2C6zZt1QVI3GS8JqU0TDmIcIonyEjEWiK9Xya/ airdeck-deploy@github-actions" \
-     | su - airdeck-deploy -c 'tee -a ~/.ssh/authorized_keys' && \
-     su - airdeck-deploy -c 'chmod 600 ~/.ssh/authorized_keys'
+   su - anmachacast-deploy -c 'mkdir -p ~/.ssh && chmod 700 ~/.ssh'
+   echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILhZ9h2C6zZt1QVI3GS8JqU0TDmIcIonyEjEWiK9Xya/ anmachacast-deploy@github-actions" \
+     | su - anmachacast-deploy -c 'tee -a ~/.ssh/authorized_keys' && \
+     su - anmachacast-deploy -c 'chmod 600 ~/.ssh/authorized_keys'
    ```
 2. Im Repository unter **Settings → Secrets and variables → Actions → New repository secret** folgende Secrets anlegen:
 
    | Name | Wert |
    |---|---|
    | `DEPLOY_HOST` | Servername/IP, z. B. `admin.ricorewi.de` |
-   | `DEPLOY_USER` | `airdeck-deploy` (oder `root`) |
+   | `DEPLOY_USER` | `anmachacast-deploy` (oder `root`) |
    | `DEPLOY_SSH_KEY` | Inhalt der zugeschickten privaten Schlüsseldatei (die ganze Datei, inkl. `-----BEGIN...` / `-----END...`-Zeilen) |
-   | `DEPLOY_PATH` | `/opt/airdeck-demo` (Pfad aus Schritt 1) |
+   | `DEPLOY_PATH` | `/opt/anmachacast-demo` (Pfad aus Schritt 1) |
    | `DEPLOY_PORT` | nur nötig, wenn SSH nicht auf Port 22 läuft |
    | `DEPLOY_HEALTH_URL` | optional, z. B. `https://anmachacast-demo.ricorewi-radio.de/api/v1/health` – prüft nach dem Rollout, ob AnMaCha Cast antwortet |
    | `DEPLOY_HOST_KEY` | optional: Ausgabe von `ssh-keyscan -p <Port> <Host>` – ohne dieses Secret wird der Host-Schlüssel beim ersten Lauf automatisch abgerufen (leicht geringere Absicherung gegen einen Server-Tausch mitten im Deploy) |

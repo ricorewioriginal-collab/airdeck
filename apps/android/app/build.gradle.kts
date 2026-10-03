@@ -29,9 +29,6 @@ val appVersionName = file("../../../package.json").let { pkg ->
 }
 
 android {
-    // Kennung "app.anmachacast.studio" (seit der Umbenennung AirDeck → AnMaCha Cast; vorher "app.airdeck.studio").
-    // Android behandelt sie als neue App: eine noch installierte alte AirDeck-App bitte deinstallieren und die
-    // Verbindung zum Server neu koppeln (siehe docs/REBRANDING_ANMACHA_CAST.md).
     namespace = "app.anmachacast.studio"
     compileSdk = 35
 

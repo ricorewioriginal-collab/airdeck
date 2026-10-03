@@ -1,7 +1,6 @@
 // Baut aus dist/AnMaChaCast/ (zuvor: node scripts/build.mjs --sea, unter Linux) ein Debian-Paket
 // dist/anmachacast_<version>_amd64.deb – Dienst „anmachacast-server“ (systemd-Diensteinheit „anmachacast-server.service“),
-// Programm unter /opt/anmachacast, Daten unter /var/lib/anmachacast. Ein bisher installiertes Paket „airdeck“
-// wird ersetzt und seine Daten werden beim Aktualisieren übernommen (siehe packaging/linux/postinst).
+// Programm unter /opt/anmachacast, Daten unter /var/lib/anmachacast.
 // Aufruf: node scripts/build.mjs --sea && node scripts/build-deb.mjs
 import { execFileSync } from 'node:child_process';
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

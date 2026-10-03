@@ -1,63 +1,24 @@
 #!/bin/sh
 # AnMaCha Cast – nach der Installation: Dienstkonto anlegen, Ordner vorbereiten, systemd-Dienst starten.
-# Ein früher installiertes Paket "airdeck" (so hieß das Produkt vor der Umbenennung) wird vom Paketmanager ersetzt;
-# hier werden dessen Dienstkonto, Konfiguration, Sendedaten und Protokolle übernommen (siehe unten), damit
-# nach dem Update nichts verloren geht und nichts neu eingerichtet werden muss.
 set -e
 
-OLD=airdeck
-NEW=anmachacast
-
-# --- Übernahme aus dem früheren Paket "airdeck" -----------------------------------------------------------------
-if [ -d /run/systemd/system ]; then
-  # Dienst anhalten, bevor Konto und Ordner umbenannt werden (ein laufender Prozess blockiert usermod)
-  systemctl stop anmachacast-server.service >/dev/null 2>&1 || true
-  # Uralte Diensteinheit "airdeck-server.service" nicht parallel weiterlaufen lassen
-  if systemctl is-enabled airdeck-server.service >/dev/null 2>&1 || systemctl is-active airdeck-server.service >/dev/null 2>&1; then
-    systemctl disable --now airdeck-server.service >/dev/null 2>&1 || true
-  fi
+if ! getent group anmachacast >/dev/null 2>&1; then
+  addgroup --system anmachacast
 fi
-# Dienstkonto umbenennen (Gruppe zuerst); schlägt das fehl, legt der Abschnitt darunter ein neues Konto an
-# und übernimmt die Ordner per chown - die Daten bleiben in jedem Fall erhalten.
-if getent group "$OLD" >/dev/null 2>&1 && ! getent group "$NEW" >/dev/null 2>&1; then
-  groupmod -n "$NEW" "$OLD" >/dev/null 2>&1 || true
-fi
-if getent passwd "$OLD" >/dev/null 2>&1 && ! getent passwd "$NEW" >/dev/null 2>&1; then
-  usermod -l "$NEW" -d "/var/lib/$NEW" "$OLD" >/dev/null 2>&1 || true
-fi
-# Ordner verschieben (derselbe Datenträger: ein Umbenennen, keine Kopie); nur wenn das Ziel noch nicht existiert
-moved=0
-for base in /etc /var/lib /var/log; do
-  if [ -d "$base/$OLD" ] && [ ! -e "$base/$NEW" ]; then
-    mv "$base/$OLD" "$base/$NEW" && moved=1
-  fi
-done
-if [ -f "/etc/$NEW/$OLD.conf" ] && [ ! -e "/etc/$NEW/$NEW.conf" ]; then
-  mv "/etc/$NEW/$OLD.conf" "/etc/$NEW/$NEW.conf"
-fi
-# Absolute Pfade in der Konfiguration auf die neuen Ordner umstellen
-if [ "$moved" = "1" ] && [ -f "/etc/$NEW/$NEW.conf" ]; then
-  sed -i -e "s#/var/lib/$OLD#/var/lib/$NEW#g" -e "s#/var/log/$OLD#/var/log/$NEW#g" -e "s#/etc/$OLD#/etc/$NEW#g" "/etc/$NEW/$NEW.conf"
+if ! getent passwd anmachacast >/dev/null 2>&1; then
+  adduser --system --ingroup anmachacast --home /var/lib/anmachacast --no-create-home \
+    --shell /usr/sbin/nologin --gecos "AnMaCha Cast Radio-Automation" anmachacast
 fi
 
-# --- Dienstkonto, Ordner, Konfiguration -----------------------------------------------------------------------------
-if ! getent group "$NEW" >/dev/null 2>&1; then
-  addgroup --system "$NEW"
-fi
-if ! getent passwd "$NEW" >/dev/null 2>&1; then
-  adduser --system --ingroup "$NEW" --home "/var/lib/$NEW" --no-create-home \
-    --shell /usr/sbin/nologin --gecos "AnMaCha Cast Radio-Automation" "$NEW"
-fi
-
-mkdir -p "/etc/$NEW" "/var/lib/$NEW" "/var/log/$NEW"
-# Eine Konfigurationsdatei muss vorhanden sein, bevor AnMaCha Cast zum ersten Mal startet – sonst würde es
+mkdir -p /etc/anmachacast /var/lib/anmachacast /var/log/anmachacast
+# Eine anmachacast.conf muss vorhanden sein, bevor AnMaCha Cast zum ersten Mal startet – sonst würde es
 # (ohne systemweite Konfiguration) im Home-Verzeichnis des Dienstkontos statt unter /var/lib/anmachacast
 # ablegen (siehe resolveConfig() in src/server/config.ts). Den Rest trägt AnMaCha Cast selbst ein.
-if [ ! -e "/etc/$NEW/$NEW.conf" ] && [ ! -e "/etc/$NEW/$OLD.conf" ]; then
-  printf '# AnMaCha Cast – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man anmachacast-server, oder das Handbuch im Studio.\n' > "/etc/$NEW/$NEW.conf"
+if [ ! -e /etc/anmachacast/anmachacast.conf ]; then
+  printf '# AnMaCha Cast – wird beim ersten Start automatisch vervollständigt.\n# Siehe: man anmachacast-server, oder das Handbuch im Studio.\n' > /etc/anmachacast/anmachacast.conf
 fi
-chown -R "$NEW:$NEW" "/etc/$NEW" "/var/lib/$NEW" "/var/log/$NEW"
-chmod 750 "/etc/$NEW" "/var/lib/$NEW" "/var/log/$NEW"
+chown -R anmachacast:anmachacast /etc/anmachacast /var/lib/anmachacast /var/log/anmachacast
+chmod 750 /etc/anmachacast /var/lib/anmachacast /var/log/anmachacast
 
 if [ -d /run/systemd/system ]; then
   systemctl daemon-reload || true

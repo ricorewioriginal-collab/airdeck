@@ -59,7 +59,7 @@ const mock = createServer((req, res) => {
   });
 });
 await new Promise<void>((r) => mock.listen(0, '127.0.0.1', r));
-process.env.AIRDECK_RADIOADMIN_URL = `http://127.0.0.1:${(mock.address() as { port: number }).port}`;
+process.env.ANMACHA_CAST_RADIOADMIN_URL = `http://127.0.0.1:${(mock.address() as { port: number }).port}`;
 
 const { AnMaChaCastApp } = await import('../src/server/app.ts');
 const { createHttpServer } = await import('../src/server/http.ts');

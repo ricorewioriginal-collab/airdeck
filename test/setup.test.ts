@@ -12,14 +12,14 @@ const admin = { id: 'admin', tokenId: 't', roles: ['admin'], stationIds: ['*'], 
 
 function fresh() {
   const dir = mkdtempSync(join(tmpdir(), 'anmachacast-setup-'));
-  const config = resolveConfig({ env: { AIRDECK_DATA: dir }, root: dir, packaged: false, desktop: true });
+  const config = resolveConfig({ env: { ANMACHA_CAST_DATA: dir }, root: dir, packaged: false, desktop: true });
   const app = new AnMaChaCastApp(dir, { stableMs: 0, ffmpeg: null, config });
   return { dir, app, conf: () => parseConf(existsSync(config.configFile) ? readFileSync(config.configFile, 'utf8') : '') };
 }
 
 test('updateConf: Werte setzen, Kommentare behalten, neue Abschnitte, Entfernen', () => {
   const dir = mkdtempSync(join(tmpdir(), 'anmachacast-conf-'));
-  const f = join(dir, 'airdeck.conf');
+  const f = join(dir, 'anmachacast.conf');
   writeFileSync(f, '# Kopf\n# mode = local\n\n[network]\nport = 8750\n# bind = local\n');
   updateConf(f, { mode: 'server', 'network.port': 9000, 'database.provider': 'postgres' });
   const t = readFileSync(f, 'utf8');
@@ -156,7 +156,7 @@ test('Datenbank wechseln: Verbindung testen, Daten übernehmen, Passwort verschl
     assert.equal(app.secrets.get('db:password'), password);
     const db = await openDatabase({ provider: 'postgres', url: u.toString(), password });
     const store = await DbDocStore.open(db);
-    assert.equal((store.get<unknown>('airdeck', null) as { stations: { name: string }[] }).stations[0]!.name, 'Umzugsradio');
+    assert.equal((store.get<unknown>('anmachacast', null) as { stations: { name: string }[] }).stations[0]!.name, 'Umzugsradio');
     await db.close();
   } finally {
     app.shutdown();

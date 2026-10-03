@@ -16,9 +16,7 @@ namespace AnMaChaCast
             // AnMaChaCast.exe --quit: laufendes Fenster schließen, Engine weiterlaufen lassen (z. B. vor einem Update)
             if (Array.Exists(args, a => a.Equals("--quit", StringComparison.OrdinalIgnoreCase)))
             {
-                // auch ein noch laufendes Fenster der Version vor der Umbenennung (AnMaChaCast.exe) schließen, damit ein Update es ersetzen kann
-                foreach (var name in new[] { "AnMaChaCast.Studio.Quit", "AirDeck.Studio.Quit" })
-                    if (EventWaitHandle.TryOpenExisting(name, out var quit)) using (quit) quit.Set();
+                if (EventWaitHandle.TryOpenExisting("AnMaChaCast.Studio.Quit", out var quit)) using (quit) quit.Set();
                 return;
             }
             using (var mutex = new Mutex(true, "AnMaChaCast.Studio.Window", out var first))

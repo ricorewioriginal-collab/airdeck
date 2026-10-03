@@ -2,37 +2,36 @@
 
 Der Container ist AnMaCha Cast als Server für den 24/7-Betrieb, zum Beispiel auf einem VPS, einem NAS oder einem Raspberry Pi 4/5 mit 64 Bit. ffmpeg mit LAME (MP3), AAC und Opus ist enthalten.
 
-Container-/Volume-/Dienstnamen heißen jetzt `anmachacast`, `anmachacast-postgres`, `anmachacast-data`,
-`anmachacast-pg` (vorher `airdeck`/`airdeck-postgres`/`airdeck-data`/`airdeck-pg`). Die Umgebungsvariablen
-`AIRDECK_DB*` selbst bleiben bewusst unverändert (siehe docs/REBRANDING_ANMACHA_CAST.md Phase 3/7) - eine
-Änderung würde einen per `.env` gesetzten Namen stillschweigend überstimmen.
+Container, Volumes und Dienste heißen `anmachacast`, `anmachacast-postgres`, `anmachacast-data` und `anmachacast-pg`.
+Die Einstellungen kommen über `ANMACHA_CAST_*`-Umgebungsvariablen (`ANMACHA_CAST_DB`, `ANMACHA_CAST_DB_URL`,
+`ANMACHA_CAST_DB_PASSWORD`, `ANMACHA_CAST_PORT` …).
 
-**Migration einer bestehenden Installation** (Volume-Namen werden von Docker nicht automatisch umbenannt):
-nach `git pull` zuerst die Daten in die neuen Volume-Namen kopieren, dann erst `docker compose up -d --build`
-ausführen (sonst legt Compose neue, leere Volumes an und die bisherigen Daten scheinen "weg"):
+**Aktualisieren einer Installation mit älteren Namen** (Volumes `airdeck-data`/`airdeck-pg`): Docker benennt Volumes nicht
+automatisch um. Vor `docker compose up -d --build` die Daten in die neuen Volumes kopieren, sonst legt Compose leere an:
 
 ```bash
-docker compose down   # alten Stack (Namen airdeck/airdeck-postgres) anhalten
+docker compose down   # alten Stack anhalten
 docker run --rm -v airdeck-data:/from -v anmachacast_anmachacast-data:/to busybox cp -a /from/. /to/
 docker run --rm -v airdeck-pg:/from -v anmachacast_anmachacast-pg:/to busybox cp -a /from/. /to/
-docker compose up -d --build   # neuer Stack (Namen anmachacast/anmachacast-postgres)
+docker compose up -d --build
 ```
 
-Die alten Volumes (`airdeck-data`, `airdeck-pg`) lassen sich danach mit `docker volume rm` entfernen.
+Eine vorhandene SQLite-Datei `airdeck.db` im Datenordner wird beim ersten Start automatisch zu `anmachacast.db`
+umbenannt. Eine ältere `.env` mit `AIRDECK_DB_PASSWORD` wird weiter gelesen, damit das Datenbankpasswort gleich bleibt.
 
 ## Start
 
 ```bash
 git clone https://github.com/ricorewioriginal-collab/anmacha_cast.git anmachacast
 cd anmachacast && git checkout "main"
-echo "AIRDECK_DB_PASSWORD=$(openssl rand -hex 24)" > .env   # Passwort der Datenbank, einmalig
+echo "ANMACHA_CAST_DB_PASSWORD=$(openssl rand -hex 24)" > .env   # Passwort der Datenbank, einmalig
 docker compose up -d
 docker compose logs anmachacast | grep -A1 -e "Admin-Token" -e "Einmal-Passwort"
 ```
 
 Gestartet werden zwei Container: `anmachacast` und `anmachacast-postgres` (PostgreSQL 17, nur intern erreichbar). Redis wird nicht gebraucht.
 
-**Ohne PostgreSQL** (kleine Installation): in `docker-compose.yml` den Dienst `postgres`, den Abschnitt `depends_on` und die drei `AIRDECK_DB`-Zeilen entfernen. AnMaCha Cast nutzt dann SQLite im Datenordner.
+**Ohne PostgreSQL** (kleine Installation): in `docker-compose.yml` den Dienst `postgres`, den Abschnitt `depends_on` und die drei `ANMACHA_CAST_DB`-Zeilen entfernen. AnMaCha Cast nutzt dann SQLite im Datenordner.
 
 Danach das Studio unter `http://<server>:8750/#token=<Admin-Token>` öffnen. Die Android-App verbindet sich mit derselben Adresse. Handys koppelst du im Studio unter „Android-App → Gerät koppeln“ (Adresse + Kopplungscode).
 

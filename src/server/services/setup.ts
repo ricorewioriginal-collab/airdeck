@@ -1,6 +1,6 @@
 // Setup-Assistent (docs/architecture/INSTALLATION.md): erster Start ohne Kommandozeile und ohne Konfigurationsdateien.
 // Jeder Schritt ist überspringbar und später änderbar. Schritte, die erst nach einem Neustart greifen
-// (Betriebsart, Datenbank, Netzwerk, Pfade), werden in airdeck.conf geschrieben und als „Neustart nötig“ gemeldet.
+// (Betriebsart, Datenbank, Netzwerk, Pfade), werden in anmachacast.conf geschrieben und als „Neustart nötig“ gemeldet.
 
 import { accessSync, constants, mkdirSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
@@ -228,7 +228,7 @@ export class SetupService {
   }
 
   /**
-   * Datenbank wählen: Verbindung testen, den bisherigen Stand in die neue Datenbank übernehmen, airdeck.conf
+   * Datenbank wählen: Verbindung testen, den bisherigen Stand in die neue Datenbank übernehmen, anmachacast.conf
    * schreiben. Das Passwort landet verschlüsselt im Secret-Store (nicht in der Datei). Aktiv nach dem Neustart.
    */
   private async applyDatabase(input: Record<string, any>): Promise<void> {

@@ -1,10 +1,10 @@
-// ffmpeg-Capability-Erkennung. Reihenfolge: ANMACHA_CAST_FFMPEG (Legacy: AIRDECK_FFMPEG) → mitgeliefertes ./ffmpeg/ → PATH.
+// ffmpeg-Capability-Erkennung. Reihenfolge: ANMACHA_CAST_FFMPEG → mitgeliefertes ./ffmpeg/ → PATH.
 // Ohne ffmpeg bleibt AnMaCha Cast lauffähig; nur das Server-Playout meldet dann "unsupported".
 
 import { execFile, spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { envVar } from './legacy-branding.ts';
+import { envVar } from './env.ts';
 
 export interface FfmpegInfo {
   ffmpeg: string;

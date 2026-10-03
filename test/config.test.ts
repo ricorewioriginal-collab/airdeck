@@ -13,7 +13,7 @@ test('parseConf: Abschnitte, Kommentare, Anführungszeichen, BOM', () => {
   assert.deepEqual(c, { mode: 'hybrid', 'network.port': '9000', 'paths.data': 'D:\\\\AnMaChaCast data' });
 });
 
-test('ohne Konfigurationsdatei: neue Orte (.anmachacast), Verhalten bleibt', () => {
+test('ohne Konfigurationsdatei: Standardorte (.anmachacast), Verhalten bleibt', () => {
   const desk = resolveConfig({ ...base, env: {}, ...fsOf({}) });
   assert.equal(desk.mode, 'local');
   assert.equal(desk.paths.data, '/home/u/.anmachacast/data');
@@ -39,32 +39,23 @@ test('systemweite Installation (Linux-Paket) wird an /etc/anmachacast erkannt', 
   assert.equal(c.port, 8800);
 });
 
-test('bisherige Orte (AirDeck-Zeit) bleiben erhalten, solange nichts Neues angelegt ist', () => {
-  // Linux-Paket vor der Umbenennung: /etc/airdeck/airdeck.conf → altes Layout weiter benutzen
-  const sys = resolveConfig({ ...base, desktop: false, env: {}, ...fsOf({ '/etc/airdeck/airdeck.conf': 'mode = server\n' }) });
-  assert.equal(sys.system, true);
-  assert.equal(sys.configFile, '/etc/airdeck/airdeck.conf');
-  assert.equal(sys.paths.data, '/var/lib/airdeck');
-  // nach der Migration (neuer Ordner, alter Dateiname) wird die Datei trotzdem gefunden
-  const mig = resolveConfig({ ...base, desktop: false, env: {}, ...fsOf({ '/etc/anmachacast/airdeck.conf': 'mode = server\n' }) });
-  assert.equal(mig.configFile, '/etc/anmachacast/airdeck.conf');
-  assert.equal(mig.paths.data, '/var/lib/anmachacast');
-  // neues Layout hat Vorrang, wenn beide Konfigurationen vorhanden sind
-  const both = resolveConfig({ ...base, desktop: false, env: {}, ...fsOf({ '/etc/airdeck/airdeck.conf': '[network]\nport = 1111\n', '/etc/anmachacast/anmachacast.conf': '[network]\nport = 2222\n' }) });
-  assert.equal(both.port, 2222);
-  // Benutzerinstallation: vorhandener Datenordner ".airdeck" wird weiterverwendet, neue Installationen bekommen ".anmachacast"
-  const oldHome = resolveConfig({ ...base, env: {}, ...fsOf({ '/home/u/.airdeck/data': '', '/home/u/.airdeck/data/config/airdeck.conf': 'mode = hybrid\n' }) });
-  assert.equal(oldHome.paths.data, '/home/u/.airdeck/data');
-  assert.equal(oldHome.configFile, '/home/u/.airdeck/data/config/airdeck.conf');
-  assert.equal(oldHome.mode, 'hybrid');
-  const bothHome = resolveConfig({ ...base, env: {}, ...fsOf({ '/home/u/.airdeck/data': '', '/home/u/.anmachacast/data': '' }) });
-  assert.equal(bothHome.paths.data, '/home/u/.anmachacast/data');
-  // Windows: %LOCALAPPDATA%\AirDeck\data bleibt in Gebrauch, sonst AnMaChaCast
+test('Benutzerinstallation: Datenordner AnMaChaCast bzw. .anmachacast', () => {
   const la = '/Local';
-  const winOld = resolveConfig({ ...base, platform: 'win32', env: { LOCALAPPDATA: la }, ...fsOf({ [join(la, 'AirDeck', 'data')]: '' }) });
-  assert.equal(winOld.paths.data, join(la, 'AirDeck', 'data'));
-  const winNew = resolveConfig({ ...base, platform: 'win32', env: { LOCALAPPDATA: la }, ...fsOf({}) });
-  assert.equal(winNew.paths.data, join(la, 'AnMaChaCast', 'data'));
+  const win = resolveConfig({ ...base, platform: 'win32', env: { LOCALAPPDATA: la }, ...fsOf({}) });
+  assert.equal(win.paths.data, join(la, 'AnMaChaCast', 'data'));
+  assert.equal(win.configFile, join(la, 'AnMaChaCast', 'data', 'config', 'anmachacast.conf'));
+  // eine Konfigurationsdatei im Datenordner wird gelesen
+  const home = resolveConfig({ ...base, env: {}, ...fsOf({ '/home/u/.anmachacast/data/config/anmachacast.conf': 'mode = hybrid\n' }) });
+  assert.equal(home.mode, 'hybrid');
+});
+
+test('eine Konfigurationsdatei unter dem früheren Namen im Datenordner wird weiter gelesen, die neue hat Vorrang', () => {
+  const old = resolveConfig({ ...base, env: {}, ...fsOf({ '/home/u/.anmachacast/data/config/airdeck.conf': 'mode = hybrid\n' }) });
+  assert.equal(old.mode, 'hybrid');
+  assert.equal(old.configFile, '/home/u/.anmachacast/data/config/airdeck.conf');
+  const both = resolveConfig({ ...base, env: {}, ...fsOf({ '/home/u/.anmachacast/data/config/airdeck.conf': 'mode = hybrid\n', '/home/u/.anmachacast/data/config/anmachacast.conf': 'mode = server\n' }) });
+  assert.equal(both.mode, 'server');
+  assert.equal(both.configFile, '/home/u/.anmachacast/data/config/anmachacast.conf');
 });
 
 test('Windows-Dienst: ProgramData', () => {
@@ -73,14 +64,11 @@ test('Windows-Dienst: ProgramData', () => {
   const c = resolveConfig({ ...base, platform: 'win32', env: { ProgramData: pd }, ...fsOf({ [file]: 'mode=local' }) });
   assert.equal(c.system, true);
   assert.equal(c.paths.data, join(pd, 'AnMaChaCast', 'data'));
-  const oldFile = join(pd, 'AirDeck', 'config', 'airdeck.conf');
-  const old = resolveConfig({ ...base, platform: 'win32', env: { ProgramData: pd }, ...fsOf({ [oldFile]: 'mode=local' }) });
-  assert.equal(old.paths.data, join(pd, 'AirDeck', 'data'), 'bisheriger Dienst-Ordner bleibt in Gebrauch');
 });
 
 test('relative Pfade ab Konfigurationsordner, Umgebung hat Vorrang, ungültige Werte fallen zurück', () => {
-  const env = { AIRDECK_CONFIG: '/srv/ad/airdeck.conf', AIRDECK_PORT: '9100' };
-  const files = { '/srv/ad/airdeck.conf': 'mode = quatsch\n[paths]\ndata = ./d\nmedia = /mnt/musik\n[network]\nport = 70000\nbind = 192.168.1.5\n' };
+  const env = { ANMACHA_CAST_CONFIG: '/srv/ad/anmachacast.conf', ANMACHA_CAST_PORT: '9100' };
+  const files = { '/srv/ad/anmachacast.conf': 'mode = quatsch\n[paths]\ndata = ./d\nmedia = /mnt/musik\n[network]\nport = 70000\nbind = 192.168.1.5\n' };
   const c = resolveConfig({ ...base, env, ...fsOf(files) });
   assert.equal(c.paths.data, '/srv/ad/d');
   assert.equal(c.paths.media, '/mnt/musik');
@@ -88,23 +76,7 @@ test('relative Pfade ab Konfigurationsordner, Umgebung hat Vorrang, ungültige W
   assert.equal(c.mode, 'local');
   assert.equal(c.port, 9100);
   assert.equal(c.host, '192.168.1.5');
-  const bad = resolveConfig({ ...base, env: { AIRDECK_CONFIG: '/srv/ad/airdeck.conf', AIRDECK_MODE: 'HYBRID' }, ...fsOf(files) });
+  const bad = resolveConfig({ ...base, env: { ANMACHA_CAST_CONFIG: '/srv/ad/anmachacast.conf', ANMACHA_CAST_MODE: 'HYBRID' }, ...fsOf(files) });
   assert.equal(bad.port, 8750);
   assert.equal(bad.mode, 'hybrid');
-});
-
-test('neue ANMACHA_CAST_*-Umgebungsvariablen haben Vorrang vor den bisherigen AIRDECK_*-Namen', () => {
-  const files = { '/srv/ad/airdeck.conf': 'mode = local\n' };
-  // nur die neuen Namen gesetzt: funktioniert genauso wie bisher mit AIRDECK_*
-  const neu = resolveConfig({ ...base, env: { ANMACHA_CAST_CONFIG: '/srv/ad/airdeck.conf', ANMACHA_CAST_PORT: '9200' }, ...fsOf(files) });
-  assert.equal(neu.configFile, '/srv/ad/airdeck.conf');
-  assert.equal(neu.port, 9200);
-  // beide gesetzt: der neue Name gewinnt
-  const beide = resolveConfig({
-    ...base,
-    env: { ANMACHA_CAST_CONFIG: '/srv/ad/airdeck.conf', AIRDECK_CONFIG: '/anderer/ort/airdeck.conf', ANMACHA_CAST_PORT: '9300', AIRDECK_PORT: '9100' },
-    ...fsOf(files),
-  });
-  assert.equal(beide.configFile, '/srv/ad/airdeck.conf');
-  assert.equal(beide.port, 9300);
 });

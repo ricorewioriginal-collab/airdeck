@@ -58,7 +58,7 @@ Webseiten wie ein Radio-Control-Center können AnMaCha Cast direkt aus dem Brows
 - **Studio:** Tools → Web-Fernsteuerung → eine Adresse pro Zeile (nur Origin, z. B. `https://control.meinradio.de`). Erlaubt sind `https://…` sowie `http://localhost`/`127.0.0.1`. Gespeichert in `network.json` (`webOrigins`), sofort wirksam, kein Neustart.
 - **API:** `GET`/`PUT /api/v1/app/origins` (`{ "webOrigins": [...] }`, nur globale Admins).
 - **Umgebung:** `ANMACHA_CAST_CORS_ORIGINS` (kommagetrennt) wirkt zusätzlich, z. B. für feste Docker-Setups
-  (bisheriges `AIRDECK_CORS_ORIGINS` funktioniert als Legacy-Fallback weiter).
+  .
 
 Die Freigabe ersetzt keine Anmeldung: Die Webseite verbindet sich per Kopplungscode (im selben Dialog erzeugbar, Rolle und Sender wählbar) oder Benutzerkonto und erhält ein widerrufbares Geräte-Token. `EventSource` übergibt das Token als `?token=` (nur bei GET erlaubt).
 
@@ -88,7 +88,7 @@ Ein AnMaCha Cast hinter einem Router (Studio-PC) ist von außen nicht erreichbar
 | Baustein | Stand |
 |---|---|
 | Health mit Version und API-Version | umgesetzt (`/api/v1/health`) |
-| LAN-Erkennung UDP 8751 (`ANMACHACAST?1` → Name, Version, API, Port, LAN an/aus; Legacy `ANMACHACAST?1` wird weiterhin beantwortet und gesendet) | umgesetzt (`src/server/discovery.ts`). Abschaltbar mit `ANMACHA_CAST_DISCOVERY=off` (bisheriges `AIRDECK_DISCOVERY` funktioniert weiter). Suche vom Desktop-Studio über `GET /api/v1/discover`. In der App kommt die Suche mit dem nativen Modul (Schritt 8), weil eine WebView kein UDP senden kann |
+| LAN-Erkennung UDP 8751 (`ANMACHACAST?1` → Name, Version, API, Port, LAN an/aus) | umgesetzt (`src/server/discovery.ts`). Abschaltbar mit `ANMACHA_CAST_DISCOVERY=off`. Suche vom Desktop-Studio über `GET /api/v1/discover`. In der App kommt die Suche mit dem nativen Modul (Schritt 8), weil eine WebView kein UDP senden kann |
 | Kopplungscode (6 Ziffern, 5 min, einmalig, Rolle und Sender wählbar, Sperre nach 8 Fehlversuchen je Adresse für 10 min) | umgesetzt: `POST /api/v1/pairing`, öffentlich `POST /api/v1/pair` |
 | Geräte-Token, einzeln widerrufbar, „zuletzt gesehen“ | umgesetzt: `GET /api/v1/devices`, `DELETE /api/v1/devices/<id>` |
 | Verbindungstest in Stufen mit Hinweisen, Versionsprüfung, Serverprofile | umgesetzt (`studio/js/connect.js`, Dialog „Mit AnMaCha Cast verbinden“, „Server wechseln“) |

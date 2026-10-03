@@ -6,23 +6,23 @@ import { join } from 'node:path';
 import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
 
-test('APK-Download (Legacy-Dateiname AirDeck-Android.apk bleibt als Kompatibilitäts-Alias erreichbar), Netzwerk-Einstellung und Verbindungsinfo', async () => {
+test('APK-Download, Netzwerk-Einstellung und Verbindungsinfo', async () => {
   const root = mkdtempSync(join(tmpdir(), 'anmachacast-root-'));
   const data = join(root, 'data');
   mkdirSync(join(root, 'android'), { recursive: true });
   const apk = Buffer.from('PK\x03\x04fake-apk');
-  writeFileSync(join(root, 'android', 'AirDeck-Android.apk'), apk);
+  writeFileSync(join(root, 'android', 'AnMaCha-Cast-Android.apk'), apk);
   const app = new AnMaChaCastApp(data, { stableMs: 0, ffmpeg: null, appRoot: root });
   const token = app.svc.auth.createToken({ name: 'a', scopes: ['*'], roles: ['admin'], stationIds: ['*'] }).token;
   const server = createHttpServer(app, join(import.meta.dirname, '../studio'));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   try {
-    // öffentlich, damit das Handy sie ohne Login laden kann - alter Pfad/Dateiname funktioniert weiter (Legacy-Alias)
-    const r = await fetch(`${base}/download/AirDeck-Android.apk`);
+    // öffentlich, damit das Handy sie ohne Login laden kann
+    const r = await fetch(`${base}/download/AnMaCha-Cast-Android.apk`);
     assert.equal(r.status, 200);
     assert.equal(r.headers.get('content-type'), 'application/vnd.android.package-archive');
-    assert.equal(r.headers.get('content-disposition'), 'attachment; filename="AnMaCha-Cast-Android.apk"', 'angebotener Speichername ist bereits der neue Produktname');
+    assert.equal(r.headers.get('content-disposition'), 'attachment; filename="AnMaCha-Cast-Android.apk"');
     assert.deepEqual(Buffer.from(await r.arrayBuffer()), apk);
 
     const auth = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -31,7 +31,7 @@ test('APK-Download (Legacy-Dateiname AirDeck-Android.apk bleibt als Kompatibilit
     assert.equal(c1.apk, 'local');
     const c2 = (await (await fetch(`${base}/api/v1/app/network`, { method: 'PUT', headers: auth, body: JSON.stringify({ lan: true }) })).json()) as { lan: boolean; restartNeeded: boolean };
     assert.equal(c2.lan, true);
-    assert.equal(c2.restartNeeded, !process.env.AIRDECK_HOST, 'Umschalten wirkt nach Neustart');
+    assert.equal(c2.restartNeeded, !process.env.ANMACHA_CAST_HOST, 'Umschalten wirkt nach Neustart');
     // ohne Admin-Rechte kein Zugriff
     const dj = app.svc.auth.createToken({ name: 'dj', scopes: ['*'], roles: ['dj'], stationIds: ['main'] }).token;
     assert.equal((await fetch(`${base}/api/v1/app/connect`, { headers: { Authorization: `Bearer ${dj}` } })).status, 403);

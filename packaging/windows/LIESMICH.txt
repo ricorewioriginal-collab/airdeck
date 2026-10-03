@@ -12,7 +12,6 @@ AnMaChaCast.exe ist das Programm, anmachacast-engine.exe die AnMaCha-Cast-Engine
 Das Fenster nutzt Microsoft WebView2 (bei Windows 10/11 vorhanden).
 
 Daten liegen in %LOCALAPPDATA%\AnMaChaCast\data (Medien, Einstellungen, verschlüsselte Passwörter).
-Bei einer Installation vor der Umbenennung bleibt der bisherige Ordner %LOCALAPPDATA%\AirDeck\data in Gebrauch.
 ffmpeg (Audio-Engine) liegt im Ordner ffmpeg\.
 
 Android-App im selben Netzwerk verbinden:

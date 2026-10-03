@@ -55,8 +55,8 @@ curl -fs -X PATCH -H "$auth" -H "Content-Type: application/json" -d '{"autostart
 curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d '{"autostart":true}' "$api/playout/start" >/dev/null || true
 for mid in "$track_b" "$track_c" "$station_id" "$track_a" "$jingle"; do curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"mediaId\":\"$mid\"}" "$api/queue" >/dev/null; done
 
-demo_user="${AIRDECK_DEMO_USER:-demo}"
-demo_pass="${AIRDECK_DEMO_PASSWORD:-anmachacast-demo}"
+demo_user="${ANMACHA_CAST_DEMO_USER:-demo}"
+demo_pass="${ANMACHA_CAST_DEMO_PASSWORD:-anmachacast-demo}"
 curl -fs -X POST -H "$auth" -H "Content-Type: application/json" -d "{\"username\":\"$demo_user\",\"name\":\"Demo\",\"password\":\"$demo_pass\",\"roles\":[\"admin\"],\"stationIds\":[\"main\"],\"mustChangePassword\":false}" "http://127.0.0.1:8751/api/v1/users" >/dev/null
 
 # Lokalen Icecast-Mount prüfen. Ein Fehler beendet den Reset nicht, wird aber deutlich geloggt.

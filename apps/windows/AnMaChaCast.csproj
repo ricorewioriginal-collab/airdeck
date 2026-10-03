@@ -7,8 +7,6 @@
     Web-Studio in einem eingebetteten WebView2-Fenster – siehe docs/architecture/MULTI_PLATFORM.md.
     .NET Framework 4.8 ist auf jedem Windows 10/11 vorhanden – keine zusätzliche Laufzeit nötig.
     Bauen: dotnet build apps/windows/AnMaChaCast.csproj -c Release -p:Version=0.4.0
-    Der Installer (packaging/windows/installer.iss) räumt die Dateien der Version vor der Umbenennung
-    (AirDeck.exe, airdeck-engine.exe) beim Update auf.
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>

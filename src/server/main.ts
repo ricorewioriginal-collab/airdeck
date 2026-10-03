@@ -20,7 +20,7 @@ import { DbDocStore, importJsonFiles } from './repo/docs.ts';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AnMaChaCastApp } from './app.ts';
-import { envVar } from './legacy-branding.ts';
+import { envVar } from './env.ts';
 import { SecretStore } from './secrets.ts';
 import { SyncManager } from './sync.ts';
 import { createHttpServer } from './http.ts';
@@ -196,9 +196,9 @@ async function main(): Promise<void> {
 
   // Optionaler Abgleich (MySQL/Firebase) vor dem Laden des Zustands; Fehler → lokaler Betrieb
   const sync = new SyncManager(dataDir, secrets, (event, data) => console.log(`[sync] ${event}`, data ?? ''));
-  const local = docs.get<unknown>('airdeck', null);
+  const local = docs.get<unknown>('anmachacast', null);
   const decision = await sync.startup(local ? JSON.stringify(local, null, 1) : null);
-  // geholter Stand liegt als airdeck.json vor → übernehmen
+  // geholter Stand liegt als anmachacast.json vor → übernehmen
   if (decision === 'take_remote') await importJsonFiles(dataDir, docs);
   if (sync.config.backend !== 'local') {
     console.log(`Datenspeicher: ${sync.config.backend} – Abgleich: ${decision ?? 'nicht möglich'}${sync.status.lastError ? ` (${sync.status.lastError})` : ''}`);

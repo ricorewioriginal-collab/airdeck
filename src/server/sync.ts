@@ -1,4 +1,4 @@
-// Optionale Datenhaltung/Sync: Der lokale Zustand (data/airdeck.json) bleibt maßgeblich (Local-First, offline-fähig).
+// Optionale Datenhaltung/Sync: Der lokale Zustand (data/anmachacast.json) bleibt maßgeblich (Local-First, offline-fähig).
 // Zusätzlich kann er mit MySQL/MariaDB oder Firebase (Cloud Firestore) synchronisiert werden –
 // z. B. um mehrere Studios/Standorte auf denselben Stand zu bringen. Musikdateien werden NICHT synchronisiert.
 
@@ -32,7 +32,7 @@ export interface RemoteStore {
 }
 
 /** Inhaltlich gleiche Stände ergeben denselben Wert, egal in welcher Reihenfolge die Felder stehen
- *  (der Stand kommt jetzt aus der Datenbank und nicht mehr Byte für Byte aus airdeck.json). */
+ *  (der Stand kommt jetzt aus der Datenbank und nicht mehr Byte für Byte aus anmachacast.json). */
 function canonical(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(canonical);
   if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical((v as Record<string, unknown>)[k])]));
@@ -64,16 +64,14 @@ export class MysqlStore implements RemoteStore {
   private async db(): Promise<import('mysql2/promise').Pool> {
     if (this.pool) return this.pool;
     const mysql = await import('mysql2/promise');
-    // Tabellenname airdeck_state bleibt bewusst unverändert (wie der Firestore-Collection-Name 'airdeck'
-    // unten): bestehende MySQL/Firebase-Sync-Ziele haben ihren Stand bereits unter diesem Namen abgelegt;
-    // ein Umbenennen ohne Migration des externen Speichers würde ihn beim nächsten Abgleich als leer
-    // erscheinen lassen.
+    // Tabelle anmachacast_state (Firestore: Sammlung 'anmachacast'). Der lokale Stand bleibt maßgeblich:
+    // ein neues, leeres Ziel wird beim ersten Abgleich einfach befüllt.
     this.pool = mysql.createPool({
       host: this.cfg.host, port: this.cfg.port, user: this.cfg.user, password: this.password, database: this.cfg.database,
       ssl: this.cfg.ssl ? {} : undefined, connectionLimit: 2, connectTimeout: 8000, enableKeepAlive: true,
     });
     await this.pool.query(
-      'CREATE TABLE IF NOT EXISTS airdeck_state (id VARCHAR(64) PRIMARY KEY, updated_at BIGINT NOT NULL, instance VARCHAR(64) NOT NULL, doc LONGBLOB NOT NULL) ENGINE=InnoDB',
+      'CREATE TABLE IF NOT EXISTS anmachacast_state (id VARCHAR(64) PRIMARY KEY, updated_at BIGINT NOT NULL, instance VARCHAR(64) NOT NULL, doc LONGBLOB NOT NULL) ENGINE=InnoDB',
     );
     return this.pool;
   }
@@ -83,7 +81,7 @@ export class MysqlStore implements RemoteStore {
   }
 
   async pull(): Promise<RemoteDoc | null> {
-    const [rows] = await (await this.db()).query('SELECT updated_at, instance, doc FROM airdeck_state WHERE id = ?', ['state']);
+    const [rows] = await (await this.db()).query('SELECT updated_at, instance, doc FROM anmachacast_state WHERE id = ?', ['state']);
     const r = (rows as Array<{ updated_at: number | string; instance: string; doc: Buffer }>)[0];
     if (!r) return null;
     return { updatedAt: Number(r.updated_at), instance: r.instance, state: JSON.parse(gunzipSync(r.doc).toString('utf8')) };
@@ -92,7 +90,7 @@ export class MysqlStore implements RemoteStore {
   async push(doc: RemoteDoc): Promise<void> {
     const blob = gzipSync(JSON.stringify(doc.state));
     await (await this.db()).query(
-      'INSERT INTO airdeck_state (id, updated_at, instance, doc) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), instance = VALUES(instance), doc = VALUES(doc)',
+      'INSERT INTO anmachacast_state (id, updated_at, instance, doc) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), instance = VALUES(instance), doc = VALUES(doc)',
       ['state', doc.updatedAt, doc.instance, blob],
     );
   }
@@ -161,7 +159,7 @@ export class FirestoreStore implements RemoteStore {
 
   private docUrl(): string {
     const project = encodeURIComponent(this.cfg.projectId || this.sa.project_id || '');
-    return `${this.apiBase}/projects/${project}/databases/(default)/documents/${encodeURIComponent(this.cfg.collection || 'airdeck')}/state`;
+    return `${this.apiBase}/projects/${project}/databases/(default)/documents/${encodeURIComponent(this.cfg.collection || 'anmachacast')}/state`;
   }
 
   private async req(method: string, body?: unknown): Promise<Response> {
@@ -302,7 +300,7 @@ export class SyncManager {
       const prev = this.cfg.mysql;
       next.mysql = {
         host: String(m.host ?? prev?.host ?? '').trim(), port: Number(m.port ?? prev?.port ?? 3306), user: String(m.user ?? prev?.user ?? '').trim(),
-        database: String(m.database ?? prev?.database ?? 'airdeck').trim(), passwordRef: 'storage:mysql', ssl: m.ssl === true || m.ssl === 'true' || (m.ssl === undefined && !!prev?.ssl),
+        database: String(m.database ?? prev?.database ?? 'anmachacast').trim(), passwordRef: 'storage:mysql', ssl: m.ssl === true || m.ssl === 'true' || (m.ssl === undefined && !!prev?.ssl),
       };
       if (!/^[\w.-]+$/.test(next.mysql.host) || !next.mysql.user || !/^[\w$]+$/.test(next.mysql.database)) throw new Error('MySQL: Host, Benutzer und Datenbankname prüfen');
       if (!Number.isInteger(next.mysql.port) || next.mysql.port < 1 || next.mysql.port > 65535) throw new Error('MySQL: ungültiger Port');
@@ -317,7 +315,7 @@ export class SyncManager {
         this.secrets.set('storage:firebase', json);
         f.projectId = f.projectId || sa.project_id;
       }
-      next.firebase = { projectId: String(f.projectId ?? this.cfg.firebase?.projectId ?? ''), credentialsRef: 'storage:firebase', collection: String(f.collection ?? this.cfg.firebase?.collection ?? 'airdeck') };
+      next.firebase = { projectId: String(f.projectId ?? this.cfg.firebase?.projectId ?? ''), credentialsRef: 'storage:firebase', collection: String(f.collection ?? this.cfg.firebase?.collection ?? 'anmachacast') };
       if (!next.firebase.projectId) throw new Error('Firebase: Projekt-ID fehlt');
     }
     if (test && backend !== 'local') {
@@ -379,10 +377,10 @@ export class SyncManager {
   }
 
   /**
-   * Abgleich beim Start (vor dem Laden des Zustands). Schreibt ggf. data/airdeck.json neu.
+   * Abgleich beim Start (vor dem Laden des Zustands). Schreibt ggf. data/anmachacast.json neu.
    * Fehler (z. B. Datenbank nicht erreichbar) blockieren den Start nie – AnMaCha Cast läuft dann lokal.
    */
-  /** local: aktueller Stand aus der Datenbank; ohne Angabe wird data/airdeck.json gelesen (ältere Installationen) */
+  /** local: aktueller Stand aus der Datenbank; ohne Angabe wird data/anmachacast.json gelesen (ältere Installationen) */
   async startup(localState?: string | null): Promise<SyncDecision | null> {
     await this.importSetupFile();
     const store = (() => {
@@ -394,7 +392,7 @@ export class SyncManager {
       }
     })();
     if (!store) return null;
-    const stateFile = join(this.dataDir, 'airdeck.json');
+    const stateFile = join(this.dataDir, 'anmachacast.json');
     const metaFile = join(this.dataDir, 'sync-meta.json');
     const meta = readJson<SyncMeta>(metaFile, {});
     try {

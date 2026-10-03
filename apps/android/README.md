@@ -24,7 +24,7 @@ eingegeben). Diese Bereiche laufen bis dahin über das Web-Studio im Browser.
   `engine/test.sh` gegen einen echten Icecast getestet.
 - `native/`: Android-Audio-Schicht (Mikrofon, Decoder, Vordergrund-Dienst `EngineService`,
   `EngineHub` als Fassade für die Oberfläche)
-- `app/src/main/kotlin/app/anmachacast/studio/`: die native Oberfläche (Paket `app.anmachacast.studio`; die frühere Kennung `app.airdeck.studio` wurde ersetzt, siehe `app/build.gradle.kts`)
+- `app/src/main/kotlin/app/anmachacast/studio/`: die native Oberfläche (Paket `app.anmachacast.studio`)
   - `data/`: REST-Client, SSE-Client (Realtime), verschlüsselte Token-Ablage
   - `connect/`, `home/`, `studio/`, `golive/`, `more/`, `common/`: Bildschirme je Bereich
   - `nav/AppNav.kt`: Navigation (Bottom Navigation: Home, Studio, Go Live, Mehr)
@@ -45,7 +45,6 @@ cd apps/android
 
 ## Verbinden
 
-1. AnMaCha Cast auf dem PC mit Netzwerkfreigabe starten: `ANMACHA_CAST_HOST=0.0.0.0` (bisheriges
-   `AIRDECK_HOST` funktioniert als Legacy-Fallback weiter)
+1. AnMaCha Cast auf dem PC mit Netzwerkfreigabe starten: `ANMACHA_CAST_HOST=0.0.0.0`
 2. Im Studio-Dashboard einen Kopplungscode erzeugen (`POST /api/v1/pair`, 6 Ziffern, 5 Minuten gültig).
 3. In der App die Server-Adresse (z. B. `https://dein-server:8750`) und den Code eingeben.

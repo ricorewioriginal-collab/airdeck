@@ -415,7 +415,7 @@ jobs:
           test "$(docker inspect -f '{{.State.ExitCode}}' anmachacast-arm64)" = "0" || (echo "Container wurde nicht sauber beendet" && exit 1)
 
   # Linux-Paket: .deb "anmachacast" mit systemd-Dienst „anmachacast-server.service“, Daten unter
-  # /var/lib/anmachacast; ersetzt ein früher installiertes Paket "airdeck" und übernimmt dessen Daten. Läuft auf einem echten ubuntu-latest-Runner (VM mit systemd als PID 1).
+  # /var/lib/anmachacast. Läuft auf einem echten ubuntu-latest-Runner (VM mit systemd als PID 1).
   linux:
     needs: test
     runs-on: ubuntu-latest
@@ -433,34 +433,7 @@ jobs:
           sudo apt-get update -q
           # Abhängigkeiten müssen aus dem .deb selbst kommen. --no-install-recommends verhindert,
           # dass ein versehentliches Recommends den fehlenden Encoder kaschiert.
-          # Update vom Paket der Zeit vor der Umbenennung ("airdeck") simulieren: Dienstkonto, Konfiguration und
-          # Sendedaten müssen übernommen werden, das alte Paket wird ersetzt.
-          mkdir -p old/DEBIAN
-          printf 'Package: airdeck\nVersion: 0.0.1\nArchitecture: amd64\nMaintainer: ci <ci@example.invalid>\nDescription: alte Version vor der Umbenennung\n' > old/DEBIAN/control
-          cat > old/DEBIAN/postinst <<'OLDPOSTINST'
-          #!/bin/sh
-          set -e
-          addgroup --system airdeck
-          adduser --system --ingroup airdeck --home /var/lib/airdeck --no-create-home --shell /usr/sbin/nologin airdeck
-          mkdir -p /etc/airdeck /var/lib/airdeck/media /var/log/airdeck
-          printf '[paths]\ndata = /var/lib/airdeck\n' > /etc/airdeck/airdeck.conf
-          echo sendedaten > /var/lib/airdeck/media/lied.txt
-          chown -R airdeck:airdeck /etc/airdeck /var/lib/airdeck /var/log/airdeck
-          OLDPOSTINST
-          sed -i 's/^          //' old/DEBIAN/postinst
-          chmod 755 old/DEBIAN/postinst
-          dpkg-deb --root-owner-group --build old old.deb
-          sudo dpkg -i old.deb
-          sudo test -f /var/lib/airdeck/media/lied.txt
           sudo apt-get install -y -q --no-install-recommends "./dist/anmachacast_${VER}_amd64.deb"
-          # Übernahme prüfen
-          if dpkg -s airdeck >/dev/null 2>&1; then echo "altes Paket airdeck wurde nicht ersetzt"; exit 1; fi
-          sudo test "$(cat /var/lib/anmachacast/media/lied.txt 2>/dev/null || sudo cat /var/lib/anmachacast/media/lied.txt)" = "sendedaten" || (echo "Sendedaten wurden nicht übernommen" && exit 1)
-          test ! -e /var/lib/airdeck && test ! -e /etc/airdeck || (echo "alte Ordner sind noch da" && exit 1)
-          sudo grep -q '/var/lib/anmachacast' /etc/anmachacast/anmachacast.conf || (echo "Pfade in der Konfiguration nicht angepasst" && sudo cat /etc/anmachacast/anmachacast.conf && exit 1)
-          getent passwd anmachacast >/dev/null && ! getent passwd airdeck >/dev/null || (echo "Dienstkonto nicht umbenannt" && exit 1)
-          test "$(sudo stat -c %U /var/lib/anmachacast/media/lied.txt)" = "anmachacast" || (echo "Besitzer der Sendedaten falsch" && exit 1)
-          echo "Übernahme aus dem Paket airdeck OK"
           command -v ffmpeg >/dev/null || (echo "ffmpeg wurde nicht als Paket-Abhängigkeit installiert" && exit 1)
           ffmpeg -version | head -1
           sudo systemctl is-active anmachacast-server.service
@@ -493,12 +466,12 @@ jobs:
           # der Runner-Benutzer selbst darf ohne sudo gar nicht hineinschauen. Genau das war die eigentliche
           # Ursache des bisherigen Fehlschlags: „test -f“ ohne sudo meldete „nicht gefunden“, obwohl die
           # Datenbank die ganze Zeit da war (siehe Diagnose: „Permission denied“ statt einer leeren Liste).
-          sudo test -f /var/lib/anmachacast/airdeck.db || (echo "Diagnose: Datenbank fehlt schon vor dem Stopp/Purge" && sudo ls -la /var/lib/anmachacast && sudo journalctl -u anmachacast-server --no-pager -n 100 && exit 1)
+          sudo test -f /var/lib/anmachacast/anmachacast.db || (echo "Diagnose: Datenbank fehlt schon vor dem Stopp/Purge" && sudo ls -la /var/lib/anmachacast && sudo journalctl -u anmachacast-server --no-pager -n 100 && exit 1)
           sudo systemctl stop anmachacast-server.service
           sudo dpkg -P anmachacast
           test ! -e /opt/anmachacast
           test ! -e /etc/anmachacast/anmachacast.conf
-          sudo test -f /var/lib/anmachacast/airdeck.db || (echo "Daten wurden beim Entfernen gelöscht" && sudo ls -la /var/lib/anmachacast && exit 1)
+          sudo test -f /var/lib/anmachacast/anmachacast.db || (echo "Daten wurden beim Entfernen gelöscht" && sudo ls -la /var/lib/anmachacast && exit 1)
           echo "Linux-Paket: Installation, Dienst, Neustart, Health-Check und Purge OK"
       - uses: actions/upload-artifact@v4
         with:

@@ -11,7 +11,7 @@ fi
 if [ "$1" = "purge" ]; then
   # Nur die Konfigurationsdatei geht weg (wird beim nächsten Mal neu angelegt); Nutzerkonto
   # und /var/lib/anmachacast bleiben stehen, damit "apt purge && apt install" keine Sendedaten verliert.
-  rm -f /etc/anmachacast/anmachacast.conf /etc/anmachacast/airdeck.conf
+  rm -f /etc/anmachacast/anmachacast.conf
   rmdir /etc/anmachacast 2>/dev/null || true
 fi
 

@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDatabase, openSqliteSync, databaseConfig } from '../src/server/db/index.ts';
+import { openDatabase, openSqliteSync, databaseConfig, defaultSqliteFile } from '../src/server/db/index.ts';
 import { SCHEMA_VERSION, upsertSql, deleteSql } from '../src/server/db/schema.ts';
 import { DbDocStore, importJsonFiles } from '../src/server/repo/docs.ts';
 import type { DatabaseProvider } from '../src/server/db/types.ts';
@@ -32,7 +32,7 @@ const state = () => ({
 async function roundtrip(db: DatabaseProvider) {
   const a = await DbDocStore.open(db);
   const s = state();
-  a.set('airdeck', s);
+  a.set('anmachacast', s);
   a.set('users', [{ id: 'u1', username: 'admin', createdAt: '1' }]);
   a.set('bridge-keys', { 'az:1': 'main' });
   a.set('ai', { providers: [] });
@@ -40,7 +40,7 @@ async function roundtrip(db: DatabaseProvider) {
   assert.equal(a.status().state, 'ok');
 
   const b = await DbDocStore.open(db);
-  assert.deepEqual(b.get('airdeck', null), s);
+  assert.deepEqual(b.get('anmachacast', null), s);
   assert.deepEqual(b.get('users', null), [{ id: 'u1', username: 'admin', createdAt: '1' }]);
   assert.deepEqual(b.get('bridge-keys', null), { 'az:1': 'main' });
   assert.deepEqual(b.get('ai', null), { providers: [] });
@@ -53,10 +53,10 @@ async function roundtrip(db: DatabaseProvider) {
   s2.stations.pop();
   delete (s2.data as Record<string, unknown>).b;
   s2.outputs = [];
-  b.set('airdeck', s2);
+  b.set('anmachacast', s2);
   await b.flush();
   const c = await DbDocStore.open(db);
-  assert.deepEqual(c.get('airdeck', null), s2);
+  assert.deepEqual(c.get('anmachacast', null), s2);
   assert.equal((await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM media'))[0]!.n, 1);
   // Einstellungen der Sender und globale Einstellungen löschen sich nicht gegenseitig
   assert.deepEqual(c.get('ai', null), { providers: [] });
@@ -65,7 +65,7 @@ async function roundtrip(db: DatabaseProvider) {
 test('SQLite: Migration, Laden/Speichern, nur Änderungen, Übernahme der JSON-Dateien', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'anmachacast-db-'));
   try {
-    const db = openSqliteSync(join(dir, 'airdeck.db'));
+    const db = openSqliteSync(join(dir, 'anmachacast.db'));
     assert.equal((await db.query<{ value: string }>("SELECT value FROM meta WHERE name = 'schema_version'"))[0]!.value, String(SCHEMA_VERSION));
     await roundtrip(db);
 
@@ -80,7 +80,7 @@ test('SQLite: Migration, Laden/Speichern, nur Änderungen, Übernahme der JSON-D
     writeFileSync(join(dir, 'tokens.json'), JSON.stringify([{ id: 't1', hash: 'h', createdAt: 'x' }]));
     writeFileSync(join(dir, 'nextcloud.json'), '{"url":"https://nc"}');
     writeFileSync(join(dir, 'ai.json'), '{kaputt');
-    const db2 = openSqliteSync(join(dir, 'airdeck.db'));
+    const db2 = openSqliteSync(join(dir, 'anmachacast.db'));
     const st = DbDocStore.openSync(db2);
     const got = await importJsonFiles(dir, st);
     assert.deepEqual(got.sort(), ['nextcloud', 'tokens']);
@@ -97,7 +97,7 @@ test('SQLite: Migration, Laden/Speichern, nur Änderungen, Übernahme der JSON-D
 test('Datenbank ausgefallen: Stand bleibt im Speicher, Schreiben wird wiederholt', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'anmachacast-db-'));
   try {
-    const db = openSqliteSync(join(dir, 'airdeck.db'));
+    const db = openSqliteSync(join(dir, 'anmachacast.db'));
     const s = DbDocStore.openSync(db);
     let fail = true;
     const orig = db.transaction.bind(db);
@@ -128,7 +128,27 @@ test('SQL-Hilfen je Dialekt', () => {
   assert.equal(deleteSql('t', ['a', 'b'], 2), 'DELETE FROM t WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)');
   const c = databaseConfig({ 'database.provider': 'MariaDB', 'database.url': 'mysql://u:p@h/db' }, {}, '/d');
   assert.equal(c.provider, 'mysql');
-  assert.equal(databaseConfig({}, {}, '/d').url, join('/d', 'airdeck.db'));
+  assert.equal(databaseConfig({}, {}, '/d').url, join('/d', 'anmachacast.db'));
+});
+
+test('Standard-SQLite-Datei: anmachacast.db; eine vorhandene airdeck.db wird beim Start umbenannt, nichts geht verloren', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'anmachacast-dbname-'));
+  try {
+    assert.equal(defaultSqliteFile(dir), join(dir, 'anmachacast.db'), 'neue Installation');
+    writeFileSync(join(dir, 'airdeck.db'), 'sendedaten');
+    writeFileSync(join(dir, 'airdeck.db-wal'), 'wal');
+    assert.equal(defaultSqliteFile(dir), join(dir, 'anmachacast.db'));
+    assert.equal(existsSync(join(dir, 'airdeck.db')), false);
+    assert.equal(readFileSync(join(dir, 'anmachacast.db'), 'utf8'), 'sendedaten');
+    assert.equal(readFileSync(join(dir, 'anmachacast.db-wal'), 'utf8'), 'wal');
+    // beide vorhanden: die neue Datei gewinnt, die alte bleibt unberührt
+    writeFileSync(join(dir, 'airdeck.db'), 'alt');
+    assert.equal(defaultSqliteFile(dir), join(dir, 'anmachacast.db'));
+    assert.equal(readFileSync(join(dir, 'anmachacast.db'), 'utf8'), 'sendedaten');
+    assert.equal(readFileSync(join(dir, 'airdeck.db'), 'utf8'), 'alt');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // Server-Datenbanken: in der CI als Service-Container (ANMACHA_CAST_TEST_PG / ANMACHA_CAST_TEST_MYSQL_URL)
@@ -145,7 +165,7 @@ for (const [provider, env] of [['postgres', 'ANMACHA_CAST_TEST_PG'], ['mysql', '
   });
 }
 
-test('postgres: Passwort getrennt von der Adresse (AIRDECK_DB_PASSWORD)', { skip: !process.env.ANMACHA_CAST_TEST_PG && 'ANMACHA_CAST_TEST_PG nicht gesetzt' }, async () => {
+test('postgres: Passwort getrennt von der Adresse (ANMACHA_CAST_DB_PASSWORD)', { skip: !process.env.ANMACHA_CAST_TEST_PG && 'ANMACHA_CAST_TEST_PG nicht gesetzt' }, async () => {
   const u = new URL(process.env.ANMACHA_CAST_TEST_PG!);
   const password = decodeURIComponent(u.password);
   u.password = '';
