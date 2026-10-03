@@ -61,6 +61,8 @@ fun RaOverviewScreen(vm: RadioadminViewModel, onGoLive: () -> Unit) {
 fun RaProgramScreen(vm: RadioadminViewModel) {
     val ui by vm.ui.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
+    // Vorhören endet, sobald der Bereich verlassen wird
+    DisposableEffect(Unit) { onDispose { vm.stopPrelisten() } }
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = tab, containerColor = Color.Transparent, contentColor = BrandBlue) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Playlists") })

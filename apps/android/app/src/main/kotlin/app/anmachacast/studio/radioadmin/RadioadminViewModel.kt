@@ -10,7 +10,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.anmachacast.studio.AnMaChaCastApp
 import app.anmachacast.studio.live.LautStation
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,15 +101,32 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
     val ui: StateFlow<RaUi> = _ui.asStateFlow()
     private var player: MediaPlayer? = null
 
+    /** Alle laufenden Aktionen hängen hier; bei einem Stationswechsel werden sie abgebrochen. */
+    private val ops = SupervisorJob(viewModelScope.coroutineContext[Job])
+    private var stationFor = 0L
+
+    /** Station gewechselt: Aktionen und Daten der alten Station verwerfen. Wird vor dem Neuladen aufgerufen. */
+    fun enterStation(id: Long) {
+        if (id == stationFor) return
+        ops.cancelChildren()
+        stopPrelisten()
+        stationFor = id
+        _ui.value = RaUi()
+    }
+
     fun clearMessage() = _ui.update { it.copy(message = null, error = null) }
 
     /** Ablauf einer Aktion mit Ladebalken und lesbarer Fehlermeldung. */
     private fun op(done: String? = null, block: suspend () -> Unit) {
+        // Ohne vollzogenen Stationswechsel (enterStation) wird nichts ausgeführt - schützt vor Schreibzugriffen auf die falsche Station
+        if (stationFor != ra.stationId) return
         _ui.update { it.copy(loading = true, error = null) }
-        viewModelScope.launch {
+        viewModelScope.launch(ops) {
             try {
                 block()
                 _ui.update { it.copy(loading = false, message = done ?: it.message) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e // Stationswechsel: nichts mehr in den neuen Zustand schreiben
             } catch (e: IOException) {
                 _ui.update { it.copy(loading = false, error = e.message ?: "Netzwerkfehler") }
             } catch (e: RuntimeException) {
@@ -304,10 +324,11 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
         val cr = getApplication<Application>().contentResolver
         var done = 0
         for (u in uris) {
-            val name = cr.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "titel.mp3"
-            val bytes = cr.openInputStream(u)?.use { it.readBytes() } ?: throw IOException("$name nicht lesbar")
+            val (name, size) = cr.query(u, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
+                if (c.moveToFirst()) (c.getString(0) ?: "titel.mp3") to (if (c.isNull(1)) -1L else c.getLong(1)) else null
+            } ?: ("titel.mp3" to -1L)
             _ui.update { it.copy(message = "Lade hoch: $name (${done + 1}/${uris.size}) …") }
-            ra.upload("POST", ra.st("/tracks"), "track", name, "audio/mpeg", bytes, mapOf("private" to private.toString()))
+            ra.upload("POST", ra.st("/tracks"), "track", name, "audio/mpeg", size, { cr.openInputStream(u) ?: throw IOException("$name nicht lesbar") }, mapOf("private" to private.toString()))
             done++
         }
         _ui.update { it.copy(message = "$done Datei(en) hochgeladen – laut.fm verarbeitet sie jetzt") }
@@ -438,8 +459,8 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
     fun uploadLogo(uri: Uri) = op("Logo hochgeladen") {
         val cr = getApplication<Application>().contentResolver
         val mime = cr.getType(uri) ?: "image/png"
-        val bytes = cr.openInputStream(uri)?.use { it.readBytes() } ?: throw IOException("Bild nicht lesbar")
-        ra.upload("PUT", ra.st("/images/logo"), "image", "logo." + mime.substringAfter('/', "png"), mime, bytes)
+        val size = cr.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else -1L } ?: -1L
+        ra.upload("PUT", ra.st("/images/logo"), "image", "logo." + mime.substringAfter('/', "png"), mime, size, { cr.openInputStream(uri) ?: throw IOException("Bild nicht lesbar") })
         _ui.update { it.copy(station = ra.get(ra.st()).obj()) }
     }
 

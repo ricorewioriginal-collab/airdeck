@@ -22,6 +22,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.source
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -103,11 +104,21 @@ class RaClient(private val session: LautFmSession) {
         http.newCall(req).execute().use { return it.code to (it.body?.string() ?: "") }
     }
 
-    /** Datei hochladen (multipart). @param part Name des Formularfelds, z. B. "track" oder "image" */
-    suspend fun upload(method: String, path: String, part: String, fileName: String, mime: String, bytes: ByteArray, fields: Map<String, String> = emptyMap()): JsonElement? {
+    /**
+     * Datei hochladen (multipart), ohne sie komplett in den Speicher zu laden: der Inhalt wird beim Senden aus `open()` gelesen.
+     * @param part Name des Formularfelds, z. B. "track" oder "image"
+     */
+    suspend fun upload(method: String, path: String, part: String, fileName: String, mime: String, length: Long, open: () -> java.io.InputStream, fields: Map<String, String> = emptyMap()): JsonElement? {
+        val body = object : RequestBody() {
+            override fun contentType() = mime.toMediaType()
+            override fun contentLength() = length
+            override fun writeTo(sink: okio.BufferedSink) {
+                open().use { sink.writeAll(it.source()) }
+            }
+        }
         val mb = MultipartBody.Builder().setType(MultipartBody.FORM)
         fields.forEach { (k, v) -> mb.addFormDataPart(k, v) }
-        mb.addFormDataPart(part, fileName, bytes.toRequestBody(mime.toMediaType()))
+        mb.addFormDataPart(part, fileName, body)
         return call(method, path, null, mb.build())
     }
 

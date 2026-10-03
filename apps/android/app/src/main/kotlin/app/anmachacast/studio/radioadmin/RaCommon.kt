@@ -42,7 +42,8 @@ fun RaFrame(vm: RadioadminViewModel, scroll: Boolean = true, onReload: () -> Uni
         acc == null || lf.expired -> RaLogin(vm)
         acc.stationId <= 0 -> RaStationPicker(vm)
         else -> {
-            LaunchedEffect(acc.stationId) { onReload() }
+            // Stationswechsel: Zustand der alten Station verwerfen, bevor neu geladen wird
+            LaunchedEffect(acc.stationId) { vm.enterStation(acc.stationId); onReload() }
             val body = Modifier.fillMaxSize().let { if (scroll) it.verticalScroll(rememberScrollState()) else it }
             Column(body.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 StationBar(vm, onReload)
@@ -121,7 +122,10 @@ private fun RaStationPicker(vm: RadioadminViewModel) {
     val lf by vm.session.state.collectAsState()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Panel(title = "Station wählen") {
-            if (lf.stations.isEmpty()) Note("Stationen werden geladen …")
+            if (lf.stations.isEmpty()) {
+                Note(lf.message ?: "Stationen werden geladen …", bad = lf.message != null)
+                OutlinedButton(onClick = vm.session::loadStations, modifier = Modifier.fillMaxWidth()) { Text("Erneut laden") }
+            }
             lf.stations.forEach { s ->
                 Surface(
                     onClick = { vm.selectStation(s) }, shape = RoundedCornerShape(14.dp), color = BrandPanelSolid,

@@ -82,9 +82,20 @@ class LautFmSession(context: Context) {
                 val mine = stations.filter { it.role != "listener" }.ifEmpty { stations }
                 // Slug der gewählten Station nachtragen (ältere Speicherstände kennen ihn nicht)
                 var next = if (origin != acc.origin) acc.copy(origin = origin) else acc
-                mine.firstOrNull { it.id == next.stationId }?.let { if (next.stationSlug != it.name) next = next.withStation(it) }
+                val still = mine.firstOrNull { it.id == next.stationId }
+                var reselect = false
+                when {
+                    still != null -> if (next.stationSlug != still.name) next = next.withStation(still)
+                    // gewählte Station nicht mehr zugänglich: Auswahl löschen, bei genau einer übrigen automatisch wählen
+                    next.stationId > 0 -> {
+                        next = if (mine.size == 1) next.withStation(mine[0]) else next.copy(stationId = 0, stationName = "", stationSlug = "")
+                        reselect = next.stationId > 0
+                    }
+                    mine.size == 1 -> { next = next.withStation(mine[0]); reselect = true }
+                }
                 if (next != acc) store.saveLautFm(next)
                 _state.update { it.copy(stations = mine, account = next, expired = false) }
+                if (reselect) _selected.tryEmit(next)
             } catch (e: LautFmException) {
                 _state.update { it.copy(expired = e.unauthorized, message = if (e.unauthorized) "laut.fm-Anmeldung abgelaufen – bitte neu verbinden" else e.message) }
             }
