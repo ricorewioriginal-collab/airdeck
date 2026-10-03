@@ -4,7 +4,7 @@ package app.anmachacast.studio.nav
 
 import android.content.Context
 
-enum class Mode { GOLIVE, STUDIO }
+enum class Mode { GOLIVE, STUDIO, RADIOADMIN }
 
 class ModeStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("anmachacast_ui", Context.MODE_PRIVATE)

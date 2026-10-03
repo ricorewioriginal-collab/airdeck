@@ -10,9 +10,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.anmachacast.engine.android.EngineHub
+import app.anmachacast.studio.AnMaChaCastApp
 import app.anmachacast.studio.live.LautFmAccount
 import app.anmachacast.studio.live.LautFmClient
-import app.anmachacast.studio.live.LautFmException
+import app.anmachacast.studio.live.LautFmUi
 import app.anmachacast.studio.live.LautStation
 import app.anmachacast.studio.live.LiveStore
 import app.anmachacast.studio.live.NcEntry
@@ -38,14 +39,6 @@ data class NextcloudUi(
     val message: String? = null,
     val loginUrl: String? = null,
     val adding: String? = null,
-)
-
-data class LautFmUi(
-    val account: LautFmAccount? = null,
-    val stations: List<LautStation> = emptyList(),
-    val busy: Boolean = false,
-    val message: String? = null,
-    val showLogin: Boolean = false,
 )
 
 data class GoLiveUiState(
@@ -79,7 +72,8 @@ data class GoLiveUiState(
 class GoLiveViewModel(application: Application) : AndroidViewModel(application) {
     private val hub = EngineHub.get(application)
     private val store = LiveStore(application)
-    private val laut = LautFmClient()
+    private val session = (application as AnMaChaCastApp).lautSession
+    private val laut = session.client
     private val nc = NextcloudClient()
     private val _ui = MutableStateFlow(GoLiveUiState())
     val ui: StateFlow<GoLiveUiState> = _ui.asStateFlow()
@@ -88,13 +82,24 @@ class GoLiveViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         nc.clearCache(application)
-        val laut = runCatching { store.loadLautFm() }.getOrNull()
         val ncAcc = runCatching { store.loadNextcloud() }.getOrNull()
-        _ui.update { it.copy(lautfm = it.lautfm.copy(account = laut), nextcloud = it.nextcloud.copy(account = ncAcc)) }
+        _ui.update { it.copy(nextcloud = it.nextcloud.copy(account = ncAcc)) }
+        viewModelScope.launch { session.state.collect { st -> _ui.update { it.copy(lautfm = st) } } }
+        // Neue/gewählte laut.fm-Station: Sende-Zugangsdaten übernehmen (nicht während einer laufenden Sendung)
+        viewModelScope.launch {
+            session.selected.collect { acc ->
+                if (hub.running()) return@collect
+                try {
+                    applyLautFmCredentials(acc)
+                    session.setMessage("Zugangsdaten für ${acc.stationName} übernommen")
+                } catch (e: Exception) {
+                    session.setMessage(e.message)
+                }
+            }
+        }
         refreshConfig()
         refreshPermission()
         refreshMicSources()
-        if (laut != null) loadStations()
         viewModelScope.launch {
             while (true) {
                 pullStatus()
@@ -257,71 +262,14 @@ class GoLiveViewModel(application: Application) : AndroidViewModel(application) 
         pullStatus()
     }
 
-    // ---------- laut.fm ----------
+    // ---------- laut.fm (gemeinsame Sitzung) ----------
 
-    fun openLautFmLogin() = _ui.update { it.copy(lautfm = it.lautfm.copy(showLogin = true, message = null)) }
-    fun closeLautFmLogin() = _ui.update { it.copy(lautfm = it.lautfm.copy(showLogin = false)) }
-
-    /** Token aus der Anmeldung (oder eingefügt) prüfen und Stationen laden. */
-    fun connectLautFm(token: String) {
-        if (_ui.value.lautfm.busy) return
-        val clean = LautFmClient.cleanToken(token)
-        if (clean.length < 16) {
-            _ui.update { it.copy(lautfm = it.lautfm.copy(message = "Das sieht nicht wie ein laut.fm-Token aus")) }
-            return
-        }
-        _ui.update { it.copy(lautfm = it.lautfm.copy(busy = true, showLogin = false, message = null)) }
-        viewModelScope.launch {
-            try {
-                val (origin, stations) = laut.verify(clean)
-                val mine = stations.filter { it.role != "listener" }.ifEmpty { stations }
-                val keep = _ui.value.lautfm.account
-                var acc = LautFmAccount(clean, origin)
-                // Bei genau einer Station direkt wählen, sonst bleibt die Auswahl dem Nutzer
-                if (mine.size == 1) acc = acc.copy(stationId = mine[0].id, stationName = mine[0].displayName)
-                else if (keep != null && mine.any { it.id == keep.stationId }) acc = acc.copy(stationId = keep.stationId, stationName = keep.stationName)
-                store.saveLautFm(acc)
-                _ui.update { it.copy(lautfm = it.lautfm.copy(account = acc, stations = mine, busy = false, message = "Verbunden – ${mine.size} Station(en)")) }
-                if (acc.stationId > 0) applyLautFmCredentials(acc)
-            } catch (e: LautFmException) {
-                _ui.update { it.copy(lautfm = it.lautfm.copy(busy = false, message = e.message)) }
-            }
-        }
-    }
-
-    fun loadStations() {
-        val acc = _ui.value.lautfm.account ?: return
-        viewModelScope.launch {
-            try {
-                val (origin, stations) = laut.verify(acc.token, acc.origin)
-                val mine = stations.filter { it.role != "listener" }.ifEmpty { stations }
-                if (origin != acc.origin) store.saveLautFm(acc.copy(origin = origin))
-                _ui.update { it.copy(lautfm = it.lautfm.copy(stations = mine, account = acc.copy(origin = origin))) }
-            } catch (e: LautFmException) {
-                _ui.update { it.copy(lautfm = it.lautfm.copy(message = if (e.unauthorized) "laut.fm-Anmeldung abgelaufen – bitte neu verbinden" else e.message)) }
-            }
-        }
-    }
-
-    fun selectLautFmStation(s: LautStation) {
-        val acc = _ui.value.lautfm.account ?: return
-        val next = acc.copy(stationId = s.id, stationName = s.displayName)
-        store.saveLautFm(next)
-        _ui.update { it.copy(lautfm = it.lautfm.copy(account = next, busy = true, message = null)) }
-        viewModelScope.launch {
-            try {
-                applyLautFmCredentials(next)
-                _ui.update { it.copy(lautfm = it.lautfm.copy(busy = false, message = "Zugangsdaten für ${s.displayName} übernommen")) }
-            } catch (e: Exception) {
-                _ui.update { it.copy(lautfm = it.lautfm.copy(busy = false, message = e.message)) }
-            }
-        }
-    }
-
-    fun disconnectLautFm() {
-        store.clearLautFm()
-        _ui.update { it.copy(lautfm = LautFmUi()) }
-    }
+    fun openLautFmLogin() = session.openLogin()
+    fun closeLautFmLogin() = session.closeLogin()
+    fun connectLautFm(token: String) = session.connect(token)
+    fun loadStations() = session.loadStations()
+    fun selectLautFmStation(s: LautStation) = session.select(s)
+    fun disconnectLautFm() = session.disconnect()
 
     /** Live-Zugangsdaten der gewählten Station in den Encoder übernehmen (Passwort bleibt in der App). */
     private suspend fun applyLautFmCredentials(acc: LautFmAccount) {
