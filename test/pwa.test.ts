@@ -31,5 +31,6 @@ test('PWA: Service Worker wird als JavaScript ausgeliefert, nutzt keinen API-Cac
   }
   const html = readFileSync(join(studio, 'index.html'), 'utf8');
   assert.match(html, /apple-mobile-web-app-capable/);
+  assert.match(html, /id="btn-mobil"/);
   assert.match(readFileSync(join(studio, 'js/app.js'), 'utf8'), /registerWorker\(\)/);
 });

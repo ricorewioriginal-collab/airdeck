@@ -2155,6 +2155,10 @@ function bindStatic() {
     lsSet('mobileMode', 'handy');
     location.href = 'handy.html';
   });
+  // Mobil-Studio (installierbare Web-App, u. a. für iPhone/iPad); der Server übergibt Adresse und Anmeldung per Link
+  $('btn-mobil').addEventListener('click', () => {
+    location.href = `mobil.html#token=${encodeURIComponent(api.token)}`;
+  });
   $('btn-setup').hidden = !isGlobalAdmin();
   $('btn-setup').addEventListener('click', () => void openSetup());
   $('btn-server').addEventListener('click', () => void switchServer());
