@@ -37,7 +37,12 @@ const LIMITS: Record<string, [number, number]> = { vote: [20, 10 * 60_000], subm
 function clean(v: unknown, max: number): string {
   return String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
-const csvCell = (v: unknown): string => `"${String(v ?? '').replace(/"/g, '""')}"`;
+/** CSV-Zelle: Anführungszeichen verdoppeln; Zellen, die Excel/LibreOffice als Formel lesen würden, mit Apostroph entschärfen. */
+export const csvCell = (v: unknown): string => {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+};
 
 /** Zufällige Auswahl ohne Zurücklegen (kryptografisch, fair). */
 export function pickWinners(pool: string[], count: number): string[] {
@@ -88,10 +93,11 @@ export class CommunityService {
     const question = input.question !== undefined ? clean(input.question, 200) : cur?.question ?? '';
     if (!question) throw new AppError(400, 'empty_question', 'Frage fehlt');
     let options = cur?.options ?? [];
-    if (Array.isArray(input.options)) {
-      options = input.options.map((o) => clean(o, 80)).filter(Boolean).slice(0, 10);
+    if (Array.isArray(input.options) || !cur) {
+      options = (Array.isArray(input.options) ? input.options : []).map((o) => clean(o, 80)).filter(Boolean).slice(0, 10);
       if (options.length < 2) throw new AppError(400, 'few_options', 'Mindestens zwei Antworten');
-      if (cur && cur.voters.length && options.length !== cur.options.length) throw new AppError(409, 'has_votes', 'Antworten lassen sich nach den ersten Stimmen nicht mehr ändern - neue Umfrage anlegen');
+      // Ergebnisse hängen an der Position: nach der ersten Stimme bleiben die Antworten exakt so, wie sie sind
+      if (cur && cur.voters.length && (options.length !== cur.options.length || options.some((o, i) => o !== cur.options[i]))) throw new AppError(409, 'has_votes', 'Antworten lassen sich nach den ersten Stimmen nicht mehr ändern - neue Umfrage anlegen');
     }
     const active = typeof input.active === 'boolean' ? input.active : cur?.active ?? true;
     const poll: Poll = cur ?? { id: newId('poll'), question, options, active, createdAt: Date.now(), results: options.map(() => 0), voters: [], salt: randomBytes(8).toString('base64url') };
@@ -167,11 +173,15 @@ export class CommunityService {
     const title = input.title !== undefined ? clean(input.title, 120) : cur?.title ?? '';
     if (!title) throw new AppError(400, 'empty_title', 'Titel fehlt');
     let fields = cur?.fields ?? [];
-    if (Array.isArray(input.fields)) {
+    if (Array.isArray(input.fields) || !cur) {
       const keys = new Set<string>();
-      fields = input.fields.map((f: Record<string, unknown>, i: number) => {
+      const old = cur?.fields ?? [];
+      fields = (Array.isArray(input.fields) ? input.fields : []).map((f: Record<string, unknown>, i: number) => {
         const label = clean(f.label, 80) || `Feld ${i + 1}`;
-        let key = clean(f.key, 40).toLowerCase().replace(/[^a-z0-9_-]+/g, '_') || label.toLowerCase().replace(/[^a-z0-9äöüß]+/g, '_').slice(0, 40);
+        // Schlüssel bleiben stabil, damit vorhandene Einträge beim Umbenennen nicht ihre Werte verlieren:
+        // explizit mitgegeben → gleicher Text → gleiche Position, sonst neu aus dem Label
+        const prev = old.find((x) => x.key === clean(f.key, 40)) ?? old.find((x) => x.label.toLowerCase() === label.toLowerCase()) ?? (old.length === (input.fields as unknown[]).length ? old[i] : undefined);
+        let key = prev?.key ?? (clean(f.key, 40).toLowerCase().replace(/[^a-z0-9_-]+/g, '_') || label.toLowerCase().replace(/[^a-z0-9äöüß]+/g, '_').slice(0, 40));
         while (keys.has(key)) key += '_';
         keys.add(key);
         const type: FieldType = (['text', 'textarea', 'select', 'email'] as const).includes(f.type as FieldType) ? (f.type as FieldType) : 'text';

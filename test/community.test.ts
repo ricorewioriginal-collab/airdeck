@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AnMaChaCastApp } from '../src/server/app.ts';
 import { createHttpServer } from '../src/server/http.ts';
-import { parseNames, pickWinners } from '../src/server/services/community.ts';
+import { csvCell, parseNames, pickWinners } from '../src/server/services/community.ts';
 
 test('Auslosung: faire Auswahl ohne Zurücklegen, Namensliste ohne Dubletten', () => {
   const pool = ['Anna', 'Ben', 'Cem', 'Dana'];
@@ -17,6 +17,8 @@ test('Auslosung: faire Auswahl ohne Zurücklegen, Namensliste ohne Dubletten', (
   assert.equal(pickWinners(pool, 10).length, 4, 'nie mehr als vorhanden');
   assert.deepEqual(parseNames('Anna\nben, Anna; Cem\n\n  Ben ', true), ['Anna', 'ben', 'Cem']);
   assert.deepEqual(parseNames('Anna\nanna', false), ['Anna', 'anna']);
+  assert.equal(csvCell('=HYPERLINK("x")'), '"\'=HYPERLINK(""x"")"', 'Formel-Zellen werden entschärft');
+  assert.equal(csvCell('Anna'), '"Anna"');
 });
 
 test('Umfragen, Formulare, Auslosung: Studio-API und öffentliche Hörer-Endpunkte', async () => {
@@ -51,6 +53,9 @@ test('Umfragen, Formulare, Auslosung: Studio-API und öffentliche Hörer-Endpunk
     assert.equal((await pub('POST', '/poll/vote', { pollId: p1.id, option: 1, voter: 'k2' })).body.total, 2);
     assert.equal((await pub('POST', '/poll/vote', { pollId: p2.id, option: 0, voter: 'k3' })).status, 404, 'inaktive Umfrage');
     assert.equal((await api('PATCH', `/polls/${p1.id}`, { options: ['x', 'y'] })).status, 409, 'Antwortzahl nach Stimmen fest');
+    assert.equal((await api('PATCH', `/polls/${p1.id}`, { options: ['90er', '80er', '2000er'] })).status, 409, 'auch Umbenennen/Umsortieren nicht - Ergebnisse hängen an der Position');
+    assert.equal((await api('PATCH', `/polls/${p1.id}`, { question: 'Lieblingsjahrzehnt - neu?' })).status, 200, 'Frage darf sich ändern');
+    assert.equal((await api('POST', '/polls', { question: 'Ohne Antworten' })).status, 400, 'Antworten sind Pflicht');
     const csv = await (await fetch(`${root}/api/v1/stations/main/polls/${p1.id}/csv`, { headers: { Authorization: `Bearer ${token}` } })).text();
     assert.match(csv, /"90er";"2";"100 %"/);
     list = (await api('GET', '/polls')).body;
@@ -63,6 +68,7 @@ test('Umfragen, Formulare, Auslosung: Studio-API und öffentliche Hörer-Endpunk
     ] })).body;
     assert.deepEqual(f.fields.map((x: { key: string }) => x.key), ['name', 'e_mail', 'genre', 'nachricht']);
     assert.equal((await api('POST', '/forms', { title: 'x', fields: [{ label: 'Wahl', type: 'select' }] })).status, 400, 'Auswahl ohne Optionen');
+    assert.equal((await api('POST', '/forms', { title: 'Nur Titel' })).status, 400, 'Felder sind Pflicht');
     const shown = (await pub('GET', '/form')).body.forms;
     assert.equal(shown.length, 1);
     assert.equal(shown[0].title, 'Gewinnspiel');
@@ -78,6 +84,10 @@ test('Umfragen, Formulare, Auslosung: Studio-API und öffentliche Hörer-Endpunk
     const fcsv = await (await fetch(`${root}/api/v1/stations/main/forms/${f.id}/entries/csv`, { headers: { Authorization: `Bearer ${token}` } })).text();
     assert.match(fcsv, /"Name";"E-Mail";"Genre";"Nachricht"/);
     assert.match(fcsv, /"Anna";"a@b.de";"Pop";"Hi"/);
+    // Feld umbenennen: Schlüssel bleibt, Einträge behalten ihre Werte
+    const renamed = (await api('PATCH', `/forms/${f.id}`, { fields: [{ label: 'Vorname', type: 'text', required: true }, { label: 'E-Mail', type: 'email', required: true }, { label: 'Genre', type: 'select', options: ['Pop', 'Rock'] }, { label: 'Nachricht', type: 'textarea' }] })).body;
+    assert.equal(renamed.fields[0].key, 'name', 'Schlüssel per Position erhalten');
+    assert.equal((await api('GET', `/forms/${f.id}/entries`)).body[1].values.name, 'Anna');
     assert.equal((await api('DELETE', `/form-entries/${entries[0]!.id}`)).status, 200);
     await api('PATCH', `/forms/${f.id}`, { active: false });
     assert.equal((await pub('POST', '/form/submit', { formId: f.id, values: { name: 'Cem', e_mail: 'c@b.de' } })).status, 404, 'geschlossen');

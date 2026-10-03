@@ -85,6 +85,20 @@ function applyCors(req: IncomingMessage, res: ServerResponse, extra: (origin: st
  * Bedienung im laufenden Sendebetrieb – bleibt auch bei ausgefallener Datenbank möglich
  * (die Änderungen liegen im Speicher und werden nachgeschrieben, sobald die Datenbank wieder antwortet).
  */
+/**
+ * Absenderadresse für Limits im Hörerbereich: hinter einem Reverse-Proxy (Caddy, nginx) kommt jede Anfrage von
+ * derselben Socket-Adresse - dann steht die echte Adresse im X-Forwarded-For. Der Header wird nur geglaubt, wenn der
+ * Betreiber ANMACHA_CAST_TRUST_PROXY=1 setzt (sonst könnte jeder Client ihn fälschen und Limits umgehen).
+ */
+export function clientIp(req: IncomingMessage): string {
+  const trust = /^(1|true|yes)$/i.test(process.env.ANMACHA_CAST_TRUST_PROXY ?? process.env.AIRDECK_TRUST_PROXY ?? '');
+  if (trust) {
+    const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',')[0]?.trim();
+    if (fwd) return fwd;
+  }
+  return String(req.socket.remoteAddress ?? '');
+}
+
 export const ON_AIR_OPS = new RegExp('^/api/v1/(?:' + [
   'stations/[^/]+/sources/[^/]+/(?:chunks|health|release|takeover)',
   'stations/[^/]+/playout/(?:mic|skip|start|stop|carts-stop|loop-advance)',
@@ -1092,7 +1106,7 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
       res.setHeader('Cache-Control', 'no-store');
       if (req.method === 'OPTIONS') return void res.writeHead(204).end();
       const [, lsid, action] = lp;
-      const ip = String(req.socket.remoteAddress ?? '');
+      const ip = clientIp(req);
       const L = app.svc.listeners;
       try {
         if (req.method === 'GET' && !action) return json(res, 200, L.publicInfo(lsid!));
@@ -1101,7 +1115,8 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
         if (req.method === 'GET' && action === 'poll') return json(res, 200, app.svc.community.publicPoll(lsid!));
         if (req.method === 'GET' && action === 'form') return json(res, 200, app.svc.community.publicForm(lsid!, url.searchParams.get('id')));
         if (req.method === 'POST' && (action === 'poll/vote' || action === 'form/submit')) {
-          const b = JSON.parse((await readRaw(req, 16 * 1024)).toString('utf8') || '{}') as Record<string, unknown>;
+          // 20 Felder × 2000 Zeichen plus JSON-Hülle passen in 96 KiB
+          const b = JSON.parse((await readRaw(req, 96 * 1024)).toString('utf8') || '{}') as Record<string, unknown>;
           return json(res, 200, action === 'poll/vote' ? app.svc.community.votePoll(lsid!, ip, b) : app.svc.community.submitForm(lsid!, ip, b));
         }
         if (req.method === 'POST' && action === 'voice') {

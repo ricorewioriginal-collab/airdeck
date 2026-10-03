@@ -21,8 +21,8 @@ export function mountListeners(root, ctx) {
     d.polls = polls; d.forms = forms; d.draws = draws;
     ctx.onUnread(d.unread);
     const c = d.config;
-    const any = c.requests || c.messages || c.voting || c.voice;
-    const link = `${location.origin}${location.pathname.replace(/[^/]*$/, '')}hoerer.html?s=${encodeURIComponent(ctx.stationId())}`;
+    const any = c.requests || c.messages || c.voting || c.voice || c.polls || c.forms;
+    const link = `${base()}`;
     const act = (/** @type {any} */ it, /** @type {string} */ a) => run(async () => { await ctx.api.post(ctx.url(`/inbox/${encodeURIComponent(it.id)}/${a}`)); show(); });
     root.replaceChildren(...[
       h('div', { class: 'listener-hero' },
@@ -52,7 +52,8 @@ export function mountListeners(root, ctx) {
     ].filter((n) => n !== null));
   }
 
-  const base = () => `${location.origin}${location.pathname.replace(/[^/]*$/, '')}hoerer.html?s=${encodeURIComponent(ctx.stationId())}`;
+  /** Hörerseite auf dem Server, der die API liefert (in der App/mit Fernserver ist das nicht die eigene Adresse) */
+  const base = () => `${ctx.api.base || location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, '')}/hoerer.html?s=${encodeURIComponent(ctx.stationId())}`;
   const csv = (/** @type {string} */ path, /** @type {string} */ name) => run(async () => { const b = await ctx.api.blob(ctx.url(path)); if (b) download(b, name); });
 
   /** Umfragen: eine aktiv, Ergebnisse als Balken, CSV, Widget-Link. @param {any} c @param {any[]} polls */
