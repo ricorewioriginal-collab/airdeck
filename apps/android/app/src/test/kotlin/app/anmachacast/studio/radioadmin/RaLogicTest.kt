@@ -62,4 +62,13 @@ class RaLogicTest {
         assertTrue(ALGORITHM_TEMPLATES.all { algorithmError("x", it.second) == null })
         assertEquals(listOf("1,2,3", "4"), idChunks(listOf(1L, 2L, 3L, 4L), 3))
     }
+
+    @Test
+    fun fertigerTitelNachUpload() {
+        fun o(s: String) = Json.parseToJsonElement(s).jsonObject
+        assertEquals(4711L, finalTrackId(o("""{"tracks":[{"id":4711,"title":"x"}]}""")))
+        assertNull(finalTrackId(o("""{"tracks":[{"id":-3}]}""")))
+        assertNull(finalTrackId(o("""{"tracks":[]}""")))
+        assertNull(finalTrackId(null))
+    }
 }

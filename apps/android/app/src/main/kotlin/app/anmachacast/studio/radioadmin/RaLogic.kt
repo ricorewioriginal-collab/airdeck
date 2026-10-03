@@ -67,3 +67,6 @@ val ALGORITHM_TEMPLATES = listOf(
 
 /** Kommagetrennte Ids in Päckchen, damit die Adresse kurz bleibt (Tags mehrerer Titel auf einmal). */
 fun idChunks(ids: Collection<Long>, size: Int = 50): List<String> = ids.chunked(size).map { it.joinToString(",") }
+
+/** Id des fertig verarbeiteten Titels aus der Antwort auf `/tracks/{id}`; null, solange der Upload noch läuft (Id negativ). */
+fun finalTrackId(o: JsonObject?): Long? = o?.get("tracks").arr()?.firstOrNull().obj()?.l("id")?.takeIf { it > 0 }

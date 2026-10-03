@@ -175,13 +175,17 @@ private fun RaTracks(vm: RadioadminViewModel) {
     var tagging by remember { mutableStateOf<RaTrack?>(null) }
     var deleting by remember { mutableStateOf<RaTrack?>(null) }
     var privateUpload by remember { mutableStateOf(false) }
+    var uploadType by remember { mutableStateOf("song") }
+    var uploadPlaylist by remember { mutableStateOf<RaPlaylist?>(null) }
+    var uploadTags by remember { mutableStateOf("") }
+    var uploadMenu by remember { mutableStateOf(false) }
     var selectMode by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(setOf<Long>()) }
     var bulkTags by remember { mutableStateOf(false) }
     var bulkDelete by remember { mutableStateOf(false) }
     var bulkMenu by remember { mutableStateOf(false) }
     val refresh = { selected = emptySet(); if (showProcessing) vm.loadProcessing() else vm.searchTracks(f) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) vm.upload(uris, privateUpload) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) vm.upload(uris, RaUploadOpts(privateUpload, uploadType, uploadPlaylist?.id, uploadTags.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct())) }
     RaFrame(vm, onReload = { vm.loadPlaylists(); vm.loadTagSuggestions() }) {
         Panel(title = "Titel suchen") {
             OutlinedTextField(f.artist, { f = f.copy(artist = it) }, label = { Text("Interpret") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -214,6 +218,22 @@ private fun RaTracks(vm: RadioadminViewModel) {
         }
         Panel(title = "Hochladen") {
             Row(Modifier.clickable { privateUpload = !privateUpload }, verticalAlignment = Alignment.CenterVertically) { Checkbox(privateUpload, { privateUpload = it }); Text("Privat (nicht in der öffentlichen Songdatenbank)") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Art", color = BrandMuted, fontSize = 13.sp)
+                FilterChip(selected = uploadType == "song", onClick = { uploadType = "song" }, label = { Text("Song") })
+                FilterChip(selected = uploadType == "jingle", onClick = { uploadType = "jingle" }, label = { Text("Jingle") })
+            }
+            Box {
+                OutlinedButton(onClick = { uploadMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Playlist: " + (uploadPlaylist?.title ?: "keine zuordnen"), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis); Icon(Icons.Filled.ArrowDropDown, null)
+                }
+                DropdownMenu(expanded = uploadMenu, onDismissRequest = { uploadMenu = false }) {
+                    DropdownMenuItem(text = { Text("– keine –") }, onClick = { uploadMenu = false; uploadPlaylist = null })
+                    ui.playlists.forEach { p -> DropdownMenuItem(text = { Text(p.title) }, onClick = { uploadMenu = false; uploadPlaylist = p }) }
+                }
+            }
+            OutlinedTextField(uploadTags, { uploadTags = it }, label = { Text("Tags für alle (mit Komma, optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            if (uploadPlaylist != null || uploadTags.isNotBlank()) Note("Playlist und Tags werden gesetzt, sobald laut.fm die Datei verarbeitet hat (bis ca. 3 Minuten) – die App dafür geöffnet lassen.")
             OutlinedButton(onClick = { picker.launch(arrayOf("audio/mpeg", "audio/*")) }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Filled.Upload, null); Spacer(Modifier.width(8.dp)); Text("MP3 zu laut.fm hochladen") }
             TextButton(onClick = { showProcessing = true; vm.loadProcessing() }) { Text("In Verarbeitung anzeigen") }
         }

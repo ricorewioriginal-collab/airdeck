@@ -17,6 +17,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -39,6 +40,11 @@ data class RaTrack(
     val tags: List<String>, val year: Int?, val type: String, val private: Boolean,
     val album: String = "", val month: Int? = null, val day: Int? = null, val deletable: Boolean = true,
 )
+
+/** Wahl beim Hochladen: privat, Art (song/jingle), optional gleich einer Playlist zuordnen und mit Tags versehen. */
+data class RaUploadOpts(val private: Boolean = false, val type: String = "song", val playlistId: Long? = null, val tags: List<String> = emptyList()) {
+    val followUp: Boolean get() = playlistId != null || tags.isNotEmpty()
+}
 
 data class RaUser(val id: Long, val name: String, val email: String, val role: String)
 data class RaEntry(val playlistId: Long, val slot: Int, val duration: Int)
@@ -340,20 +346,52 @@ class RadioadminViewModel(application: Application) : AndroidViewModel(applicati
         _ui.update { it.copy(playingTrack = null) }
     }
 
-    /** MP3-Dateien hochladen; laut.fm verarbeitet sie danach (siehe „In Verarbeitung“). */
-    fun upload(uris: List<Uri>, private: Boolean) = op {
+    /**
+     * MP3-Dateien hochladen; laut.fm verarbeitet sie danach (siehe „In Verarbeitung“). Playlist und Tags werden gesetzt,
+     * sobald die Datei fertig verarbeitet ist (die Upload-Id ist bis dahin negativ).
+     */
+    fun upload(uris: List<Uri>, opts: RaUploadOpts) = op {
         val cr = getApplication<Application>().contentResolver
         var done = 0
+        val ids = ArrayList<Long>()
         for (u in uris) {
             val (name, size) = cr.query(u, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
                 if (c.moveToFirst()) (c.getString(0) ?: "titel.mp3") to (if (c.isNull(1)) -1L else c.getLong(1)) else null
             } ?: ("titel.mp3" to -1L)
             _ui.update { it.copy(message = "Lade hoch: $name (${done + 1}/${uris.size}) …") }
-            ra.upload("POST", ra.st("/tracks"), "track", name, "audio/mpeg", size, { cr.openInputStream(u) ?: throw IOException("$name nicht lesbar") }, mapOf("private" to private.toString()))
+            val r = ra.upload("POST", ra.st("/tracks"), "track", name, "audio/mpeg", size, { cr.openInputStream(u) ?: throw IOException("$name nicht lesbar") }, mapOf("private" to opts.private.toString(), "type" to opts.type))
+            r.obj()?.l("id")?.takeIf { it != 0L }?.let { ids += it }
             done++
         }
-        _ui.update { it.copy(message = "$done Datei(en) hochgeladen – laut.fm verarbeitet sie jetzt") }
+        val follow = if (opts.followUp && ids.isNotEmpty()) " – Zuordnung folgt nach der Verarbeitung" else ""
+        _ui.update { it.copy(message = "$done Datei(en) hochgeladen – laut.fm verarbeitet sie jetzt$follow") }
         loadProcessingInline()
+        if (opts.followUp && ids.isNotEmpty()) viewModelScope.launch(ops) { finishUploads(ids, opts) }
+    }
+
+    /** Wartet (bis ca. 3 Minuten) auf die fertigen Titel und ordnet sie der Playlist zu bzw. versieht sie mit Tags. */
+    private suspend fun finishUploads(ids: List<Long>, opts: RaUploadOpts) {
+        val pending = ids.toMutableList()
+        var ok = 0
+        var failed = 0
+        val deadline = System.currentTimeMillis() + 180_000
+        while (pending.isNotEmpty() && System.currentTimeMillis() < deadline) {
+            delay(5_000)
+            for (id in pending.toList()) {
+                val final = try { finalTrackId(ra.get(ra.st("/tracks/$id")).obj()) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: IOException) { null } catch (e: RuntimeException) { null }
+                if (final == null) continue
+                pending.remove(id)
+                try {
+                    opts.playlistId?.let { ra.post(ra.st("/playlists/$it"), buildJsonObject { put("track_id", final) }) }
+                    if (opts.tags.isNotEmpty()) ra.post(ra.st("/tracks/$final/tags"), buildJsonObject { put("tags", buildJsonArray { opts.tags.forEach { add(JsonPrimitive(it)) } }) })
+                    ok++
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: IOException) { failed++ } catch (e: RuntimeException) { failed++ }
+            }
+        }
+        failed += pending.size
+        _ui.update { it.copy(message = if (failed == 0) "$ok Titel zugeordnet" else "$ok von ${ids.size} Titeln zugeordnet – den Rest unter „Titel“ von Hand zuordnen") }
+        loadProcessingInline()
+        _ui.value.openPlaylist?.let { reloadPlaylistTracks(it) }
     }
 
     private suspend fun loadProcessingInline() {
