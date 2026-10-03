@@ -1,0 +1,14 @@
+{
+  "name": "AnMaCha Cast Mobil",
+  "short_name": "AnMaCha Cast",
+  "start_url": "mobil.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070d18",
+  "theme_color": "#07101f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

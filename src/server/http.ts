@@ -73,6 +73,8 @@ function hashingPassthrough(): { stream: Transform; digest: () => string } {
  */
 const CORS_ORIGINS = new Set([
   'https://localhost', 'http://localhost', 'capacitor://localhost',
+  // Mobil-Web-App der Projektseite (GitHub Pages, studio/mobil.html) – verbindet sich mit dem eigenen Server
+  'https://ricorewioriginal-collab.github.io',
   ...String(envVar(process.env, 'CORS_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
 ]);
 

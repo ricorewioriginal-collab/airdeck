@@ -8,6 +8,9 @@ on:
       - 'site/**'
       - 'docs/openapi.json'
       - 'studio/api-docs.html'
+      - 'studio/mobil.*'
+      - 'studio/sw.js'
+      - 'studio/js/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -38,6 +41,14 @@ jobs:
           cp docs/openapi.json site/openapi.json
           sed "s#const STATIC_DOCS = false;#const STATIC_DOCS = true;#" studio/api-docs.html > site/api.html
           grep -q "STATIC_DOCS = true" site/api.html
+
+      - name: Mobil-Web-App einbinden (app/)
+        run: |
+          mkdir -p site/app/js site/app/icons
+          cp studio/mobil.html studio/mobil.css studio/mobil.webmanifest studio/sw.js site/app/
+          cp studio/js/mobil.js studio/js/api.js studio/js/legacy-storage.js studio/js/ui.js studio/js/pwa.js studio/js/audio.js site/app/js/
+          cp studio/icons/icon-32.png studio/icons/icon-180.png studio/icons/icon-192.png studio/icons/icon-512.png studio/icons/wordmark.png site/app/icons/
+          test -f site/app/mobil.html
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v5
