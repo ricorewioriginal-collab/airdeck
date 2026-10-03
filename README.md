@@ -43,7 +43,7 @@ AnMaCha Cast ist eine eigenständige Radio-Automation und Live-Broadcast-Plattfo
 | App | Was sie kann |
 |---|---|
 | **Android** | **Go Live** (Push-to-Talk, Mikrofonquelle, vier Decks mit Titelzuordnung, laut.fm-Anmeldung, Nextcloud-Musikpool), **Studio** (Fernsteuerung des Servers) und **Sender-Admin** (laut.fm Radioadmin mobil: Playlists, Titel hochladen und verwalten, Sendeplan, Statistik, Benutzer, Automation) |
-| **Windows** | Native Anwendung mit eingebauter Engine **oder** Verbindung zu entfernten Servern (Kopplungscode): Studio mit Decks und Warteschlange, Mediathek, Playlists, Planung & Aufnahme, Podcast, Statistik, Hörer, KI, laut.fm, Server & Geräte und System – Installer oder portabel |
+| **Windows** | Native Anwendung mit eingebauter Engine **oder** Verbindung zu entfernten Servern (Kopplungscode): Studio mit Decks und Warteschlange, Mediathek, Playlists, Planung & Aufnahme, Ausgänge & Quellen, Einstellungen, Podcast, Statistik, Hörer, KI, laut.fm, Server & Geräte und System – ohne Server nutzbar, Installer oder portabel |
 | **Browser** | Das komplette Studio unter jeder Server-Adresse, auch als installierbare Web-App |
 
 ### 🎙️ Podcast mit echtem öffentlichem Link

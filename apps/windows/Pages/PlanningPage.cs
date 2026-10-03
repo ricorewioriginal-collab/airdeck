@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using AnMaChaCast.Api;
 using AnMaChaCast.Logic;
 using AnMaChaCast.Ui;
 
@@ -20,6 +21,8 @@ namespace AnMaChaCast.Pages
         readonly Table plans = new Table(("Sendung", 220), ("Tage", 110), ("Zeit", 110), ("Playlist", 220), ("Gemischt", 70));
         readonly Table clocks = new Table(("Eintrag", 320), ("Minuten", 110), ("Stunden", 110), ("Tage", 110), ("An", 50));
         readonly Table jobs = new Table(("Zeitpunkt", 140), ("Aufgabe", 280), ("Wiederholung", 120));
+        readonly Table motion = new Table(("Playlist", 240), ("Vorlage", 180), ("Status", 160), ("Länge", 70));
+        Dictionary<string, string> motionPresets = new Dictionary<string, string>();
         Dictionary<string, string> playlistNames = new Dictionary<string, string>();
         bool recording;
 
@@ -48,6 +51,8 @@ namespace AnMaChaCast.Pages
             tabs.Items.Add(new TabItem { Header = "Uhr-Ereignisse", Content = ListTab(clocks, "Jingles, Nachrichten und Ansagen zu festen Minuten jeder Stunde. Neue Einträge legst du im Studio unter „Weitere Funktionen“ an.",
                 Kit.Btn("An/Aus", ToggleClock), Kit.Btn("▶ Jetzt auslösen", FireClock), Kit.Btn("Löschen", () => DeleteRow(clocks, "/clock-events/"))) });
             tabs.Items.Add(new TabItem { Header = "Aufgaben", Content = ListTab(jobs, "Einmalige und wiederkehrende zeitgesteuerte Aufgaben.", Kit.Btn("Löschen", () => DeleteRow(jobs, "/jobs/"))) });
+            tabs.Items.Add(new TabItem { Header = "Motion-Mix-Videos", Content = ListTab(motion, "Aus einer Playlist ein MP4 erzeugen: animierter Hintergrund in Senderfarben, Wellenform und Titel-Einblendungen – fertig für YouTube & Co.",
+                Kit.Btn("Neues Video …", NewMotion, null, true), Kit.Btn("Speichern unter …", SaveMotion), Kit.Btn("Löschen", DeleteMotion), Kit.Btn("Neu laden", Load)) });
             Children.Add(tabs);
         }
 
@@ -72,7 +77,7 @@ namespace AnMaChaCast.Pages
 
         public override void OnEvent(string type)
         {
-            if ((type == "planning.changed" || type == "recorder.changed") && IsVisible) _ = Load();
+            if ((type == "planning.changed" || type == "recorder.changed" || type == "motionmix.changed") && IsVisible) _ = Load();
         }
 
         async Task Load()
@@ -98,6 +103,14 @@ namespace AnMaChaCast.Pages
                     playlistNames.TryGetValue(J.Str(x, "playlistId"), out var n) ? n : "–", J.Bool(x, "shuffle") ? "ja" : "nein")));
                 clocks.Set(J.Arr(p, "clockEvents").Select(x => new Row(x, J.Str(x, "label", J.Str(x, "kind")), string.Join(",", J.Ints(x, "minutes")),
                     J.Ints(x, "hours").Count == 0 ? "jede" : string.Join(",", J.Ints(x, "hours")), Fmt.Days(J.Ints(x, "days")), J.Bool(x, "enabled", true) ? "✔" : "–")));
+                try
+                {
+                    var presets = await C.Api.GetJ(C.St("/motion-mix/presets"));
+                    motionPresets = J.Arr(presets).GroupBy(x => J.Str(x, "id")).ToDictionary(g => g.Key, g => J.Str(g.First(), "label", g.Key));
+                    var mj = await C.Api.GetJ(C.St("/motion-mix/jobs"));
+                    motion.Set(J.Arr(mj).Select(x => new Row(x, J.Str(x, "playlistName"), motionPresets.TryGetValue(J.Str(x, "preset"), out var pl) ? pl : J.Str(x, "preset"), MotionState(x), J.Long(x, "durationMs") > 0 ? Fmt.Dur(J.Long(x, "durationMs")) : "–")));
+                }
+                catch (ApiException) { /* Motion Mix braucht ffmpeg - ohne bleibt die Liste leer */ }
                 jobs.Set(J.Arr(p, "jobs").Select(x => new Row(x, Fmt.Stamp(J.Long(x, "at")), J.Str(x, "label", J.Str(x, "kind")), J.Str(x, "repeat", "none") == "none" ? "einmalig" : J.Str(x, "repeat"))));
             }, "Planung");
         }
@@ -192,6 +205,47 @@ namespace AnMaChaCast.Pages
                 await C.Api.PostJ(C.St("/plans"), new { label = v["label"], days = Fmt.ParseDays(v["days"]), from = v["from"].Trim(), to = v["to"].Trim(), playlistId = v["playlist"], shuffle = v["shuffle"] == "true" });
                 await Load();
             }, "Sendeplan");
+        }
+
+        static string MotionState(JsonElement j)
+        {
+            switch (J.Str(j, "status"))
+            {
+                case "queued": return "wartet";
+                case "running": return "läuft " + J.Str(j, "progress") + " %";
+                case "succeeded": return "fertig";
+                case "failed": return "fehlgeschlagen" + (J.Str(j, "error").Length > 0 ? ": " + Fmt.Clip(J.Str(j, "error"), 60) : "");
+                default: return J.Str(j, "status");
+            }
+        }
+
+        async Task NewMotion()
+        {
+            if (playlistNames.Count == 0) { C.Status("Lege zuerst eine Playlist an", true); return; }
+            if (motionPresets.Count == 0) { C.Status("Keine Vorlagen verfügbar (Motion Mix braucht die Audio-Engine ffmpeg)", true); return; }
+            var v = Dlg.Form(C.Owner, "Motion-Mix-Video erzeugen", "Erzeugen",
+                Field.Choice("playlistId", "Playlist", playlistNames.Keys.First(), playlistNames.Select(p => (p.Key, p.Value)).ToArray()),
+                Field.Choice("preset", "Vorlage", motionPresets.Keys.First(), motionPresets.Select(p => (p.Key, p.Value)).ToArray()));
+            if (v == null) return;
+            await C.Run(async () => { await C.Api.PostJ(C.St("/motion-mix/jobs"), new { playlistId = v["playlistId"], preset = v["preset"] }); C.Ok("Rendern gestartet – läuft im Hintergrund"); await Load(); }, "Motion Mix");
+        }
+
+        async Task SaveMotion()
+        {
+            var r = motion.One;
+            if (r == null || J.Str(r.El, "status") != "succeeded") { C.Status("Nur fertige Videos lassen sich speichern", true); return; }
+            var name = J.Str(r.El, "playlistName");
+            foreach (var ch in Path.GetInvalidFileNameChars()) name = name.Replace(ch, '_');
+            var dlg = new Microsoft.Win32.SaveFileDialog { FileName = name + ".mp4", Filter = "MP4-Video|*.mp4" };
+            if (dlg.ShowDialog(C.Owner) != true) return;
+            await C.Run(async () => { C.Status("Lade Video …", false); File.WriteAllBytes(dlg.FileName, await C.Api.Download(C.St("/motion-mix/jobs/" + Uri.EscapeDataString(J.Str(r.El, "id")) + "/file"))); C.Ok("Gespeichert: " + dlg.FileName); }, "Motion Mix");
+        }
+
+        async Task DeleteMotion()
+        {
+            var r = motion.One;
+            if (r == null || !Dlg.Confirm(C.Owner, "Video „" + J.Str(r.El, "playlistName") + "“ löschen?")) return;
+            await C.Run(async () => { await C.Api.DeleteJ(C.St("/motion-mix/jobs/" + Uri.EscapeDataString(J.Str(r.El, "id")))); await Load(); }, "Motion Mix");
         }
 
         async Task ToggleClock()

@@ -51,6 +51,7 @@ namespace AnMaChaCast
         bool quitting;
         bool hintShown;
         int downChecks;
+        bool setupOffered;
 
         public MainWindow(EventWaitHandle show, bool minimized)
         {
@@ -104,10 +105,10 @@ namespace AnMaChaCast
         {
             pages.AddRange(new View[]
             {
-                new StudioPage(ctx), new LibraryPage(ctx), new PlaylistsPage(ctx), new PlanningPage(ctx), new PodcastPage(ctx), new StatsPage(ctx),
+                new StudioPage(ctx), new LibraryPage(ctx), new PlaylistsPage(ctx), new PlanningPage(ctx), new OutputsPage(ctx), new SettingsPage(ctx), new PodcastPage(ctx), new StatsPage(ctx),
                 new ListenersPage(ctx), new AiPage(ctx), new LautFmPage(ctx), new ServersPage(ctx), new SystemPage(ctx),
             });
-            var icons = new[] { "🎚️", "🎵", "📃", "📅", "🎙️", "📊", "💬", "✨", "📻", "🖧", "⚙️" };
+            var icons = new[] { "🎚️", "🎵", "📃", "📅", "📡", "🔧", "🎙️", "📊", "💬", "✨", "📻", "🖧", "⚙️" };
 
             var root = new Grid { Margin = new Thickness(12) };
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -116,7 +117,7 @@ namespace AnMaChaCast
 
             var top = new DockPanel { LastChildFill = false, VerticalAlignment = VerticalAlignment.Center };
             DockPanel.SetDock(clockText, Dock.Right);
-            var web = Kit.Btn("Weitere Funktionen im Studio …", OpenBrowser, "Seltene Einstellungen im eingebetteten Web-Studio (Nutzerverwaltung im Detail, MusicHub, Motion Mix …)");
+            var web = Kit.Btn("Weitere Funktionen im Studio …", OpenBrowser, "Seltene Einstellungen im eingebetteten Web-Studio (Voice Studio, MusicHub, Einrichtungsassistent …)");
             DockPanel.SetDock(web, Dock.Right);
             top.Children.Add(Kit.Text("Server", 12, false, Kit.Muted));
             top.Children.Add(Spacer(6));
@@ -271,6 +272,7 @@ namespace AnMaChaCast
                 if (!string.IsNullOrEmpty(ctx.StationId)) StartEvents();
                 watch.Start();
                 await pages[current].Show();
+                if (p.IsLocal) _ = OfferSetup(client);
             }
             catch (Exception ex) when (!(ex is OutOfMemoryException))
             {
@@ -291,6 +293,21 @@ namespace AnMaChaCast
                 watch.Start();
                 if (!p.IsLocal) ShowPage(pages.FindIndex(x => x is ServersPage));
             }
+        }
+
+        /// <summary>Erster Start dieser Installation: den Einrichtungsassistenten anbieten (er läuft im Web-Studio-Fenster).</summary>
+        async Task OfferSetup(ApiClient client)
+        {
+            if (setupOffered) return;
+            try
+            {
+                var s = await client.GetJ("/setup", 10);
+                if (!J.Bool(s, "required")) return;
+                setupOffered = true;
+                if (!IsVisible) return; // Autostart im Hintergrund: nicht stören, beim nächsten sichtbaren Start erneut fragen
+                if (Dlg.Confirm(this, "AnMaCha Cast ist noch nicht eingerichtet.\n\nDer Einrichtungsassistent führt durch Sender, Musikordner, Stream-Ausgang und KI. Jetzt öffnen?", "Willkommen bei AnMaCha Cast")) OpenBrowser();
+            }
+            catch (ApiException) { }
         }
 
         async Task<bool> EnsureEngine()

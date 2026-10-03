@@ -148,4 +148,41 @@ namespace AnMaChaCast.Tests
             finally { Directory.Delete(dir, true); }
         }
     }
+
+    public class ConfigTreeTests
+    {
+        static JsonElement Parse(string s) { using (var d = JsonDocument.Parse(s)) return d.RootElement.Clone(); }
+        const string Doc = "{\"volume\":0.8,\"enabled\":true,\"name\":\"Haupt\",\"fades\":{\"in\":{\"ms\":3000,\"curve\":\"log\"},\"out\":{\"ms\":2500}},\"days\":[1,2],\"empty\":{}}";
+
+        [Fact]
+        public void ListetEinzelneWerte()
+        {
+            var e = ConfigTree.Flatten(Parse(Doc));
+            Assert.Equal(new[] { "volume", "enabled", "name", "fades.in.ms", "fades.in.curve", "fades.out.ms", "days", "empty" }, e.Select(x => x.Path).ToArray());
+            Assert.Equal("an", e.First(x => x.Path == "enabled").Display);
+            Assert.Equal("[1,2]", e.First(x => x.Path == "days").Display);
+            Assert.Equal(JsonValueKind.Array, e.First(x => x.Path == "days").Kind);
+        }
+
+        [Fact]
+        public void AendertGenauEinenWertUndLiefertDenObersten()
+        {
+            var fades = ConfigTree.Apply(Doc, new[] { "fades", "in", "ms" }, JsonValueKind.Number, "4500");
+            Assert.Equal("{\"in\":{\"ms\":4500,\"curve\":\"log\"},\"out\":{\"ms\":2500}}", fades);
+            Assert.Equal("0.5", ConfigTree.Apply(Doc, new[] { "volume" }, JsonValueKind.Number, "0,5"));
+            Assert.Equal("false", ConfigTree.Apply(Doc, new[] { "enabled" }, JsonValueKind.True, "aus"));
+            Assert.Equal("\"Neu\"", ConfigTree.Apply(Doc, new[] { "name" }, JsonValueKind.String, "Neu"));
+            Assert.Equal("[3,4,5]", ConfigTree.Apply(Doc, new[] { "days" }, JsonValueKind.Array, "[3,4,5]"));
+        }
+
+        [Fact]
+        public void UngueltigeEingabenWerdenAbgelehnt()
+        {
+            Assert.Throws<FormatException>(() => ConfigTree.Apply(Doc, new[] { "volume" }, JsonValueKind.Number, "laut"));
+            Assert.Throws<FormatException>(() => ConfigTree.Apply(Doc, new[] { "enabled" }, JsonValueKind.True, "vielleicht"));
+            Assert.Throws<FormatException>(() => ConfigTree.Apply(Doc, new[] { "days" }, JsonValueKind.Array, "{\"a\":1}"));
+            Assert.ThrowsAny<JsonException>(() => ConfigTree.Apply(Doc, new[] { "days" }, JsonValueKind.Array, "[1,"));
+            Assert.Throws<FormatException>(() => ConfigTree.Apply(Doc, new[] { "fades", "nope", "ms" }, JsonValueKind.Number, "1"));
+        }
+    }
 }
