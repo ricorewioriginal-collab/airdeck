@@ -548,6 +548,17 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     return STREAMED;
   });
   add('GET', '/api/v1/stations/:sid/media/:id/waveform', 'media:read', async (c) => ({ peaks: await app.svc.media.waveform(sid(c), c.params.id!) }));
+  // Voice Studio: Vorschau (Audio) bzw. als neuen Titel speichern
+  add('POST', '/api/v1/stations/:sid/media/:id/voice-edit', 'media:write', async (c) => {
+    const body = (await c.body()) as Record<string, unknown>;
+    if (body.preview) {
+      const file = await app.svc.voice.preview(sid(c), c.params.id!, body as never);
+      c.res.setHeader('Cache-Control', 'no-store');
+      sendFile(c.req, c.res, file, 'audio/mpeg');
+      return STREAMED;
+    }
+    return app.svc.voice.save(sid(c), c.params.id!, body as never);
+  });
   add('GET', '/api/v1/audio-devices', 'automation:read', () => app.inputDevices());
   add('POST', '/api/v1/stations/:sid/queue/shuffle', 'queue:write', (c) => app.shuffleQueue(sid(c)));
   add('POST', '/api/v1/stations/:sid/playout/skip', 'automation:write', (c) => app.skipPlayout(sid(c)));

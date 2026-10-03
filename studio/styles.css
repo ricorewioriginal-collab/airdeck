@@ -2317,3 +2317,16 @@ dialog h3 { font-size:17px; color:#f2fbff; }
 .api-table code { font-size:12px; color:var(--accent); }
 .api-out { max-height:360px; overflow:auto; }
 .api-curl { font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+
+/* Voice Studio */
+.vs-wave { width: 100%; height: 160px; border-radius: 10px; cursor: crosshair; touch-action: none; display: block; margin: 8px 0; }
+.vs-edits { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.vs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 10px 28px; }
+.vs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vs-row input[type="number"] { width: 90px; }
+.vs-row { min-height: 34px; }
+.vs-row select { width: auto; max-width: 60%; flex: 0 1 auto; }
+.vs-row input[type="range"] { width: 150px; flex: 0 0 auto; }
+.vs-row .muted:last-child { white-space: nowrap; }
+.vs-row > span:first-child { flex: 1 1 auto; }
+#view-voice .row-btns input:not([type]), #view-voice .row-btns input[placeholder] { flex: 1; min-width: 240px; }
