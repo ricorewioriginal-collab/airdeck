@@ -24,8 +24,10 @@ fun StudioScreen(viewModel: StudioViewModel = viewModel()) {
     val ui by viewModel.ui.collectAsState()
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0),
                 title = { Text(ui.station?.name?.ifBlank { null } ?: "Studio") },
                 actions = {
                     IconButton(onClick = viewModel::refresh) {

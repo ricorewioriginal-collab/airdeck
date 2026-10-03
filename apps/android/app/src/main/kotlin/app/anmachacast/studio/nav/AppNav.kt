@@ -1,109 +1,140 @@
 package app.anmachacast.studio.nav
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.SettingsInputAntenna
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.navigation.NavType
+import app.anmachacast.studio.AnMaChaCastApp
 import app.anmachacast.studio.common.PlaceholderScreen
 import app.anmachacast.studio.connect.ConnectScreen
 import app.anmachacast.studio.connect.ConnectionStatusViewModel
-import app.anmachacast.studio.golive.GoLiveScreen
+import app.anmachacast.studio.golive.GoLiveViewModel
+import app.anmachacast.studio.golive.LiveScreen
+import app.anmachacast.studio.golive.MusicScreen
+import app.anmachacast.studio.golive.SetupScreen
 import app.anmachacast.studio.home.HomeScreen
 import app.anmachacast.studio.more.MoreScreen
+import app.anmachacast.studio.start.StartScreen
 import app.anmachacast.studio.studio.StudioScreen
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 private object Routes {
-    const val CONNECT = "connect"
+    const val START = "start"
+    const val LIVE = "live"
+    const val MUSIC = "music"
+    const val SETUP = "setup"
     const val HOME = "home"
     const val STUDIO = "studio"
-    const val GOLIVE = "golive"
     const val MORE = "more"
     const val PLACEHOLDER = "placeholder/{title}"
 }
 
-private data class BottomDest(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-private val bottomDestinations = listOf(
-    BottomDest(Routes.HOME, "Home", Icons.Filled.Home),
-    BottomDest(Routes.STUDIO, "Studio", Icons.Filled.SettingsInputAntenna),
-    BottomDest(Routes.GOLIVE, "Go Live", Icons.Filled.Podcasts),
-    BottomDest(Routes.MORE, "Mehr", Icons.Filled.MoreHoriz),
+private val liveTabs = listOf(
+    Tab(Routes.LIVE, "Live", Icons.Filled.Mic),
+    Tab(Routes.MUSIC, "Musik", Icons.Filled.LibraryMusic),
+    Tab(Routes.SETUP, "Sender", Icons.Filled.Settings),
+)
+private val studioTabs = listOf(
+    Tab(Routes.HOME, "Server", Icons.Filled.Dns),
+    Tab(Routes.STUDIO, "Studio", Icons.Filled.SettingsInputAntenna),
+    Tab(Routes.MORE, "Mehr", Icons.Filled.MoreHoriz),
 )
 
+private fun modeOf(route: String?): Mode? = when (route) {
+    Routes.LIVE, Routes.MUSIC, Routes.SETUP -> Mode.GOLIVE
+    Routes.HOME, Routes.STUDIO, Routes.MORE, Routes.PLACEHOLDER -> Mode.STUDIO
+    else -> null
+}
+
 @Composable
-fun AppNav(startConnected: Boolean) {
-    val navController = rememberNavController()
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = bottomDestinations.any { it.route == currentRoute }
+fun AppNav() {
+    val context = LocalContext.current
+    val app = context.applicationContext as AnMaChaCastApp
+    val connection by app.connectionRepository.connection.collectAsState()
+    val modeStore = remember { ModeStore(context) }
+    var lastMode by remember { mutableStateOf(modeStore.get()) }
+    val nav = rememberNavController()
+    val live: GoLiveViewModel = viewModel()
+    val liveUi by live.ui.collectAsState()
+    val route = nav.currentBackStackEntryAsState().value?.destination?.route
+    val mode = modeOf(route)
+    val connected = connection != null
+
+    fun enter(m: Mode) {
+        modeStore.set(m)
+        lastMode = m
+        nav.navigate(if (m == Mode.GOLIVE) Routes.LIVE else Routes.HOME) {
+            popUpTo(nav.graph.findStartDestination().id) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
+        topBar = { if (mode != null) ModeHeader(mode, liveUi.running) { enter(it) } },
         bottomBar = {
-            if (showBottomBar) {
+            val tabs = when (mode) {
+                Mode.GOLIVE -> liveTabs
+                Mode.STUDIO -> if (connected) studioTabs else emptyList()
+                null -> emptyList()
+            }
+            if (tabs.isNotEmpty()) {
                 NavigationBar {
-                    bottomDestinations.forEach { dest ->
+                    tabs.forEach { t ->
                         NavigationBarItem(
-                            selected = currentRoute == dest.route,
+                            selected = route == t.route,
                             onClick = {
-                                navController.navigate(dest.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                nav.navigate(t.route) {
+                                    popUpTo(tabs.first().route) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(dest.icon, contentDescription = dest.label) },
-                            label = { Text(dest.label) },
+                            icon = { Icon(t.icon, t.label) },
+                            label = { Text(t.label) },
                         )
                     }
                 }
             }
         },
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = if (startConnected) Routes.HOME else Routes.CONNECT,
-            modifier = androidx.compose.ui.Modifier.padding(padding),
-        ) {
-            composable(Routes.CONNECT) {
-                ConnectScreen(onConnected = {
-                    navController.navigate(Routes.HOME) { popUpTo(Routes.CONNECT) { inclusive = true } }
-                })
+        val body = if (mode == null) Modifier.fillMaxSize() else Modifier.padding(padding)
+        NavHost(nav, startDestination = Routes.START, modifier = body) {
+            composable(Routes.START) {
+                StartScreen(last = lastMode, connectedTo = connection?.serverUrl, onPick = ::enter)
             }
+            composable(Routes.LIVE) { LiveScreen(live) { nav.navigate(Routes.SETUP) { launchSingleTop = true } } }
+            composable(Routes.MUSIC) { MusicScreen(live) }
+            composable(Routes.SETUP) { SetupScreen(live) }
             composable(Routes.HOME) {
-                val statusViewModel: ConnectionStatusViewModel = viewModel()
-                HomeScreen(
-                    onOpenStudio = { navController.navigate(Routes.STUDIO) },
-                    onOpenGoLive = { navController.navigate(Routes.GOLIVE) },
-                    onDisconnect = {
-                        statusViewModel.disconnect()
-                        navController.navigate(Routes.CONNECT) { popUpTo(0) { inclusive = true } }
-                    },
-                )
+                if (!connected) ConnectScreen(onConnected = {}) else {
+                    val status: ConnectionStatusViewModel = viewModel()
+                    HomeScreen(
+                        onOpenStudio = { nav.navigate(Routes.STUDIO) { launchSingleTop = true } },
+                        onDisconnect = status::disconnect,
+                    )
+                }
             }
-            composable(Routes.STUDIO) { StudioScreen() }
-            composable(Routes.GOLIVE) { GoLiveScreen() }
-            composable(Routes.MORE) {
-                MoreScreen(onOpenPlaceholder = { title -> navController.navigate("placeholder/$title") })
-            }
-            composable(
-                Routes.PLACEHOLDER,
-                arguments = listOf(navArgument("title") { type = NavType.StringType }),
-            ) { backStack ->
-                PlaceholderScreen(title = backStack.arguments?.getString("title") ?: "")
+            composable(Routes.STUDIO) { if (connected) StudioScreen() else ConnectScreen(onConnected = {}) }
+            composable(Routes.MORE) { MoreScreen(onOpenPlaceholder = { nav.navigate("placeholder/$it") }) }
+            composable(Routes.PLACEHOLDER, arguments = listOf(navArgument("title") { type = NavType.StringType })) {
+                PlaceholderScreen(title = it.arguments?.getString("title") ?: "")
             }
         }
     }

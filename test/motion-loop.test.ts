@@ -43,10 +43,10 @@ test('Motion-Cart loopt bis zum Weiterschalten, Automation loopt nie', { skip: !
   try {
     wav(join(app.mediaDir, 'main', 'bed.wav'), 3, 440);
     wav(join(app.mediaDir, 'main', 'song.wav'), 3, 550);
-    wav(join(app.mediaDir, 'main', 'song2.wav'), 3, 660);
+    wav(join(app.mediaDir, 'main', 'song2.wav'), 40, 660); // lang genug, damit er beim Prüfen noch läuft
     app.svc.media.addMedia('main', { id: 'bed', title: 'Bett', artist: '', category: 'bed', file: 'bed.wav', durationMs: 3000, addedAt: 0, loopEndMs: 1000 });
     app.svc.media.addMedia('main', { id: 'song', title: 'Song', artist: 'A', category: 'music', file: 'song.wav', durationMs: 3000, addedAt: 0, loopEndMs: 1000 });
-    app.svc.media.addMedia('main', { id: 'song2', title: 'Song 2', artist: 'B', category: 'music', file: 'song2.wav', durationMs: 3000, addedAt: 0 });
+    app.svc.media.addMedia('main', { id: 'song2', title: 'Song 2', artist: 'B', category: 'music', file: 'song2.wav', durationMs: 40000, addedAt: 0 });
     app.setAutomation('main', { autoFill: false });
     app.queueAdd('main', 'song');
     app.queueAdd('main', 'song2');

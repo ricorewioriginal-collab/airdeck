@@ -93,6 +93,21 @@ public class EngineTest {
         float ducked = mx.musicDb();
         check(mx.micDb() > -20, "Mikro an: Signal kommt durch (" + mx.micDb() + " dB)");
         check(musicOnly - ducked > 8 && musicOnly - ducked < 12, "Musik wird um ca. 10 dB abgesenkt (" + (musicOnly - ducked) + " dB)");
+        // Push-to-Talk: nach dem Drücken ist das Mikro innerhalb eines Mischtakts (20 ms) voll da, nach dem Loslassen in 60 ms zu
+        Mixer ptt = new Mixer();
+        ptt.setMic(true);
+        ptt.mic.writeDropOldest(sine(44100, 2, 0.02, 1000, 0.3), 0, 882 * 2);
+        ptt.mix(block, 882);
+        ptt.mic.writeDropOldest(sine(44100, 2, 0.02, 1000, 0.3), 0, 882 * 2);
+        ptt.mix(block, 882);
+        float full = ptt.micDb();
+        ptt.setMic(false);
+        for (int i = 0; i < 4; i++) {
+            ptt.mic.writeDropOldest(sine(44100, 2, 0.02, 1000, 0.3), 0, 882 * 2);
+            ptt.mix(block, 882);
+        }
+        check(full > -14, "Push-to-Talk: Mikro ist nach 2 Takten voll offen (" + full + " dB)");
+        check(ptt.micDb() <= -90, "Push-to-Talk: Mikro nach Loslassen zu (" + ptt.micDb() + " dB)");
         PcmRing r = new PcmRing(10);
         r.writeDropOldest(new short[] { 1, 2, 3, 4, 5, 6, 7, 8 }, 0, 8);
         r.writeDropOldest(new short[] { 9, 10, 11, 12 }, 0, 4);

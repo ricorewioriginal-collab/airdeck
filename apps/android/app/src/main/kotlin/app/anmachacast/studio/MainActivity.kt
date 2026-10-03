@@ -11,11 +11,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val app = application as AnMaChaCastApp
-        val startConnected = app.connectionRepository.isConnected()
         setContent {
             AnMaChaCastTheme {
-                AppNav(startConnected = startConnected)
+                AppNav()
             }
         }
     }

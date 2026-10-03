@@ -4,6 +4,7 @@
 package app.anmachacast.studio.more
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,7 +28,7 @@ private val entries = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(onOpenPlaceholder: (String) -> Unit) {
-    Scaffold(topBar = { TopAppBar(title = { Text("Mehr") }) }) { padding ->
+    Scaffold(contentWindowInsets = WindowInsets(0), topBar = { TopAppBar(windowInsets = WindowInsets(0), title = { Text("Mehr") }) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             items(entries) { entry ->
                 ListItem(
