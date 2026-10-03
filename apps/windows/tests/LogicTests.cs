@@ -184,5 +184,33 @@ namespace AnMaChaCast.Tests
             Assert.ThrowsAny<JsonException>(() => ConfigTree.Apply(Doc, new[] { "days" }, JsonValueKind.Array, "[1,"));
             Assert.Throws<FormatException>(() => ConfigTree.Apply(Doc, new[] { "fades", "nope", "ms" }, JsonValueKind.Number, "1"));
         }
+
+    }
+
+    public class PairingLinkTests
+    {
+        [Fact]
+        public void BautDenLinkWieImStudio()
+        {
+            Assert.Equal("http://192.168.1.20:8750/#pair=123456", PairingLink.Build("http://192.168.1.20:8750/", "123456"));
+            Assert.Equal("https://radio.example/#pair=000042", PairingLink.Build(" https://radio.example ", "000042"));
+        }
+
+        [Fact]
+        public void LehntUngueltigesAb()
+        {
+            Assert.Null(PairingLink.Build(null, "123456"));
+            Assert.Null(PairingLink.Build("http://h", "12345"));
+            Assert.Null(PairingLink.Build("http://h", "12345a"));
+        }
+
+        [Fact]
+        public void BehaeltServerReihenfolgeUndStelltLocalhostANsEnde()
+        {
+            Assert.Equal(new[] { "http://192.168.1.20:8750", "http://172.28.16.1:8750", "http://localhost:8750" },
+                PairingLink.Ranked(new[] { "http://localhost:8750", "http://192.168.1.20:8750", "http://172.28.16.1:8750" }));
+            Assert.Empty(PairingLink.Ranked(new string[0]));
+            Assert.Empty(PairingLink.Ranked(null));
+        }
     }
 }

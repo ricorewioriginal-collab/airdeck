@@ -116,6 +116,8 @@ dependencies {
     implementation(libs.coil.compose)
     // MP3-Encoder für den Handy-Sender (LAME als reines Java, LGPL 2.1+)
     implementation("de.sciss:jump3r:1.0.5")
+    // QR-Scanner ohne Google-Dienste (ZXing, Apache-2.0) für „Per QR-Code koppeln“
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

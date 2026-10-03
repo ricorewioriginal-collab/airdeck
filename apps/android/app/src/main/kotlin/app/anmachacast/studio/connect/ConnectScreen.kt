@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.SettingsInputAntenna
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
 @Composable
 fun ConnectScreen(viewModel: ConnectViewModel = viewModel(), onConnected: () -> Unit) {
@@ -21,6 +25,20 @@ fun ConnectScreen(viewModel: ConnectViewModel = viewModel(), onConnected: () -> 
 
     LaunchedEffect(ui.connected) {
         if (ui.connected) onConnected()
+    }
+
+    // QR-Scanner (ZXing, ohne Google-Dienste); die Kameraerlaubnis fragt der Scanner selbst ab
+    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.let(viewModel::onScanned)
+    }
+    val startScan = {
+        scanner.launch(
+            ScanOptions()
+                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                .setPrompt("QR-Code des Servers oder der Windows-App scannen")
+                .setBeepEnabled(false)
+                .setOrientationLocked(true),
+        )
     }
 
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -33,12 +51,24 @@ fun ConnectScreen(viewModel: ConnectViewModel = viewModel(), onConnected: () -> 
             Text("Mit AnMaCha Cast koppeln", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Kopplungscode im Studio-Dashboard unter Geräte erzeugen und hier eintragen.",
+                "QR-Code scannen (im Studio unter „Gerät koppeln“ oder in der Windows-App unter „Server & Geräte“ erzeugt) oder Adresse und Code eintippen.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = { startScan() },
+                enabled = !ui.loading,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) {
+                Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Per QR-Code koppeln")
+            }
+            Spacer(Modifier.height(20.dp))
+            Text("oder manuell", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = ui.serverUrl,
@@ -85,13 +115,6 @@ fun ConnectScreen(viewModel: ConnectViewModel = viewModel(), onConnected: () -> 
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-            Text(
-                "QR-Code-Scan ist noch nicht verfügbar - der Code muss aktuell manuell eingegeben werden.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
         }
     }
 }
