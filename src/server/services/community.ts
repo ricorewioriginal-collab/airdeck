@@ -82,7 +82,7 @@ export class CommunityService {
   // ---------- Umfragen ----------
 
   polls(sid: string): Omit<Poll, 'voters' | 'salt'>[] {
-    return (this.app.rt(sid).data.polls ?? []).map(({ voters, salt: _s, ...p }) => ({ ...p, votes: voters.length })).sort((a, b) => b.createdAt - a.createdAt);
+    return (this.app.rt(sid).data.polls ?? []).map(({ voters, salt: _s, ...p }) => ({ ...p, votes: voters.length })).reverse().sort((a, b) => b.createdAt - a.createdAt);
   }
 
   savePoll(p: Principal, sid: string, id: string | null, input: Record<string, unknown>): Omit<Poll, 'voters' | 'salt'> {
@@ -165,7 +165,7 @@ export class CommunityService {
 
   forms(sid: string): (FormDef & { entries: number })[] {
     const entries = this.app.rt(sid).data.formEntries ?? [];
-    return (this.app.rt(sid).data.forms ?? []).map((f) => ({ ...f, entries: entries.filter((e) => e.formId === f.id).length })).sort((a, b) => b.createdAt - a.createdAt);
+    return (this.app.rt(sid).data.forms ?? []).map((f) => ({ ...f, entries: entries.filter((e) => e.formId === f.id).length })).reverse().sort((a, b) => b.createdAt - a.createdAt);
   }
 
   saveForm(p: Principal, sid: string, id: string | null, input: Record<string, unknown>): FormDef {
@@ -232,7 +232,7 @@ export class CommunityService {
   }
 
   entries(sid: string, formId: string): FormEntry[] {
-    return (this.app.rt(sid).data.formEntries ?? []).filter((e) => e.formId === formId).sort((a, b) => b.at - a.at);
+    return (this.app.rt(sid).data.formEntries ?? []).filter((e) => e.formId === formId).reverse().sort((a, b) => b.at - a.at);
   }
 
   deleteEntry(p: Principal, sid: string, id: string): void {
