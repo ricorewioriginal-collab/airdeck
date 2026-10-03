@@ -16,6 +16,10 @@ export interface ListenerConfig {
   messages: boolean;
   voting: boolean;
   voice: boolean;
+  /** Hörer-Umfragen (Community-Dienst) */
+  polls?: boolean;
+  /** Formulare (Community-Dienst) */
+  forms?: boolean;
   /** Begrüßungstext auf der Hörerseite */
   welcome?: string;
 }
@@ -82,8 +86,8 @@ export class ListenerService {
 
   setConfig(p: Principal, sid: string, input: Record<string, unknown>): ListenerConfig {
     const cur = this.config(sid);
-    const b = (k: keyof ListenerConfig) => (typeof input[k] === 'boolean' ? (input[k] as boolean) : (cur[k] as boolean));
-    const next: ListenerConfig = { requests: b('requests'), messages: b('messages'), voting: b('voting'), voice: b('voice'), welcome: typeof input.welcome === 'string' ? clean(input.welcome, 300) || undefined : cur.welcome };
+    const b = (k: keyof ListenerConfig) => (typeof input[k] === 'boolean' ? (input[k] as boolean) : !!cur[k]);
+    const next: ListenerConfig = { requests: b('requests'), messages: b('messages'), voting: b('voting'), voice: b('voice'), polls: b('polls'), forms: b('forms'), welcome: typeof input.welcome === 'string' ? clean(input.welcome, 300) || undefined : cur.welcome };
     this.app.rt(sid).data.listener = next;
     this.app.audit.write({ kind: 'listener', event: 'config', actor: p.id, stationId: sid, ...next });
     this.app.changed();
@@ -94,10 +98,15 @@ export class ListenerService {
   private publicStation(sid: string): { cfg: ListenerConfig; name: string } {
     const rt = this.app.stations.get(sid);
     const cfg = rt ? this.config(sid) : DEFAULT_LISTENER;
-    if (!rt || rt.station.publicStatus === false || !(cfg.requests || cfg.messages || cfg.voting || cfg.voice)) {
+    if (!rt || rt.station.publicStatus === false || !(cfg.requests || cfg.messages || cfg.voting || cfg.voice || cfg.polls || cfg.forms)) {
       throw new AppError(404, 'not_found', 'Für diesen Sender ist der Hörerbereich nicht freigeschaltet');
     }
     return { cfg, name: rt.station.name };
+  }
+
+  /** Für andere Dienste (Umfragen, Formulare): Sender öffentlich und Funktion an, sonst 404/403. */
+  requireFeature(sid: string, feature: 'polls' | 'forms'): void {
+    this.need(sid, feature);
   }
 
   private need(sid: string, feature: keyof Omit<ListenerConfig, 'welcome'>): ListenerConfig {
@@ -109,7 +118,7 @@ export class ListenerService {
   publicInfo(sid: string): unknown {
     const { cfg, name } = this.publicStation(sid);
     const s = this.app.rt(sid).station;
-    return { station: { id: sid, name, slogan: s.slogan, logo: s.logo ? `/api/v1/stations/${sid}/logo` : null, color: s.primaryColor }, requests: cfg.requests, messages: cfg.messages, voting: cfg.voting, voice: cfg.voice, welcome: cfg.welcome ?? '' };
+    return { station: { id: sid, name, slogan: s.slogan, logo: s.logo ? `/api/v1/stations/${sid}/logo` : null, color: s.primaryColor }, requests: cfg.requests, messages: cfg.messages, voting: cfg.voting, voice: cfg.voice, polls: !!cfg.polls, forms: !!cfg.forms, welcome: cfg.welcome ?? '' };
   }
 
   /** Musiktitel suchen (nur Titel/Interpret, höchstens 30) */
