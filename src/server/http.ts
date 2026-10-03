@@ -41,6 +41,12 @@ const AUDIO_EXT: Record<string, string> = {
   '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.wav': 'audio/wav', '.flac': 'audio/flac',
   '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.webm': 'audio/webm',
 };
+/** MusikHub (Media & Jingle Exchange): zusätzlich Logos, Sendungsbilder und Dokumente - nur zum Teilen, nie zum Senden */
+const HUB_EXTRA_EXT: Record<string, string> = {
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+  '.pdf': 'application/pdf', '.txt': 'text/plain', '.md': 'text/markdown', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.zip': 'application/zip',
+};
 const STATIC_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
@@ -319,7 +325,8 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
   add('PUT', '/api/v1/music-hub/uploads', 'media:write', async (c) => {
     const name = String(c.url.searchParams.get('name') ?? '').slice(0, 200);
     const ext = extname(name).toLowerCase();
-    if (!AUDIO_EXT[ext]) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${Object.keys(AUDIO_EXT).join(', ')})`);
+    const hubType = AUDIO_EXT[ext] ?? HUB_EXTRA_EXT[ext];
+    if (!hubType) throw new AppError(415, 'unsupported_media', `Dateityp nicht unterstützt (${[...Object.keys(AUDIO_EXT), ...Object.keys(HUB_EXTRA_EXT)].join(', ')})`);
     const len = Number(c.req.headers['content-length'] ?? 0);
     if (len > MAX_UPLOAD) throw new AppError(413, 'too_large', 'Datei zu groß');
     // Vorabprüfung anhand der Kontingent-Zahlen von vor dem Stream-Start: spart Bandbreite bei einem
@@ -339,8 +346,8 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
       app.svc.musikhub.discardUpload(c.p.user?.id ?? c.p.id, file);
       throw new AppError(413, 'upload_failed', 'Upload abgebrochen, Kontingent überschritten oder zu groß');
     }
-    const meta = parseFileName(name);
-    return app.svc.musikhub.registerUpload(c.p, id, file, AUDIO_EXT[ext]!, size, hasher.digest(), meta.title || name, meta.artist);
+    const meta = AUDIO_EXT[ext] ? parseFileName(name) : { title: name.replace(/\.[^.]+$/, ''), artist: '' };
+    return app.svc.musikhub.registerUpload(c.p, id, file, hubType, size, hasher.digest(), meta.title || name, meta.artist);
   });
   add('DELETE', '/api/v1/music-hub/items/:id', 'media:write', async (c) => app.svc.musikhub.deleteItem(c.p, c.params.id!, String(c.url.searchParams.get('station') ?? '')));
   // Sendefähigkeits-Preflight (Phase 4, erster Schritt): reine Prüfung, ob ein Hub-Titel für den Sender

@@ -30,6 +30,9 @@ export type HubSource =
   // contentHash (sha256, hex) ist optional: bereits vor der Dublettenerkennung angelegte Uploads
   // kennen ihn noch nicht und werden beim erneuten Ersetzen nachgezogen, aber nicht rückwirkend gehasht.
   | { kind: 'upload'; file: string; mimeType: string; sizeBytes: number; contentHash?: string };
+export type HubKind = 'audio' | 'image' | 'document';
+/** Netzwerk-Empfänger: alle Sender dieser Installation (Media & Jingle Exchange) */
+export const NETWORK = '*';
 export interface HubItem {
   id: string;
   owner: HubSubject;
@@ -39,6 +42,15 @@ export interface HubItem {
   version: string | null;
   createdAt: number;
   revision: number;
+  /** audio (Standard), image (Logo, Sendungsbild) oder document (Lizenz, Ablaufplan) - nur Audio lässt sich senden */
+  kind?: HubKind;
+}
+
+/** Dateiart aus dem MIME-Typ: Bilder und Dokumente wandern durch den Hub, aber nie in die Sendung. */
+export function hubKind(mimeType: string): HubKind {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  return 'document';
 }
 export interface HubCollection {
   id: string;
@@ -143,7 +155,7 @@ export class MusicHubService {
     if (!input || typeof input !== 'object') throw new AppError(400, 'invalid_subject', 'Empfänger fehlt');
     const v = input as Record<string, unknown>;
     if ((v.kind !== 'user' && v.kind !== 'station') || typeof v.id !== 'string' || !v.id) throw new AppError(400, 'invalid_subject', 'Ungültiger Empfänger');
-    if (v.kind === 'station' && !this.app.stations.has(v.id)) throw new AppError(400, 'invalid_subject', 'Empfängersender existiert nicht');
+    if (v.kind === 'station' && v.id !== NETWORK && !this.app.stations.has(v.id)) throw new AppError(400, 'invalid_subject', 'Empfängersender existiert nicht');
     if (v.kind === 'user' && !this.app.users.get(v.id)) throw new AppError(400, 'invalid_subject', 'Empfängerbenutzer existiert nicht');
     return { kind: v.kind, id: v.id };
   }
@@ -174,9 +186,11 @@ export class MusicHubService {
 
   private grantApplies(p: Principal, grant: HubGrant, stationId: string, now: number): boolean {
     if (grant.revokedAt !== null || grant.startsAt !== null && now < grant.startsAt || grant.expiresAt !== null && now >= grant.expiresAt) return false;
-    if (!grant.targetStationIds.includes(stationId)) return false;
+    const network = grant.recipient.kind === 'station' && grant.recipient.id === NETWORK;
+    if (!network && !grant.targetStationIds.includes(stationId)) return false;
     if (grant.recipient.kind === 'user') return p.user?.id === grant.recipient.id;
-    return grant.recipient.id === stationId && this.explicitMember(p, stationId);
+    // Netzwerk-Freigabe: jeder ausdrücklich zugeordnete Nutzer eines beliebigen Senders sieht den Eintrag in seinem Senderkontext
+    return (network || grant.recipient.id === stationId) && this.explicitMember(p, stationId);
   }
 
   /** Alle Pfade werden bei jedem Aufruf neu bewertet; es gibt keinen Rechte-Cache. */
@@ -214,7 +228,7 @@ export class MusicHubService {
     const count = Math.min(100, Math.max(1, Math.floor(limit) || 50));
     return {
       total: filtered.length,
-      items: filtered.slice(start, start + count).map((item) => ({ id: item.id, title: item.title, artist: item.artist, version: item.version, owner: item.owner, ...(this.ownerAccess(p, item.owner) && (item.owner.kind === 'user' || item.owner.id === stationId) ? { source: item.source } : {}), actions: this.actions(p, { kind: 'item', id: item.id }, stationId) })),
+      items: filtered.slice(start, start + count).map((item) => ({ id: item.id, title: item.title, artist: item.artist, version: item.version, owner: item.owner, kind: item.kind ?? 'audio', ...(this.ownerAccess(p, item.owner) && (item.owner.kind === 'user' || item.owner.id === stationId) ? { source: item.source } : {}), actions: this.actions(p, { kind: 'item', id: item.id }, stationId) })),
       nextOffset: start + count < filtered.length ? start + count : null,
     };
   }
@@ -303,10 +317,11 @@ export class MusicHubService {
     }
     const title = String(titleInput ?? '').trim().slice(0, 200) || file;
     const artist = String(artistInput ?? '').trim().slice(0, 200);
-    const item: HubItem = { id, owner: { kind: 'user', id: userId }, source: { kind: 'upload', file, mimeType, sizeBytes, contentHash }, title, artist, version: null, createdAt: Date.now(), revision: 1 };
+    const kind = hubKind(mimeType);
+    const item: HubItem = { id, owner: { kind: 'user', id: userId }, source: { kind: 'upload', file, mimeType, sizeBytes, contentHash }, title, artist, version: null, createdAt: Date.now(), revision: 1, ...(kind !== 'audio' ? { kind } : {}) };
     this.state.items.push(item);
     await this.save();
-    this.app.audit.write({ kind: 'musikhub', event: 'item_uploaded', actor: userId, itemId: item.id, sizeBytes });
+    this.app.audit.write({ kind: 'musikhub', event: 'item_uploaded', actor: userId, itemId: item.id, sizeBytes, fileKind: kind });
     return item;
   }
 
@@ -478,10 +493,13 @@ export class MusicHubService {
     const recipient = this.subject(recipientInput);
     if (!Array.isArray(actionsInput) || !actionsInput.length || actionsInput.some((x) => !validAction(x))) throw new AppError(400, 'invalid_actions', 'Ungültige Freigaberechte');
     const actions = [...new Set(actionsInput as HubAction[])];
-    if (!Array.isArray(targetsInput) || !targetsInput.length || targetsInput.length > 100 || targetsInput.some((x) => typeof x !== 'string' || !this.app.stations.has(x))) throw new AppError(400, 'invalid_targets', 'Zielsender fehlen oder sind ungültig');
+    const network = recipient.kind === 'station' && recipient.id === NETWORK;
+    if (network) targetsInput = [NETWORK];
+    if (!Array.isArray(targetsInput) || !targetsInput.length || targetsInput.length > 100 || targetsInput.some((x) => typeof x !== 'string' || (x !== NETWORK && !this.app.stations.has(x)))) throw new AppError(400, 'invalid_targets', 'Zielsender fehlen oder sind ungültig');
     const targetStationIds = [...new Set(targetsInput as string[])];
     if (recipient.kind === 'station' && (targetStationIds.length !== 1 || targetStationIds[0] !== recipient.id)) throw new AppError(400, 'invalid_targets', 'Senderfreigabe muss auf genau diesen Sender begrenzt sein');
     const rec = this.resource(resource);
+    if (network && !this.ownerAccess(p, rec.owner)) throw new AppError(403, 'forbidden', 'Netzwerk-Freigabe nur durch den Eigentümer');
     if (!this.ownerAccess(p, rec.owner)) {
       for (const target of targetStationIds) {
         const held = this.actions(p, resource, target);
@@ -916,6 +934,7 @@ export class MusicHubService {
     const item = this.resource({ kind: 'item', id: itemId }) as HubItem;
     if (!this.ownerAccess(p, item.owner)) throw new AppError(403, 'forbidden', 'Nur der Eigentümer kann bereitstellen');
     if (item.source.kind !== 'upload') throw new AppError(400, 'invalid_source', 'Nur eigene Uploads lassen sich bereitstellen, keine Senderreferenzen');
+    if ((item.kind ?? 'audio') !== 'audio') throw new AppError(415, 'not_audio', 'Bilder und Dokumente lassen sich nicht in die Sendung übernehmen - nur herunterladen');
     this.station(p, stationId);
     if (!hasScope(p, 'media:write')) throw new AppError(403, 'forbidden', 'Medien-Schreibrecht fehlt');
     if (!this.explicitMember(p, stationId)) throw new AppError(403, 'forbidden', 'Ausdrückliche Senderzuordnung erforderlich');
