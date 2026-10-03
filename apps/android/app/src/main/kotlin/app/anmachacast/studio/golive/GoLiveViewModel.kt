@@ -265,7 +265,13 @@ class GoLiveViewModel(application: Application) : AndroidViewModel(application) 
         val app = getApplication<Application>()
         runCatching { app.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         viewModelScope.launch {
-            val found = withContext(Dispatchers.IO) { scanTree(app, tree) }
+            val found = try {
+                withContext(Dispatchers.IO) { scanTree(app, tree) }
+            } catch (e: Exception) {
+                // Anbieter nicht erreichbar, Zugriff entzogen o. Ä.: melden statt abstürzen
+                notice("Ordner konnte nicht gelesen werden: ${e.message ?: e.javaClass.simpleName}")
+                return@launch
+            }
             if (found.isEmpty()) notice("Keine Audiodateien im Ordner gefunden")
             else {
                 hub.addTracks(found.map { EngineHub.Track(it.first.toString(), it.second) })
@@ -340,6 +346,7 @@ class GoLiveViewModel(application: Application) : AndroidViewModel(application) 
     fun openLautFmLogin() = session.openLogin()
     fun closeLautFmLogin() = session.closeLogin()
     fun connectLautFm(token: String) = session.connect(token)
+    fun beginBrowserLogin() = session.beginBrowserLogin()
     fun loadStations() = session.loadStations()
     fun selectLautFmStation(s: LautStation) = session.select(s)
     fun disconnectLautFm() = session.disconnect()

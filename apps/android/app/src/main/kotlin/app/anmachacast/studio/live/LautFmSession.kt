@@ -43,6 +43,18 @@ class LautFmSession(context: Context) {
         if (account != null) loadStations()
     }
 
+    private var browserLoginAt = 0L
+
+    /** Anmeldung im Browser gestartet: nur in den nächsten 15 Minuten wird eine Rückleitung angenommen. */
+    fun beginBrowserLogin() { browserLoginAt = System.currentTimeMillis() }
+
+    /** Token aus der Rückleitung des Browsers; ohne selbst gestartete Anmeldung wird es ignoriert. */
+    fun acceptBrowserToken(token: String) {
+        if (System.currentTimeMillis() - browserLoginAt > 15 * 60_000L) return
+        browserLoginAt = 0
+        connect(token)
+    }
+
     fun openLogin() = _state.update { it.copy(showLogin = true, message = null) }
     fun closeLogin() = _state.update { it.copy(showLogin = false) }
     fun setMessage(m: String?) = _state.update { it.copy(message = m) }

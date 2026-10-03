@@ -13,14 +13,15 @@ public final class Mixer {
     public final PcmRing[] decks = new PcmRing[DECKS];
     /** Deck A (Abkürzung für Einfachbetrieb und Tests) */
     public final PcmRing music;
-    private final float[] deckGain = new float[DECKS];
-    private final float[] deckDb = new float[DECKS];
+    // Von Oberfläche (Regler) und Mischthread (Pegel) gleichzeitig benutzt: als Bits in atomaren Feldern, damit Änderungen sofort sichtbar sind
+    private final java.util.concurrent.atomic.AtomicIntegerArray deckGain = new java.util.concurrent.atomic.AtomicIntegerArray(DECKS);
+    private final java.util.concurrent.atomic.AtomicIntegerArray deckDb = new java.util.concurrent.atomic.AtomicIntegerArray(DECKS);
 
     public Mixer() {
         for (int i = 0; i < DECKS; i++) {
             decks[i] = new PcmRing(RATE * CHANNELS * 4);
-            deckGain[i] = 1f;
-            deckDb[i] = -90;
+            deckGain.set(i, Float.floatToIntBits(1f));
+            deckDb.set(i, Float.floatToIntBits(-90f));
         }
         music = decks[0];
     }
@@ -53,9 +54,9 @@ public final class Mixer {
     public void setMusicGainDb(double db) { musicGain = dbToGain(Math.max(-60, Math.min(12, db))); }
     public void setDuckDb(double db) { duckGain = dbToGain(Math.max(-40, Math.min(0, db))); }
     /** Lautstärke eines Decks 0–1,5 (linear) */
-    public void setDeckGain(int deck, float gain) { deckGain[deck] = Math.max(0f, Math.min(1.5f, gain)); }
-    public float deckGain(int deck) { return deckGain[deck]; }
-    public float deckDb(int deck) { return deckDb[deck]; }
+    public void setDeckGain(int deck, float gain) { deckGain.set(deck, Float.floatToIntBits(Math.max(0f, Math.min(1.5f, gain)))); }
+    public float deckGain(int deck) { return Float.intBitsToFloat(deckGain.get(deck)); }
+    public float deckDb(int deck) { return Float.intBitsToFloat(deckDb.get(deck)); }
 
     public float micDb() { return micDb; }
     public float musicDb() { return musicDb; }
@@ -79,15 +80,15 @@ public final class Mixer {
         for (int d = 0; d < DECKS; d++) {
             java.util.Arrays.fill(deckBuf, 0, n, (short) 0);
             int got = decks[d].read(deckBuf, 0, n);
-            if (got <= 0) { deckDb[d] = -90; continue; }
-            float g = deckGain[d];
+            if (got <= 0) { deckDb.set(d, Float.floatToIntBits(-90f)); continue; }
+            float g = deckGain(d);
             double sq = 0;
             for (int i = 0; i < got; i++) {
                 float v = deckBuf[i] * g;
                 musicBuf[i] += v;
                 sq += (double) v * v;
             }
-            deckDb[d] = toDb(Math.sqrt(sq / n));
+            deckDb.set(d, Float.floatToIntBits(toDb(Math.sqrt(sq / n))));
         }
 
         // Push-to-Talk-tauglich: Mikro öffnet in ca. 12 ms (kein Knacken, aber sofort hörbar), schließt in 60 ms;

@@ -339,15 +339,27 @@ public final class EngineHub {
         }
     }
 
-    /** Titel aus der Bibliothek in ein Deck laden (ein laufender Titel dort wird gestoppt). */
-    public synchronized void loadDeck(int d, int trackIndex) {
-        Deck k = deck(d);
-        if (trackIndex < 0 || trackIndex >= playlist.size()) throw new IllegalArgumentException("Titel nicht in der Liste");
-        stopPlayer(k);
-        k.track = playlist.get(trackIndex);
-        k.state = "cued";
-        k.posMs = 0;
-        k.durationMs = probeDuration(k.track);
+    /**
+     * Titel aus der Bibliothek in ein Deck laden (ein laufender Titel dort wird gestoppt). Die Dauer wird außerhalb der
+     * Sperre ermittelt: bei langsamen Cloud-Anbietern kann das dauern, und die Statusabfrage der Oberfläche soll nicht warten.
+     */
+    public void loadDeck(int d, int trackIndex) {
+        final Track t;
+        synchronized (this) {
+            deck(d);
+            if (trackIndex < 0 || trackIndex >= playlist.size()) throw new IllegalArgumentException("Titel nicht in der Liste");
+            t = playlist.get(trackIndex);
+        }
+        long dur = probeDuration(t);
+        synchronized (this) {
+            if (!playlist.contains(t)) return; // inzwischen aus der Liste entfernt
+            Deck k = deck(d);
+            stopPlayer(k);
+            k.track = t;
+            k.state = "cued";
+            k.posMs = 0;
+            k.durationMs = dur;
+        }
     }
 
     public synchronized void playDeck(int d) {
@@ -422,7 +434,7 @@ public final class EngineHub {
     }
 
     /** Kompatibel zum Einfachbetrieb: Titel laden und auf Deck A starten. */
-    public synchronized void play(int index) {
+    public void play(int index) {
         loadDeck(0, index);
         playDeck(0);
     }
@@ -442,8 +454,16 @@ public final class EngineHub {
         if (d == 0 && autoNext && err == null && engine != null && k.track != null) {
             int next = playlist.indexOf(k.track) + 1;
             if (next > 0 && next < playlist.size()) {
-                loadDeck(0, next);
-                playDeck(0);
+                // Laden ermittelt die Dauer und darf die Sperre nicht halten: in eigenem Thread
+                Thread t = new Thread(() -> {
+                    try {
+                        loadDeck(0, next);
+                        playDeck(0);
+                    } catch (RuntimeException e) {
+                        error = e.getMessage();
+                    }
+                }, "anmachacast-autonext");
+                t.start();
             }
         }
     }

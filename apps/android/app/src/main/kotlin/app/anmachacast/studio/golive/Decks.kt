@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -106,22 +107,26 @@ fun AddTracksRow(vm: GoLiveViewModel) {
     }
 }
 
-/** Titelliste mit Menü: auf Deck A–D laden oder direkt starten. */
-@Composable
-fun LibraryPanel(ui: GoLiveUiState, vm: GoLiveViewModel, title: String = "Titel") {
-    Panel(title = "$title (${ui.playlist.size})") {
-        AddTracksRow(vm)
-        ui.notice?.let { Note(it) }
-        if (ui.playlist.isEmpty()) Note("Noch keine Titel. Wähle mehrere Dateien oder einen ganzen Ordner.")
-        ui.playlist.forEachIndexed { i, name -> LibraryRow(i, name, ui, vm) }
-        if (ui.playlist.isNotEmpty()) TextButton(onClick = vm::clearPlaylist) { Text("Liste leeren") }
+/**
+ * Titelliste als Teil einer LazyColumn: nur sichtbare Zeilen werden aufgebaut, auch bei 1000 importierten Titeln.
+ * Die Zeilen bekommen nur die Deck-Daten, nicht den ganzen Zustand.
+ */
+fun androidx.compose.foundation.lazy.LazyListScope.libraryItems(ui: GoLiveUiState, vm: GoLiveViewModel, title: String = "Titel") {
+    item(key = "lib-head") {
+        Panel(title = "$title (${ui.playlist.size})") {
+            AddTracksRow(vm)
+            ui.notice?.let { Note(it) }
+            if (ui.playlist.isEmpty()) Note("Noch keine Titel. Wähle mehrere Dateien oder einen ganzen Ordner.")
+        }
     }
+    items(ui.playlist.size, key = { "lib-$it" }) { i -> LibraryRow(i, ui.playlist[i], ui.decks, ui.running, vm) }
+    if (ui.playlist.isNotEmpty()) item(key = "lib-clear") { TextButton(onClick = vm::clearPlaylist) { Text("Liste leeren") } }
 }
 
 @Composable
-fun LibraryRow(index: Int, name: String, ui: GoLiveUiState, vm: GoLiveViewModel) {
+fun LibraryRow(index: Int, name: String, decks: List<DeckUi>, running: Boolean, vm: GoLiveViewModel) {
     var menu by remember { mutableStateOf(false) }
-    val onDecks = ui.decks.withIndex().filter { it.value.trackIndex == index }
+    val onDecks = decks.withIndex().filter { it.value.trackIndex == index }
     Surface(onClick = { menu = true }, shape = RoundedCornerShape(10.dp), color = Color.Transparent) {
         Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.MusicNote, null, tint = BrandMuted, modifier = Modifier.size(20.dp))
@@ -138,7 +143,7 @@ fun LibraryRow(index: Int, name: String, ui: GoLiveUiState, vm: GoLiveViewModel)
                     Text("In Deck laden", fontSize = 11.sp, color = BrandMuted, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                     DECK_NAMES.forEachIndexed { d, n ->
                         DropdownMenuItem(
-                            text = { Text("Deck $n" + (ui.decks[d].title?.let { " (belegt)" } ?: "")) },
+                            text = { Text("Deck $n" + (decks[d].title?.let { " (belegt)" } ?: "")) },
                             leadingIcon = { Box(Modifier.size(10.dp).background(DECK_COLORS[d], CircleShape)) },
                             onClick = { menu = false; vm.loadDeck(d, index) },
                         )
@@ -146,7 +151,7 @@ fun LibraryRow(index: Int, name: String, ui: GoLiveUiState, vm: GoLiveViewModel)
                     HorizontalDivider()
                     Text("Laden und starten", fontSize = 11.sp, color = BrandMuted, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                     DECK_NAMES.forEachIndexed { d, n ->
-                        DropdownMenuItem(text = { Text("Deck $n starten") }, enabled = ui.running, leadingIcon = { Icon(Icons.Filled.PlayArrow, null) }, onClick = { menu = false; vm.loadAndPlay(d, index) })
+                        DropdownMenuItem(text = { Text("Deck $n starten") }, enabled = running, leadingIcon = { Icon(Icons.Filled.PlayArrow, null) }, onClick = { menu = false; vm.loadAndPlay(d, index) })
                     }
                     HorizontalDivider()
                     DropdownMenuItem(text = { Text("Aus Liste entfernen", color = BrandBad) }, onClick = { menu = false; vm.removeTrack(index) })

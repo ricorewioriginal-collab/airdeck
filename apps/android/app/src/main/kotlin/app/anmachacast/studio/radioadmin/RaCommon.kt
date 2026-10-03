@@ -101,7 +101,7 @@ fun RaLogin(vm: RadioadminViewModel) {
                 color = BrandText, fontSize = 14.sp,
             )
             Note("Melde dich mit deinem laut.fm-Konto an. Der Zugang bleibt verschlüsselt auf diesem Handy und wird auch von Go Live genutzt.")
-            app.anmachacast.studio.golive.LautFmSignIn(lf.busy, vm.session::openLogin)
+            app.anmachacast.studio.golive.LautFmSignIn(lf.busy, vm.session::openLogin, vm.session::beginBrowserLogin)
             TextButton(onClick = { pasteOpen = !pasteOpen }) { Text("Stattdessen Token einfügen") }
             if (pasteOpen) {
                 val uri = androidx.compose.ui.platform.LocalUriHandler.current

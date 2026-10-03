@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
     /** Rückkehr von der laut.fm-Anmeldung im Browser: Token aus der Adresse übernehmen. */
     private fun handleLink(intent: Intent?) {
         val token = LautFmClient.tokenFromRedirect(intent?.dataString ?: return) ?: return
-        (application as AnMaChaCastApp).lautSession.connect(token)
+        (application as AnMaChaCastApp).lautSession.acceptBrowserToken(token)
         intent.data = null // nur einmal auswerten (z. B. nach Drehen des Geräts)
     }
 }

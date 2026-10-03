@@ -57,15 +57,17 @@ fun MusicScreen(vm: GoLiveViewModel) {
 
 @Composable
 private fun PlaylistTab(ui: GoLiveUiState, vm: GoLiveViewModel) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Deck A spielt automatisch weiter", color = BrandText, fontSize = 14.sp)
-                Note("Nach dem Ende startet der nächste Titel der Liste")
+    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item(key = "auto") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Deck A spielt automatisch weiter", color = BrandText, fontSize = 14.sp)
+                    Note("Nach dem Ende startet der nächste Titel der Liste")
+                }
+                Switch(checked = ui.autoNext, onCheckedChange = { vm.toggleAutoNext() })
             }
-            Switch(checked = ui.autoNext, onCheckedChange = { vm.toggleAutoNext() })
         }
-        LibraryPanel(ui, vm, "Titelliste")
+        libraryItems(ui, vm, "Titelliste")
     }
 }
 
