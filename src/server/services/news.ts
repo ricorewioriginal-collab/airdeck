@@ -134,7 +134,7 @@ export class NewsService {
     if (!c) throw new AppError(409, 'no_lautfm', 'Kein laut.fm-Zugang: zuerst unter „Verbreitung“ den laut.fm-Live-Stream (Sendername + Live-Passwort) als Ausgang anlegen');
     const key = this.key(c, id);
     const m = this.loadMeta(key);
-    if (m && !force && m.file && existsSync(m.file) && m.t >= newsBoundary() + 45_000) return m;
+    if (m && !force && m.file && existsSync(m.file) && m.t >= newsBoundary()) return m;
     const running = this.busy.get(key);
     if (running) return running;
     const p = this.download(c, id, key, m).finally(() => this.busy.delete(key));

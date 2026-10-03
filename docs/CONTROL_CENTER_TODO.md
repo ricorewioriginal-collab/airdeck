@@ -101,13 +101,13 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     (Top 5 je Tag); Export ⬇ Excel (CSV), 🖨 PDF (Druckansicht), ✉ Mail (`/stats/deep`, `/stats/deep.csv`, `/stats/deep/email`).
 23. ~~[P2 · S] Berichte: Meistgespielt-Ranking; Protokoll-Filter~~ - erledigt: Sendungs-Rückblick mit Top-10 (JSON, CSV,
     E-Mail), Verlauf mit Suche und Art-Filter (CSV-Export folgt dem Filter).
-24. [P3 · M] Aktivitäts-Log (Admin), Stream-Status als M3U/XSPF/XML.
+24. ~~[P3 · M] Aktivitäts-Log (Admin), Stream-Status als M3U/XSPF/XML~~ - erledigt: Karte „Aktivitäts-Log“ unter Benutzer & Rollen (Filter Art/Sender/Suche serverseitig über `GET /api/v1/audit?kind=&station=&q=`, neueste zuerst, CSV-Export); Stream-Status gab es schon als `/status/<id>.json|xml|m3u|xspf` (Statusseite verlinkt alle Formate).
 
 ### Verknüpfungen / öffentliche Seiten
 25. ~~[P2 · M] Öffentliche Sender-/Sendeplan-Seite, Netzwerk-Liste, Charts-Seite, Widget-Konfigurator (Layout/Theme/Akzent)~~ - erledigt: `sender.html`, `sendeplan.html`, `charts.html`, `netzwerk.html` (ohne Login, `?station=…&theme=light&accent=rrggbb`), API `/api/v1/public/stations/:id/{page,schedule,charts}` + `/api/v1/public/network` (CORS), Widget-Konfigurator unter „Streams & Anbindungen“ (Layout Player/Senderseite/Charts/Sendeplan, Theme, Akzent, Verlauf, Höhe → iframe-Code + Vorschau).
 26. [P3 · M] Umfragen, Formulare, Auslosung (Normal/Multi/Elimination, Gewinner-Log, CSV).
 27. [P3 · M] Profilseite (Social Links, API-Keys), In-App-API-Doku mit "Live ausprobieren", Admin-Banner/Wartungsmeldung.
-28. [P3 · S] Handbuch: Suchfeld, Drucken/PDF, Rezepte.
+28. ~~[P3 · S] Handbuch: Suchfeld, Drucken/PDF, Rezepte~~ - erledigt: Werkzeugleiste mit Suche, „Drucken / PDF“ (Druck-CSS: Seitenleiste/Inhaltsverzeichnis aus, Abschnitt je Seite, schwarz auf weiß) und Sprung zu den Rezepten; Rezepte 1–8 (24/7-Stream, laut.fm-Live, KI-Moderation, Replays & Podcast, Stundenuhr, Jingle-Paket, Spot-Mix, Senderseite einbetten).
 29. [P3 · L] Team-Hub (Feed/Chat/DM) - nur wenn Teamkommunikation gewünscht.
 
 ### KI-Studio-Werkzeuge (Abgleich mit `ki-tools.html`, Stand 2026-10-02)

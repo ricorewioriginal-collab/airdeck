@@ -2270,3 +2270,13 @@ dialog h3 { font-size:17px; color:#f2fbff; }
 .wc-code { margin:0 0 8px; padding:10px; font-size:12px; white-space:pre-wrap; word-break:break-all; border:1px solid var(--line); border-radius:10px; background:#060e1e; }
 .wc-preview { width:100%; border:1px solid var(--line); border-radius:12px; background:transparent; }
 @media (max-width: 760px) { .wc-grid { grid-template-columns:1fr; } }
+/* Handbuch: Werkzeugleiste (Suche, Drucken, Rezepte) + Druckansicht */
+#view-handbuch .hb-tools { display:flex; gap:8px; align-items:center; margin-bottom:10px; max-width:1200px; margin-inline:auto; }
+#view-handbuch .hb-tools .hb-search { flex:1; margin:0; }
+@media print {
+  #view-handbuch .hb-tools, #view-handbuch nav.toc { display:none !important; }
+  #view-handbuch .hb-wrap { display:block; }
+  #view-handbuch main section { page-break-before:always; break-before:page; }
+  #view-handbuch main section:first-of-type { page-break-before:auto; break-before:auto; }
+  #view-handbuch, #view-handbuch main, #view-handbuch main * { background:#fff !important; color:#000 !important; }
+}
