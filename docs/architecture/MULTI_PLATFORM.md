@@ -23,7 +23,9 @@ REST-/SSE-Schnittstelle wie Studio und Android-App (`docs/API.md`).
 | **Studio** | Senderwahl, On-Air, 24/7↔Manuell, Mikrofon, Sendung start/stop; Decks A–D (Play/Pause/Stopp/Auswerfen, ±10 s, Tempo, Titel laden); Cardwall (auslösen, belegen, leeren); Warteschlange (einreihen, verschieben, mischen, auffüllen, leeren) |
 | **Mediathek** | Suchen/Filtern, Hochladen (mehrere Dateien), Bearbeiten, Löschen, Vorhören, in Warteschlange oder auf ein Deck |
 | **Playlists** | Anlegen, Umbenennen, Löschen, Titel hinzufügen/entfernen/verschieben, sofort spielen, mischen |
-| **Planung & Aufnahme** | Aufnahme starten/stoppen, Mitschnitte (speichern, Podcast-Episode, Nextcloud), automatische Aufnahmen, Sendeplan, Uhr-Ereignisse (an/aus, auslösen), Aufgaben |
+| **Planung & Aufnahme** | Aufnahme starten/stoppen, Mitschnitte (speichern, Podcast-Episode, Nextcloud), automatische Aufnahmen, Sendeplan, Uhr-Ereignisse (an/aus, auslösen), Aufgaben, Motion-Mix-Videos |
+| **Ausgänge & Quellen** | Ausgänge (Icecast, SHOUTcast, laut.fm), Zusatz-Streams und Encoder-Profile mit Zeitfenstern, Test, Live-Quellen (Priorität, Übernahme, Encoder-Passwort), Brücken |
+| **Einstellungen** | Automation und Audio/Playout (Überblendung, Lautheit, Mikrofon, Encoder – jeder Wert über den Einstellungs-Editor), Smart-Blöcke, Rotationspool, Nachrichten & Wetter, Integrationen, Nextcloud |
 | **Podcast** | Feed-Adresse, Einstellungen/Auto-Veröffentlichung, Cover, Episoden, öffentliche Adresse prüfen, Upload zu Buzzsprout/Podbean |
 | **Statistik** | Zeiträume, Kennzahlen, Gespielt, Top-Listen, Hörer-Verlauf, CSV |
 | **Hörer** | Posteingang (einreihen/erledigen/löschen), Umfragen, Einstellungen des Hörerbereichs |
@@ -31,9 +33,9 @@ REST-/SSE-Schnittstelle wie Studio und Android-App (`docs/API.md`).
 | **laut.fm** | Token verbinden, Prüfung, Playlists/Hörer/Station aus dem Radioadmin |
 | **Server & Geräte** | Server wechseln/hinzufügen/suchen, Geräte koppeln und entfernen, Netzwerkzugriff erlauben |
 | **System** | Zustand, Updates, Sicherungen, Benutzer, eigene API-Schlüssel, Protokoll, Neustart |
-| Seltene Einstellungen (MusicHub, Motion Mix, Detail-Einstellungen …) | **WebView2** – „Weitere Funktionen im Studio …“ öffnet das Web-Studio des aktiven Servers in einem eingebetteten Fenster (`BrowserForm`) |
+| Voice Studio (Wellenform-Schnitt), MusicHub, Einrichtungsassistent | **WebView2** – „Weitere Funktionen im Studio …“ öffnet das Web-Studio des aktiven Servers in einem eingebetteten Fenster (`BrowserForm`); beim ersten Start bietet die App den Einrichtungsassistenten selbst an |
 
-Tray-Symbol, Prozessüberwachung der Engine und Einzel-Instanz-Logik (`Program.cs`, `Engine.cs`) sind unverändert. Live-Senden vom Mikrofon eines
+**Ohne Server nutzbar:** Die Engine läuft lokal auf dem PC (Automation, Playout, Streams, Aufnahme, Podcast, API); entfernte Server sind nur eine Option. Tray-Symbol, Prozessüberwachung der Engine und Einzel-Instanz-Logik (`Program.cs`, `Engine.cs`) sind unverändert. Live-Senden vom Mikrofon eines
 *entfernten* Servers übernimmt die Android-App („Go Live“); am PC läuft das Mikrofon über die Engine (Schalter „Mikrofon“).
 
 **Qualitätssicherung ohne Windows-Rechner:** Die Oberfläche wird im Code gebaut (kein XAML). `apps/windows/check` übersetzt denselben Quellcode unter Linux
