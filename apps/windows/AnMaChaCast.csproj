@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    AnMaChaCast.exe – eigenständiges Windows-Programm: natives WPF-Hauptfenster (Decks, Cardwall, Sendebetrieb)
-    als primäre Bedienoberfläche, Symbol im Infobereich, startet und überwacht die AnMaCha-Cast-Engine
-    (anmachacast-engine.exe). Für Ansichten, die (noch) nicht nativ nachgebaut sind (Mediathek, Playlists,
-    Sendeplan, Einstellungen, KI-Werkzeuge, Hörer-Statistik), öffnet ein eigener Knopf das bestehende
-    Web-Studio in einem eingebetteten WebView2-Fenster – siehe docs/architecture/MULTI_PLATFORM.md.
+    AnMaChaCast.exe – eigenständiges Windows-Programm: natives WPF-Fenster mit Navigation (Studio, Mediathek, Playlists, Planung,
+    Podcast, Statistik, Hörer, KI, laut.fm, Server & Geräte, System), Symbol im Infobereich. Verbindet sich mit der eingebauten
+    Engine (anmachacast-engine.exe, wird gestartet und überwacht) oder mit entfernten AnMaCha-Cast-Servern (Kopplungscode).
+    Nur seltene Einstellungen öffnen das Web-Studio in einem eingebetteten WebView2-Fenster – siehe docs/architecture/MULTI_PLATFORM.md.
+    Die Oberfläche wird im Code gebaut (kein XAML); apps/windows/check übersetzt dieselben Quellen unter Linux, apps/windows/tests
+    prüft die oberflächenfreie Logik (Logic/).
     .NET Framework 4.8 ist auf jedem Windows 10/11 vorhanden – keine zusätzliche Laufzeit nötig.
     Bauen: dotnet build apps/windows/AnMaChaCast.csproj -c Release -p:Version=0.4.0
   -->
@@ -31,9 +32,11 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="tests/**;check/**;bin/**;obj/**" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />

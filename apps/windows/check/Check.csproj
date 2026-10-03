@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Übersetzungsprüfung des Windows-Programms unter Linux (ohne Windows-Rechner): derselbe Quellcode wie AnMaChaCast.csproj,
+    gegen die .NET-Framework-4.8-Referenzassemblies. Das Programm baut seine Oberfläche im Code (kein XAML), deshalb genügt das.
+    Aufruf: dotnet build apps/windows/check/Check.csproj
+  -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>AnMaChaCastCheck</AssemblyName>
+    <RootNamespace>AnMaChaCast</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../**/*.cs" Exclude="../tests/**;../check/**;../obj/**;../bin/**" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

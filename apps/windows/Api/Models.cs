@@ -39,6 +39,7 @@ namespace AnMaChaCast.Api
         public long positionMs { get; set; }
         public long? durationMs { get; set; }
         public bool auto { get; set; }
+        public double? tempo { get; set; }
     }
 
     public sealed class PlayoutStatus

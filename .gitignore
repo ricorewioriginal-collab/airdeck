@@ -8,4 +8,8 @@ apps/android/android/
 apps/android/node_modules/
 apps/windows/bin/
 apps/windows/obj/
+apps/windows/tests/bin/
+apps/windows/tests/obj/
+apps/windows/check/bin/
+apps/windows/check/obj/
 apps/android/engine/.cache/
