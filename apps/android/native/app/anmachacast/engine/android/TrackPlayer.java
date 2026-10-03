@@ -30,8 +30,15 @@ final class TrackPlayer {
     private volatile boolean stopped;
     private volatile long durationMs = -1;
     private volatile long framesWritten;
+    /** Startposition in der Datei (ms), z. B. nach Pause oder Sprung */
+    private final long startAtMs;
 
     TrackPlayer(Context ctx, Uri uri, String title, PcmRing target, Listener listener) {
+        this(ctx, uri, title, target, 0, listener);
+    }
+
+    TrackPlayer(Context ctx, Uri uri, String title, PcmRing target, long startAtMs, Listener listener) {
+        this.startAtMs = Math.max(0, startAtMs);
         this.ctx = ctx.getApplicationContext();
         this.uri = uri;
         this.title = title;
@@ -46,7 +53,7 @@ final class TrackPlayer {
     /** Hörbare Position: geschrieben minus noch im Puffer liegend. */
     long positionMs() {
         long frames = framesWritten - target.available() / Mixer.CHANNELS;
-        return Math.max(0, frames * 1000 / Mixer.RATE);
+        return startAtMs + Math.max(0, frames * 1000 / Mixer.RATE);
     }
 
     void start() {
@@ -88,6 +95,7 @@ final class TrackPlayer {
             if (track < 0) throw new IllegalStateException("Keine Tonspur gefunden");
             ex.selectTrack(track);
             if (fmt.containsKey(MediaFormat.KEY_DURATION)) durationMs = fmt.getLong(MediaFormat.KEY_DURATION) / 1000;
+            if (startAtMs > 0) ex.seekTo(startAtMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
             codec = MediaCodec.createDecoderByType(fmt.getString(MediaFormat.KEY_MIME));
             codec.configure(fmt, null, null, 0);
             codec.start();

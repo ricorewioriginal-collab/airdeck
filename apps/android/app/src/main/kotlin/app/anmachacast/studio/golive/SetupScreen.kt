@@ -42,9 +42,7 @@ private fun LautFmPanel(ui: GoLiveUiState, vm: GoLiveViewModel) {
     Panel(title = "laut.fm") {
         if (l.account == null) {
             Note("Melde dich bei laut.fm an. Danach werden deine Stationen und die Sende-Zugangsdaten automatisch übernommen.")
-            Button(onClick = vm::openLautFmLogin, enabled = !l.busy, modifier = Modifier.fillMaxWidth()) {
-                if (l.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else { Icon(Icons.Filled.Login, null); Spacer(Modifier.width(8.dp)); Text("Bei laut.fm anmelden") }
-            }
+            LautFmSignIn(l.busy, vm::openLautFmLogin)
             TextButton(onClick = { pasteOpen = !pasteOpen }) { Text("Stattdessen Token einfügen") }
             if (pasteOpen) {
                 val uri = androidx.compose.ui.platform.LocalUriHandler.current
@@ -179,6 +177,10 @@ fun LautFmLoginScreen(onToken: (String) -> Unit, onClose: () -> Unit) {
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
                 WebView(c).apply {
+                    // Autofill/Formular-Speicher aus: sonst springt der Cursor bei manchen Tastaturen nach jedem Zeichen nach vorn
+                    importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+                    @Suppress("DEPRECATION")
+                    settings.saveFormData = false
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     val take = { token: String? ->
@@ -225,4 +227,29 @@ fun LautFmLoginScreen(onToken: (String) -> Unit, onClose: () -> Unit) {
             onRelease = { it.destroy(); web = null },
         )
     }
+}
+
+
+/**
+ * Anmeldung bei laut.fm: bevorzugt im Browser (Tastatur, Passwortmanager und Autofill funktionieren dort wie gewohnt),
+ * laut.fm leitet danach per App-Adresse zurück. Die Anmeldung in der App (WebView) bleibt als Ausweg.
+ */
+@Composable
+fun LautFmSignIn(busy: Boolean, onWebView: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var launched by remember { mutableStateOf(false) }
+    Button(
+        onClick = {
+            launched = runCatching {
+                ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(LautFmClient.loginUrl())).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            }.isSuccess
+            if (!launched) onWebView()
+        },
+        enabled = !busy, modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+        else { Icon(Icons.Filled.Login, null); Spacer(Modifier.width(8.dp)); Text("Im Browser bei laut.fm anmelden") }
+    }
+    if (launched && !busy) Note("Nach der Anmeldung kehrt der Browser automatisch zur App zurück.")
+    TextButton(onClick = onWebView, enabled = !busy) { Text("Stattdessen in der App anmelden") }
 }

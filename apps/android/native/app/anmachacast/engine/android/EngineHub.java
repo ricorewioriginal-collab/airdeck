@@ -43,10 +43,8 @@ public final class EngineHub {
     private final SharedPreferences prefs;
     private LiveEngine engine;
     private MicInput mic;
-    private TrackPlayer player;
     private AudioTrack monitor;
     private final List<Track> playlist = new ArrayList<>();
-    private int current = -1;
     private volatile String state = "stopped";
     private volatile String error;
     private boolean autoNext = true;
@@ -155,6 +153,7 @@ public final class EngineHub {
         engine.mixer.setMicGainDb(prefs.getFloat("micDb", 0));
         engine.mixer.setMusicGainDb(prefs.getFloat("musicDb", 0));
         engine.mixer.setDuckDb(prefs.getFloat("duckDb", -10));
+        for (int d = 0; d < decks.length; d++) engine.mixer.setDeckGain(d, decks[d].volume);
         // Vordergrund-Dienst hält die Sendung am Leben (auch bei ausgeschaltetem Bildschirm)
         Intent i = new Intent(ctx, EngineService.class).putExtra(EngineService.EXTRA_MIC, withMicPermission);
         if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i);
@@ -223,7 +222,10 @@ public final class EngineHub {
     }
 
     public synchronized void stop() {
-        stopTrack();
+        for (Deck k : decks) {
+            stopPlayer(k);
+            if (k.track != null) { k.state = "cued"; k.posMs = 0; }
+        }
         setMonitor(false);
         if (mic != null) {
             mic.stop();
@@ -281,54 +283,169 @@ public final class EngineHub {
         engine.tap = (block, frames) -> t.write(block, 0, frames * Mixer.CHANNELS, AudioTrack.WRITE_NON_BLOCKING);
     }
 
-    // ---------- Titel ----------
+    // ---------- Titel (Bibliothek) und Decks ----------
+
+    /** Ein Deck: geladener Titel, Zustand und Position. Hört nur zu, wenn die Sendung läuft. */
+    private static final class Deck {
+        Track track;
+        String state = "empty"; // empty | cued | playing | paused
+        long posMs;
+        long durationMs = -1;
+        float volume = 1f;
+        TrackPlayer player;
+    }
+
+    private final Deck[] decks = new Deck[Mixer.DECKS];
+
+    {
+        for (int i = 0; i < decks.length; i++) decks[i] = new Deck();
+    }
+
+    private Deck deck(int d) {
+        if (d < 0 || d >= decks.length) throw new IllegalArgumentException("Deck gibt es nicht");
+        return decks[d];
+    }
 
     public synchronized void addTracks(List<Track> tracks) {
         playlist.addAll(tracks);
     }
 
     public synchronized void clearPlaylist() {
-        stopTrack();
+        for (int d = 0; d < decks.length; d++) ejectDeck(d);
         playlist.clear();
-        current = -1;
     }
 
     public synchronized void removeTrack(int index) {
         if (index < 0 || index >= playlist.size()) return;
-        if (index == current) stopTrack();
-        playlist.remove(index);
-        if (current > index) current--;
-        else if (current == index) current = -1;
+        Track t = playlist.remove(index);
+        for (int d = 0; d < decks.length; d++) if (decks[d].track == t) ejectDeck(d);
     }
 
     public synchronized void setAutoNext(boolean on) {
         autoNext = on;
     }
 
-    public synchronized void play(int index) {
-        if (engine == null) throw new IllegalStateException("Erst die Sendung starten");
-        if (index < 0 || index >= playlist.size()) throw new IllegalArgumentException("Titel nicht in der Liste");
-        stopTrack();
-        current = index;
-        Track t = playlist.get(index);
-        player = new TrackPlayer(ctx, Uri.parse(t.uri), t.title, engine.mixer.music, this::onTrackEnded);
-        player.start();
-        engine.source().updateMetadata(t.title);
-    }
-
-    public synchronized void stopTrack() {
-        if (player != null) {
-            player.stop();
-            player = null;
+    /** Dauer eines Titels in ms (ohne ihn abzuspielen), -1 wenn unbekannt. */
+    private long probeDuration(Track t) {
+        android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+        try {
+            r.setDataSource(ctx, Uri.parse(t.uri));
+            String v = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
+            return v == null ? -1 : Long.parseLong(v);
+        } catch (Exception e) {
+            return -1;
+        } finally {
+            try { r.release(); } catch (Exception ignored) { }
         }
     }
 
-    private synchronized void onTrackEnded(TrackPlayer p, String err) {
-        if (p != player) return;
-        player = null;
+    /** Titel aus der Bibliothek in ein Deck laden (ein laufender Titel dort wird gestoppt). */
+    public synchronized void loadDeck(int d, int trackIndex) {
+        Deck k = deck(d);
+        if (trackIndex < 0 || trackIndex >= playlist.size()) throw new IllegalArgumentException("Titel nicht in der Liste");
+        stopPlayer(k);
+        k.track = playlist.get(trackIndex);
+        k.state = "cued";
+        k.posMs = 0;
+        k.durationMs = probeDuration(k.track);
+    }
+
+    public synchronized void playDeck(int d) {
+        Deck k = deck(d);
+        if (engine == null) throw new IllegalStateException("Erst die Sendung starten");
+        if (k.track == null) throw new IllegalStateException("Deck " + (char) ('A' + d) + " ist leer");
+        if (k.state.equals("playing")) return;
+        startPlayer(d, k.posMs);
+    }
+
+    private void startPlayer(int d, long fromMs) {
+        Deck k = decks[d];
+        stopPlayer(k);
+        final TrackPlayer[] self = new TrackPlayer[1];
+        self[0] = new TrackPlayer(ctx, Uri.parse(k.track.uri), k.track.title, engine.mixer.decks[d], fromMs, (p, err) -> onTrackEnded(d, p, err));
+        k.player = self[0];
+        k.state = "playing";
+        k.player.start();
+        if (engine.source() != null) engine.source().updateMetadata(k.track.title);
+    }
+
+    private void stopPlayer(Deck k) {
+        if (k.player != null) {
+            k.player.stop();
+            k.player = null;
+        }
+    }
+
+    /** Anhalten, die Stelle bleibt erhalten. */
+    public synchronized void pauseDeck(int d) {
+        Deck k = deck(d);
+        if (!k.state.equals("playing") || k.player == null) return;
+        k.posMs = k.player.positionMs();
+        stopPlayer(k);
+        k.state = "paused";
+    }
+
+    /** Stoppen und zurück an den Anfang. */
+    public synchronized void stopDeck(int d) {
+        Deck k = deck(d);
+        stopPlayer(k);
+        if (k.track != null) k.state = "cued";
+        k.posMs = 0;
+    }
+
+    public synchronized void ejectDeck(int d) {
+        Deck k = deck(d);
+        stopPlayer(k);
+        k.track = null;
+        k.state = "empty";
+        k.posMs = 0;
+        k.durationMs = -1;
+    }
+
+    /** Springen (ms in der Datei). */
+    public synchronized void seekDeck(int d, long ms) {
+        Deck k = deck(d);
+        if (k.track == null) return;
+        long max = k.durationMs > 1000 ? k.durationMs - 500 : Long.MAX_VALUE;
+        long pos = Math.max(0, Math.min(ms, max));
+        if (k.state.equals("playing") && engine != null) startPlayer(d, pos);
+        else {
+            k.posMs = pos;
+            if (pos > 0) k.state = "paused";
+        }
+    }
+
+    public synchronized void setDeckVolume(int d, float volume) {
+        Deck k = deck(d);
+        k.volume = Math.max(0f, Math.min(1.5f, volume));
+        if (engine != null) engine.mixer.setDeckGain(d, k.volume);
+    }
+
+    /** Kompatibel zum Einfachbetrieb: Titel laden und auf Deck A starten. */
+    public synchronized void play(int index) {
+        loadDeck(0, index);
+        playDeck(0);
+    }
+
+    public synchronized void stopTrack() {
+        for (int d = 0; d < decks.length; d++) stopDeck(d);
+    }
+
+    private synchronized void onTrackEnded(int d, TrackPlayer p, String err) {
+        Deck k = decks[d];
+        if (p != k.player) return;
+        k.player = null;
+        k.state = k.track != null ? "cued" : "empty";
+        k.posMs = 0;
         if (err != null) error = err;
-        // AutoDJ auf dem Handy: nächster Titel der Liste
-        if (autoNext && engine != null && current + 1 < playlist.size()) play(current + 1);
+        // AutoDJ auf dem Handy: Deck A spielt nach dem Ende den nächsten Titel der Liste
+        if (d == 0 && autoNext && err == null && engine != null && k.track != null) {
+            int next = playlist.indexOf(k.track) + 1;
+            if (next > 0 && next < playlist.size()) {
+                loadDeck(0, next);
+                playDeck(0);
+            }
+        }
     }
 
     // ---------- Zustand für die Oberfläche ----------
@@ -351,13 +468,32 @@ public final class EngineHub {
             s.bytesSent = engine.source() == null ? 0 : engine.source().bytesSent();
             s.dropped = engine.source() == null ? 0 : engine.source().dropped();
         }
-        s.current = player == null ? -1 : current;
-        if (player != null) {
-            s.positionMs = player.positionMs();
-            s.durationMs = player.durationMs();
+        s.decks = new ArrayList<>();
+        for (int d = 0; d < decks.length; d++) {
+            Deck k = decks[d];
+            DeckView v = new DeckView();
+            v.state = k.state;
+            v.title = k.track == null ? null : k.track.title;
+            v.trackIndex = k.track == null ? -1 : playlist.indexOf(k.track);
+            v.positionMs = k.player != null ? k.player.positionMs() : k.posMs;
+            long dur = k.player != null && k.player.durationMs() > 0 ? k.player.durationMs() : k.durationMs;
+            v.durationMs = dur;
+            v.volume = k.volume;
+            v.levelDb = engine != null ? engine.mixer.deckDb(d) : -90;
+            s.decks.add(v);
         }
         s.playlist = new ArrayList<>(playlist);
         return s;
+    }
+
+    public static final class DeckView {
+        public String state = "empty";
+        public String title;
+        public int trackIndex = -1;
+        public long positionMs;
+        public long durationMs = -1;
+        public float volume = 1f;
+        public float levelDb = -90;
     }
 
     public static final class Status {
@@ -375,9 +511,7 @@ public final class EngineHub {
         public long startedAt;
         public long bytesSent;
         public long dropped;
-        public int current = -1;
-        public long positionMs;
-        public long durationMs = -1;
+        public List<DeckView> decks;
         public List<Track> playlist;
     }
 }

@@ -108,6 +108,20 @@ public class EngineTest {
         }
         check(full > -14, "Push-to-Talk: Mikro ist nach 2 Takten voll offen (" + full + " dB)");
         check(ptt.micDb() <= -90, "Push-to-Talk: Mikro nach Loslassen zu (" + ptt.micDb() + " dB)");
+        // Vier Decks: jedes mit eigenem Pegel und eigener Lautstärke, Summe geht ins Mischpult
+        Mixer dk = new Mixer();
+        dk.decks[0].writeDropOldest(sine(44100, 2, 0.02, 440, 0.3), 0, 882 * 2);
+        dk.decks[2].writeDropOldest(sine(44100, 2, 0.02, 660, 0.3), 0, 882 * 2);
+        dk.setDeckGain(2, 0f);
+        dk.mix(block, 882);
+        check(dk.deckDb(0) > -20 && dk.deckDb(1) <= -90, "Deck A hörbar, leeres Deck B still (" + dk.deckDb(0) + " / " + dk.deckDb(1) + " dB)");
+        check(dk.deckDb(2) <= -90, "Deck C mit Lautstärke 0 bleibt still");
+        dk.setDeckGain(2, 1f);
+        float onlyA = dk.masterDb();
+        dk.decks[0].writeDropOldest(sine(44100, 2, 0.02, 440, 0.3), 0, 882 * 2);
+        dk.decks[2].writeDropOldest(sine(44100, 2, 0.02, 660, 0.3), 0, 882 * 2);
+        dk.mix(block, 882);
+        check(dk.masterDb() > onlyA + 1.5f, "Zwei Decks gleichzeitig sind lauter als eins (" + onlyA + " → " + dk.masterDb() + " dB)");
         PcmRing r = new PcmRing(10);
         r.writeDropOldest(new short[] { 1, 2, 3, 4, 5, 6, 7, 8 }, 0, 8);
         r.writeDropOldest(new short[] { 9, 10, 11, 12 }, 0, 4);

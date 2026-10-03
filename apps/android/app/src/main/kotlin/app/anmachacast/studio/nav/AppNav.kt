@@ -1,31 +1,29 @@
+// Navigation der App als einfacher Zustand (aktueller Bereich + Reiter) statt Back-Stack: Reiterwechsel und
+// Wechsel der Betriebsart sind damit immer eindeutig. Zurück: erst auf den ersten Reiter, dann zum Startbildschirm.
 package app.anmachacast.studio.nav
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import app.anmachacast.studio.AnMaChaCastApp
 import app.anmachacast.studio.common.PlaceholderScreen
 import app.anmachacast.studio.connect.ConnectScreen
 import app.anmachacast.studio.connect.ConnectionStatusViewModel
 import app.anmachacast.studio.golive.GoLiveViewModel
+import app.anmachacast.studio.golive.LautFmLoginScreen
 import app.anmachacast.studio.golive.LiveScreen
 import app.anmachacast.studio.golive.MusicScreen
-import app.anmachacast.studio.golive.LautFmLoginScreen
 import app.anmachacast.studio.golive.SetupScreen
 import app.anmachacast.studio.home.HomeScreen
 import app.anmachacast.studio.more.MoreScreen
@@ -38,49 +36,39 @@ import app.anmachacast.studio.radioadmin.RadioadminViewModel
 import app.anmachacast.studio.start.StartScreen
 import app.anmachacast.studio.studio.StudioScreen
 
-private object Routes {
-    const val START = "start"
-    const val LIVE = "live"
-    const val MUSIC = "music"
-    const val SETUP = "setup"
-    const val LAUTLOGIN = "lautlogin"
-    const val RA_OVERVIEW = "ra_overview"
-    const val RA_PROGRAM = "ra_program"
-    const val RA_SCHEDULE = "ra_schedule"
-    const val RA_STATS = "ra_stats"
-    const val RA_MANAGE = "ra_manage"
-    const val HOME = "home"
-    const val STUDIO = "studio"
-    const val MORE = "more"
-    const val PLACEHOLDER = "placeholder/{title}"
+/** Bereiche der App. START ist der Startbildschirm, alles andere gehört zu einer Betriebsart. */
+private enum class Screen(val mode: Mode?) {
+    START(null),
+    LIVE(Mode.GOLIVE), MUSIC(Mode.GOLIVE), SETUP(Mode.GOLIVE),
+    HOME(Mode.STUDIO), STUDIO(Mode.STUDIO), MORE(Mode.STUDIO),
+    RA_OVERVIEW(Mode.RADIOADMIN), RA_PROGRAM(Mode.RADIOADMIN), RA_SCHEDULE(Mode.RADIOADMIN), RA_STATS(Mode.RADIOADMIN), RA_MANAGE(Mode.RADIOADMIN),
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val screen: Screen, val label: String, val icon: ImageVector)
 
 private val liveTabs = listOf(
-    Tab(Routes.LIVE, "Live", Icons.Filled.Mic),
-    Tab(Routes.MUSIC, "Musik", Icons.Filled.LibraryMusic),
-    Tab(Routes.SETUP, "Sender", Icons.Filled.Settings),
+    Tab(Screen.LIVE, "Live", Icons.Filled.Mic),
+    Tab(Screen.MUSIC, "Musik", Icons.Filled.LibraryMusic),
+    Tab(Screen.SETUP, "Sender", Icons.Filled.Settings),
 )
 private val studioTabs = listOf(
-    Tab(Routes.HOME, "Server", Icons.Filled.Dns),
-    Tab(Routes.STUDIO, "Studio", Icons.Filled.SettingsInputAntenna),
-    Tab(Routes.MORE, "Mehr", Icons.Filled.MoreHoriz),
+    Tab(Screen.HOME, "Server", Icons.Filled.Dns),
+    Tab(Screen.STUDIO, "Studio", Icons.Filled.SettingsInputAntenna),
+    Tab(Screen.MORE, "Mehr", Icons.Filled.MoreHoriz),
 )
-
 private val adminTabs = listOf(
-    Tab(Routes.RA_OVERVIEW, "Übersicht", Icons.Filled.Dashboard),
-    Tab(Routes.RA_PROGRAM, "Programm", Icons.Filled.LibraryMusic),
-    Tab(Routes.RA_SCHEDULE, "Sendeplan", Icons.Filled.CalendarMonth),
-    Tab(Routes.RA_STATS, "Statistik", Icons.Filled.BarChart),
-    Tab(Routes.RA_MANAGE, "Verwalten", Icons.Filled.Tune),
+    Tab(Screen.RA_OVERVIEW, "Übersicht", Icons.Filled.Dashboard),
+    Tab(Screen.RA_PROGRAM, "Programm", Icons.Filled.LibraryMusic),
+    Tab(Screen.RA_SCHEDULE, "Sendeplan", Icons.Filled.CalendarMonth),
+    Tab(Screen.RA_STATS, "Statistik", Icons.Filled.BarChart),
+    Tab(Screen.RA_MANAGE, "Verwalten", Icons.Filled.Tune),
 )
 
-private fun modeOf(route: String?): Mode? = when (route) {
-    Routes.LIVE, Routes.MUSIC, Routes.SETUP -> Mode.GOLIVE
-    Routes.HOME, Routes.STUDIO, Routes.MORE, Routes.PLACEHOLDER -> Mode.STUDIO
-    Routes.RA_OVERVIEW, Routes.RA_PROGRAM, Routes.RA_SCHEDULE, Routes.RA_STATS, Routes.RA_MANAGE -> Mode.RADIOADMIN
-    else -> null
+private fun tabsOf(mode: Mode?): List<Tab> = when (mode) {
+    Mode.GOLIVE -> liveTabs
+    Mode.STUDIO -> studioTabs
+    Mode.RADIOADMIN -> adminTabs
+    null -> emptyList()
 }
 
 @Composable
@@ -90,53 +78,52 @@ fun AppNav() {
     val connection by app.connectionRepository.connection.collectAsState()
     val modeStore = remember { ModeStore(context) }
     var lastMode by remember { mutableStateOf(modeStore.get()) }
-    val nav = rememberNavController()
+    var screenName by rememberSaveable { mutableStateOf(Screen.START.name) }
+    var placeholder by rememberSaveable { mutableStateOf<String?>(null) }
+    val screen = Screen.valueOf(screenName)
     val live: GoLiveViewModel = viewModel()
     val admin: RadioadminViewModel = viewModel()
     val liveUi by live.ui.collectAsState()
-    val route = nav.currentBackStackEntryAsState().value?.destination?.route
-    val mode = modeOf(route)
     val connected = connection != null
-
-    // Login-Bildschirm von laut.fm folgt dem Zustand im ViewModel
     val showLogin = liveUi.lautfm.showLogin
-    LaunchedEffect(showLogin) {
-        if (showLogin && nav.currentDestination?.route != Routes.LAUTLOGIN) nav.navigate(Routes.LAUTLOGIN)
-        else if (!showLogin && nav.currentDestination?.route == Routes.LAUTLOGIN) nav.popBackStack()
+    val mode = screen.mode
+    val tabs = tabsOf(mode)
+
+    fun go(s: Screen) {
+        placeholder = null
+        screenName = s.name
     }
 
     fun enter(m: Mode) {
         modeStore.set(m)
         lastMode = m
-        nav.navigate(when (m) { Mode.GOLIVE -> Routes.LIVE; Mode.STUDIO -> Routes.HOME; Mode.RADIOADMIN -> Routes.RA_OVERVIEW }) {
-            popUpTo(nav.graph.findStartDestination().id) { inclusive = true }
-            launchSingleTop = true
-        }
+        go(tabsOf(m).first().screen)
+    }
+
+    // Zurück: Anmeldung schließen, Unterseite schließen, auf den ersten Reiter, zum Startbildschirm
+    BackHandler(enabled = showLogin) { live.closeLautFmLogin() }
+    BackHandler(enabled = !showLogin && placeholder != null) { placeholder = null }
+    BackHandler(enabled = !showLogin && placeholder == null && screen != Screen.START) {
+        if (tabs.isNotEmpty() && screen != tabs.first().screen) go(tabs.first().screen) else go(Screen.START)
+    }
+
+    if (showLogin) {
+        LautFmLoginScreen(onToken = live::connectLautFm, onClose = live::closeLautFmLogin)
+        return
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
+        contentWindowInsets = WindowInsets(0),
         topBar = { if (mode != null) ModeHeader(mode, liveUi.running) { enter(it) } },
         bottomBar = {
-            val tabs = when (mode) {
-                Mode.GOLIVE -> liveTabs
-                Mode.STUDIO -> if (connected) studioTabs else emptyList()
-                Mode.RADIOADMIN -> adminTabs
-                null -> emptyList()
-            }
-            if (tabs.isNotEmpty()) {
+            val visible = tabs.isNotEmpty() && !(mode == Mode.STUDIO && !connected)
+            if (visible) {
                 NavigationBar {
                     tabs.forEach { t ->
                         NavigationBarItem(
-                            selected = route == t.route,
-                            onClick = {
-                                nav.navigate(t.route) {
-                                    popUpTo(tabs.first().route) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            selected = screen == t.screen,
+                            onClick = { go(t.screen) },
                             icon = { Icon(t.icon, t.label) },
                             label = { Text(t.label) },
                         )
@@ -145,33 +132,26 @@ fun AppNav() {
             }
         },
     ) { padding ->
-        val body = if (mode == null) Modifier.fillMaxSize() else Modifier.padding(padding)
-        NavHost(nav, startDestination = Routes.START, modifier = body) {
-            composable(Routes.START) {
-                StartScreen(last = lastMode, connectedTo = connection?.serverUrl, onPick = ::enter)
-            }
-            composable(Routes.LIVE) { LiveScreen(live) { nav.navigate(Routes.SETUP) { launchSingleTop = true } } }
-            composable(Routes.MUSIC) { MusicScreen(live) }
-            composable(Routes.SETUP) { SetupScreen(live) }
-            composable(Routes.RA_OVERVIEW) { RaOverviewScreen(admin) { enter(Mode.GOLIVE) } }
-            composable(Routes.RA_PROGRAM) { RaProgramScreen(admin) }
-            composable(Routes.RA_SCHEDULE) { RaScheduleScreen(admin) }
-            composable(Routes.RA_STATS) { RaStatsScreen(admin) }
-            composable(Routes.RA_MANAGE) { RaManageScreen(admin) { enter(Mode.GOLIVE) } }
-            composable(Routes.LAUTLOGIN) { LautFmLoginScreen(onToken = live::connectLautFm, onClose = live::closeLautFmLogin) }
-            composable(Routes.HOME) {
-                if (!connected) ConnectScreen(onConnected = {}) else {
+        Box(if (mode == null) Modifier.fillMaxSize() else Modifier.padding(padding).fillMaxSize()) {
+            val ph = placeholder
+            if (ph != null) {
+                PlaceholderScreen(title = ph)
+            } else when (screen) {
+                Screen.START -> StartScreen(last = lastMode, connectedTo = connection?.serverUrl, onPick = ::enter)
+                Screen.LIVE -> LiveScreen(live) { go(Screen.SETUP) }
+                Screen.MUSIC -> MusicScreen(live)
+                Screen.SETUP -> SetupScreen(live)
+                Screen.HOME -> if (!connected) ConnectScreen(onConnected = {}) else {
                     val status: ConnectionStatusViewModel = viewModel()
-                    HomeScreen(
-                        onOpenStudio = { nav.navigate(Routes.STUDIO) { launchSingleTop = true } },
-                        onDisconnect = status::disconnect,
-                    )
+                    HomeScreen(onOpenStudio = { go(Screen.STUDIO) }, onDisconnect = status::disconnect)
                 }
-            }
-            composable(Routes.STUDIO) { if (connected) StudioScreen() else ConnectScreen(onConnected = {}) }
-            composable(Routes.MORE) { MoreScreen(onOpenPlaceholder = { nav.navigate("placeholder/$it") }) }
-            composable(Routes.PLACEHOLDER, arguments = listOf(navArgument("title") { type = NavType.StringType })) {
-                PlaceholderScreen(title = it.arguments?.getString("title") ?: "")
+                Screen.STUDIO -> if (connected) StudioScreen() else ConnectScreen(onConnected = {})
+                Screen.MORE -> MoreScreen(onOpenPlaceholder = { placeholder = it })
+                Screen.RA_OVERVIEW -> RaOverviewScreen(admin) { enter(Mode.GOLIVE) }
+                Screen.RA_PROGRAM -> RaProgramScreen(admin)
+                Screen.RA_SCHEDULE -> RaScheduleScreen(admin)
+                Screen.RA_STATS -> RaStatsScreen(admin)
+                Screen.RA_MANAGE -> RaManageScreen(admin) { enter(Mode.GOLIVE) }
             }
         }
     }

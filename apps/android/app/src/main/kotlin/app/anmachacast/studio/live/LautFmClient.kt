@@ -38,8 +38,11 @@ class LautFmClient(private val http: OkHttpClient = defaultHttp()) {
     companion object {
         const val RADIOADMIN = "https://api.radioadmin.laut.fm"
 
-        /** Wohin laut.fm nach dem Login zurückleitet; die App fängt die Adresse in der WebView ab. */
-        const val CALLBACK = "https://anmachacast.app/laut-fm"
+        /**
+         * Wohin laut.fm nach dem Login zurückleitet. laut.fm kennt App-Adressen („Eine App mit der URI …“): der Browser
+         * öffnet danach diese Adresse und Android übergibt sie an die App (Intent-Filter in der Manifest-Datei).
+         */
+        const val CALLBACK = "anmachacast://lautfm"
         private val json = Json { ignoreUnknownKeys = true }
 
         fun defaultHttp(): OkHttpClient = OkHttpClient.Builder()
@@ -53,7 +56,7 @@ class LautFmClient(private val http: OkHttpClient = defaultHttp()) {
          */
         fun tokenFromRedirect(url: String): String? {
             if (!url.contains(TOKEN_PARAM)) return null
-            // nur die eigene Rückleit-Adresse (Host und Pfad), egal ob Anker, Abfrageteil oder Schrägstrich am Ende
+            // nur die eigene Rückleit-Adresse (Schema, Host, Pfad), egal ob Anker, Abfrageteil oder Schrägstrich am Ende
             val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return null
             val cb = java.net.URI(CALLBACK)
             if (uri.scheme != cb.scheme || uri.host != cb.host) return null
@@ -107,7 +110,7 @@ class LautFmClient(private val http: OkHttpClient = defaultHttp()) {
      * dann deren Origin, dann der Studio-Standard. Frisch ausgestellte Tokens brauchen manchmal einen zweiten Versuch.
      */
     suspend fun verify(token: String, extraOrigin: String? = null): Pair<String, List<LautStation>> = withContext(Dispatchers.IO) {
-        val candidates = listOfNotNull(extraOrigin?.takeIf { it.isNotBlank() }, CALLBACK, "https://anmachacast.app", "airdeck").distinct()
+        val candidates = listOfNotNull(extraOrigin?.takeIf { it.isNotBlank() }, CALLBACK, "anmachacast", "https://anmachacast.app/laut-fm", "airdeck").distinct()
         var reached = false
         var unauthorized = false
         val tried = ArrayList<String>()
