@@ -164,8 +164,63 @@
       h('label', {}, 'Dein Name'), name, h('label', {}, 'Nachricht dazu'), text, send, out);
   }
 
+  /** Zufälliger Schlüssel je Browser - macht aus „eine Stimme je Teilnehmer“ keine Adress-Speicherung */
+  const voterKey = () => { let k = localStorage.getItem('ac_voter'); if (!k) { k = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('ac_voter', k); } return k; };
+
+  function pollView() {
+    const box = h('div', { class: 'card' }, h('strong', {}, '🗳 Hörer-Umfrage'), h('div', { class: 'muted' }, 'Wird geladen …'));
+    const draw = (/** @type {any} */ p, /** @type {number|null} */ voted) => {
+      const total = p.total || 0;
+      box.replaceChildren(h('strong', {}, '🗳 Hörer-Umfrage'), h('div', { class: 'poll-q' }, p.question),
+        ...p.options.map((/** @type {string} */ o, /** @type {number} */ i) => {
+          const pct = total ? Math.round(((p.results[i] ?? 0) / total) * 100) : 0;
+          return h('button', { class: `poll-opt${voted !== null ? ' voted' : ''}${voted === i ? ' mine' : ''}`, disabled: voted !== null, onclick: async () => {
+            try { const r = await call('/poll/vote', { pollId: p.id, option: i, voter: voterKey() }); localStorage.setItem(`ac_poll_${p.id}`, String(i)); draw({ ...p, results: r.results, total: r.total }, i); }
+            catch (e) { if (/schon abgestimmt/.test(/** @type {Error} */ (e).message)) { localStorage.setItem(`ac_poll_${p.id}`, '-1'); draw(p, -1); } else say(box, /** @type {Error} */ (e).message, false); }
+          } }, voted !== null ? h('i', { class: 'poll-fill', style: `width:${pct}%` }) : null, h('span', { class: 'poll-txt' }, h('span', {}, `${o}${voted === i ? ' ✓' : ''}`), voted !== null ? h('b', {}, `${pct} %`) : null));
+        }),
+        h('div', { class: 'muted small', style: 'text-align:right' }, voted !== null ? `${total} Stimme${total === 1 ? '' : 'n'}` : 'Tippe auf eine Antwort - eine Stimme je Teilnehmer.'));
+    };
+    call('/poll').then((d) => {
+      if (!d.poll) { box.replaceChildren(h('strong', {}, '🗳 Hörer-Umfrage'), h('div', { class: 'muted' }, 'Gerade läuft keine Umfrage - schau später noch einmal vorbei.')); return; }
+      const v = localStorage.getItem(`ac_poll_${d.poll.id}`);
+      draw(d.poll, v === null ? null : Number(v));
+    }).catch((e) => say(box, e.message, false));
+    return box;
+  }
+
+  function formView() {
+    const wrap = h('div', {});
+    const only = new URLSearchParams(location.search).get('form');
+    call(`/form${only ? `?id=${encodeURIComponent(only)}` : ''}`).then((d) => {
+      if (!d.forms.length) { wrap.replaceChildren(h('div', { class: 'card muted' }, 'Gerade ist kein Formular offen.')); return; }
+      wrap.replaceChildren(...d.forms.map((/** @type {any} */ f) => {
+        /** @type {Record<string, HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>} */ const els = {};
+        const out = h('div', {});
+        const btn = /** @type {HTMLButtonElement} */ (h('button', { class: 'primary', onclick: async () => {
+          const values = Object.fromEntries(Object.entries(els).map(([k, el]) => [k, el.value]));
+          for (const fld of f.fields) if (fld.required && !values[fld.key]) { els[fld.key]?.focus(); return say(out, `„${fld.label}“ fehlt`, false); }
+          btn.disabled = true;
+          try { const r = await call('/form/submit', { formId: f.id, values }); card.replaceChildren(h('strong', {}, f.title), h('div', { class: 'msg ok', role: 'status' }, r.thanks)); }
+          catch (e) { btn.disabled = false; say(out, /** @type {Error} */ (e).message, false); }
+        } }, '➤ Absenden'));
+        const card = h('div', { class: 'card' }, h('strong', {}, `📝 ${f.title}`), f.description ? h('div', { class: 'muted' }, f.description) : null,
+          ...f.fields.map((/** @type {any} */ fld) => {
+            const el = fld.type === 'textarea' ? h('textarea', { rows: 3, maxlength: 2000 })
+              : fld.type === 'select' ? h('select', {}, h('option', { value: '' }, '– bitte wählen –'), ...fld.options.map((/** @type {string} */ o) => h('option', { value: o }, o)))
+              : h('input', { type: fld.type === 'email' ? 'email' : 'text', maxlength: 200 });
+            els[fld.key] = /** @type {any} */ (el);
+            return h('div', {}, h('label', {}, fld.label, fld.required ? h('span', { class: 'req' }, ' *') : null), el);
+          }), btn, out);
+        return card;
+      }));
+    }).catch((e) => wrap.replaceChildren(h('div', { class: 'card' }, e.message)));
+    return wrap;
+  }
+
   const VIEWS = /** @type {[string, string, () => HTMLElement][]} */ ([
     ['requests', '🎵 Musikwunsch', requestView], ['messages', '💬 Grüße', messageView], ['voting', '👍 Voting', votingView], ['voice', '🎙 Sprachnachricht', voiceView],
+    ['polls', '🗳 Umfrage', pollView], ['forms', '📝 Formular', formView],
   ]);
 
   function show(/** @type {string} */ key) {
@@ -185,9 +240,13 @@
     $('name').textContent = info.station.name;
     $('welcome').textContent = info.welcome || info.station.slogan || '';
     if (info.station.logo) /** @type {HTMLImageElement} */ ($('logo')).src = info.station.logo;
-    const on = VIEWS.filter(([k]) => info[k]);
+    // ?only=polls|forms: nur dieses Element, ohne Kopf - zum Einbetten als Widget
+    const only = new URLSearchParams(location.search).get('only');
+    const on = VIEWS.filter(([k]) => info[k] && (!only || k === only));
+    if (!on.length) { $('main').replaceChildren(h('div', { class: 'card' }, 'Dieser Bereich ist für den Sender nicht freigeschaltet.')); return; }
     $('tabs').replaceChildren(...on.map(([k, label]) => h('button', { 'data-k': k, 'aria-pressed': 'false', onclick: () => show(k) }, label)));
     if (on.length === 1) $('tabs').hidden = true;
+    if (only) document.querySelector('header')?.setAttribute('hidden', '');
     show(on[0][0]);
   }
 

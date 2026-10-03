@@ -1,6 +1,6 @@
 // @ts-check
 // Hörer-Interaktion im Studio: Posteingang (Wünsche, Grüße, Sprachnachrichten), Voting-Charts, Einstellungen.
-import { formDialog, h, run, status } from './ui.js';
+import { download, formDialog, h, run, status } from './ui.js';
 
 const KIND = /** @type {Record<string, string>} */ ({ request: '🎵 Wunsch', message: '💬 Gruß', voice: '🎙 Sprachnachricht' });
 
@@ -12,12 +12,17 @@ export function mountListeners(root, ctx) {
   const card = (title, ...body) => h('section', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, title)), ...body);
   const time = (/** @type {number} */ t) => new Date(t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+  /** @type {{ text: string, mode: string, count: number, label: string, unique: boolean }} */
+  const drawState = { text: '', mode: 'normal', count: 3, label: '', unique: true };
+  /** @type {any} */ let lastDraw = null;
+
   async function show() {
-    const d = await ctx.api.get(ctx.url('/inbox'));
+    const [d, polls, forms, draws] = await Promise.all([ctx.api.get(ctx.url('/inbox')), ctx.api.get(ctx.url('/polls')), ctx.api.get(ctx.url('/forms')), ctx.api.get(ctx.url('/draws'))]);
+    d.polls = polls; d.forms = forms; d.draws = draws;
     ctx.onUnread(d.unread);
     const c = d.config;
-    const any = c.requests || c.messages || c.voting || c.voice;
-    const link = `${location.origin}${location.pathname.replace(/[^/]*$/, '')}hoerer.html?s=${encodeURIComponent(ctx.stationId())}`;
+    const any = c.requests || c.messages || c.voting || c.voice || c.polls || c.forms;
+    const link = `${base()}`;
     const act = (/** @type {any} */ it, /** @type {string} */ a) => run(async () => { await ctx.api.post(ctx.url(`/inbox/${encodeURIComponent(it.id)}/${a}`)); show(); });
     root.replaceChildren(...[
       h('div', { class: 'listener-hero' },
@@ -40,8 +45,164 @@ export function mountListeners(root, ctx) {
             it.status === 'new' ? h('button', { class: 'btn small', onclick: () => act(it, 'done') }, 'Erledigt') : null,
             h('button', { class: 'btn small danger', onclick: () => act(it, 'delete') }, 'Löschen'))))
           : [h('div', { class: 'empty' }, 'Noch nichts eingegangen.')])),
+      pollsCard(c, d.polls ?? []),
+      formsCard(c, d.forms ?? []),
+      drawCard(d.draws ?? [], d.forms ?? [], d.items ?? []),
       c.voting ? card('Hörer-Charts (Voting)', ...(d.charts.length ? [h('ol', {}, ...d.charts.map((/** @type {any} */ t) => h('li', {}, `${t.artist ? `${t.artist} – ` : ''}${t.title} · ${t.score > 0 ? '+' : ''}${t.score} (${t.up}👍 ${t.down}👎)`)))] : [h('div', { class: 'empty' }, 'Noch keine Stimmen.')])) : null,
     ].filter((n) => n !== null));
+  }
+
+  /** Hörerseite auf dem Server, der die API liefert (in der App/mit Fernserver ist das nicht die eigene Adresse) */
+  const base = () => `${ctx.api.base || location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, '')}/hoerer.html?s=${encodeURIComponent(ctx.stationId())}`;
+  const csv = (/** @type {string} */ path, /** @type {string} */ name) => run(async () => { const b = await ctx.api.blob(ctx.url(path)); if (b) download(b, name); });
+
+  /** Umfragen: eine aktiv, Ergebnisse als Balken, CSV, Widget-Link. @param {any} c @param {any[]} polls */
+  function pollsCard(c, polls) {
+    const bar = (/** @type {any} */ p) => {
+      const total = p.results.reduce((/** @type {number} */ a, /** @type {number} */ b) => a + b, 0);
+      return h('div', { class: 'poll-res' }, ...p.options.map((/** @type {string} */ o, /** @type {number} */ i) => {
+        const pct = total ? Math.round((p.results[i] / total) * 100) : 0;
+        return h('div', { class: 'poll-row' }, h('span', { class: 'poll-lbl' }, o), h('span', { class: 'poll-bar' }, h('i', { style: `width:${pct}%` })), h('span', { class: 'num muted' }, `${p.results[i]} · ${pct} %`));
+      }), h('div', { class: 'muted small' }, `${total} Stimme${total === 1 ? '' : 'n'} · ${p.active ? 'läuft' : `beendet ${p.closedAt ? time(p.closedAt) : ''}`}`));
+    };
+    return card('Umfragen',
+      h('p', { class: 'muted small', style: 'margin:0 0 8px' }, c.polls ? `Aktive Umfrage auf der Hörerseite und als Widget: ${base()}&only=polls` : 'Unter „Einstellungen“ einschalten, damit Hörer abstimmen können. Anlegen geht schon jetzt.'),
+      h('div', { class: 'row', style: 'margin-bottom:8px' }, h('button', { class: 'btn small primary', onclick: () => editPoll(null) }, '＋ Umfrage')),
+      ...(polls.length ? polls.map((p) => h('div', { class: `poll-item${p.active ? ' active' : ''}` },
+        h('div', { class: 'row' }, h('strong', {}, p.question), p.active ? h('span', { class: 'tag' }, 'AKTIV') : null),
+        bar(p),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn small', onclick: () => run(async () => { await ctx.api.patch(ctx.url(`/polls/${p.id}`), { active: !p.active }); show(); }) }, p.active ? 'Beenden' : 'Aktivieren'),
+          h('button', { class: 'btn small', onclick: () => editPoll(p) }, 'Bearbeiten'),
+          h('button', { class: 'btn small', onclick: () => csv(`/polls/${p.id}/csv`, `umfrage-${p.id}.csv`) }, '⬇ CSV'),
+          h('button', { class: 'btn small danger', onclick: () => confirm(`Umfrage „${p.question}“ samt Ergebnis löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/polls/${p.id}`)); show(); }) }, 'Löschen'))))
+        : [h('div', { class: 'empty' }, 'Noch keine Umfrage.')]));
+  }
+
+  /** @param {any} p */
+  async function editPoll(p) {
+    const v = await formDialog(p ? 'Umfrage bearbeiten' : 'Neue Umfrage', [
+      { name: 'question', label: 'Frage', value: p?.question ?? '', required: true },
+      { name: 'options', label: 'Antworten (eine je Zeile, 2–10)', type: 'textarea', value: (p?.options ?? []).join('\n'), required: true, hint: p?.votes ? 'Mit Stimmen lässt sich die Anzahl nicht mehr ändern' : '' },
+      { name: 'active', label: 'Sofort aktiv (beendet eine laufende Umfrage)', type: 'checkbox', value: p ? p.active : true },
+    ], 'Speichern');
+    if (!v) return;
+    const body = { question: v.question, options: String(v.options).split('\n').map((/** @type {string} */ s) => s.trim()).filter(Boolean), active: v.active };
+    await run(() => (p ? ctx.api.patch(ctx.url(`/polls/${p.id}`), body) : ctx.api.post(ctx.url('/polls'), body)));
+    show();
+  }
+
+  /** Formulare: Felder, Einträge, CSV. @param {any} c @param {any[]} forms */
+  function formsCard(c, forms) {
+    return card('Formulare',
+      h('p', { class: 'muted small', style: 'margin:0 0 8px' }, c.forms ? `Gewinnspiel, Anmeldung, Feedback - auf der Hörerseite und als Widget: ${base()}&only=forms&form=<id>` : 'Unter „Einstellungen“ einschalten, damit Hörer Formulare sehen.'),
+      h('div', { class: 'row', style: 'margin-bottom:8px' }, h('button', { class: 'btn small primary', onclick: () => editForm(null) }, '＋ Formular')),
+      ...(forms.length ? forms.map((f) => h('div', { class: 'poll-item' },
+        h('div', { class: 'row' }, h('strong', {}, f.title), f.active ? h('span', { class: 'tag' }, 'OFFEN') : h('span', { class: 'muted small' }, 'geschlossen'), h('span', { class: 'muted small' }, `· ${f.fields.length} Felder · ${f.entries} Einträge`)),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn small', onclick: () => showEntries(f) }, `Einträge (${f.entries})`),
+          h('button', { class: 'btn small', onclick: () => run(async () => { await ctx.api.patch(ctx.url(`/forms/${f.id}`), { active: !f.active }); show(); }) }, f.active ? 'Schließen' : 'Öffnen'),
+          h('button', { class: 'btn small', onclick: () => editForm(f) }, 'Bearbeiten'),
+          h('button', { class: 'btn small', onclick: () => csv(`/forms/${f.id}/entries/csv`, `formular-${f.id}.csv`) }, '⬇ CSV'),
+          h('button', { class: 'btn small danger', onclick: () => confirm(`Formular „${f.title}“ samt Einträgen löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/forms/${f.id}`)); show(); }) }, 'Löschen'))))
+        : [h('div', { class: 'empty' }, 'Noch kein Formular.')]));
+  }
+
+  /** Felder als Textzeilen: Label | text|textarea|select|email | pflicht | Option1;Option2 */
+  const fieldsToText = (/** @type {any[]} */ fields) => fields.map((f) => {
+    const cols = [f.label, f.type, f.required ? 'pflicht' : '', (f.options ?? []).join(';')];
+    while (cols.length > 2 && !cols[cols.length - 1]) cols.pop(); // nur leere Spalten am Ende weglassen, Spaltenlage bleibt
+    return cols.join(' | ');
+  }).join('\n');
+  const textToFields = (/** @type {string} */ text) => text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [label, type = 'text', req = '', opts = ''] = l.split('|').map((x) => x.trim());
+    return { label, type, required: /^(pflicht|ja|x|\*|required)$/i.test(req), options: opts ? opts.split(';').map((o) => o.trim()).filter(Boolean) : undefined };
+  });
+
+  /** @param {any} f */
+  async function editForm(f) {
+    const v = await formDialog(f ? 'Formular bearbeiten' : 'Neues Formular', [
+      { name: 'title', label: 'Titel', value: f?.title ?? '', required: true },
+      { name: 'description', label: 'Beschreibung', value: f?.description ?? '' },
+      { name: 'fields', label: 'Felder (eine je Zeile)', type: 'textarea', value: f ? fieldsToText(f.fields) : 'Name | text | pflicht\nE-Mail | email | pflicht\nWohnort | text\nLieblingsgenre | select | | Pop;Rock;Schlager\nNachricht | textarea', required: true, hint: 'Label | text/textarea/select/email | pflicht | Option1;Option2' },
+      { name: 'thanks', label: 'Danke-Text nach dem Absenden', value: f?.thanks ?? 'Danke, dein Eintrag ist angekommen!' },
+      { name: 'active', label: 'Offen (Hörer können einsenden)', type: 'checkbox', value: f ? f.active : true },
+    ], 'Speichern', { wide: true });
+    if (!v) return;
+    const body = { title: v.title, description: v.description, fields: textToFields(String(v.fields)), thanks: v.thanks, active: v.active };
+    await run(() => (f ? ctx.api.patch(ctx.url(`/forms/${f.id}`), body) : ctx.api.post(ctx.url('/forms'), body)));
+    show();
+  }
+
+  /** @param {any} f */
+  async function showEntries(f) {
+    const rows = /** @type {any[]} */ (await run(() => ctx.api.get(ctx.url(`/forms/${f.id}/entries`)))) ?? [];
+    const dlg = /** @type {HTMLDialogElement} */ (document.getElementById('dialog'));
+    const form = /** @type {HTMLFormElement} */ (document.getElementById('dialog-form'));
+    form.onsubmit = null;
+    const tbody = h('tbody', {});
+    const draw = (/** @type {any[]} */ list) => tbody.replaceChildren(...(list.length ? list.map((e) => h('tr', {}, h('td', { class: 'num muted' }, time(e.at)), ...f.fields.map((/** @type {any} */ fld) => h('td', {}, e.values[fld.key] ?? '')),
+      h('td', { class: 'act' }, h('button', { class: 'btn small danger', type: 'button', onclick: () => run(async () => { await ctx.api.del(ctx.url(`/form-entries/${e.id}`)); const i = list.indexOf(e); list.splice(i, 1); draw(list); }) }, '✕'))))
+      : [h('tr', {}, h('td', { colspan: f.fields.length + 2, class: 'muted' }, 'Noch keine Einträge.'))]));
+    draw(rows);
+    form.replaceChildren(h('div', { class: 'fd-head' }, h('h3', {}, `Einträge: ${f.title}`)),
+      h('div', { class: 'table-wrap', style: 'max-height:60vh;overflow:auto' }, h('table', { class: 'list' }, h('thead', {}, h('tr', {}, h('th', {}, 'Zeit'), ...f.fields.map((/** @type {any} */ fld) => h('th', {}, fld.label)), h('th', {}))), tbody)),
+      h('div', { class: 'dialog-actions' }, h('button', { class: 'btn ghost', type: 'button', onclick: () => csv(`/forms/${f.id}/entries/csv`, `formular-${f.id}.csv`) }, '⬇ CSV'), h('button', { class: 'btn primary', value: 'ok' }, 'Schließen')));
+    dlg.classList.add('wide');
+    dlg.showModal();
+    dlg.onclose = () => { dlg.classList.remove('wide'); show(); };
+  }
+
+  /** Auslosung: Teilnehmer je Zeile, Modus, Gewinner groß, Protokoll mit CSV. @param {any[]} draws @param {any[]} forms @param {any[]} inbox */
+  function drawCard(draws, forms, inbox) {
+    const ta = /** @type {HTMLTextAreaElement} */ (h('textarea', { rows: 8, placeholder: 'Ein Teilnehmer je Zeile …', oninput: () => { drawState.text = ta.value; } }, drawState.text));
+    const names = () => { const seen = new Set(); return ta.value.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && (!drawState.unique || !seen.has(s.toLowerCase()) && seen.add(s.toLowerCase()))); };
+    const count = h('span', { class: 'muted small' }, `${names().length} Teilnehmer`);
+    ta.addEventListener('input', () => { count.textContent = `${names().length} Teilnehmer`; });
+    const winner = h('div', { class: 'draw-winner' }, lastDraw ? h('b', {}, lastDraw.winners.join(' · ')) : h('span', { class: 'muted' }, 'Noch nicht gezogen'));
+    const MODES = /** @type {[string,string][]} */ ([['normal', 'Normal (ein Gewinner)'], ['multi', 'Multi (mehrere Gewinner)'], ['elim', 'Elimination (der Letzte gewinnt)']]);
+    const countIn = /** @type {HTMLInputElement} */ (h('input', { type: 'number', min: 1, max: 100, value: String(drawState.count), style: 'width:70px', oninput: () => { drawState.count = Number(countIn.value) || 3; } }));
+    const modeSel = /** @type {HTMLSelectElement} */ (h('select', { onchange: () => { drawState.mode = modeSel.value; countIn.disabled = drawState.mode !== 'multi'; } }, ...MODES.map(([v, l]) => h('option', { value: v, selected: v === drawState.mode }, l))));
+    countIn.disabled = drawState.mode !== 'multi';
+    const labelIn = /** @type {HTMLInputElement} */ (h('input', { placeholder: 'Bezeichnung (z. B. Konzertkarten)', value: drawState.label, oninput: () => { drawState.label = labelIn.value; } }));
+    const importFrom = async () => {
+      const opts = /** @type {[string,string][]} */ ([['inbox', `Posteingang (Namen aus Wünschen & Grüßen: ${new Set(inbox.map((i) => i.name).filter(Boolean)).size})`], ...forms.map((f) => /** @type {[string,string]} */ ([`form:${f.id}`, `Formular „${f.title}“ (${f.entries} Einträge)`]))]);
+      const v = await formDialog('Teilnehmer übernehmen', [{ name: 'src', label: 'Quelle', value: opts[0]?.[0] ?? '', options: opts }, { name: 'add', label: 'An vorhandene Liste anhängen', type: 'checkbox', value: false }], 'Übernehmen');
+      if (!v) return;
+      let list = [];
+      if (v.src === 'inbox') list = inbox.map((i) => i.name).filter(Boolean);
+      else { const f = forms.find((x) => `form:${x.id}` === v.src); const rows = /** @type {any[]} */ (await ctx.api.get(ctx.url(`/forms/${f.id}/entries`))); const key = (f.fields.find((/** @type {any} */ x) => /name/i.test(x.label)) ?? f.fields[0]).key; list = rows.map((r) => r.values[key]).filter(Boolean); }
+      ta.value = (v.add && ta.value.trim() ? ta.value.trim() + '\n' : '') + list.join('\n');
+      ta.dispatchEvent(new Event('input'));
+    };
+    const doDraw = () => run(async () => {
+      const r = await ctx.api.post(ctx.url('/draw'), { names: names(), mode: drawState.mode, count: drawState.count, label: drawState.label });
+      lastDraw = r;
+      // kleine Trommel: Namen durchlaufen lassen, dann Gewinner
+      const pool = names();
+      for (let i = 0; i < 14; i++) { winner.replaceChildren(h('span', { class: 'muted' }, pool[Math.floor(Math.random() * pool.length)] ?? '')); await new Promise((res) => setTimeout(res, 60 + i * 20)); }
+      winner.replaceChildren(h('b', {}, r.winners.join(' · ')), h('div', { class: 'muted small' }, r.mode === 'elim' ? `Last one standing - ${r.pool} Teilnehmer` : `${r.winners.length} von ${r.pool} gezogen`));
+      if (r.mode === 'elim') { ta.value = r.winners.join('\n'); } else if (r.mode === 'multi' || confirm('Gewinner aus der Liste entfernen (für die nächste Runde)?')) { ta.value = r.remaining.join('\n'); }
+      ta.dispatchEvent(new Event('input'));
+      status(`Gezogen: ${r.winners.join(', ')}`);
+      log.replaceChildren(...logRows(await ctx.api.get(ctx.url('/draws'))));
+    });
+    const logRows = (/** @type {any[]} */ list) => (list.length ? list.slice(0, 50).map((d, i) => h('div', { class: 'kv' }, h('span', {}, h('b', {}, d.winners.join(', ')), h('span', { class: 'muted small' }, ` · ${({ normal: 'Normal', multi: 'Multi', elim: 'Elimination' })[d.mode] ?? d.mode}${d.label ? ` · ${d.label}` : ''} · ${d.pool} Teilnehmer`)), h('span', { class: 'muted small' }, `#${list.length - i} · ${time(d.at)}`)))
+      : [h('div', { class: 'empty' }, 'Noch keine Ziehung.')]);
+    const log = h('div', {}, ...logRows(draws));
+    return card('Auslosung',
+      h('div', { class: 'draw-grid' },
+        h('div', {}, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:4px' }, h('b', { class: 'small' }, 'Teilnehmer (eine je Zeile)'), count), ta,
+          h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' },
+            h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: drawState.unique, onchange: (/** @type {Event} */ e) => { drawState.unique = /** @type {HTMLInputElement} */ (e.target).checked; ta.dispatchEvent(new Event('input')); } }), 'Dubletten entfernen'),
+            h('button', { class: 'btn small', onclick: importFrom }, '⇩ Aus Formular / Posteingang'))),
+        h('div', {}, h('div', { class: 'row', style: 'flex-wrap:wrap' }, modeSel, countIn, labelIn),
+          h('button', { class: 'btn primary', style: 'margin:10px 0', onclick: doDraw }, '🎲 Ziehen'),
+          winner,
+          h('div', { class: 'row', style: 'margin-top:10px;justify-content:space-between' }, h('b', {}, 'Gewinner-Protokoll'), h('span', { class: 'row' },
+            h('button', { class: 'btn small', onclick: () => csv('/draws/csv', `auslosung-${ctx.stationId()}.csv`) }, '⬇ CSV'),
+            h('button', { class: 'btn small danger', onclick: () => confirm('Protokoll leeren?') && run(async () => { await ctx.api.del(ctx.url('/draws')); show(); }) }, 'Leeren'))),
+          log)));
   }
 
   /** @param {any} c */
@@ -52,6 +213,8 @@ export function mountListeners(root, ctx) {
       { name: 'messages', label: 'Grüße & Nachrichten (Wunschbox)', type: 'checkbox', value: c.messages },
       { name: 'voting', label: 'Song-Voting mit Hörer-Charts', type: 'checkbox', value: c.voting },
       { name: 'voice', label: 'Sprachnachricht ans Studio (bis 2 Minuten)', type: 'checkbox', value: c.voice },
+      { name: 'polls', label: 'Hörer-Umfragen (eine Stimme je Teilnehmer)', type: 'checkbox', value: !!c.polls },
+      { name: 'forms', label: 'Formulare (Gewinnspiel, Anmeldung, Feedback)', type: 'checkbox', value: !!c.forms },
       { name: 'welcome', label: 'Begrüßung auf der Hörerseite', value: c.welcome ?? '' },
     ]);
     if (!v) return;
@@ -67,6 +230,7 @@ export function mountListeners(root, ctx) {
     show,
     /** @param {string} type @param {any} data */
     onEvent(type, data) {
+      if (type === 'community.changed' && !root.hidden) { show(); return; }
       if (type === 'inbox.new') {
         status(`Hörer: ${KIND[data.kind] ?? data.kind}${data.name ? ` von ${data.name}` : ''}`);
         if (!root.hidden) show();

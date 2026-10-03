@@ -90,6 +90,11 @@ export interface StationData {
   listener?: import('./services/listeners.ts').ListenerConfig;
   inbox?: import('./services/listeners.ts').InboxItem[];
   votes?: Record<string, { up: number; down: number }>;
+  /** Community: Umfragen, Formulare mit Einträgen, Auslosungs-Protokoll */
+  polls?: import('./services/community.ts').Poll[];
+  forms?: import('./services/community.ts').FormDef[];
+  formEntries?: import('./services/community.ts').FormEntry[];
+  draws?: import('./services/community.ts').DrawEntry[];
   /** Eingebundene Musikordner (werden indiziert und überwacht, nicht kopiert) */
   linkedFolders?: LinkedFolder[];
   /** Grundbetriebsart des Mode-Managers (AUTO/MANUAL); LIVE/EMERGENCY ergeben sich aus dem Sendezustand */
