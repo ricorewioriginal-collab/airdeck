@@ -2467,9 +2467,11 @@ async function showPairing(role, base) {
   if (!p) return;
   const until = new Date(p.expiresAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   // Hinter einem Reverse-Proxy/Docker meldet der Server keine LAN-Adresse; dann ist die Adresse, unter der dieses Studio geöffnet wurde, die richtige
-  const viaProxy = !/^https?:\/\/(localhost|127\.|\[::1\])/.test(location.origin);
+  // Maßgeblich ist der Server, den dieses Studio gerade steuert (gespeichertes Profil), nicht die Seite, von der es geladen wurde
+  const serverOrigin = api.base || location.origin;
+  const viaProxy = !/^https?:\/\/(localhost|127\.|\[::1\])/.test(serverOrigin);
   // Über Proxy/Docker ist die Adresse im Browser maßgeblich (der Server kennt oft nur interne Container-Adressen); sonst die gemeldete LAN-Adresse
-  const addr = viaProxy ? location.origin : p.listening ? (p.addresses[0] ?? base) : null;
+  const addr = viaProxy ? serverOrigin : p.listening ? (p.addresses[0] ?? base) : null;
   const dlg = /** @type {HTMLDialogElement} */ ($('dialog'));
   const form = /** @type {HTMLFormElement} */ ($('dialog-form'));
   form.onsubmit = null;
@@ -2497,7 +2499,7 @@ async function pairViaQr() {
     { name: 'role', label: 'Rechte des Geräts', value: 'operator', options: [['operator', 'Sendeleitung (alles im Sendebetrieb)'], ['dj', 'Moderation (live gehen, Carts, Queue)'], ['editor', 'Redaktion'], ['viewer', 'Nur ansehen']] },
   ], 'QR-Code anzeigen');
   if (!v) return;
-  await showPairing(v.role, location.origin);
+  await showPairing(v.role, api.base || location.origin);
 }
 
 async function manageDevices() {
