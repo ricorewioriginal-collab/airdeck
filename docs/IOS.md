@@ -11,3 +11,15 @@ Grenzen (iOS-Vorgaben, nicht umgehbar):
 - **Mikrofon nur über HTTPS** – bei `http://` sperrt Safari den Zugriff. Lösung: Server hinter einem HTTPS-Proxy/Tunnel (z. B. Caddy, Cloudflare Tunnel).
 - **Kein Mikrofon im Hintergrund**: Beim Sperren des Bildschirms oder App-Wechsel stoppt iOS die Aufnahme. Für Live-Sendungen die App im Vordergrund lassen.
 - Kein nativer Audio-Engine-Zugriff wie in der Android-App; Decks laufen im Browser-Audio.
+
+## AnMaCha Cast Mobil (`/mobil.html`)
+
+Die Android-Betriebsarten als Web-App – auf dem iPhone `https://<server>/mobil.html` öffnen und zum Home-Bildschirm hinzufügen:
+
+| Tab | Funktionen |
+|---|---|
+| **Go Live** | Mikrofon als Live-Quelle (ON AIR), Push-to-Talk, Pegelanzeige, Bildschirm bleibt an; Läuft gerade/Weiter/Auffüllen; Musik vom Handy hochladen und in die Warteschlange; Warteschlange bearbeiten |
+| **Studio** | 4 Decks (Play/Pause/Stop), Mediathek-Suche → Deck oder Queue, Playlisten starten |
+| **Radioadmin** | laut.fm: Hörer jetzt, Titelsuche → Playlist, Playlisten; alles Weitere (Upload mit Optionen, Tags, Algorithmen, Sendeplan, Statistik) im vollständigen Studio |
+
+Wichtig: Anders als die Android-App sendet die Web-App **nicht direkt** an Icecast/laut.fm (Browser können keine Icecast-Verbindung aufbauen). Das Mikrofon geht an einen AnMaCha-Cast-Server (z. B. die Windows-App oder Docker), der dann weitersendet. Dieser Server muss per HTTPS erreichbar sein.

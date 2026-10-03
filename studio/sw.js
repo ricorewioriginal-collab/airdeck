@@ -1,7 +1,7 @@
 // AnMaCha Cast Studio – Service Worker: App-Shell offline verfügbar (Netz zuerst, Cache als Rückfall).
 // Die API (/api/…) wird nie zwischengespeichert.
-const CACHE = 'anmacha-shell-v1';
-const SHELL = ['./', 'index.html', 'styles.css', 'js/app.js', 'manifest.webmanifest', 'icons/icon-192.png'];
+const CACHE = 'anmacha-shell-v2';
+const SHELL = ['./', 'index.html', 'styles.css', 'js/app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'mobil.html', 'mobil.css', 'mobil.webmanifest', 'js/mobil.js'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

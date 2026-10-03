@@ -21,6 +21,7 @@ test('PWA: Service Worker wird als JavaScript ausgeliefert, nutzt keinen API-Cac
     assert.match(await r.text(), /startsWith\('\/api\/'\)/);
     const pwa = await fetch(`${base}/js/pwa.js`);
     assert.equal(pwa.status, 200);
+    for (const f of ['mobil.html', 'mobil.css', 'mobil.webmanifest', 'js/mobil.js']) assert.equal((await fetch(`${base}/${f}`)).status, 200, f);
   } finally {
     server.close();
   }
