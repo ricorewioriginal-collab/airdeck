@@ -1089,6 +1089,23 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
         return json(res, e.status === 413 ? 413 : 400, { error: 'invalid', message: e.status === 413 ? 'Zu groß' : 'Ungültige Anfrage' });
       }
     }
+    // Öffentliche Seiten (ohne Login): Senderseite, Sendeplan, Charts, Netzwerk
+    const pp = /^\/api\/v1\/public\/(?:(network)|stations\/([a-z0-9-]{1,40})\/(page|schedule|charts))$/.exec(path);
+    if (pp && req.method === 'GET') {
+      const pub = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache', 'Content-Type': 'application/json; charset=utf-8' };
+      try {
+        const host = String(req.headers.host ?? 'localhost');
+        const data = pp[1] ? await app.svc.status.publicNetwork(host)
+          : pp[3] === 'page' ? await app.svc.status.publicPage(pp[2]!, host)
+          : pp[3] === 'schedule' ? app.svc.status.publicSchedule(pp[2]!)
+          : app.svc.status.publicCharts(pp[2]!, url.searchParams.get('period') ?? '7d');
+        res.writeHead(200, pub);
+        return void res.end(JSON.stringify(data));
+      } catch (err) {
+        res.writeHead(err instanceof AppError ? err.status : 502, pub);
+        return void res.end(JSON.stringify({ error: 'public_failed', message: (err as Error).message }));
+      }
+    }
     // Öffentlicher Stream-Status (wie Icecast): /status.json, /status/<sender>.<fmt>, /status/lautfm/<name>.<fmt>
     const st = /^\/status(?:\.json|\/(lautfm\/)?([a-z0-9_-]{1,60})\.(json|xml|m3u|xspf))$/.exec(path);
     if (st && req.method === 'GET') {
@@ -1398,9 +1415,10 @@ function serveStatic(req: IncomingMessage, res: ServerResponse, root: string, pa
   if (!isInside(base, file)) return json(res, 403, { error: 'forbidden' });
   if (!existsSync(file) || !statSync(file).isFile()) return json(res, 404, { error: 'not_found' });
   // Öffentliche Seiten: Statusseite und Player-Widget dürfen fremde Streams abspielen, das Widget auch eingebettet werden
-  const publicPage = rel === 'status.html' || rel === 'widget.html' || rel === 'hoerer.html';
+  const PUBLIC_PAGES = ['status.html', 'widget.html', 'hoerer.html', 'sender.html', 'sendeplan.html', 'charts.html', 'netzwerk.html', 'public.css', 'js/public-pages.js'];
+  const publicPage = PUBLIC_PAGES.includes(rel);
   // Widget und Hörerseite dürfen auf der Senderseite eingebettet werden
-  const embeddable = rel === 'widget.html' || rel === 'hoerer.html';
+  const embeddable = rel === 'widget.html' || rel === 'hoerer.html' || rel === 'sendeplan.html' || rel === 'charts.html';
   if (embeddable) res.removeHeader('X-Frame-Options');
   res.setHeader(
     'Content-Security-Policy',

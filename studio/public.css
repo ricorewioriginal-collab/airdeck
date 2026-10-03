@@ -1,0 +1,59 @@
+/* Öffentliche Seiten (Senderseite, Sendeplan, Charts, Netzwerk) – ohne Login, einbettbar. Navy + Cyan wie das Control Center. */
+:root { --bg: #07101f; --panel: #0d1a30; --panel-2: #122238; --line: #1f2d4a; --text: #e6edf8; --muted: #8fa3c4; --accent: #38bdf8; --live: #22c55e; color-scheme: dark; }
+:root.light { --bg: #f4f7fb; --panel: #ffffff; --panel-2: #eef2f8; --line: #dbe3ef; --text: #101828; --muted: #5b6b86; color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 'Segoe UI', system-ui, Roboto, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 16px; }
+.hero { position: relative; overflow: hidden; border-radius: 18px; padding: 26px 24px; background: linear-gradient(135deg, rgba(56, 189, 248, .18), rgba(129, 140, 248, .12) 60%, transparent), var(--panel); border: 1px solid var(--line); display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; }
+.hero .logo { width: 84px; height: 84px; border-radius: 18px; background: var(--accent) center/cover no-repeat; display: grid; place-items: center; font-weight: 900; font-size: 26px; color: #041018; }
+.hero h1 { margin: 0; font-size: 28px; line-height: 1.15; }
+.hero .tag { color: var(--muted); margin-top: 4px; }
+.hero .genre { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; border-radius: 999px; padding: 4px 12px; border: 1px solid var(--line); color: var(--muted); background: rgba(255, 255, 255, .03); }
+.badge.on { color: var(--live); border-color: rgba(34, 197, 94, .4); background: rgba(34, 197, 94, .12); }
+.badge .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.badge.on .dot { box-shadow: 0 0 8px var(--live); }
+.live { margin-top: 14px; display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.live .cover { width: 64px; height: 64px; border-radius: 10px; background: var(--panel-2) center/cover no-repeat; display: grid; place-items: center; font-size: 24px; }
+.live .t { font-weight: 800; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live .a { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.play { width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--accent); color: #041018; font-size: 20px; font-weight: 900; cursor: pointer; }
+.play:disabled { opacity: .35; cursor: default; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.card h2 { font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
+.row:first-of-type { border-top: 0; }
+.row.now { color: var(--accent); font-weight: 700; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.chip { border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.chip.on { background: rgba(56, 189, 248, .14); border-color: var(--accent); color: var(--accent); }
+.rank { display: grid; grid-template-columns: 34px 48px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.rank:first-child { border-top: 0; }
+.rank b.n { font-size: 20px; color: var(--accent); text-align: center; }
+.rank .cv { width: 48px; height: 48px; border-radius: 8px; background: var(--panel-2) center/cover no-repeat; }
+.rank .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 8px; overflow-x: auto; margin-top: 14px; }
+.day { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; min-height: 120px; }
+.day.today { border-color: var(--accent); }
+.day h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.show { background: var(--panel-2); border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; font-size: 13px; }
+.show.now { outline: 1px solid var(--accent); }
+.show span { display: block; color: var(--muted); font-size: 11px; }
+.net { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 14px; }
+.st { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.st .head { display: flex; gap: 10px; align-items: center; }
+.st .logo { width: 44px; height: 44px; border-radius: 10px; background: var(--accent) center/cover no-repeat; display: grid; place-items: center; font-weight: 900; color: #041018; }
+.st .name { font-weight: 800; }
+.st .btns { display: flex; gap: 6px; margin-top: auto; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; text-decoration: none; }
+.btn.primary { background: var(--accent); color: #041018; border-color: var(--accent); font-weight: 700; }
+.search { width: 100%; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px 12px; font: inherit; margin-top: 14px; }
+.empty { color: var(--muted); padding: 14px; text-align: center; }
+.foot { text-align: center; color: var(--muted); font-size: 12px; padding: 22px; }
+.foot a { margin: 0 6px; }
+@media (max-width: 640px) { .hero { grid-template-columns: auto 1fr; } .hero .badge { grid-column: 1 / -1; justify-self: start; } .week { grid-template-columns: repeat(7, 150px); } }
