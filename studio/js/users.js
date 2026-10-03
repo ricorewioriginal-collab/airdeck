@@ -1,12 +1,65 @@
 // @ts-check
 // Benutzer & Rollen (nur Administratoren): Konten anlegen, Rollen und Sender zuordnen, sperren, Passwort zurücksetzen.
-import { clockTime, formDialog, h, run, status } from './ui.js';
+import { clockTime, download, formDialog, h, run, status } from './ui.js';
+
+/** Lesbare Namen der Log-Arten (kind) - alles andere erscheint roh. */
+const KINDS = /** @type {Record<string,string>} */ ({
+  playout: 'Playout', source: 'Quellen', mode: 'Modus', station: 'Sender', media: 'Medien', upload: 'Upload', item: 'Titel',
+  schedule: 'Zeitplan', stream_profile: 'Zusatz-Streams', bridge: 'Anbindung', lautfm: 'laut.fm', nextcloud: 'Nextcloud', musikhub: 'MusikHub',
+  collection: 'Sammlungen', network: 'Netzwerk', device: 'Geräte', user: 'Benutzer', setup: 'Einrichtung', system: 'System', ai: 'KI', podcast: 'Podcast',
+});
 
 /** @typedef {{ api: import('./api.js').Api, stations: () => any[], me: () => any }} Ctx */
 
 /** @param {HTMLElement} root @param {Ctx} ctx */
 export function mountUsers(root, ctx) {
   /** @type {any[]} */ let roles = [];
+  const logFilter = { kind: '', station: '', q: '' };
+  const logBody = h('tbody', {});
+  const logInfo = h('span', { class: 'muted small' }, '');
+  /** @type {any[]} */ let logRows = [];
+
+  /** Aktivitäts-Log (Audit) neu laden - Filter laufen serverseitig, damit auch ältere Einträge gefunden werden. */
+  async function loadLog() {
+    const p = new URLSearchParams({ limit: '300' });
+    if (logFilter.kind) p.set('kind', logFilter.kind);
+    if (logFilter.station) p.set('station', logFilter.station);
+    if (logFilter.q) p.set('q', logFilter.q);
+    logRows = /** @type {any[]} */ (await ctx.api.get(`/audit?${p}`));
+    const stationName = (/** @type {string} */ id) => ctx.stations().find((s) => s.id === id)?.name ?? id;
+    const details = (/** @type {any} */ e) => Object.entries(e).filter(([k]) => !['at', 'kind', 'event', 'stationId'].includes(k))
+      .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`).join(' · ').slice(0, 300);
+    logBody.replaceChildren(...(logRows.length ? logRows.map((e) => h('tr', {},
+      h('td', { class: 'num muted' }, `${new Date(e.at).toLocaleDateString('de-DE')} ${clockTime(Date.parse(e.at))}`),
+      h('td', {}, h('b', {}, KINDS[e.kind] ?? e.kind), h('div', { class: 'muted small' }, String(e.event ?? ''))),
+      h('td', {}, e.stationId ? stationName(e.stationId) : '–'),
+      h('td', { class: 'muted small', style: 'overflow-wrap:anywhere' }, details(e))))
+      : [h('tr', {}, h('td', { colspan: 4, class: 'muted' }, 'Keine Einträge für diesen Filter.'))]));
+    logInfo.textContent = `${logRows.length} Einträge${logRows.length >= 300 ? ' (die neuesten 300)' : ''}`;
+  }
+
+  function logCard() {
+    const kinds = Object.entries(KINDS).sort((a, b) => a[1].localeCompare(b[1], 'de'));
+    const sel = (/** @type {string} */ aria, /** @type {[string,string][]} */ opts, /** @type {string} */ val, /** @type {(v: string) => void} */ on) =>
+      h('select', { 'aria-label': aria, onchange: (/** @type {Event} */ e) => { on(/** @type {HTMLSelectElement} */ (e.target).value); run(loadLog); } }, ...opts.map(([v, l]) => h('option', { value: v, selected: v === val }, l)));
+    /** @type {ReturnType<typeof setTimeout>|undefined} */ let t;
+    return h('section', { class: 'panel' },
+      h('div', { class: 'panel-head' }, h('h2', {}, 'Aktivitäts-Log'),
+        h('div', { class: 'row' }, logInfo,
+          h('button', { class: 'btn small', title: 'Neu laden', onclick: () => run(loadLog) }, '↻'),
+          h('button', { class: 'btn small', title: 'Gefilterte Einträge als CSV', onclick: () => {
+            const esc = (/** @type {unknown} */ v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+            const csv = ['Zeit;Art;Ereignis;Sender;Details', ...logRows.map((e) => [e.at, e.kind, e.event, e.stationId ?? '', JSON.stringify(Object.fromEntries(Object.entries(e).filter(([k]) => !['at', 'kind', 'event', 'stationId'].includes(k))))].map(esc).join(';'))].join('\r\n');
+            download(new Blob(['\ufeff' + csv], { type: 'text/csv' }), `aktivitaets-log-${new Date().toISOString().slice(0, 10)}.csv`);
+          } }, '⬇ CSV'))),
+      h('p', { class: 'muted small', style: 'margin:0 0 8px' }, 'Wer hat wann was ausgelöst: Playout, Quellen, Zeitplan, Uploads, Benutzer, KI. Wird als audit.log im Datenordner fortgeschrieben.'),
+      h('div', { class: 'row', style: 'margin-bottom:8px;flex-wrap:wrap' },
+        sel('Art', [['', 'Alle Arten'], ...kinds], logFilter.kind, (v) => { logFilter.kind = v; }),
+        sel('Sender', [['', 'Alle Sender'], ...ctx.stations().map((s) => /** @type {[string,string]} */ ([s.id, s.name]))], logFilter.station, (v) => { logFilter.station = v; }),
+        h('input', { type: 'search', style: 'min-width:260px;flex:1', placeholder: 'Suchen (Ereignis, Datei, Benutzer …)', value: logFilter.q, oninput: (/** @type {Event} */ e) => { logFilter.q = /** @type {HTMLInputElement} */ (e.target).value.trim(); clearTimeout(t); t = setTimeout(() => run(loadLog), 300); } })),
+      h('div', { class: 'table-wrap' }, h('table', { class: 'list' },
+        h('thead', {}, h('tr', {}, h('th', {}, 'Zeit'), h('th', {}, 'Art'), h('th', {}, 'Sender'), h('th', {}, 'Details'))), logBody)));
+  }
 
   async function show() {
     const d = await ctx.api.get('/users');
@@ -31,7 +84,9 @@ export function mountUsers(root, ctx) {
             h('td', {}, u.stationIds.map(stationName).join(', ')),
             h('td', { class: 'num muted' }, u.lastLoginAt ? `${new Date(u.lastLoginAt).toLocaleDateString('de-DE')} ${clockTime(Date.parse(u.lastLoginAt))}` : '–'),
             h('td', { class: 'act' }, h('button', { class: 'btn small', onclick: () => edit(u) }, 'Bearbeiten')))))))),
+      logCard(),
     );
+    run(loadLog);
   }
 
   /** @param {any} u */

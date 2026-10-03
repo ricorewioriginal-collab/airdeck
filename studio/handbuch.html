@@ -363,8 +363,21 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px
   <ol><li>laut.fm verbinden.</li><li>Ausgang → Typ „laut.fm“.</li><li>Automation läuft als Grundlage.</li><li>Zur Sendung MIC LIVE oder BUTT auf die Live-Quelle.</li><li>Nach der Sendung übernimmt die Automation.</li></ol>
   <h3>3 · Moderierter Sender ohne Moderator</h3>
   <ol><li>KI-Anbieter anlegen.</li><li>Director: Moderation alle 3 Titel, Persona, Wetter-Quelle.</li><li>Optional Nachrichten zur vollen Stunde aus einem RSS-Feed.</li><li>Freigabe anfangs einschalten, später aus.</li></ol>
-  <h3>4 · Replays</h3>
-  <ol><li>Aufnahmeplan für die Sendung anlegen.</li><li>Mitschnitt herunterladen und wieder in die Bibliothek hochladen (Ordner „Replays“).</li><li>Per Programmplan wiederholen.</li></ol>
+  <h3>4 · Replays &amp; Podcast</h3>
+  <ol><li>Recorder → Aufnahmeplan für die Sendung anlegen (z. B. Morgenshow Mo–Fr 06:00–09:00).</li><li>Podcast → „Auto-Veröffentlichung“ einschalten: jeder fertige Mitschnitt wird nach Vorlage zur Episode, wahlweise sofort im Feed.</li><li>Zum Wiederholen den Mitschnitt in die Bibliothek übernehmen (Ordner „Replays“) und per Sendeplan einplanen.</li></ol>
+  <h3>5 · Stundenuhr – jede Stunde gleich strukturiert</h3>
+  <table><tr><th>Minute</th><th>Element</th><th>Einstellung (Programm planen → Ereignisse)</th></tr>
+    <tr><td>:00</td><td>Nachrichten + Wetter</td><td>Art „Nachrichten“ (laut.fm) oder „KI-Nachrichten“ – nach dem laufenden Titel</td></tr>
+    <tr><td>:15</td><td>Zufälliger Jingle</td><td>Art „Kategorie“ → Jingle, über der Musik (FX)</td></tr>
+    <tr><td>:30</td><td>Station-ID</td><td>Art „Titel“ → feste Datei, nach dem laufenden Titel</td></tr>
+    <tr><td>:45</td><td>Werbung / Sponsor</td><td>Art „Ordner“ → „Werbung“ oder Einschub „nach 4 Songs“ in der Sendeuhr</td></tr></table>
+  <div class="tip">Der Preflight unter „Ereignisse“ zeigt vorab, ob jede Minute eine spielbare Datei hat – leere Ordner und fehlende Dateien stehen dort als Warnung.</div>
+  <h3>6 · Jingle-Paket mit anderen Sendern teilen</h3>
+  <ol><li>Ordner „Jingles“ in der Bibliothek pflegen (Kategorie Jingle, Track-Check grün).</li><li>MusikHub → Sammlung anlegen, Ordner hinzufügen, Sichtbarkeit „Netzwerk“.</li><li>Die anderen Sender holen die Sammlung unter MusikHub → „Übernehmen“; Dubletten werden erkannt.</li></ol>
+  <h3>7 · Werbespot mit Musikbett bauen</h3>
+  <ol><li>Sprecher-Text aufnehmen oder unter KI → Werkstatt als Ansage erzeugen lassen.</li><li>KI → Werkstatt → „Spot-Mix“: Stimme + Bett wählen, Nachlauf einstellen – das Bett wird unter der Stimme automatisch abgesenkt.</li><li>Ergebnis landet als Titel in der Kategorie „Werbung“; per Ereignis :45 oder als Einschub einplanen.</li></ol>
+  <h3>8 · Senderseite auf die eigene Webseite</h3>
+  <ol><li>Sendereinstellungen → „Öffentliche Statusseite &amp; Player-Widget“ einschalten.</li><li>Verbreitung → Widget-Konfigurator: Layout (Player, Senderseite, Charts, Sendeplan), Theme und Akzent wählen.</li><li>„Code kopieren“ und den iframe in die Webseite einfügen – kein Login, Daten kommen live vom Server.</li></ol>
 </section>
 
 <section id="tasten">

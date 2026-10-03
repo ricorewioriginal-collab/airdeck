@@ -2257,3 +2257,14 @@ dialog h3 { font-size:17px; color:#f2fbff; }
 .list .act .act-item.danger { color: #f87171; }
 .act-ico { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, .06); font-size: 12px; font-weight: 800; flex: none; }
 .act-sep { height: 1px; background: var(--line); margin: 4px 2px; }
+
+/* Handbuch: Werkzeugleiste (Suche, Drucken, Rezepte) + Druckansicht */
+#view-handbuch .hb-tools { display:flex; gap:8px; align-items:center; margin-bottom:10px; max-width:1200px; margin-inline:auto; }
+#view-handbuch .hb-tools .hb-search { flex:1; margin:0; }
+@media print {
+  #view-handbuch .hb-tools, #view-handbuch nav.toc { display:none !important; }
+  #view-handbuch .hb-wrap { display:block; }
+  #view-handbuch main section { page-break-before:always; break-before:page; }
+  #view-handbuch main section:first-of-type { page-break-before:auto; break-before:auto; }
+  #view-handbuch, #view-handbuch main, #view-handbuch main * { background:#fff !important; color:#000 !important; }
+}
