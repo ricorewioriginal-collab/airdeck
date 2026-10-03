@@ -12,6 +12,7 @@ import { DeviceService } from './devices.ts';
 import { LautfmService } from './lautfm.ts';
 import { LifehacksService } from './lifehacks.ts';
 import { ListenerService } from './listeners.ts';
+import { CommunityService } from './community.ts';
 import { MediaService } from './media.ts';
 import { MotionMixService } from './motionmix.ts';
 import { MusicHubService } from './musikhub.ts';
@@ -54,6 +55,7 @@ export function createServices(app: AnMaChaCastApp) {
     setup: new SetupService(app),
     showprep: new ShowPrepService(app),
     listeners: new ListenerService(app),
+    community: new CommunityService(app),
     backup: new BackupService(app),
     remoteLink: new RemoteLinkService(app),
   };

@@ -117,7 +117,7 @@ export class Api {
     const types = [
       'sources.changed', 'queue.changed', 'now_playing.changed', 'deck.state_changed', 'library.changed',
       'cardwall.changed', 'cardwall.triggered', 'stream.state_changed', 'station.changed', 'site.changed', 'automation.state_changed',
-      'playout.state', 'playout.level', 'playout.log', 'planning.changed', 'playlists.changed', 'recorder.changed', 'podcast.changed', 'schedule.fired',
+      'playout.state', 'playout.level', 'playout.log', 'planning.changed', 'playlists.changed', 'recorder.changed', 'podcast.changed', 'community.changed', 'schedule.fired',
       'automation.command', 'metadata.sent', 'ai.decision', 'ai.pending', 'source.takeover_completed', 'source.takeover_rejected', 'source.off_air', 'source.fallback_completed', 'source.source_failed',
     ];
     for (const t of types) es.addEventListener(t, (e) => onEvent(t, JSON.parse(/** @type {MessageEvent} */ (e).data)));
