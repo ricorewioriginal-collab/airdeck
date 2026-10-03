@@ -13,21 +13,32 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Das Windows-Programm (`apps/windows/`, Projekt `AnMaChaCast.csproj`, AssemblyName `AnMaChaCast`) ist **kein Browser-in-der-Box** mehr für die
-Kernbedienung: Das Hauptfenster (`MainWindow`) ist natives WPF – echte Windows-Bedienelemente (Buttons,
-Slider, ToggleButtons, ComboBox), kein HTML/WebView. Es deckt die primäre Sendebedienung ab:
+Das Windows-Programm (`apps/windows/`, Projekt `AnMaChaCast.csproj`, AssemblyName `AnMaChaCast`) ist **kein Browser-in-der-Box**: Das Hauptfenster
+(`MainWindow`) ist natives WPF mit Navigation links und echten Windows-Bedienelementen. Es verbindet sich mit der **eingebauten Engine dieses PCs**
+oder mit **entfernten AnMaCha-Cast-Servern** (Kopplungscode oder Anmeldung, Zugangsdaten per Windows-DPAPI geschützt) und spricht dieselbe
+REST-/SSE-Schnittstelle wie Studio und Android-App (`docs/API.md`).
 
-| Bereich | Umsetzung |
+| Seite | Umfang (nativ) |
 |---|---|
-| Senderwahl, On-Air-Anzeige, 24/7↔Manuell, Mikrofon, Sendung start/stop, Uhr | nativ (WPF) |
-| Decks A–D (Play/Pause/Stopp, ±10 s, Fortschritt, Restzeit, lokale Monitor-Lautstärke) | nativ (WPF) |
-| Cardwall (Kacheln auslösen) | nativ (WPF) |
-| Mediathek, Playlists, Sendeplan, Einstellungen, KI-Werkzeuge, Hörer-Statistik, … | **noch WebView2** – eigener Knopf „Weitere Funktionen im Browser öffnen“ öffnet das bestehende Web-Studio in einem eingebetteten WebView2-Fenster (`BrowserForm`); kein Ersatz für die primäre Oberfläche, sondern bewusst getrennter Rest-Zugang für Ansichten, die noch nicht nativ nachgebaut sind |
+| **Studio** | Senderwahl, On-Air, 24/7↔Manuell, Mikrofon, Sendung start/stop; Decks A–D (Play/Pause/Stopp/Auswerfen, ±10 s, Tempo, Titel laden); Cardwall (auslösen, belegen, leeren); Warteschlange (einreihen, verschieben, mischen, auffüllen, leeren) |
+| **Mediathek** | Suchen/Filtern, Hochladen (mehrere Dateien), Bearbeiten, Löschen, Vorhören, in Warteschlange oder auf ein Deck |
+| **Playlists** | Anlegen, Umbenennen, Löschen, Titel hinzufügen/entfernen/verschieben, sofort spielen, mischen |
+| **Planung & Aufnahme** | Aufnahme starten/stoppen, Mitschnitte (speichern, Podcast-Episode, Nextcloud), automatische Aufnahmen, Sendeplan, Uhr-Ereignisse (an/aus, auslösen), Aufgaben |
+| **Podcast** | Feed-Adresse, Einstellungen/Auto-Veröffentlichung, Cover, Episoden, öffentliche Adresse prüfen, Upload zu Buzzsprout/Podbean |
+| **Statistik** | Zeiträume, Kennzahlen, Gespielt, Top-Listen, Hörer-Verlauf, CSV |
+| **Hörer** | Posteingang (einreihen/erledigen/löschen), Umfragen, Einstellungen des Hörerbereichs |
+| **KI** | Assistent mit Verlauf |
+| **laut.fm** | Token verbinden, Prüfung, Playlists/Hörer/Station aus dem Radioadmin |
+| **Server & Geräte** | Server wechseln/hinzufügen/suchen, Geräte koppeln und entfernen, Netzwerkzugriff erlauben |
+| **System** | Zustand, Updates, Sicherungen, Benutzer, eigene API-Schlüssel, Protokoll, Neustart |
+| Seltene Einstellungen (MusicHub, Motion Mix, Detail-Einstellungen …) | **WebView2** – „Weitere Funktionen im Studio …“ öffnet das Web-Studio des aktiven Servers in einem eingebetteten Fenster (`BrowserForm`) |
 
-Das native Fenster spricht dieselbe REST-/SSE-Schnittstelle wie das Web-Studio (`/api/v1/...`,
-`/api/v1/events`) – die Engine bleibt maßgeblich, das Fenster ist Fernbedienung, genau wie bisher.
-Tray-Symbol, Prozessüberwachung der Engine und Einzel-Instanz-Logik (`Program.cs`, `Engine.cs`) sind
-unverändert geblieben.
+Tray-Symbol, Prozessüberwachung der Engine und Einzel-Instanz-Logik (`Program.cs`, `Engine.cs`) sind unverändert. Live-Senden vom Mikrofon eines
+*entfernten* Servers übernimmt die Android-App („Go Live“); am PC läuft das Mikrofon über die Engine (Schalter „Mikrofon“).
+
+**Qualitätssicherung ohne Windows-Rechner:** Die Oberfläche wird im Code gebaut (kein XAML). `apps/windows/check` übersetzt denselben Quellcode unter Linux
+gegen die .NET-Framework-4.8-Referenzen, `apps/windows/tests` prüft die oberflächenfreie Logik (`Logic/`: JSON-Lesen, Formate, Server-Profile).
+Beides läuft im Job „test“; der Job „windows“ baut danach das echte Programm.
 
 **Wichtig, Session-0-Isolation:** Ein Windows-Dienst hat keinen verlässlichen Zugriff auf die Soundkarte und das Mikrofon des angemeldeten Benutzers. Daraus folgt:
 - **Senden** (Dekodieren, Mischen, Kodieren, Streamen) braucht keine Soundkarte und läuft im Dienst.

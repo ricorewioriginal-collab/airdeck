@@ -76,6 +76,11 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
       - run: npm ci
       - run: npm run check
+      # Windows-Programm schon hier prüfen (schnell, ohne Windows-Rechner): Logik-Tests und Übersetzung gegen .NET Framework 4.8
+      - name: Windows-Programm - Logik-Tests und Übersetzungsprüfung
+        run: |
+          dotnet test apps/windows/tests/WindowsLogic.Tests.csproj -v q
+          dotnet build apps/windows/check/Check.csproj -c Release -v q
 
   windows:
     needs: [test, android]

@@ -29,10 +29,9 @@ namespace AnMaChaCast.ViewModels
         long? durationMs;
         public long? DurationMs { get => durationMs; set { if (Set(ref durationMs, value)) { OnPropertyChanged(nameof(ProgressFraction)); OnPropertyChanged(nameof(RemainingLabel)); } } }
 
-        /// <summary>Nur lokale Monitor-/Vorhör-Lautstärke dieses Rechners – die Engine kennt keine Pro-Deck-Lautstärke
-        /// (siehe docs/FEATURE_PARITY.md / PR-Beschreibung), wird also nicht an den Server gesendet.</summary>
-        double localVolume = 100;
-        public double LocalVolume { get => localVolume; set => Set(ref localVolume, value); }
+        double tempo = 1;
+        /// <summary>Abspielgeschwindigkeit (1 = normal, 0,8–1,25), Tonhöhe bleibt.</summary>
+        public double Tempo { get => tempo; set => Set(ref tempo, value); }
 
         public bool IsPlaying => Status == "playing";
         public bool HasMedia => !string.IsNullOrEmpty(title) && title != "– leer –";

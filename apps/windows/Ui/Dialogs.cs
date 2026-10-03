@@ -1,0 +1,152 @@
+// Einfache Eingabe- und Auswahlfenster (im Code gebaut, helles Standard-Aussehen).
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+
+namespace AnMaChaCast.Ui
+{
+    enum Kind { Text, Password, Multiline, Check, Choice, Info }
+
+    sealed class Field
+    {
+        public string Name;
+        public string Label;
+        public string Value = "";
+        public Kind Kind = Kind.Text;
+        /// <summary>Für Choice: Paare (Wert, Anzeige).</summary>
+        public (string Id, string Label)[] Choices = new (string, string)[0];
+        public string Hint;
+
+        public static Field Text(string name, string label, string value = "", string hint = null) => new Field { Name = name, Label = label, Value = value, Hint = hint };
+        public static Field Password(string name, string label, string hint = null) => new Field { Name = name, Label = label, Kind = Kind.Password, Hint = hint };
+        public static Field Multi(string name, string label, string value = "") => new Field { Name = name, Label = label, Value = value, Kind = Kind.Multiline };
+        public static Field Check(string name, string label, bool value) => new Field { Name = name, Label = label, Value = value ? "true" : "false", Kind = Kind.Check };
+        public static Field Choice(string name, string label, string value, params (string, string)[] choices) => new Field { Name = name, Label = label, Value = value, Kind = Kind.Choice, Choices = choices };
+        public static Field Info(string label, string text) => new Field { Label = label, Value = text, Kind = Kind.Info };
+    }
+
+    static class Dlg
+    {
+        static Window Make(Window owner, string title, double width)
+        {
+            return new Window
+            {
+                Title = title, Width = width, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false,
+                Owner = owner != null && owner.IsVisible ? owner : null,
+                WindowStartupLocation = owner != null && owner.IsVisible ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
+            };
+        }
+
+        /// <summary>Formular anzeigen; null bei Abbruch, sonst Name → Wert (Häkchen als "true"/"false").</summary>
+        public static Dictionary<string, string> Form(Window owner, string title, string ok, params Field[] fields)
+        {
+            var w = Make(owner, title, 480);
+            var stack = new StackPanel { Margin = new Thickness(16) };
+            var getters = new Dictionary<string, Func<string>>();
+            foreach (var f in fields)
+            {
+                if (f.Kind != Kind.Check)
+                    stack.Children.Add(new TextBlock { Text = f.Label, Margin = new Thickness(0, 8, 0, 3), FontWeight = f.Kind == Kind.Info ? FontWeights.Bold : FontWeights.Normal });
+                switch (f.Kind)
+                {
+                    case Kind.Info:
+                        stack.Children.Add(new TextBlock { Text = f.Value, TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.DimGray });
+                        break;
+                    case Kind.Password:
+                        {
+                            var p = new PasswordBox { Padding = new Thickness(4) };
+                            stack.Children.Add(p);
+                            if (f.Name != null) getters[f.Name] = () => p.Password;
+                            break;
+                        }
+                    case Kind.Multiline:
+                        {
+                            var t = new TextBox { Text = f.Value, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(4) };
+                            stack.Children.Add(t);
+                            getters[f.Name] = () => t.Text;
+                            break;
+                        }
+                    case Kind.Check:
+                        {
+                            var c = new CheckBox { Content = f.Label, IsChecked = f.Value == "true", Margin = new Thickness(0, 8, 0, 0) };
+                            stack.Children.Add(c);
+                            getters[f.Name] = () => c.IsChecked == true ? "true" : "false";
+                            break;
+                        }
+                    case Kind.Choice:
+                        {
+                            var cb = new ComboBox { Padding = new Thickness(4) };
+                            foreach (var ch in f.Choices) cb.Items.Add(ch.Label);
+                            var idx = Array.FindIndex(f.Choices, ch => ch.Id == f.Value);
+                            cb.SelectedIndex = idx >= 0 ? idx : (f.Choices.Length > 0 ? 0 : -1);
+                            stack.Children.Add(cb);
+                            getters[f.Name] = () => cb.SelectedIndex >= 0 ? f.Choices[cb.SelectedIndex].Id : "";
+                            break;
+                        }
+                    default:
+                        {
+                            var t = new TextBox { Text = f.Value, Padding = new Thickness(4) };
+                            stack.Children.Add(t);
+                            getters[f.Name] = () => t.Text;
+                            break;
+                        }
+                }
+                if (!string.IsNullOrEmpty(f.Hint) && f.Kind != Kind.Info)
+                    stack.Children.Add(new TextBlock { Text = f.Hint, TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) });
+            }
+            var okBtn = new Button { Content = ok, IsDefault = true, MinWidth = 90, Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 0, 8, 0) };
+            var cancel = new Button { Content = "Abbrechen", IsCancel = true, MinWidth = 90, Padding = new Thickness(10, 5, 10, 5) };
+            okBtn.Click += (s, e) => w.DialogResult = true;
+            stack.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0), Children = { okBtn, cancel } });
+            w.Content = stack;
+            return w.ShowDialog() == true ? getters.ToDictionary(kv => kv.Key, kv => kv.Value()) : null;
+        }
+
+        public static bool Confirm(Window owner, string text, string title = "AnMaCha Cast") =>
+            MessageBox.Show(owner != null && owner.IsVisible ? owner : null, text, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+
+        public static void Info(Window owner, string text, string title = "AnMaCha Cast") =>
+            MessageBox.Show(owner != null && owner.IsVisible ? owner : null, text, title, MessageBoxButton.OK, MessageBoxImage.Information);
+
+        /// <summary>Auswahl aus einer Liste mit Suchfeld; liefert die Id oder null.</summary>
+        public static string Pick(Window owner, string title, IList<(string Id, string Label)> items, string searchHint = "Suchen …")
+        {
+            var w = Make(owner, title, 520);
+            w.SizeToContent = SizeToContent.Manual;
+            w.Height = 480;
+            w.ResizeMode = ResizeMode.CanResize;
+            var search = new TextBox { Padding = new Thickness(5), Margin = new Thickness(0, 0, 0, 8), ToolTip = searchHint };
+            var list = new ListBox { };
+            Action fill = () =>
+            {
+                var q = search.Text.Trim().ToLowerInvariant();
+                list.Items.Clear();
+                foreach (var i in items.Where(x => q.Length == 0 || x.Label.ToLowerInvariant().Contains(q)).Take(500)) list.Items.Add(new ListBoxItem { Content = i.Label, Tag = i.Id });
+                if (list.Items.Count > 0) list.SelectedIndex = 0;
+            };
+            search.TextChanged += (s, e) => fill();
+            fill();
+            string result = null;
+            Action accept = () => { if (list.SelectedItem is ListBoxItem it) { result = (string)it.Tag; w.DialogResult = true; } };
+            list.MouseDoubleClick += (s, e) => accept();
+            var ok = new Button { Content = "Wählen", IsDefault = true, MinWidth = 90, Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 0, 8, 0) };
+            ok.Click += (s, e) => accept();
+            var cancel = new Button { Content = "Abbrechen", IsCancel = true, MinWidth = 90, Padding = new Thickness(10, 5, 10, 5) };
+            var grid = new Grid { Margin = new Thickness(14) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.Children.Add(search);
+            Grid.SetRow(list, 1);
+            grid.Children.Add(list);
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0), Children = { ok, cancel } };
+            Grid.SetRow(buttons, 2);
+            grid.Children.Add(buttons);
+            w.Content = grid;
+            w.Loaded += (s, e) => search.Focus();
+            return w.ShowDialog() == true ? result : null;
+        }
+    }
+}
