@@ -38,7 +38,11 @@ export function mountHandbuch(root) {
       if (!href.startsWith('#')) { a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); }
     }
     const search = h('input', { class: 'hb-search', type: 'search', placeholder: 'Im Handbuch suchen …', oninput: (/** @type {Event} */ e) => filter(/** @type {HTMLInputElement} */ (e.target).value) });
-    root.replaceChildren(search, wrap);
+    // Drucken / PDF: Seitenleiste und Suche werden per @media print ausgeblendet, jeder Abschnitt beginnt auf einer neuen Seite
+    const tools = h('div', { class: 'hb-tools' }, search,
+      h('button', { class: 'btn small', title: 'Handbuch drucken oder als PDF speichern (Druckdialog)', onclick: () => window.print() }, '🖨 Drucken / PDF'),
+      h('a', { class: 'btn small', href: '#rezepte' }, 'Rezepte'));
+    root.replaceChildren(tools, wrap);
     root.addEventListener('click', (e) => {
       const a = /** @type {HTMLElement} */ (e.target).closest?.('a[href^="#"]');
       if (!a) return;

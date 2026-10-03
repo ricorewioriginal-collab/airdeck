@@ -163,7 +163,17 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     });
   });
   add('GET', '/api/v1/capabilities', null, () => ({ outputs: OUTPUT_CAPABILITIES, mediaTypes: Object.keys(AUDIO_EXT), categories: MEDIA_CATEGORIES }));
-  add('GET', '/api/v1/audit', 'audit:read', (c) => app.audit.tail(Math.min(Number(c.url.searchParams.get('limit') ?? 100), 500)));
+  // Aktivitäts-Log: neueste zuerst, filterbar nach Art (kind), Sender und Freitext (sucht in allen Feldern)
+  add('GET', '/api/v1/audit', 'audit:read', (c) => {
+    const q = c.url.searchParams;
+    const kind = q.get('kind') ?? '';
+    const station = q.get('station') ?? '';
+    const text = (q.get('q') ?? '').trim().toLowerCase();
+    const limit = Math.max(1, Math.min(Number(q.get('limit') ?? 100) || 100, 500));
+    const rows = (app.audit.tail(500) as Record<string, unknown>[])
+      .filter((e) => (!kind || e.kind === kind) && (!station || e.stationId === station) && (!text || JSON.stringify(e).toLowerCase().includes(text)));
+    return rows.slice(-limit).reverse();
+  });
   // Mein Profil (nur mit Benutzersitzung): Name, Social Links, eigene API-Schlüssel
   const sessionUser = (c: Ctx) => {
     if (!c.p.user) throw new AppError(404, 'no_session', 'Nur mit Benutzeranmeldung (nicht per API-Token)');

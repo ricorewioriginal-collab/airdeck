@@ -62,6 +62,15 @@ export class AuditLog {
     this.file = file;
     this.maxBytes = maxBytes;
     mkdirSync(dirname(file), { recursive: true });
+    // Die letzten Einträge der Datei vorladen, damit das Aktivitäts-Log nach einem Neustart nicht leer ist
+    try {
+      if (existsSync(file)) {
+        const size = statSync(file).size;
+        const text = readFileSync(file, 'utf8');
+        const lines = (size > 256 * 1024 ? text.slice(-256 * 1024).split('\n').slice(1) : text.split('\n')).filter(Boolean).slice(-500);
+        for (const l of lines) { try { this.recent.push(JSON.parse(l)); } catch { /* halbe Zeile nach Absturz */ } }
+      }
+    } catch { /* unlesbar - leer starten */ }
   }
 
   write(entry: Record<string, unknown>): void {
