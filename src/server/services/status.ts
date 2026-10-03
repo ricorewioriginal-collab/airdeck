@@ -37,6 +37,75 @@ export class StatusService {
     return [...this.app.stations.values()].filter((r) => r.station.publicStatus !== false).map((r) => ({ id: r.station.id, name: r.station.name, ...(r.data.lautfm?.stationName ? { lautfm: r.data.lautfm.stationName } : {}) }));
   }
 
+  // ---------- Öffentliche Seiten (Senderseite, Sendeplan, Charts, Netzwerk) ----------
+
+  private publicRt(stationId: string) {
+    const rt = this.app.stations.get(stationId);
+    if (!rt || rt.station.publicStatus === false) throw new AppError(404, 'not_found', 'Sender nicht gefunden oder nicht öffentlich');
+    return rt;
+  }
+
+  private brand(stationId: string) {
+    const s = this.publicRt(stationId).station;
+    return { id: s.id, name: s.name, slogan: s.slogan, genre: s.genre ?? '', color: s.primaryColor, accent: s.accentColor, logo: s.logo ? `/api/v1/stations/${s.id}/logo?v=${encodeURIComponent(s.logo)}` : null };
+  }
+
+  /** Wochen-Sendeplan (Sendungen aus dem Sendeplan) + aktuelle Sendung. */
+  publicSchedule(stationId: string, now = new Date()): { station: ReturnType<StatusService['brand']>; days: { day: number; label: string; shows: { label: string; from: string; to: string; now: boolean }[] }[]; current: { label: string; from: string; to: string } | null } {
+    const rt = this.publicRt(stationId);
+    const plans = rt.data.plans ?? [];
+    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const today = (now.getDay() + 6) % 7;
+    const inWindow = (p: { from: string; to: string }, t: string) => (p.from === p.to ? true : p.from < p.to ? t >= p.from && t < p.to : t >= p.from || t < p.to);
+    const labels = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+    const days = labels.map((label, day) => ({
+      day, label,
+      shows: plans.filter((p) => !p.days.length || p.days.includes(day)).sort((a, b) => a.from.localeCompare(b.from))
+        .map((p) => ({ label: p.label, from: p.from, to: p.to, now: day === today && inWindow(p, hhmm) })),
+    }));
+    const cur = days[today]!.shows.find((x) => x.now);
+    return { station: this.brand(stationId), days, current: cur ? { label: cur.label, from: cur.from, to: cur.to } : null };
+  }
+
+  /** Charts: meistgespielte Musiktitel (7 oder 30 Tage), kein Login. */
+  publicCharts(stationId: string, period: string): { station: ReturnType<StatusService['brand']>; period: string; items: { rank: number; title: string; artist: string; plays: number; cover: string | null }[] } {
+    const rt = this.publicRt(stationId);
+    const p = period === '30d' ? '30d' : period === 'today' ? 'today' : '7d';
+    const st = this.app.svc.stats.stats(stationId, p);
+    const covers = new Set((rt.data.library ?? []).map((m) => m.id));
+    return { station: this.brand(stationId), period: p, items: st.topSongs.slice(0, 20).map((t, i) => ({ rank: i + 1, title: t.title, artist: t.artist, plays: t.plays, cover: covers.has(t.mediaId) ? `/api/v1/stations/${stationId}/media/${t.mediaId}/cover` : null })) };
+  }
+
+  /** Senderseite: Marke, Stream-Status (Jetzt läuft, Hörer, Stream-Adresse), aktuelle Sendung, Top 5, Podcast-Feed. */
+  async publicPage(stationId: string, host: string): Promise<unknown> {
+    const rt = this.publicRt(stationId);
+    const status = await this.streamStatus(stationId, host);
+    const schedule = this.publicSchedule(stationId);
+    const charts = this.publicCharts(stationId, '7d');
+    const episodes = (rt.data.episodes ?? []).filter((e) => e.publishedAt).length;
+    return {
+      station: this.brand(stationId), status, current: schedule.current,
+      today: schedule.days[(new Date().getDay() + 6) % 7]!.shows, charts: charts.items.slice(0, 5),
+      podcast: episodes ? { episodes, feed: `/api/v1/public/stations/${stationId}/podcast.xml` } : null,
+    };
+  }
+
+  /** Netzwerk: alle öffentlichen Sender mit Jetzt läuft, Hörern und Sendestatus. */
+  async publicNetwork(host: string): Promise<{ stations: unknown[] }> {
+    const list = this.publicStations();
+    const stations = await Promise.all(list.map(async (s) => {
+      const brand = this.brand(s.id);
+      try {
+        const st = await this.streamStatus(s.id, host);
+        const src = st.icestats.source[0];
+        return { ...brand, onAir: !!src, listeners: st.icestats.source.reduce((a, x) => a + (x.listeners ?? 0), 0), now: st.now ? { title: st.now.title, artist: st.now.artist } : null, listenUrl: src?.listenurl ?? null, lautfm: s.lautfm ?? null };
+      } catch {
+        return { ...brand, onAir: false, listeners: 0, now: null, listenUrl: null, lautfm: s.lautfm ?? null };
+      }
+    }));
+    return { stations: stations.sort((a, b) => Number(b.onAir) - Number(a.onAir) || b.listeners - a.listeners || a.name.localeCompare(b.name, 'de')) };
+  }
+
   /** Status eines AnMaCha-Cast-Senders: aktive Quelle, verbundene Ausgänge, laut.fm (falls verbunden), Now Playing, Verlauf. */
   streamStatus(stationId: string, host: string): Promise<StreamStatus> {
     const rt = this.app.stations.get(stationId);
