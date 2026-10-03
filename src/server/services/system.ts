@@ -10,6 +10,11 @@ import { readJson, writeFileAtomic } from '../store.ts';
 import { DEFAULT_SOURCE, type UpdateSource } from '../update.ts';
 import { liquidsoapScript } from '../liquidsoap.ts';
 
+
+export interface SiteSettings {
+  banner: { enabled: boolean; text: string; kind: 'info' | 'success' | 'warning' | 'danger'; dismissible: boolean; until?: string };
+  maintenance: { enabled: boolean; text: string };
+}
 export class SystemService {
   private readonly app: AnMaChaCastApp;
 
@@ -51,6 +56,51 @@ export class SystemService {
   updateConfig(): UpdateSource & { autoCheck: boolean } {
     const s = this.app.docs.get<Partial<UpdateSource> & { autoCheck?: boolean }>('update', {});
     return { ...DEFAULT_SOURCE, ...s, tokenRef: 'update:token', autoCheck: s.autoCheck ?? true };
+  }
+
+  /** Ankündigungs-Banner und Wartungsmeldung (global, für Studio und öffentliche Seiten). */
+  siteSettings(): SiteSettings {
+    const s = this.app.docs.get<Partial<SiteSettings>>('site', {});
+    return {
+      banner: { enabled: false, text: '', kind: 'info', dismissible: true, ...s.banner },
+      maintenance: { enabled: false, text: '', ...s.maintenance },
+    };
+  }
+
+  /** Nur was gerade gilt: abgelaufener Banner fällt weg, Texte sind gekürzt - für /site und /public/site. */
+  siteView(): { banner: SiteSettings['banner'] | null; maintenance: SiteSettings['maintenance'] | null } {
+    const s = this.siteSettings();
+    const live = s.banner.enabled && s.banner.text && (!s.banner.until || Date.parse(s.banner.until) > Date.now());
+    return { banner: live ? s.banner : null, maintenance: s.maintenance.enabled && s.maintenance.text ? s.maintenance : null };
+  }
+
+  setSiteSettings(input: Record<string, unknown>): SiteSettings {
+    const cur = this.siteSettings();
+    const b = (input.banner ?? {}) as Partial<SiteSettings['banner']>;
+    const m = (input.maintenance ?? {}) as Partial<SiteSettings['maintenance']>;
+    const kinds = ['info', 'success', 'warning', 'danger'] as const;
+    let until: string | undefined = cur.banner.until;
+    if (b.until !== undefined) {
+      if (!b.until) until = undefined;
+      else if (Number.isNaN(Date.parse(String(b.until)))) throw new AppError(400, 'invalid_until', 'Ablaufdatum unlesbar');
+      else until = new Date(String(b.until)).toISOString();
+    }
+    const next: SiteSettings = {
+      banner: {
+        enabled: typeof b.enabled === 'boolean' ? b.enabled : cur.banner.enabled,
+        text: typeof b.text === 'string' ? b.text.trim().slice(0, 300) : cur.banner.text,
+        kind: kinds.includes(b.kind as typeof kinds[number]) ? (b.kind as typeof kinds[number]) : cur.banner.kind,
+        dismissible: typeof b.dismissible === 'boolean' ? b.dismissible : cur.banner.dismissible,
+        ...(until ? { until } : {}),
+      },
+      maintenance: {
+        enabled: typeof m.enabled === 'boolean' ? m.enabled : cur.maintenance.enabled,
+        text: typeof m.text === 'string' ? m.text.trim().slice(0, 300) : cur.maintenance.text,
+      },
+    };
+    this.app.docs.set('site', next);
+    this.app.publish('site.changed', undefined, this.siteView());
+    return next;
   }
 
   updateSettingsView(): unknown {

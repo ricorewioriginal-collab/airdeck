@@ -57,3 +57,8 @@ a { color: var(--accent); }
 .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 22px; }
 .foot a { margin: 0 6px; }
 @media (max-width: 640px) { .hero { grid-template-columns: auto 1fr; } .hero .badge { grid-column: 1 / -1; justify-self: start; } .week { grid-template-columns: repeat(7, 150px); } }
+
+/* Ankündigungs-Banner / Wartungsmeldung */
+.site-bar { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 7px 14px; font-size: 13px; font-weight: 600; color: #fff; }
+.site-bar.info { background: #2563eb; } .site-bar.success { background: #16a34a; } .site-bar.warning { background: #d97706; } .site-bar.danger, .site-bar.maintenance { background: #dc2626; }
+.site-close { border: 0; background: rgba(255,255,255,.18); color: #fff; border-radius: 6px; width: 24px; height: 24px; cursor: pointer; }
