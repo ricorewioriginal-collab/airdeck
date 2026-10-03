@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#061426">
+<title>AnMaCha Cast API</title>
+<style>
+:root{color-scheme:dark;--bg:#030914;--panel:#07172b;--line:#163a61;--cyan:#18b7ff;--text:#f5f9ff;--muted:#9db2c9;--get:#2fbf71;--post:#18b7ff;--put:#e8a33d;--patch:#b58cff;--delete:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+a{color:#72d2ff}
+header{padding:22px 16px 12px;max-width:1100px;margin:auto}
+h1{margin:0 0 4px;font-size:26px}
+header p{margin:4px 0;color:var(--muted)}
+main{max-width:1100px;margin:auto;padding:0 16px 60px}
+.bar{position:sticky;top:0;z-index:2;background:linear-gradient(var(--bg) 80%,transparent);padding:10px 0;display:flex;gap:8px;flex-wrap:wrap}
+input,select{background:#08192b;color:var(--text);border:1px solid #244b70;border-radius:10px;padding:9px 12px;font:inherit}
+input[type=search]{flex:1;min-width:200px}
+input[type=password]{width:220px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 16px}
+.chip{border:1px solid #244b70;background:#08192b;color:#cde4f7;border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13px}
+.chip.on{background:#0d82bd;border-color:#28c7ff;color:#fff}
+section{margin:0 0 22px}
+section h2{margin:18px 0 2px;font-size:19px}
+section>p{margin:0 0 8px;color:var(--muted);font-size:14px}
+.op{border:1px solid var(--line);background:var(--panel);border-radius:12px;margin:6px 0;overflow:hidden}
+.op>button{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:center;width:100%;padding:9px 12px;cursor:pointer}
+.op>button:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+.m{min-width:62px;text-align:center;border-radius:7px;padding:2px 6px;font-weight:800;font-size:12px;color:#031018}
+.GET{background:var(--get)}.POST{background:var(--post)}.PUT{background:var(--put)}.PATCH{background:var(--patch)}.DELETE{background:var(--delete)}
+.p{font-family:ui-monospace,Consolas,monospace;font-size:13px;overflow-wrap:anywhere}
+.s{color:var(--muted);margin-left:auto;text-align:right;font-size:13px}
+.d{display:none;padding:4px 14px 14px;border-top:1px solid var(--line)}
+.op.open .d{display:block}
+.d code,.d pre{background:#020812;border-radius:8px;padding:2px 6px}
+.d pre{padding:12px;overflow:auto;margin:8px 0}
+.scope{display:inline-block;border:1px solid #244b70;border-radius:999px;padding:1px 9px;font-size:12px;color:#cde4f7}
+.try{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+button.go{background:#0d82bd;color:#fff;border:0;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer}
+.out{max-height:260px;overflow:auto;white-space:pre-wrap}
+.empty{color:var(--muted);padding:30px 0}
+@media(max-width:640px){.s{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>AnMaCha Cast API</h1>
+  <p id="info">Wird geladen …</p>
+  <p>Anmeldung: Header <code>Authorization: Bearer &lt;Schlüssel&gt;</code>. Schlüssel erzeugst du im Studio unter <em>Mein Profil &amp; API</em>.
+  Einführung und Beispiele: <a href="https://github.com/ricorewioriginal-collab/anmacha_cast/blob/main/docs/API.md">API.md</a>.</p>
+</header>
+<main>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Suchen: Pfad, Beschreibung, Recht …" aria-label="Suchen">
+    <input id="token" type="password" placeholder="API-Schlüssel (nur für „Ausprobieren“)" autocomplete="off" aria-label="API-Schlüssel">
+  </div>
+  <div class="tags" id="tags"></div>
+  <div id="list"></div>
+</main>
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  // ?spec=… erlaubt die Anzeige einer anderen Spezifikation (z. B. von der Projektseite); sonst die des eigenen Servers
+  // Projektseite (GitHub Pages): feste Spezifikation, ohne „Ausprobieren“ und mit Platzhalter-Adresse
+  const STATIC_DOCS = false;
+  const specUrl = params.get('spec') || (STATIC_DOCS ? 'openapi.json' : '/api/v1/openapi.json');
+  const base = params.get('base') || (STATIC_DOCS ? 'https://<server>' : location.origin);
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  let spec, ops = [], tag = '';
+
+  function collect() {
+    ops = [];
+    for (const [path, methods] of Object.entries(spec.paths)) {
+      for (const [method, o] of Object.entries(methods)) ops.push({ method: method.toUpperCase(), path, o, tag: (o.tags || [''])[0] });
+    }
+  }
+
+  function curl(op) {
+    const url = base + (spec.servers?.[0]?.url || '') + op.path;
+    const auth = op.o.security && op.o.security.length === 0 ? '' : ' -H "Authorization: Bearer $KEY"';
+    const body = op.o.requestBody ? ' -H "Content-Type: application/json" -d \'{}\'' : '';
+    return `curl -X ${op.method}${auth}${body} "${url}"`;
+  }
+
+  function detail(op) {
+    const d = el('div', 'd');
+    const scope = op.o['x-scope'];
+    const pub = op.o.security && op.o.security.length === 0;
+    const line = el('p');
+    line.append('Zugriff: ');
+    line.append(el('span', 'scope', pub ? 'ohne Anmeldung' : scope ? scope : 'Anmeldung erforderlich'));
+    d.append(line);
+    if (op.o.parameters?.length) d.append(el('p', '', 'Pfad-Parameter: ' + op.o.parameters.map((p) => p.name).join(', ')));
+    d.append(el('pre', '', curl(op)));
+    if (!STATIC_DOCS && op.method === 'GET' && !op.path.includes('{') && !pub) {
+      const row = el('div', 'try');
+      const go = el('button', 'go', 'Ausprobieren');
+      const out = el('pre', 'out');
+      out.hidden = true;
+      go.onclick = async () => {
+        out.hidden = false; out.textContent = 'Lädt …';
+        try {
+          const headers = {};
+          if ($('token').value) headers.Authorization = 'Bearer ' + $('token').value;
+          const r = await fetch(base + (spec.servers?.[0]?.url || '') + op.path, { headers });
+          const t = await r.text();
+          let shown = t; try { shown = JSON.stringify(JSON.parse(t), null, 2); } catch (e) { /* kein JSON */ }
+          out.textContent = `HTTP ${r.status}\n` + shown.slice(0, 20000);
+        } catch (e) { out.textContent = 'Fehler: ' + e.message; }
+      };
+      row.append(go);
+      d.append(row, out);
+    }
+    return d;
+  }
+
+  function render() {
+    const q = $('q').value.trim().toLowerCase();
+    const list = $('list');
+    list.replaceChildren();
+    const groups = new Map();
+    for (const op of ops) {
+      if (tag && op.tag !== tag) continue;
+      const hay = `${op.method} ${op.path} ${op.o.summary} ${op.o['x-scope'] || ''}`.toLowerCase();
+      if (q && !hay.includes(q)) continue;
+      if (!groups.has(op.tag)) groups.set(op.tag, []);
+      groups.get(op.tag).push(op);
+    }
+    if (!groups.size) list.append(el('p', 'empty', 'Nichts gefunden.'));
+    for (const t of spec.tags) {
+      const items = groups.get(t.name);
+      if (!items) continue;
+      const sec = el('section');
+      sec.append(el('h2', '', `${t.name} (${items.length})`), el('p', '', t.description));
+      for (const op of items) {
+        const box = el('div', 'op');
+        const head = el('button');
+        head.setAttribute('aria-expanded', 'false');
+        head.append(el('span', `m ${op.method}`, op.method), el('span', 'p', op.path), el('span', 's', op.o.summary));
+        let built = false;
+        head.onclick = () => {
+          if (!built) { box.append(detail(op)); built = true; }
+          const open = box.classList.toggle('open');
+          head.setAttribute('aria-expanded', String(open));
+        };
+        box.append(head);
+        sec.append(box);
+      }
+      list.append(sec);
+    }
+  }
+
+  function chips() {
+    const box = $('tags');
+    box.replaceChildren();
+    for (const name of ['', ...spec.tags.map((t) => t.name)]) {
+      const c = el('button', 'chip' + (tag === name ? ' on' : ''), name || 'Alle');
+      c.onclick = () => { tag = name; chips(); render(); };
+      box.append(c);
+    }
+  }
+
+  fetch(specUrl).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then((s) => {
+    spec = s;
+    collect();
+    $('info').textContent = `Version ${s.info.version} · ${ops.length} Endpunkte · OpenAPI ${s.openapi}`;
+    chips(); render();
+    $('q').addEventListener('input', render);
+  }).catch((e) => { $('info').textContent = 'Spezifikation konnte nicht geladen werden: ' + e.message; });
+})();
+</script>
+</body>
+</html>

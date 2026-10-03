@@ -131,6 +131,7 @@ export function mountProfile(root, ctx) {
     sel.addEventListener('change', draw); st.addEventListener('change', draw); draw();
     return card('Entwickler-API',
       h('p', { class: 'muted small', style: 'margin:0 0 8px' }, `Alle Aufrufe gehen an ${base}/… mit dem Header „Authorization: Bearer <API-Key>“. Antworten sind JSON; 120 Anfragen pro Minute und Schlüssel. Schreibende Endpunkte (Queue, Playout, Cardwall, Sendeplan, Hörer) stehen in docs/API.md, Webhooks in docs/BRIDGE.md.`),
+      h('p', { style: 'margin:0 0 8px' }, h('a', { href: `${ctx.api.base || location.origin}/api-docs.html`, target: '_blank', rel: 'noopener' }, '📖 Alle Endpunkte in der API-Dokumentation ansehen (mit OpenAPI-Spezifikation)')),
       h('div', { class: 'table-wrap' }, h('table', { class: 'list api-table' },
         h('thead', {}, h('tr', {}, h('th', {}, 'GET'), h('th', {}, 'Recht'), h('th', {}, 'Liefert'))),
         h('tbody', {}, ...ENDPOINTS.map((e) => h('tr', {}, h('td', {}, h('code', {}, e.path)), h('td', { class: 'muted small' }, e.scope), h('td', { class: 'muted small' }, e.desc)))))),

@@ -19,6 +19,7 @@ import { MAX_VOICE_BYTES } from './services/listeners.ts';
 import { STUDIO_KINDS, STUDIO_TONES } from './services/ai.ts';
 import { PUBLIC_API, RADIOADMIN, allowedPublicPath, allowedRadioadminPath, forward } from './lautfm.ts';
 import { envVar } from './env.ts';
+import { buildOpenApi, type RouteInfo } from './api/spec.ts';
 
 type Params = Record<string, string>;
 interface Ctx {
@@ -32,6 +33,7 @@ interface Ctx {
 type Handler = (c: Ctx) => unknown | Promise<unknown>;
 interface Route {
   method: string;
+  path: string;
   re: RegExp;
   keys: string[];
   scope: string | null;
@@ -123,12 +125,16 @@ export const ON_AIR_OPS = new RegExp('^/api/v1/(?:' + [
   'system/shutdown',
 ].join('|') + ')$');
 
-export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server {
+/** HTTP-Server samt Routentabelle (für die API-Dokumentation und Tests). */
+export type ApiServer = Server & { apiRoutes: RouteInfo[] };
+
+export function createHttpServer(app: AnMaChaCastApp, studioDir: string): ApiServer {
   const routes: Route[] = [];
+  let openapi: string | undefined;
   const add = (method: string, path: string, scope: string | null, handler: Handler) => {
     const keys: string[] = [];
     const re = new RegExp('^' + path.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, re, keys, scope, handler });
+    routes.push({ method, path, re, keys, scope, handler });
   };
   const sid = (c: Ctx) => {
     if (!canSee(c.p, c.params.sid!)) throw new AppError(403, 'forbidden', 'Kein Zugriff auf diesen Sender');
@@ -1100,6 +1106,12 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
       const h = app.health.summary();
       return json(res, h.status === 'error' ? 503 : 200, { ok: h.status !== 'error', ...h });
     }
+    // Maschinenlesbare API-Beschreibung (OpenAPI 3.1), öffentlich und aus der Routentabelle erzeugt
+    if (path === '/api/v1/openapi.json' && req.method === 'GET') {
+      openapi ??= JSON.stringify(buildOpenApi((server as ApiServer).apiRoutes, app.version));
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' });
+      return void res.end(openapi);
+    }
     // Anmeldung (öffentlich): Benutzername + Passwort → Sitzungs-Token; Sperre nach Fehlversuchen im UserStore
     // pairing: Geräte können sich immer per Kopplungscode verbinden (auch ohne Benutzerkonten, z. B. Desktop)
     if (path === '/api/v1/auth/status' && req.method === 'GET') return json(res, 200, { users: app.users.count > 0, pairing: true });
@@ -1393,9 +1405,11 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     }
   };
 
-  return createServer((req, res) => {
+  const server = createServer((req, res) => {
     handle(req, res).catch((err) => sendError(res, err));
-  });
+  }) as ApiServer;
+  server.apiRoutes = routes.map(({ method, path, scope }) => ({ method, path, scope }));
+  return server;
 }
 
 // ---------- Relay-Ingest (Icecast-kompatibel: PUT oder SOURCE) ----------
