@@ -9,6 +9,7 @@ import { BackupService } from './backup.ts';
 import { RemoteLinkService } from './remote-link.ts';
 import { BridgeService } from './bridges.ts';
 import { DeviceService } from './devices.ts';
+import { DistributionService } from './distribution.ts';
 import { LautfmService } from './lautfm.ts';
 import { LifehacksService } from './lifehacks.ts';
 import { ListenerService } from './listeners.ts';
@@ -56,6 +57,7 @@ export function createServices(app: AnMaChaCastApp) {
     showprep: new ShowPrepService(app),
     listeners: new ListenerService(app),
     community: new CommunityService(app),
+    distribution: new DistributionService(app),
     backup: new BackupService(app),
     remoteLink: new RemoteLinkService(app),
   };

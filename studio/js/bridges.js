@@ -67,8 +67,49 @@ export function mountBridges(root, ctx) {
   /** @param {string} k @param {any} v */
   const kv = (k, v) => h('div', { class: 'kv' }, h('span', { class: 'muted' }, k), h('span', {}, v === null || v === undefined || v === '' ? '–' : String(v)));
 
+  const STATE = /** @type {Record<string,[string,string]>} */ ({ connected: ['ok', 'sendet'], connecting: ['warn', 'verbindet …'], error: ['danger', 'Fehler'], idle: ['muted', 'wartet'], unsupported: ['danger', 'nicht unterstützt'] });
+
+  /** Eigene Streams: bis zu 2 Mounts auf dem eigenen Icecast mit eigener Bitrate und öffentlichem Link.
+   * @param {{ max: number, source: any, items: any[] }} d */
+  function ownStreamsCard(d) {
+    const rows = d.items.map((o) => {
+      const [cls, label] = o.enabled ? (STATE[o.status] ?? ['muted', o.status]) : ['muted', 'aus'];
+      return h('div', { class: 'row', style: 'flex-wrap:wrap;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)' },
+        h('span', { class: `pill ${cls}` }, label),
+        h('div', { style: 'flex:1;min-width:200px' }, h('b', {}, o.name), ' ', h('span', { class: 'muted small' }, `${String(o.format).toUpperCase()} · ${o.bitrateKbps} kbit/s${o.listeners != null ? ` · ${o.listeners} Hörer` : ''}`),
+          h('div', { class: 'small' }, h('a', { href: o.link, target: '_blank', rel: 'noopener' }, o.link)), o.error ? h('div', { class: 'small', style: 'color:var(--danger,#f87171)' }, o.error) : null),
+        h('button', { class: 'btn small', title: 'Link kopieren', onclick: () => navigator.clipboard?.writeText(o.link).then(() => status('Link kopiert'), () => status(o.link)) }, 'Link'),
+        h('button', { class: 'btn small', onclick: () => editOwn(o) }, 'Ändern'),
+        h('button', { class: 'btn small', onclick: () => run(async () => { await ctx.api.patch(ctx.url(`/own-streams/${o.id}`), { enabled: !o.enabled }); await show(); }) }, o.enabled ? 'Aus' : 'An'),
+        h('button', { class: 'btn small danger', onclick: () => confirm(`Eigenen Stream „${o.name}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/own-streams/${o.id}`)); await show(); }) }, 'Löschen'));
+    });
+    return card('Eigene Streams',
+      h('p', { class: 'muted small', style: 'margin:0 0 8px' }, `Bis zu ${d.max} zusätzliche Streams auf deinem Icecast${d.source ? ` (${d.source.host}:${d.source.port})` : ''}, jeweils mit eigener Bitrate und eigenem Link, zum Beispiel für mobile Hörer mit wenig Datenvolumen. Server und Zugang kommen vom vorhandenen Icecast-Ausgang.`),
+      ...(rows.length ? rows : [h('div', { class: 'empty' }, 'Noch kein eigener Stream.')]),
+      h('div', { class: 'row', style: 'margin-top:8px' },
+        h('button', { class: 'btn small primary', disabled: d.items.length >= d.max || !d.source, title: !d.source ? 'Zuerst einen Icecast-Ausgang auf dem eigenen Server einrichten (nicht laut.fm)' : '', onclick: () => editOwn(null) }, '＋ Eigener Stream'),
+        d.items.length >= d.max ? h('span', { class: 'muted small' }, `Limit von ${d.max} erreicht`) : null,
+        !d.source ? h('span', { class: 'muted small' }, 'Voraussetzung: Icecast-Ausgang auf dem eigenen Server (Stream & Encoder → ＋)') : null));
+  }
+
+  /** @param {any} o */
+  async function editOwn(o) {
+    const v = await formDialog(o ? `Eigener Stream: ${o.name}` : 'Neuer eigener Stream', [
+      { name: 'name', label: 'Name', value: o?.name ?? '', required: true, hint: 'Daraus entsteht der Mountpoint, z. B. „Mobil“ → /mobil' },
+      ...(o ? [] : [{ name: 'format', label: 'Format', value: 'mp3', options: /** @type {[string,string][]} */ ([['mp3', 'MP3 (überall abspielbar)'], ['aac', 'AAC (effizient bei niedriger Bitrate)'], ['opus', 'Opus (sehr effizient, Browser/Apps)']]) }]),
+      { name: 'bitrateKbps', label: 'Bitrate (kbit/s, 32 bis 320)', type: 'number', value: o?.bitrateKbps ?? 64, required: true, hint: '48 bis 64 für mobile Hörer, 128 für den Standard, 192 und mehr für HiFi' },
+    ], o ? 'Speichern' : 'Anlegen');
+    if (!v) return;
+    const r = await run(() => (o ? ctx.api.patch(ctx.url(`/own-streams/${o.id}`), { name: v.name, bitrateKbps: Number(v.bitrateKbps) }) : ctx.api.post(ctx.url('/own-streams'), { name: v.name, format: v.format, bitrateKbps: Number(v.bitrateKbps) })));
+    if (r) status(`Eigener Stream „${r.name}“ gespeichert`);
+    await run(show);
+  }
+
   async function show() {
-    const list = /** @type {any[]} */ (await ctx.api.get(ctx.url('/bridges')));
+    const [list, own] = await Promise.all([
+      /** @type {Promise<any[]>} */ (ctx.api.get(ctx.url('/bridges'))),
+      ctx.api.get(ctx.url('/own-streams')).catch(() => null),
+    ]);
     root.replaceChildren(
       h('div', { class: 'bridge-hero' },
         h('div', {}, h('span', { class: 'ov-kicker' }, 'VERBINDUNGEN'), h('h1', {}, 'Streams & Anbindungen'), h('p', {}, 'Icecast, AzuraCast, Relays und externe Systeme mit AnMaCha Cast verbinden.')),
@@ -76,6 +117,7 @@ export function mountBridges(root, ctx) {
       card('Öffentliche Seiten',
         h('p', { class: 'muted small', style: 'margin:0 0 8px' }, 'Ohne Login erreichbar, Daten live aus diesem Server (CORS offen). Adresse mit ?station=… wählt den Sender, theme=light und accent=rrggbb passen das Aussehen an.'),
         h('div', { class: 'pp-links' }, ...PAGES.map(([file, label, desc]) => h('a', { class: 'pp-link', href: `${ctx.api.base || '.'}/${file}${file === 'netzwerk.html' ? '' : `?station=${encodeURIComponent(ctx.stationId())}`}`, target: '_blank', rel: 'noopener' }, h('b', {}, label), h('span', { class: 'muted small' }, desc))))),
+      own ? ownStreamsCard(own) : null,
       widgetCard(ctx),
       card('So funktioniert die Brücke',
         h('p', {}, 'Deine bestehende Technik läuft weiter, zum Beispiel AzuraCast mit Icecast, SAM Broadcaster, mAirList, RadioDJ oder ein reines Web-Relay. AnMaCha Cast verbindet sich damit, statt alles neu aufzubauen:'),
