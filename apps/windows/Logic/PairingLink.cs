@@ -14,11 +14,15 @@ namespace AnMaChaCast.Logic
             return address.Trim().TrimEnd('/') + "/#pair=" + code;
         }
 
-        /// <summary>Beste Adresse für Handys: bevorzugt eine echte Netzwerkadresse statt localhost.</summary>
-        public static string BestAddress(IEnumerable<string> addresses)
+        /// <summary>
+        /// Adressen für die Anzeige: Reihenfolge des Servers bleibt erhalten (er ordnet echte WLAN-/LAN-Adressen vor virtuellen Adaptern),
+        /// localhost-Adressen kommen ans Ende, weil ein Handy sie nie erreicht.
+        /// </summary>
+        public static IList<string> Ranked(IEnumerable<string> addresses)
         {
             var list = (addresses ?? new string[0]).Where(a => !string.IsNullOrWhiteSpace(a)).ToList();
-            return list.FirstOrDefault(a => !a.Contains("://localhost") && !a.Contains("://127.")) ?? list.FirstOrDefault();
+            var local = list.Where(a => a.Contains("://localhost") || a.Contains("://127.")).ToList();
+            return list.Except(local).Concat(local).ToList();
         }
     }
 }

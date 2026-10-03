@@ -1,6 +1,7 @@
 // Server & Geräte: zwischen dem Motor dieses PCs und entfernten AnMaCha-Cast-Servern wechseln, Server koppeln (Kopplungscode oder
 // Anmeldung) oder im Netz suchen, Handys und weitere PCs koppeln, gekoppelte Geräte verwalten, Netzwerkzugriff erlauben.
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -154,14 +155,23 @@ namespace AnMaChaCast.Pages
                 var r = await C.Api.PostJ("/pairing", new { role = v["role"], stationIds = v["all"] == "true" ? new[] { "*" } : new[] { C.StationId } });
                 var addresses = J.Strings(r, "addresses");
                 var code = J.Str(r, "code");
-                var lan = J.Bool(r, "lan");
-                // Adresse nur mit Netzwerkzugriff sinnvoll: sonst kann das Handy den Server nicht erreichen
-                var link = lan ? PairingLink.Build(PairingLink.BestAddress(addresses), code) : null;
-                Dlg.Qr(C.Owner, "Gerät koppeln", link,
+                // QR nur, wenn der Server wirklich im Netzwerk lauscht (nach dem Freigeben erst nach einem Neustart);
+                // der Server sortiert die Adressen (echte WLAN/LAN-Adressen zuerst), bei mehreren Adaptern wählt man hier
+                var listening = J.Bool(r, "listening");
+                var options = new List<(string Label, string Payload)>();
+                if (listening)
+                    foreach (var a in PairingLink.Ranked(addresses))
+                    {
+                        var link = PairingLink.Build(a, code);
+                        if (link != null) options.Add((a, link));
+                    }
+                Dlg.Qr(C.Owner, "Gerät koppeln", options,
                     "Kopplungscode:  " + code + "\n\nGültig 5 Minuten, einmal einlösbar.\n\n" +
-                    (link != null
+                    (options.Count > 0
                         ? "In der Android-App „Per QR-Code koppeln“ wählen und diesen Code mit der Kamera scannen. Alternativ Adresse und Code eintippen:\n" + string.Join("\n", addresses)
-                        : "Hinweis: Der Zugriff im Netzwerk ist noch gesperrt – erst „Zugriff im Netzwerk erlauben“ wählen, dann erscheint hier der QR-Code."));
+                        : J.Bool(r, "lan")
+                            ? "Hinweis: Der Netzwerkzugriff ist freigegeben, aber der Server lauscht noch nicht darauf – bitte den Server neu starten (System → Neustart), dann erscheint hier der QR-Code."
+                            : "Hinweis: Der Zugriff im Netzwerk ist noch gesperrt – erst „Zugriff im Netzwerk erlauben“ wählen, dann erscheint hier der QR-Code."));
             }, "Kopplung");
         }
 

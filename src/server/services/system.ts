@@ -2,6 +2,7 @@
 
 import type { AnMaChaCastApp } from '../app.ts';
 import { existsSync } from 'node:fs';
+import { rankLanAddresses, type LanEntry } from '../lan-address.ts';
 import { cpus, freemem, networkInterfaces, totalmem, uptime as osUptime } from 'node:os';
 import { join } from 'node:path';
 import { envVar } from '../env.ts';
@@ -167,10 +168,12 @@ export class SystemService {
   appConnect(): unknown {
     const lanSetting = readJson<{ lan?: boolean }>(join(this.app.dataDir, 'network.json'), {}).lan === true;
     const listening = this.app.listenHost === '0.0.0.0' || this.app.listenHost === '::';
-    const addresses: string[] = [];
-    for (const list of Object.values(networkInterfaces())) {
-      for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) addresses.push(`http://${a.address}:${this.app.listenPort}`);
+    const found: LanEntry[] = [];
+    for (const [name, list] of Object.entries(networkInterfaces())) {
+      for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) found.push({ name, address: a.address });
     }
+    // Wahrscheinlich erreichbare Adresse zuerst (virtuelle Adapter zuletzt)
+    const addresses = rankLanAddresses(found).map((e) => `http://${e.address}:${this.app.listenPort}`);
     return { lan: lanSetting, listening, restartNeeded: lanSetting !== listening && !envVar(process.env, 'HOST'), addresses, apk: this.localApk() ? 'local' : 'release' };
   }
 

@@ -205,11 +205,12 @@ namespace AnMaChaCast.Tests
         }
 
         [Fact]
-        public void BevorzugtNetzwerkadresseVorLocalhost()
+        public void BehaeltServerReihenfolgeUndStelltLocalhostANsEnde()
         {
-            Assert.Equal("http://192.168.1.20:8750", PairingLink.BestAddress(new[] { "http://localhost:8750", "http://192.168.1.20:8750" }));
-            Assert.Equal("http://localhost:8750", PairingLink.BestAddress(new[] { "http://localhost:8750" }));
-            Assert.Null(PairingLink.BestAddress(new string[0]));
+            Assert.Equal(new[] { "http://192.168.1.20:8750", "http://172.28.16.1:8750", "http://localhost:8750" },
+                PairingLink.Ranked(new[] { "http://localhost:8750", "http://192.168.1.20:8750", "http://172.28.16.1:8750" }));
+            Assert.Empty(PairingLink.Ranked(new string[0]));
+            Assert.Empty(PairingLink.Ranked(null));
         }
     }
 }

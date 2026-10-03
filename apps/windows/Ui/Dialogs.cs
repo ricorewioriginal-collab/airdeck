@@ -111,15 +111,29 @@ namespace AnMaChaCast.Ui
         public static void Info(Window owner, string text, string title = "AnMaCha Cast") =>
             MessageBox.Show(owner != null && owner.IsVisible ? owner : null, text, title, MessageBoxButton.OK, MessageBoxImage.Information);
 
-        /// <summary>Fenster mit QR-Code (Kamera des Handys) und erklärendem Text; null/leerer Link zeigt nur den Text.</summary>
-        public static void Qr(Window owner, string title, string payload, string text)
+        /// <summary>
+        /// Fenster mit QR-Code (Kamera des Handys) und erklärendem Text. Bei mehreren Adressen (mehrere Netzwerkadapter)
+        /// lässt sich die passende wählen; der QR-Code wird dann neu gezeichnet. Ohne Optionen erscheint nur der Text.
+        /// </summary>
+        public static void Qr(Window owner, string title, IList<(string Label, string Payload)> options, string text)
         {
             var w = Make(owner, title, 440);
             var stack = new StackPanel { Margin = new Thickness(18) };
-            if (!string.IsNullOrEmpty(payload))
+            if (options != null && options.Count > 0)
             {
-                var img = new System.Windows.Controls.Image { Source = QrImage.Render(payload), Width = 280, Height = 280, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+                var img = new System.Windows.Controls.Image { Width = 280, Height = 280, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor);
+                Action<int> show = idx => img.Source = QrImage.Render(options[idx].Payload);
+                if (options.Count > 1)
+                {
+                    stack.Children.Add(new TextBlock { Text = "Adresse des Servers (bei mehreren Netzwerkadaptern die im WLAN des Handys wählen):", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
+                    var box = new ComboBox { Margin = new Thickness(0, 0, 0, 10) };
+                    foreach (var o in options) box.Items.Add(o.Label);
+                    box.SelectionChanged += (s, e) => { if (box.SelectedIndex >= 0) show(box.SelectedIndex); };
+                    stack.Children.Add(box);
+                    box.SelectedIndex = 0;
+                }
+                else show(0);
                 stack.Children.Add(img);
             }
             stack.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
