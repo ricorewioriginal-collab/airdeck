@@ -10,6 +10,7 @@ import { mountListeners } from './listeners.js';
 import { AudioEngine, DECKS, SilenceDetector, openMic, recordStream } from './audio.js';
 import { $, CATEGORY_STYLE, DAYS, clockTime, download, fmt, formDialog, h, hydrateIcons, icon, mediaTitle, run, status } from './ui.js';
 import { mountPlanning, mountRecorder } from './planning.js';
+import { keepAwake, micHint, registerWorker, showInstallHint } from './pwa.js';
 import { mountMediaManagement } from './mediamgmt.js';
 import { mountJingles } from './jingles.js';
 import { mountVoice } from './voice.js';
@@ -908,6 +909,7 @@ async function toggleMic() {
     for (const t of S.mic.stream.getTracks()) t.stop();
     const id = S.mic.sourceId;
     S.mic = null;
+    void keepAwake(false);
     btn.setAttribute('aria-pressed', 'false');
     await run(() => api.post(url(`/sources/${encodeURIComponent(id)}/release`)));
     return status('Mikrofon-Sendung beendet – Automation übernimmt wieder');
@@ -923,7 +925,7 @@ async function toggleMic() {
   try {
     stream = await openMic();
   } catch (e) {
-    return status(`Mikrofon nicht verfügbar: ${e instanceof Error ? e.message : e}`, true);
+    return status(`Mikrofon nicht verfügbar: ${e instanceof Error ? e.message : e}${micHint()}`, true);
   }
   const sourceId = v.sourceId;
   try {
@@ -935,6 +937,7 @@ async function toggleMic() {
     for (const t of stream.getTracks()) t.stop();
     return status(e instanceof Error ? e.message : String(e), true);
   }
+  void keepAwake(true);
   btn.setAttribute('aria-pressed', 'true');
   status(`Mikrofon sendet als „${sourceName(sourceId)}“ – Übernahme nach Priorität (Anti-Flapping 2 s)`);
 }
@@ -2794,4 +2797,6 @@ function clock() {
   $('clock-date').textContent = now.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+registerWorker();
+showInstallHint();
 boot().catch((e) => status(e instanceof Error ? e.message : String(e), true));
