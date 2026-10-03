@@ -22,6 +22,7 @@ import { mountAi } from './ai.js';
 import { mountNextcloud } from './nextcloud.js';
 import { mountBridges } from './bridges.js';
 import { mountUsers } from './users.js';
+import { mountProfile } from './profile.js';
 import { mountUpdates } from './updates.js';
 import { qrDataUrl } from './qr.js';
 import { parsePairingPayload, scanQrCode } from './qrscan.js';
@@ -338,6 +339,25 @@ async function forcePasswordChange(msg) {
   }
 }
 
+/** Ankündigungs-Banner / Wartungsmeldung (Admin → Ankündigung & Wartung). Geschlossener Banner bleibt bis zum nächsten Laden zu. */
+async function loadSiteBanner() {
+  try { renderSiteBanner(await api.get('/site')); } catch { /* ohne Rechte oder offline: kein Banner */ }
+}
+/** @param {any} site */
+function renderSiteBanner(site) {
+  const box = $('site-banner');
+  const parts = [];
+  if (site?.maintenance) parts.push(h('div', { class: 'site-bar maintenance', role: 'alert' }, '🛠 ', site.maintenance.text));
+  const b = site?.banner;
+  const key = b ? `site-banner:${b.text}` : '';
+  if (b && !(b.dismissible && sessionStorage.getItem(key))) {
+    parts.push(h('div', { class: `site-bar ${b.kind}` }, h('span', {}, b.text),
+      b.dismissible ? h('button', { class: 'site-close', title: 'Schließen', onclick: () => { sessionStorage.setItem(key, '1'); renderSiteBanner(site); } }, '✕') : null));
+  }
+  box.replaceChildren(...parts);
+  box.hidden = !parts.length;
+}
+
 async function logout() {
   try { await api.post('/auth/logout'); } catch {}
   saveToken(null);
@@ -419,6 +439,7 @@ async function loadStation() {
     bridges: mountBridges($('view-bridges'), ctx),
     listeners: mountListeners($('view-listeners'), { ...ctx, stationId: () => S.station.id, onUnread: (n) => { const b = $('listener-badge'); b.hidden = !n; b.textContent = String(n); } }),
     users: mountUsers($('view-users'), { api, stations: () => S.stations, me: () => S.me }),
+    profile: mountProfile($('view-profile'), { api, me: () => S.me, stations: () => S.stations, stationId: () => S.station.id, saveToken, onMeChanged: async () => { S.me = await api.get('/me'); } }),
     overview: mountOverview($('view-overview'), {
       api, stations: () => S.stations,
       manage: async (/** @type {string} */ id) => { await switchStation(id); await editStation(); },
@@ -489,6 +510,7 @@ function onEvent(type, data) {
     case 'now_playing.changed': S.nowPlaying = { ...S.nowPlaying, ...data }; renderNowPlaying(); break;
     case 'library.changed': run(async () => { setLibrary(await api.get(url('/media'))); renderLibrary(); renderCarts(); }); break;
     case 'cardwall.changed': S.carts = data; renderCarts(); break;
+    case 'site.changed': renderSiteBanner(data); break;
     case 'cardwall.triggered': if (data?.id) noteCartPlayed(data.id); if (!data?.server) playCart(data); break; // Fernauslösung ohne Server-Playout: lokal spielen
     case 'playout.state': if (S.playout) { S.playout.status = data; S.playoutAt = Date.now(); renderPlayout(); } break;
     case 'playout.level': S.srvLevel = data; S.srvLevelAt = Date.now(); break;
@@ -2069,7 +2091,10 @@ function bindStatic() {
   // Benutzer: Abmelden/Passwort nur mit Sitzung, Benutzerverwaltung nur für Administratoren
   const isAdmin = S.me?.roles?.includes('admin') && S.me?.stationIds?.includes('*');
   $('nav-users').hidden = !isAdmin;
+  $('nav-profile').hidden = !S.me?.user;
   $('btn-logout').hidden = !S.me?.user;
+  void loadSiteBanner();
+  setInterval(() => void loadSiteBanner(), 5 * 60_000);
   // Auch im reinen Browser sichtbar: mehrere selbst gehostete AnMaCha Cast-Instanzen lassen sich so
   // speichern und wechseln, ohne die App/den Server neu aufzurufen (nicht nur in der Android-App).
   $('btn-server').hidden = false;
@@ -2256,7 +2281,7 @@ function showView(name, sub) {
     b.setAttribute('aria-pressed', String(el.dataset.view === name && (el.dataset.sub ?? '') === (sub ?? '')));
   }
   $('sidebar').classList.remove('open');
-  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'jingles', 'news', 'showprep', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'stats', 'users', 'handbuch']) $(`view-${id}`).hidden = id !== name;
+  for (const id of ['overview', 'studio', 'planning', 'mediathek', 'jingles', 'news', 'showprep', 'playlists', 'recorder', 'lautfm', 'ai', 'nextcloud', 'bridges', 'listeners', 'stats', 'users', 'profile', 'handbuch']) $(`view-${id}`).hidden = id !== name;
   if (name !== 'studio') {
     const shown = views[name]?.show();
     if (sub) void Promise.resolve(shown).then(() => jumpToSub($(`view-${name}`), sub));
