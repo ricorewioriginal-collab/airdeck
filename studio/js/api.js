@@ -84,6 +84,16 @@ export class Api {
     return r.blob();
   }
 
+  /** POST mit JSON-Body, Antwort als Binärdaten (z. B. gerenderte Vorschau). @param {string} path @param {any} body */
+  async blobPost(path, body) {
+    const r = await fetch(`${this.base}/api/v1${path}`, { method: 'POST', headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) {
+      const data = await r.json().catch(() => null);
+      throw new ApiError(r.status, data?.error ?? 'error', data?.message ?? `HTTP ${r.status}`);
+    }
+    return r.blob();
+  }
+
   get = (/** @type {string} */ p) => this.req('GET', p);
   post = (/** @type {string} */ p, /** @type {any} */ b = {}) => this.req('POST', p, b);
   patch = (/** @type {string} */ p, /** @type {any} */ b) => this.req('PATCH', p, b);

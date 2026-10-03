@@ -72,7 +72,7 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     → „Automatisch veröffentlichen“ (Vorlagen mit {label} {date} {time} {weekday} {duration} {station} {n}, Mindestdauer,
     nur Zeitfenster, sofort/Entwurf, fortlaufende Nummer); offen: [P3 · M] Podcast-Hörer (Suche, Charts, Abos).
 13. ~~[P3 · M] Media & Jingle Exchange: Netzwerk-Sichtbarkeit, Dokumente/Logos (an MusikHub andocken)~~ - erledigt im MusikHub: Freigabe-Empfänger „🌐 Netzwerk: alle Sender“ (Grant an `station:*`, gilt in jedem Senderkontext für ausdrücklich zugeordnete Nutzer, nur durch den Eigentümer), Uploads auch für Logos/Bilder (png, jpg, webp, gif, svg) und Dokumente (pdf, txt, md, docx, xlsx, zip) mit Art-Badge und Bildvorschau - Bilder/Dokumente lassen sich teilen und herunterladen, aber nie bereitstellen oder senden.
-14. [P3 · L] Voice Studio: Wellenform-Schnitt, Musikbett-Mischer, Rauschentfernung; Stimm-Klonen nur mit lokaler Engine.
+14. ~~[P3 · L] Voice Studio~~ - erledigt: eigene Ansicht „Voice Studio“ (Musik & Inhalte): Titel wählen oder per Mikrofon aufnehmen, Wellenform mit Auswahl, Herausschneiden / Nur behalten, lange Pausen entfernen, Rauschentfernung (leicht/stark), EQ-Voreinstellungen, Kompressor, Gate, Lautstärke, Normalisieren, Ein-/Ausblenden, Vorhören des Ergebnisses, Speichern als neuer Titel (Original bleibt). Musikbett: über die vorhandene Spot-Werkstatt im KI-Studio (Ducking). Stimm-Klonen bewusst nicht enthalten (nur mit lokaler Engine sinnvoll).
 15. ~~[P3 · L] Transkription (Whisper lokal, Export TXT/SRT/VTT/JSON)~~ - erledigt: KI-Werkstatt → Transkription (lokales whisper hat Vorrang, sonst OpenAI-kompatibler Provider), Export TXT/SRT/VTT/JSON, Zusammenfassung per KI. Musik-Studio (Suno) bewusst nicht enthalten (siehe 32).
 
 ### Sender & Ausspielung
@@ -119,7 +119,7 @@ Musikwunsch/Wunschbox/Sprachnachricht/Voting/Studiomail (Hörer-Seite + Posteing
     CSV/Druck, „→ Spot“. Offen: Deezer-Abgleich (P3).
 34. ~~Transkription~~ - erledigt: lokales `whisper` (ANMACHA_CAST_WHISPER) oder Whisper-API eines OpenAI(-kompatiblen)
     Providers, Export TXT/SRT/JSON, Zusammenfassung/Show-Notes per KI. Offen: Suche im Transkript (P3 · S).
-35. Voice Studio: Text→Sprache in die Bibliothek vorhanden; **offen** Wellenform-Schnitt, Effekte, Stimm-Klonen (siehe 14).
+35. Voice Studio: Text→Sprache in die Bibliothek, Wellenform-Schnitt und Effekte vorhanden (siehe 14); **offen** nur Stimm-Klonen.
 32. [P3 · L] Office-Studio und Musik-Studio (Suno): bewusst nicht enthalten - externe Dienste mit eigenem Vertrag.
 
 ## lautCast (laut.fm-Radioadmin) - Feinheiten gegenüber `automation.html`

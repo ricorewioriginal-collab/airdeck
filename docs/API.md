@@ -49,6 +49,7 @@ Ohne Schlüssel erreichbar (öffentliche Senderseite): `/public/stations/{id}/pa
 | POST | `/stations/{id}/onair` | `automation:write` | `{ "onAir": true, "note"?: "Morgenshow" }` |
 | POST | `/stations/{id}/now-playing` | `automation:write` | `{ "title": "…", "artist": "…" }` – Metadaten von außen setzen |
 | POST | `/stations/{id}/decks/{A-D}/{aktion}` | `automation:write` | Deck bedienen: `load`, `play`, `pause`, `stop`, `eject`, `seek` (`ms`), `tempo` (`tempo` 0,8–1,25, Tonhöhe bleibt), `loop` (`ms` = Schleifenlänge ab jetzt, 0 = verlassen), `advance` |
+| POST | `/stations/{id}/media/{mid}/voice-edit` | `media:write` | Voice Studio: Body `{ keep, cuts[], stripSilence, denoise (off/light/strong), eq (off/voice/warm/bright/phone), compressor, gate, gainDb, normalize, fadeInMs, fadeOutMs }`. Mit `preview: true` kommt MP3-Audio zurück, sonst wird ein neuer Titel (`title`, `category`) angelegt |
 | GET | `/stations/{id}/media/{mid}/waveform` | `media:read` | Wellenform: 600 Spitzenwerte (0–100) |
 | POST | `/stations/{id}/cardwall/{slot}/trigger` | `cardwall:trigger` | Cart abfeuern (Slot 0–…) |
 | POST | `/stations/{id}/playout/carts-stop` | `cardwall:trigger` | Alle Carts stoppen |

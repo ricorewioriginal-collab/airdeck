@@ -30,6 +30,7 @@ import { StationService } from './stations.ts';
 import { StatsService } from './stats.ts';
 import { StatusService } from './status.ts';
 import { SystemService } from './system.ts';
+import { VoiceService } from './voice.ts';
 
 export function createServices(app: AnMaChaCastApp) {
   return {
@@ -37,6 +38,7 @@ export function createServices(app: AnMaChaCastApp) {
     devices: new DeviceService(app),
     stations: new StationService(app),
     media: new MediaService(app),
+    voice: new VoiceService(app),
     musikhub: new MusicHubService(app),
     nextcloud: new NextcloudService(app),
     lautfm: new LautfmService(app),
