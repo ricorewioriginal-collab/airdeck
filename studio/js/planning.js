@@ -587,7 +587,7 @@ export function mountRecorder(root, ctx) {
         h('td', {}, p.label), h('td', {}, daysText(p.days)), h('td', { class: 'num' }, `${p.from}–${p.to}`),
         act(iconBtn('Löschen', '✕', () => run(async () => { await ctx.api.del(ctx.url(`/rec-plans/${p.id}`)); await load(); }))))),
       'Z. B. jede Sendung „Morning Show“ Mo–Fr 06:00–10:00 automatisch mitschneiden.'));
-    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastEpisodesPanel(), recapPanel(), motionMixPanel()));
+    root.replaceChildren(h('div', { class: 'view-grid' }, head, list, plans, podcastSettingsPanel(), podcastPublishPanel(), podcastEpisodesPanel(), recapPanel(), motionMixPanel()));
   }
 
   // ---------- Motion-Mix: Video aus einer Playlist (animierter Hintergrund + Wellenform + Titel-Einblendungen) ----------
@@ -699,8 +699,11 @@ export function mountRecorder(root, ctx) {
   // ---------- Podcast: eigener Feed aus den eigenen Mitschnitten ----------
 
   function feedUrl() {
-    return `${location.origin}/api/v1/public/stations/${ctx.stationId()}/podcast.xml`;
+    return podcast.feedUrl || `${location.origin}/api/v1/public/stations/${ctx.stationId()}/podcast.xml`;
   }
+
+  const HOSTS = /** @type {Record<string,string>} */ ({ buzzsprout: 'Buzzsprout', podbean: 'Podbean' });
+  const localOrigin = () => /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname) || !location.hostname.includes('.');
 
   function podcastSettingsPanel() {
     const cfg = podcast.config ?? {};
@@ -710,17 +713,95 @@ export function mountRecorder(root, ctx) {
         h('input', { type: 'text', readonly: true, value: feedUrl(), onclick: (/** @type {Event} */ e) => /** @type {HTMLInputElement} */ (e.target).select() }),
         h('button', { class: 'btn small', onclick: () => { navigator.clipboard?.writeText(feedUrl()); status('Feed-URL kopiert'); } }, 'Kopieren')),
       h('p', { class: 'muted' }, 'Diese URL bei Apple Podcasts, Spotify for Podcasters oder einer beliebigen Podcast-App als Feed einreichen.'),
+      !podcast.feedUrl && localOrigin() ? h('p', { class: 'warn' }, '⚠ Diese Adresse ist nur in deinem Netz erreichbar. Unter „Öffentlicher Link“ eine öffentliche Adresse eintragen oder einen kostenlosen Hoster wählen.') : null,
       cfg.auto?.enabled ? h('p', { class: 'muted' }, `⚡ Auto-Veröffentlichung an: fertige Mitschnitte werden ${cfg.auto.publish ? 'sofort veröffentlicht' : 'als Entwurf angelegt'} („${cfg.auto.titleTemplate}“${cfg.auto.minMinutes ? `, ab ${cfg.auto.minMinutes} Min.` : ''}${cfg.auto.onlyPlanned ? ', nur Zeitfenster' : ''}).`) : null));
   }
 
   function podcastEpisodesPanel() {
     const rows = (podcast.episodes ?? []).map((/** @type {any} */ e) => h('tr', {},
-      h('td', {}, e.title), h('td', {}, h('span', { class: `pill ${e.publishedAt ? 'connected' : ''}` }, e.publishedAt ? 'veröffentlicht' : 'Entwurf')),
+      h('td', {}, e.title), h('td', {}, h('span', { class: `pill ${e.publishedAt ? 'connected' : ''}` }, e.publishedAt ? 'veröffentlicht' : 'Entwurf'),
+        e.hosted ? h('span', { class: 'pill connected', title: e.hosted.url ?? '' }, ` bei ${HOSTS[e.hosted.kind] ?? e.hosted.kind}`) : null),
       h('td', { class: 'num' }, e.publishedAt ? new Date(e.publishedAt).toLocaleDateString('de-DE') : '–'),
       act(iconBtn(e.publishedAt ? 'Zurückziehen' : 'Veröffentlichen', e.publishedAt ? '◧' : '◨', () => run(async () => { await ctx.api.patch(ctx.url(`/podcast/episodes/${e.id}`), { published: !e.publishedAt }); await load(); })),
+        podcast.host && !e.hosted ? iconBtn(`Zu ${HOSTS[podcast.host.kind]} hochladen`, '⇪', () => pushEpisode(e)) : null,
         iconBtn('Bearbeiten', '✎', () => editEpisode(e)),
         iconBtn('Löschen', '✕', () => confirm(`Episode „${e.title}“ löschen?`) && run(async () => { await ctx.api.del(ctx.url(`/podcast/episodes/${e.id}`)); await load(); })))));
     return panel('Episoden', [], table(['Titel', 'Status', 'Veröffentlicht', ''], rows, 'Noch keine Episoden – bei einem fertigen Mitschnitt auf 🎙 klicken.'));
+  }
+
+  function podcastPublishPanel() {
+    const cfg = podcast.config ?? {};
+    const host = podcast.host;
+    const copy = (/** @type {string} */ url) => h('div', { class: 'podcast-feed-url' },
+      h('input', { type: 'text', readonly: true, value: url, onclick: (/** @type {Event} */ e) => /** @type {HTMLInputElement} */ (e.target).select() }),
+      h('button', { class: 'btn small', onclick: () => { navigator.clipboard?.writeText(url); status('Link kopiert'); } }, 'Kopieren'));
+    return panel('Öffentlicher Link', [], h('div', { class: 'podcast-head' },
+      h('p', { class: 'muted' }, 'Ein Podcast-Verzeichnis (Apple, Spotify, …) muss den Feed aus dem Internet abrufen können. Zwei kostenlose Wege – einen auswählen:'),
+      h('h4', {}, '1 · Dieser Server mit öffentlicher Adresse'),
+      h('p', { class: 'muted' }, 'Mit einem kostenlosen Tunnel (Tailscale Funnel, Cloudflare Tunnel) oder deiner Domain. Die Adresse steht dann im Feed. Der Server muss dafür laufen.'),
+      cfg.publicBaseUrl ? copy(podcast.feedUrl) : null,
+      h('div', { class: 'row-actions' },
+        h('button', { class: 'btn small', onclick: editPublicUrl }, cfg.publicBaseUrl ? 'Adresse ändern' : 'Adresse eintragen'),
+        cfg.publicBaseUrl ? h('button', { class: 'btn small', onclick: checkPublic }, 'Erreichbarkeit prüfen') : null),
+      h('h4', {}, '2 · Kostenloser Podcast-Hoster'),
+      h('p', { class: 'muted' }, 'Episoden werden zu Buzzsprout oder Podbean hochgeladen; der Hoster betreibt den öffentlichen Feed, dein Server muss nicht erreichbar sein. Kostenlose Tarife haben Grenzen (Buzzsprout: 2 Std./Monat, Episoden 90 Tage; Podbean: 5 Std. gesamt).'),
+      host ? h('p', {}, h('span', { class: `pill ${host.hasCredentials ? 'connected' : ''}` }, HOSTS[host.kind] ?? host.kind), host.autoPush ? ' · neue Auto-Episoden werden automatisch hochgeladen' : '') : null,
+      host?.feedUrl ? copy(host.feedUrl) : host?.kind === 'podbean' ? h('p', { class: 'muted' }, 'Feed-Adresse von Podbean (podbean.com → Einstellungen → Verteilung) unter „Hoster einrichten“ eintragen, dann steht sie hier.') : null,
+      h('div', { class: 'row-actions' },
+        h('button', { class: 'btn small', onclick: editHost }, host ? 'Hoster ändern' : 'Hoster einrichten'),
+        host ? h('button', { class: 'btn small', onclick: testHost }, 'Verbindung testen') : null)));
+  }
+
+  async function editPublicUrl() {
+    const cfg = podcast.config ?? {};
+    const v = await formDialog('Öffentliche Adresse', [
+      { name: 'url', label: 'Adresse dieses Servers', value: cfg.publicBaseUrl ?? '', hint: 'z. B. https://radio.example.de oder https://mein-rechner.tailnet.ts.net – leer lassen, um sie zu entfernen. Tunnel-Anleitung: docs/PODCAST_HOSTING.md' },
+    ]);
+    if (!v) return;
+    await run(() => ctx.api.put(ctx.url('/podcast'), { publicBaseUrl: v.url }));
+    await load();
+    if (v.url) await checkPublic();
+  }
+
+  async function checkPublic() {
+    await run(async () => {
+      const r = await ctx.api.post(ctx.url('/podcast/check'), {});
+      status(r.ok ? `✓ ${r.message}` : `✗ ${r.message}`, !r.ok);
+    });
+  }
+
+  async function editHost() {
+    const host = podcast.host;
+    const v = await formDialog('Podcast-Hoster', [
+      { name: 'kind', label: 'Hoster', value: host?.kind ?? 'buzzsprout', options: [['buzzsprout', 'Buzzsprout'], ['podbean', 'Podbean'], ['', 'Keinen (Hoster entfernen)']] },
+      { name: 'podcastId', label: 'Buzzsprout-Podcast-ID', value: host?.podcastId ?? '', hint: 'Ziffern aus der Buzzsprout-Adresse (buzzsprout.com/…/dashboard)', showIf: { field: 'kind', values: ['buzzsprout'] } },
+      { name: 'token', label: 'Buzzsprout-API-Token', type: 'password', value: '', hint: host?.kind === 'buzzsprout' && host.hasCredentials ? 'Leer lassen = gespeicherten behalten. Zu finden unter Buzzsprout → Profil → API.' : 'Buzzsprout → Profil → API', showIf: { field: 'kind', values: ['buzzsprout'] } },
+      { name: 'clientId', label: 'Podbean Client-ID', value: '', hint: host?.kind === 'podbean' && host.hasCredentials ? 'Leer lassen = gespeicherte behalten' : 'podbean.com/api → Meine Apps', showIf: { field: 'kind', values: ['podbean'] } },
+      { name: 'clientSecret', label: 'Podbean Client-Secret', type: 'password', value: '', showIf: { field: 'kind', values: ['podbean'] } },
+      { name: 'feedUrl', label: 'Podbean-Feed-Adresse (optional)', value: host?.kind === 'podbean' ? host.feedUrl ?? '' : '', hint: 'Damit der Link hier zum Kopieren steht', showIf: { field: 'kind', values: ['podbean'] } },
+      { name: 'autoPush', label: 'Neue, automatisch veröffentlichte Episoden sofort hochladen', type: 'checkbox', value: !!host?.autoPush },
+    ], 'Speichern');
+    if (!v) return;
+    await run(() => ctx.api.put(ctx.url('/podcast/host'), v));
+    await load();
+    if (v.kind) await testHost();
+  }
+
+  async function testHost() {
+    await run(async () => {
+      const r = await ctx.api.post(ctx.url('/podcast/host/test'), {});
+      status(`✓ ${r.message}`);
+    });
+  }
+
+  /** @param {any} e */
+  async function pushEpisode(e) {
+    status(`Lade „${e.title}“ hoch …`);
+    await run(async () => {
+      await ctx.api.post(ctx.url(`/podcast/episodes/${e.id}/push`), {});
+      status(`✓ „${e.title}“ bei ${HOSTS[podcast.host?.kind] ?? 'Hoster'} angelegt${e.publishedAt ? '' : ' (Entwurf – lokal erst veröffentlichen)'}`);
+      await load();
+    });
   }
 
   async function editPodcastConfig() {

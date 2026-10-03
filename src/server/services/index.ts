@@ -22,6 +22,7 @@ import { NextcloudService } from './nextcloud.ts';
 import { NotificationService } from './notifications.ts';
 import { PlanningService } from './planning.ts';
 import { PodcastService } from './podcast.ts';
+import { PodcastHostService } from './podcast-host.ts';
 import { RecapService } from './recap.ts';
 import { RecorderService } from './recorder.ts';
 import { SetupService } from './setup.ts';
@@ -52,6 +53,7 @@ export function createServices(app: AnMaChaCastApp) {
     lifehacks: new LifehacksService(app),
     news: new NewsService(app),
     podcast: new PodcastService(app),
+    podcastHost: new PodcastHostService(app),
     recap: new RecapService(app),
     stats: new StatsService(app),
     motionMix: new MotionMixService(app),

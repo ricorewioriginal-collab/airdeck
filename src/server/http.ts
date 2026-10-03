@@ -701,6 +701,10 @@ export function createHttpServer(app: AnMaChaCastApp, studioDir: string): Server
     return app.svc.podcast.createEpisode(sid(c), String(b.recordingId ?? ''), b);
   });
   add('PATCH', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', async (c) => app.svc.podcast.updateEpisode(sid(c), c.params.id!, await c.body()));
+  add('PUT', '/api/v1/stations/:sid/podcast/host', 'automation:write', async (c) => ({ host: app.svc.podcastHost.save(sid(c), await c.body()) }));
+  add('POST', '/api/v1/stations/:sid/podcast/host/test', 'automation:write', (c) => app.svc.podcastHost.test(sid(c)));
+  add('POST', '/api/v1/stations/:sid/podcast/check', 'automation:write', (c) => app.svc.podcastHost.check(sid(c)));
+  add('POST', '/api/v1/stations/:sid/podcast/episodes/:id/push', 'automation:write', (c) => app.svc.podcastHost.push(sid(c), c.params.id!));
   add('DELETE', '/api/v1/stations/:sid/podcast/episodes/:id', 'automation:write', (c) => app.svc.podcast.deleteEpisode(sid(c), c.params.id!));
 
   // --- Hörerstatistik ---
